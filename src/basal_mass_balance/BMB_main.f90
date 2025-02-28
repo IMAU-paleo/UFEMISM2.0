@@ -827,11 +827,6 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
 
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_subgrid_BMB'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
     ! Different sub-grid schemes for sub-shelf melt
         IF (C%do_subgrid_BMB_at_grounding_line) THEN
           IF     (C%choice_BMB_subgrid == 'FCMP') THEN
@@ -848,8 +843,6 @@ CONTAINS
           ! Apply NMP scheme
           IF (ice%fraction_gr( vi) == 0._dp) BMB%BMB( vi) = BMB%BMB_shelf( vi)
         END IF
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
 
   END SUBROUTINE compute_subgrid_BMB
 

@@ -901,6 +901,9 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_GIA_model_config                      = 'none'
     REAL(dp)            :: dt_GIA_config                                = 100._dp                         ! [yr] GIA model time step
     REAL(dp)            :: dx_GIA_config                                = 50E3_dp                         ! [m]  GIA model square grid resolution
+    REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config        = 1.0E+25                         ! [kg m^2 s^-2] Lithospheric flexural rigidity
+    REAL(dp)            :: ELRA_bedrock_relaxation_time_config          = 3000.0                          ! [yr] Relaxation time for bedrock adjustment 
+    REAL(dp)            :: ELRA_mantle_density_config                   = 3300.0                          ! [kg m^-3] Mantle density 
 
   ! == Sea level
   ! ============
@@ -1890,6 +1893,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_GIA_model
     REAL(dp)            :: dt_GIA
     REAL(dp)            :: dx_GIA
+    REAL(dp)            :: ELRA_lithosphere_flex_rigidity
+    REAL(dp)            :: ELRA_bedrock_relaxation_time
+    REAL(dp)            :: ELRA_mantle_density
+    
 
   ! == Sea level
   ! ============
@@ -2763,6 +2770,9 @@ CONTAINS
       choice_GIA_model_config                                     , &
       dt_GIA_config                                               , &
       dx_GIA_config                                               , &
+      ELRA_lithosphere_flex_rigidity_config                       , &
+      ELRA_bedrock_relaxation_time_config                         , &
+      ELRA_mantle_density_config                                  , &
       choice_sealevel_model_config                                , &
       fixed_sealevel_config                                       , &
       SELEN_run_at_t_start_config                                 , &
@@ -3767,6 +3777,9 @@ CONTAINS
     C%choice_GIA_model                                       = choice_GIA_model_config
     C%dt_GIA                                                 = dt_GIA_config
     C%dx_GIA                                                 = dx_GIA_config
+    C%ELRA_lithosphere_flex_rigidity                         = ELRA_lithosphere_flex_rigidity_config
+    C%ELRA_bedrock_relaxation_time                           = ELRA_bedrock_relaxation_time_config
+    C%ELRA_mantle_density                                    = ELRA_mantle_density_config 
 
   ! == Sea level
   ! ============
