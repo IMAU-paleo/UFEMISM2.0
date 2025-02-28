@@ -181,6 +181,7 @@ UFEMISM_source = \
   io/netcdf_input/netcdf_determine_indexing.f90 \
   io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
   io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_series_file.f90 \
   io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
   io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
   io/netcdf_input/netcdf_input.f90 \
