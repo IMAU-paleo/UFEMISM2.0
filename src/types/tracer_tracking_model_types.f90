@@ -61,7 +61,8 @@ module tracer_tracking_model_types
 
     type(type_map_particles_to_mesh)      :: map            !< Map from the particles to the mesh
 
-    type(type_tracer_tracking_model_particles_netcdf) :: nc   !< NetCDF IDs for the output file
+    real(dp)                              :: t_write_raw_output !< Time when raw output should be written to NetCDF
+    type(type_tracer_tracking_model_particles_netcdf) :: nc     !< NetCDF IDs for the output file
 
   end type type_tracer_tracking_model_particles
 

@@ -142,6 +142,11 @@ contains
     call calc_scaled_coordinates( mesh, particles, rs_mesh, rs_particles)
 
     ! Initialise map data
+    if (allocated( particles%map%ip)) deallocate( particles%map%ip)
+    if (allocated( particles%map%d )) deallocate( particles%map%d )
+    allocate( particles%map%ip( mesh%nV, C%nz, particles%map%n))
+    allocate( particles%map%d ( mesh%nV, C%nz, particles%map%n))
+
     dist_max = norm2( [mesh%xmin,mesh%ymin] - [mesh%xmax,mesh%ymax])
     particles%map%ip = 0
     particles%map%d  = dist_max

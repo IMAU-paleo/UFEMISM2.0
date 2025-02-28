@@ -897,8 +897,8 @@ MODULE model_configuration
     REAL(dp)            :: dt_GIA_config                                = 100._dp                         ! [yr] GIA model time step
     REAL(dp)            :: dx_GIA_config                                = 50E3_dp                         ! [m]  GIA model square grid resolution
     REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config        = 1.0E+25                         ! [kg m^2 s^-2] Lithospheric flexural rigidity
-    REAL(dp)            :: ELRA_bedrock_relaxation_time_config          = 3000.0                          ! [yr] Relaxation time for bedrock adjustment 
-    REAL(dp)            :: ELRA_mantle_density_config                   = 3300.0                          ! [kg m^-3] Mantle density 
+    REAL(dp)            :: ELRA_bedrock_relaxation_time_config          = 3000.0                          ! [yr] Relaxation time for bedrock adjustment
+    REAL(dp)            :: ELRA_mantle_density_config                   = 3300.0                          ! [kg m^-3] Mantle density
 
   ! == Sea level
   ! ============
@@ -944,7 +944,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_tracer_tracking_model_config          = 'none'                          ! Which tracer-tracking model to use (current options: 'none', 'particles')
 
     ! Settings for the particle-based tracer-tracking model
-    REAL(dp)            :: tractrackpart_dt_coupling_config             = 100._dp                         ! [yr] Coupling interval for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dt_coupling_config             = 10._dp                          ! [yr] Coupling interval for the particle-based tracer-tracking model
     REAL(dp)            :: tractrackpart_dx_particle_config             = 1e3_dp                          ! [m]  Distance that tracer-tracking particles should move in a single particle time step
     REAL(dp)            :: tractrackpart_dt_particle_min_config         = 1._dp                           ! [yr] Minimum allowed time step for tracer-tracking particles
     REAL(dp)            :: tractrackpart_dt_particle_max_config         = 1000._dp                        ! [yr] Maximum allowed time step for tracer-tracking particles
@@ -953,6 +953,7 @@ MODULE model_configuration
     REAL(dp)            :: tractrackpart_dx_new_particles_config        = 50e3_dp                         ! [m]  How far new particles should be spaced apart (square grid)
     INTEGER             :: tractrackpart_remap_n_nearest_config         = 4                               !      Between how many nearest particles should be interpolated when mapping tracers to the mesh
     LOGICAL             :: tractrackpart_write_raw_output_config        = .FALSE.                         !      Whether or not to write the raw particle data to a NetCDF output file
+    REAL(dp)            :: tractrackpart_dt_raw_output_config           = 100._dp                         !      Time step for writing raw particle data to NetCDF
 
   ! == Output
   ! =========
@@ -1903,7 +1904,6 @@ MODULE model_configuration
     REAL(dp)            :: ELRA_lithosphere_flex_rigidity
     REAL(dp)            :: ELRA_bedrock_relaxation_time
     REAL(dp)            :: ELRA_mantle_density
-    
 
   ! == Sea level
   ! ============
@@ -1954,6 +1954,7 @@ MODULE model_configuration
     REAL(dp)            :: tractrackpart_dx_new_particles
     INTEGER             :: tractrackpart_remap_n_nearest
     LOGICAL             :: tractrackpart_write_raw_output
+    REAL(dp)            :: tractrackpart_dt_raw_output
 
   ! == Output
   ! =========
@@ -2824,6 +2825,7 @@ CONTAINS
       tractrackpart_dx_new_particles_config                       , &
       tractrackpart_remap_n_nearest_config                        , &
       tractrackpart_write_raw_output_config                       , &
+      tractrackpart_dt_raw_output_config                          , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
       dt_output_restart_config                                    , &
@@ -3679,6 +3681,7 @@ CONTAINS
     C%choice_BMB_model_GRL_ROI                               = choice_BMB_model_GRL_ROI_config
     C%choice_BMB_model_ANT_ROI                               = choice_BMB_model_ANT_ROI_config
 
+
     ! Prescribed BMB forcing
     C%choice_BMB_prescribed_NAM                              = choice_BMB_prescribed_NAM_config
     C%choice_BMB_prescribed_EAS                              = choice_BMB_prescribed_EAS_config
@@ -3804,7 +3807,7 @@ CONTAINS
     C%dx_GIA                                                 = dx_GIA_config
     C%ELRA_lithosphere_flex_rigidity                         = ELRA_lithosphere_flex_rigidity_config
     C%ELRA_bedrock_relaxation_time                           = ELRA_bedrock_relaxation_time_config
-    C%ELRA_mantle_density                                    = ELRA_mantle_density_config 
+    C%ELRA_mantle_density                                    = ELRA_mantle_density_config
 
   ! == Sea level
   ! ============
@@ -3855,6 +3858,7 @@ CONTAINS
     C%tractrackpart_dx_new_particles                         = tractrackpart_dx_new_particles_config
     C%tractrackpart_remap_n_nearest                          = tractrackpart_remap_n_nearest_config
     C%tractrackpart_write_raw_output                         = tractrackpart_write_raw_output_config
+    C%tractrackpart_dt_raw_output                            = tractrackpart_dt_raw_output_config
 
   ! == Output
   ! =========
