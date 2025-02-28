@@ -331,13 +331,13 @@ contains
     type(type_grid_lat),    intent(  out) :: vec
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'setup_lonlat_grid_from_lat_file'
-    integer                        :: id_dim_lon, id_dim_lat
-    integer                        :: id_var_lon, id_var_lat
-    integer                        :: ierr, i
-    integer, parameter             :: nlon = 360
-    real(dp), parameter            :: dlon = 1.0
-    real(dp), dimension(:)         :: lon
+    character(len=1024), parameter       :: routine_name = 'setup_lonlat_grid_from_lat_file'
+    integer                              :: id_dim_lon, id_dim_lat
+    integer                              :: id_var_lon, id_var_lat
+    integer                              :: ierr, i
+    integer, parameter                   :: nlon = 360
+    real(dp), parameter                  :: dlon = 1.0
+    real(dp), allocatable, dimension(:)  :: lon
 
     ! Generate the vector of longitudes - hardcoded to be at 1 degree resolution
     do i=1, nlon
