@@ -52,7 +52,8 @@ contains
       case default
         call crash('unknown choice_tracer_tracking_model "' // trim(C%choice_tracer_tracking_model) // '"')
       case ('particles')
-        call run_tracer_tracking_model_particles( mesh, ice, SMB, tracer_tracking%particles, time)
+        call run_tracer_tracking_model_particles( mesh, ice, SMB, &
+          tracer_tracking%particles, time, tracer_tracking%age)
       end select
 
     elseif (time > tracer_tracking%t_next) THEN
@@ -90,8 +91,8 @@ contains
       colour_string( trim(C%choice_tracer_tracking_model), 'light blue') // '...'
 
     ! Allocate memory for the model-independent tracer-tracking data
-    allocate( tracer_tracking%age    ( mesh%nV, C%nz           ))
-    ! allocate( tracer_tracking%tracers( mesh%nV, C%nz, n_tracers))
+    allocate( tracer_tracking%age( mesh%vi1:mesh%vi2, C%nz))
+    ! allocate( tracer_tracking%tracers( mesh%vi1:mesh%vi2, C%nz, n_tracers))
 
     ! Initialise coupling times
     tracer_tracking%t_prev = -huge( tracer_tracking%t_prev)

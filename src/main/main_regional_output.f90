@@ -1378,14 +1378,14 @@ CONTAINS
 
       ! Main GIA variables
       CASE ('dHb_next')
-      	CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_next', d_grid_vec_partial_2D)
 
     ! == Tracer tracking ==
     ! =====================
 
       case ('age')
-      	call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%tracer_tracking%age, d_grid_vec_partial_3D)
+        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%tracer_tracking%age, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'age', d_grid_vec_partial_3D)
 
     ! ===== End of user-defined output fields =====

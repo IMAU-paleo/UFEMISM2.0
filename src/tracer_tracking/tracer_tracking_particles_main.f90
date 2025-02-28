@@ -14,6 +14,7 @@ module tracer_tracking_model_particles_main
   use mpi_distributed_memory, only: gather_to_all
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_all
   use tracer_tracking_model_particles_io, only: create_particles_netcdf_file, write_to_particles_netcdf_file
+  use tracer_tracking_model_particles_remapping, only: calc_particles_to_mesh_map, map_tracer_to_mesh
 
   implicit none
 
@@ -87,35 +88,87 @@ contains
 
   end subroutine initialise_tracer_tracking_model_particles
 
-  subroutine run_tracer_tracking_model_particles( mesh, ice, SMB, particles, time)
+  subroutine run_tracer_tracking_model_particles( mesh, ice, SMB, particles, time, age)
     !< Run the particle-based tracer-tracking model
 
     ! In- and output variables
-    type(type_mesh),                            intent(in   ) :: mesh
-    type(type_ice_model),                       intent(in   ) :: ice
-    type(type_SMB_model),                       intent(in   ) :: SMB
-    type(type_tracer_tracking_model_particles), intent(inout) :: particles
-    real(dp),                                   intent(in   ) :: time
+    type(type_mesh),                             intent(in   ) :: mesh
+    type(type_ice_model),                        intent(in   ) :: ice
+    type(type_SMB_model),                        intent(in   ) :: SMB
+    type(type_tracer_tracking_model_particles),  intent(inout) :: particles
+    real(dp),                                    intent(in   ) :: time
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz), intent(  out) :: age
 
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'run_tracer_tracking_model_particles'
     real(dp), dimension(mesh%nV)          :: Hi_tot, Hs_tot
     real(dp), dimension(mesh%nTri,C%nz)   :: u_3D_b_tot, v_3D_b_tot
     real(dp), dimension(mesh%nV  ,C%nz)   :: w_3D_tot
-    real(dp), dimension(:  ), allocatable :: Hi_grid_vec_partial
-    real(dp), dimension(:  ), allocatable :: SMB_grid_vec_partial
     real(dp), dimension(:,:), allocatable :: Hi_grid_tot
     real(dp), dimension(:,:), allocatable :: SMB_grid_tot
-    integer                               :: ip
-    real(dp)                              :: w0, w1
+    real(dp), dimension(particles%n_max)  :: age_p
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    allocate( Hi_grid_tot         ( particles%grid_new_particles%nx, particles%grid_new_particles%ny))
+    allocate( SMB_grid_tot        ( particles%grid_new_particles%nx, particles%grid_new_particles%ny))
+
+    call gather_ice_model_data( mesh, ice, SMB, particles, Hi_tot, Hs_tot, &
+      u_3D_b_tot, v_3D_b_tot, w_3D_tot, Hi_grid_tot, SMB_grid_tot)
+
+    ! If the time is right, add a new batch of particles
+    if (time >= particles%t_add_new_particles) then
+      particles%t_add_new_particles = particles%t_add_new_particles + C%tractrackpart_dt_new_particles
+      call add_new_particles_from_SMB( mesh, &
+        Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
+        Hi_grid_tot, SMB_grid_tot, particles, time)
+    end if
+
+    ! Move and remove particles
+    call move_and_remove_particles( mesh, particles, time, &
+      Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot)
+
+    ! ! Write raw particle data to output file
+    ! if (C%tractrackpart_write_raw_output) then
+    !   call write_to_particles_netcdf_file( particles, time)
+    ! end if
+
+    ! Map tracers to the model mesh
+    call calc_particles_to_mesh_map( mesh, particles)
+    age_p = time - particles%t_origin
+    call map_tracer_to_mesh( mesh, particles, age_p, age)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine run_tracer_tracking_model_particles
+
+  subroutine gather_ice_model_data( mesh, ice, SMB, particles, Hi_tot, Hs_tot, &
+      u_3D_b_tot, v_3D_b_tot, w_3D_tot, Hi_grid_tot, SMB_grid_tot)
+    !< Gather distributed ice model data for interpolating to the particles
+
+    ! In- and output variables
+    type(type_mesh),                            intent(in   ) :: mesh
+    type(type_ice_model),                       intent(in   ) :: ice
+    type(type_SMB_model),                       intent(in   ) :: SMB
+    type(type_tracer_tracking_model_particles), intent(in   ) :: particles
+    real(dp), dimension(mesh%nV),               intent(  out) :: Hi_tot, Hs_tot
+    real(dp), dimension(mesh%nTri,C%nz),        intent(  out) :: u_3D_b_tot, v_3D_b_tot
+    real(dp), dimension(mesh%nV  ,C%nz),        intent(  out) :: w_3D_tot
+    real(dp), dimension(:,:),                   intent(  out) :: Hi_grid_tot
+    real(dp), dimension(:,:),                   intent(  out) :: SMB_grid_tot
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'gather_ice_model_data'
+    real(dp), dimension(:  ), allocatable :: Hi_grid_vec_partial
+    real(dp), dimension(:  ), allocatable :: SMB_grid_vec_partial
 
     ! Add routine to path
     call init_routine( routine_name)
 
     allocate( Hi_grid_vec_partial ( particles%grid_new_particles%n1: particles%grid_new_particles%n2))
     allocate( SMB_grid_vec_partial( particles%grid_new_particles%n1: particles%grid_new_particles%n2))
-    allocate( Hi_grid_tot         ( particles%grid_new_particles%nx, particles%grid_new_particles%ny))
-    allocate( SMB_grid_tot        ( particles%grid_new_particles%nx, particles%grid_new_particles%ny))
 
     ! Map ice thickness and SMB to the particle creation grid
     call map_from_mesh_to_xy_grid_2D( mesh, particles%grid_new_particles, &
@@ -134,54 +187,10 @@ contains
     call gather_gridded_data_to_all( particles%grid_new_particles, Hi_grid_vec_partial,  Hi_grid_tot)
     call gather_gridded_data_to_all( particles%grid_new_particles, SMB_grid_vec_partial, SMB_grid_tot)
 
-    ! If the time is right, add a new batch of particles
-    if (time >= particles%t_add_new_particles) then
-      particles%t_add_new_particles = particles%t_add_new_particles + C%tractrackpart_dt_new_particles
-      call add_new_particles_from_SMB( mesh, &
-        Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
-        Hi_grid_tot, SMB_grid_tot, particles, time)
-    end if
-
-    ! Move and remove particles
-    do ip = 1, particles%n_max
-
-      if (.not. particles%is_in_use( ip)) cycle
-
-      ! If needed, update particle velocity and timeframes
-      do while (particles%t1( ip) < time)
-
-        particles%r( ip,:) = particles%r_t1( ip,:)
-        call update_particle_velocity( mesh, Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
-          particles, ip)
-
-        ! If the particle has been removed, stop tracing it
-        if (.not. particles%is_in_use( ip)) exit
-
-      end do
-
-      ! If the particle has been removed, stop tracing it
-      if (.not. particles%is_in_use( ip)) cycle
-
-      ! Interpolate particle position between timeframes
-      w0 = (particles%t1( ip) - time) / (particles%t1( ip) - particles%t0( ip))
-      w1 = 1._dp - w0
-      particles%r( ip,:) = (w0 * particles%r_t0( ip,:)) + (w1 * particles%r_t1( ip,:))
-
-    end do
-
-    ! Write raw particle data to output file
-    if (C%tractrackpart_write_raw_output) then
-      call write_to_particles_netcdf_file( particles, time)
-    end if
-
-    call warning('n_in_use = {int_01}', int_01 = count(particles%is_in_use))
-    ! call sync
-    ! call crash('whoopsiedaisy!')
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine run_tracer_tracking_model_particles
+  end subroutine gather_ice_model_data
 
   subroutine add_new_particles_from_SMB( mesh, &
     Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
@@ -199,9 +208,9 @@ contains
     real(dp),                                   intent(in   ) :: time
 
     ! Local variables:
-    character(len=1024), parameter        :: routine_name = 'add_new_particles_from_SMB'
-    integer                               :: n,i,j,n_added
-    real(dp)                              :: x,y
+    character(len=1024), parameter :: routine_name = 'add_new_particles_from_SMB'
+    integer                        :: n,i,j,n_added
+    real(dp)                       :: x,y
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -228,11 +237,59 @@ contains
 
     end do
 
-    call warning('added {int_01} new particles', int_01 = n_added)
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine add_new_particles_from_SMB
+
+  subroutine move_and_remove_particles( mesh, particles, time, &
+    Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot)
+
+    ! In- and output variables
+    type(type_mesh),                            intent(in   ) :: mesh
+    type(type_tracer_tracking_model_particles), intent(inout) :: particles
+    real(dp),                                   intent(in   ) :: time
+    real(dp), dimension(mesh%nV),               intent(in   ) :: Hi_tot, Hs_tot
+    real(dp), dimension(mesh%nTri,C%nz),        intent(in   ) :: u_3D_b_tot, v_3D_b_tot
+    real(dp), dimension(mesh%nV  ,C%nz),        intent(in   ) :: w_3D_tot
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'move_and_remove_particles'
+    integer                        :: ip
+    real(dp)                       :: w0, w1
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do ip = 1, particles%n_max
+
+      if (.not. particles%is_in_use( ip)) cycle
+
+      ! If needed, update particle velocity and timeframes
+      do while (particles%t1( ip) < time)
+
+        particles%r( ip,:) = particles%r_t1( ip,:)
+        call update_particle_velocity( mesh, Hi_tot, Hs_tot, u_3D_b_tot, v_3D_b_tot, w_3D_tot, &
+          particles, ip)
+
+        ! If the particle has been removed, stop tracing it
+        if (.not. particles%is_in_use( ip)) exit
+
+      end do
+
+      ! If the particle has been removed, stop tracing it
+      if (.not. particles%is_in_use( ip)) cycle
+
+      ! Interpolate particle position between timeframes
+      w0 = (particles%t1( ip) - time) / (particles%t1( ip) - particles%t0( ip))
+      w1 = 1._dp - w0
+      particles%r( ip,:) = (w0 * particles%r_t0( ip,:)) + (w1 * particles%r_t1( ip,:))
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine move_and_remove_particles
 
 end module tracer_tracking_model_particles_main
