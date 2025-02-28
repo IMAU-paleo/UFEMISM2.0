@@ -5,8 +5,8 @@ module netcdf_read_field_from_series_file
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use model_configuration, only: C
   use mpi_distributed_memory, only: distribute_from_master
+  use netcdf_determine_indexing
   use netcdf_basic
-  use netcdf_input
   use grid_lonlat_basic
   use netcdf_setup_grid_mesh_from_file
   use grid_types, only: type_grid_lonlat, type_grid_lat
@@ -54,7 +54,7 @@ contains
     call check_month( filename, ncid)
 
     !Allocate memory for time series
-    if (par%master) allocate( monthly_cycle( 12, 1))
+    if (par%master) allocate( monthly_cycle( 12))
 
     ! Find out which timeframe to read
     call find_timeframe( filename, ncid, time_to_read, ti)
