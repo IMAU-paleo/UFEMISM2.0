@@ -756,10 +756,10 @@ MODULE model_configuration
     REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
     
-    ! Inversion smoothing
-    LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the inverted BMB should be smoothed to a modelled BMB over a specified time window (only applied when do_BMB_inversion_config = .TRUE.)
-    REAL(dp)            :: BMB_transition_phase_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB inversion smoothing 
-    REAL(dp)            :: BMB_transition_phase_t_end_config            = +9.9E9_dp                        ! [yr] End   time for BMB inversion smoothing 
+    ! BMB transition phase
+    LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
+    REAL(dp)            :: BMB_transition_phase_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB transition phase
+    REAL(dp)            :: BMB_transition_phase_t_end_config            = +9.9E9_dp                        ! [yr] End   time for BMB transition phase
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line; if so, use choice_BMB_subgrid; if not, apply "NMP"
@@ -1749,7 +1749,7 @@ MODULE model_configuration
     REAL(dp)            :: BMB_inversion_t_start
     REAL(dp)            :: BMB_inversion_t_end
 
-    ! Inversion smoothing
+    ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase
     REAL(dp)            :: BMB_transition_phase_t_start
     REAL(dp)            :: BMB_transition_phase_t_end
@@ -3633,7 +3633,7 @@ CONTAINS
     C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
     C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
 
-    ! Inversion smoothing
+    ! BMB transition phase
     C%do_BMB_transition_phase                                = do_BMB_transition_phase_config
     C%BMB_transition_phase_t_start                           = BMB_transition_phase_t_start_config
     C%BMB_transition_phase_t_end                             = BMB_transition_phase_t_end_config
