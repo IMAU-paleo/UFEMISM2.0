@@ -5,7 +5,7 @@ module netcdf_setup_grid_mesh_from_file
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use grid_types, only: type_grid, type_grid_lonlat
+  use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_parallel_creation, only: broadcast_mesh
@@ -381,6 +381,6 @@ contains
 
     ! Finalise routine path
     call finalise_routine( routine_name)
-  end subroutine subroutine setup_lonlat_grid_from_lat_file
+  end subroutine setup_lonlat_grid_from_lat_file
 
 end module netcdf_setup_grid_mesh_from_file
