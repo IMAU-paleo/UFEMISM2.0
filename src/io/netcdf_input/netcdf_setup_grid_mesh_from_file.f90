@@ -337,7 +337,7 @@ contains
     integer                        :: ierr, i
     integer, parameter             :: nlon = 360
     real(dp), parameter            :: dlon = 1.0
-    real(dp)                       :: lon(:)
+    real(dp), dimension(:)         :: lon
 
     ! Generate the vector of longitudes - hardcoded to be at 1 degree resolution
     do i=1, nlon
