@@ -236,4 +236,4 @@ contains
   end subroutine read_time_from_file
 
 
-end module
+end module netcdf_read_field_from_series_file
