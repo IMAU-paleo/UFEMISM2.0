@@ -21,6 +21,7 @@ module read_and_remap_field_from_file
   use netcdf_read_field_from_mesh_file
   use netcdf_read_field_from_lonlat_grid_file
   use netcdf_read_field_from_xy_grid_file
+  use netcdf_read_field_from_series_file
   use netcdf, only: NF90_MAX_VAR_DIMS
 
   implicit none
@@ -28,6 +29,100 @@ module read_and_remap_field_from_file
 contains
 
   ! Read and map to mesh
+  subroutine read_field_from_file_1D_monthly( filename, field_name_options, &
+    mesh, d_partial, time_to_read)
+    !< Read a data field from a NetCDF file, and map it to the model mesh.
+
+    ! Not as flexible as the other functions. The file can provide the data on a global lat-only grid,
+
+    ! In/output variables:
+    character(len=*),         intent(in   ) :: filename
+    character(len=*),         intent(in   ) :: field_name_options
+    type(type_mesh),          intent(in   ) :: mesh
+    real(dp), dimension(:,:), intent(  out) :: d_partial
+    real(dp), optional,       intent(in   ) :: time_to_read
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'read_field_from_file_1D_monthly'
+    logical                               :: file_exists
+    logical                               :: has_lat_grid, has_mesh
+    integer                               :: ncid
+    type(type_grid)                       :: grid_from_file
+    type(type_grid_lonlat)                :: grid_lonlat_from_file
+    type(type_mesh)                       :: mesh_from_file
+    real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_from_file
+    real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
+    real(dp), dimension(:,:), allocatable :: d_mesh_partial_from_file
+    character(len=1024), parameter        :: method_mesh2mesh = '2nd_order_conservative'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Check if this file actually exists
+    inquire( exist = file_exists, file = trim( filename))
+    if (.not. file_exists) then
+      call crash('file "' // trim( filename) // '" not found!')
+    end if
+
+    ! Find out on what kind of grid the file is defined
+    call inquire_lat_grid( filename, has_lat_grid)
+    call inquire_mesh(        filename, has_mesh       )
+
+    ! Files with more than one grid are not recognised
+    if (has_lat_grid .and. has_mesh       ) call crash('file "' // trim( filename) // '" contains both a lat-only grid and a mesh!')
+
+    ! Choose the appropriate subroutine
+    if (has_lat_grid) then
+      ! Data is provided on a lat-only grid
+
+      ! Set up the grid from the file
+      call open_existing_netcdf_file_for_reading( filename, ncid)
+      call setup_lat_grid_from_lat_file( filename, ncid, grid_lat_from_file)
+      call close_netcdf_file( ncid)
+
+      ! allocate memory for gridded data
+      allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))
+
+      ! Read gridded data
+      call read_field_from_lat_file_1D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
+
+      ! Remap data
+      call map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      call deallocate_lonlat_grid( grid_lonlat_from_file)
+      deallocate( d_grid_lonlat_vec_partial_from_file)
+
+    elseif (has_mesh) then
+      ! Data is provided on a mesh
+
+      ! Set up the mesh from the file
+      call open_existing_netcdf_file_for_reading( filename, ncid)
+      call setup_mesh_from_file( filename, ncid, mesh_from_file)
+      call close_netcdf_file( ncid)
+
+      ! allocate memory for gridded data
+      allocate( d_mesh_partial_from_file( mesh_from_file%vi1: mesh_from_file%vi2,12))
+
+      ! Read meshed data
+      call read_field_from_mesh_file_dp_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
+
+      ! Remap data
+      call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+
+      ! Clean up after yourself
+      call deallocate_mesh( mesh_from_file)
+      deallocate( d_mesh_partial_from_file)
+
+    else
+      call crash('file "' // trim( filename) // '" does not contain a recognised lat-only grid or mesh!')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_field_from_file_1D_monthly
+
   subroutine read_field_from_file_2D( filename, field_name_options, &
     mesh, d_partial, time_to_read)
     !< Read a data field from a NetCDF file, and map it to the model mesh.

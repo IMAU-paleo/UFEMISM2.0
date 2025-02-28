@@ -12,12 +12,12 @@ module netcdf_read_field_from_series_file
 
   private
 
-  public :: read_field_from_series_file_monthly, read_field_from_lat_file_1D_monthly, read_field_from_lat_file_1D_monthly
+  public :: read_field_from_series_file_monthly, read_field_from_lat_file_1D_monthly, read_field_from_lat_file_1D_monthly, read_time_from_file
 
 contains
 
   subroutine read_field_from_series_file_monthly( filename, field_name_options, series, time_to_read)
-  !< Read a 1-D data field (e.g., time series) from a NetCDF file
+    !< Read a 1-D data field (e.g., time series) from a NetCDF file
 
     ! In/output variables:
     character(len=*),          intent( in) :: filename
@@ -191,4 +191,49 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_lonlat_file_2D_monthly
+  end subroutine read_field_from_lat_file_1D_monthly
+
+  subroutine read_time_from_file( filename, time)
+    ! Find the timeframe in the file that is closest to the desired time.
+    ! if the file has no time dimension or variable, throw an error.
+
+    ! In/output variables:
+    character(len=*),               intent(in   )  :: filename
+    real(dp), dimension(:),         intent(out   ) :: time
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'read_time_from_file'
+    integer                             :: ncid
+    integer                             :: nt, id_dim_time, id_var_time
+    !real(dp), dimension(:), allocatable :: time_from_file
+    integer                             :: ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Open the NetCDF file
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Check if the file contains a valid time dimension and variable
+    call check_time( filename, ncid)
+
+    ! inquire size of time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
+
+    ! inquire time variable ID
+    call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
+
+    ! allocate memory
+    allocate( time( nt)) ! TODO: do we need to allocate time?
+
+    ! Read time from file
+    call read_var_master( filename, ncid, id_var_time, time)
+    call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_time_from_file
+
+
+end module
