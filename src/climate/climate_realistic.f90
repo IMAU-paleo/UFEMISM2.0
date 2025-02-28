@@ -188,8 +188,10 @@ CONTAINS
       ! TODO: do we need to allocate these variables?!
       ALLOCATE( forcing%ins_nyears)
       ALLOCATE( forcing%ins_nlat)
+      ALLOCATE( forcing%ins_nlon)
       ALLOCATE( forcing%wins_nlat  )
       ALLOCATE( forcing%wins_nyears)
+      forcing%ins_nlon = 360
 
       ! Insolation
       ALLOCATE(forcing%ins_time       ( forcing%ins_nyears))

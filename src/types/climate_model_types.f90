@@ -54,14 +54,13 @@ MODULE climate_model_types
       INTEGER :: wd18O_time, wd18O_record, wd18O_obs, wd18O_obs_PD
 
       ! Insolation reconstruction
-      TYPE(type_netcdf_insolation)            :: netcdf_ins
+      !TYPE(type_netcdf_insolation)                :: netcdf_ins
       INTEGER,                    ALLOCATABLE     :: ins_nyears
-      INTEGER,                    ALLOCATABLE     :: ins_nlat
+      INTEGER,                    ALLOCATABLE     :: ins_nlat,ins_nlon
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_time
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_lat
       REAL(dp),                   ALLOCATABLE     :: ins_t0, ins_t1
       REAL(dp), DIMENSION(:,:  ), ALLOCATABLE     :: ins_Q_TOA0, ins_Q_TOA1
-      INTEGER, parameter                          :: nlon=360
       
       INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
       
