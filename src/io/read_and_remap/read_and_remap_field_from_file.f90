@@ -67,7 +67,7 @@ contains
 
     ! Find out on what kind of grid the file is defined
     call inquire_lat_grid( filename, has_lat_grid)
-    call inquire_mesh(        filename, has_mesh       )
+    call inquire_mesh(  filename, has_mesh       )
 
     ! Files with more than one grid are not recognised
     if (has_lat_grid .and. has_mesh       ) call crash('file "' // trim( filename) // '" contains both a lat-only grid and a mesh!')
@@ -79,7 +79,7 @@ contains
       ! TODO: this is where things are going wrong for now
       ! Set up the grid from the file
       call open_existing_netcdf_file_for_reading( filename, ncid)
-      call setup_lat_grid_from_lat_file( filename, ncid, grid_lat_from_file)
+      call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file)
       call close_netcdf_file( ncid)
 
       ! allocate memory for gridded data
