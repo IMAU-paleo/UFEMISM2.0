@@ -11,7 +11,7 @@ module read_and_remap_field_from_file
   use model_configuration, only: C
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
-  use grid_types, only: type_grid, type_grid_lonlat
+  use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
   use remapping_main
   use grid_basic, only: deallocate_grid
   use grid_lonlat_basic, only: deallocate_lonlat_grid
@@ -50,7 +50,7 @@ contains
     integer                               :: ncid
     type(type_grid)                       :: grid_from_file
     type(type_grid_lonlat)                :: grid_lonlat_from_file
-    !type(type_grid_lat)                   :: grid_lat_from_file
+    type(type_grid_lat)                   :: grid_lat_from_file
     type(type_mesh)                       :: mesh_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
@@ -80,7 +80,7 @@ contains
       ! TODO: this is where things are going wrong for now
       ! Set up the grid from the file
       call open_existing_netcdf_file_for_reading( filename, ncid)
-      call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file)
+      call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file, grid_lat_from_file)
       call close_netcdf_file( ncid)
 
       ! allocate memory for gridded data
@@ -94,6 +94,7 @@ contains
 
       ! Clean up after yourself
       call deallocate_lonlat_grid( grid_lonlat_from_file)
+      call deallocate_lat_grid( grid_lat_from_file)
       deallocate( d_grid_lonlat_vec_partial_from_file)
 
     elseif (has_mesh) then
