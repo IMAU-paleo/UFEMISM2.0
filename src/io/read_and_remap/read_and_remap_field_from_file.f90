@@ -14,7 +14,7 @@ module read_and_remap_field_from_file
   use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
   use remapping_main
   use grid_basic, only: deallocate_grid
-  use grid_lonlat_basic, only: deallocate_lonlat_grid
+  use grid_lonlat_basic, only: deallocate_lonlat_grid, deallocate_lat_grid
   use mesh_memory, only: deallocate_mesh
   use netcdf_basic
   use netcdf_setup_grid_mesh_from_file
