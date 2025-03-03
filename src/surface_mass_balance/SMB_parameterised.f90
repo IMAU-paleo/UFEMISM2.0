@@ -1,4 +1,4 @@
-module SMB_Parameterised
+module SMB_parameterised
 
   ! Parameterised SMB models
 

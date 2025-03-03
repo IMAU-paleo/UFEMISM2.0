@@ -223,6 +223,7 @@ UFEMISM_source = \
   basal_conditions/bed_roughness.f90 \
   basal_conditions/sliding_laws.f90 \
   \
+  surface_mass_balance/SMB_parameterised.f90 \
   surface_mass_balance/SMB_idealised.f90 \
   surface_mass_balance/SMB_prescribed.f90 \
   surface_mass_balance/SMB_main.f90 \
