@@ -76,6 +76,7 @@ contains
     if (has_lat_grid) then
       ! Data is provided on a lat-only grid
 
+      ! TODO: this is where things are going wrong for now
       ! Set up the grid from the file
       call open_existing_netcdf_file_for_reading( filename, ncid)
       call setup_lat_grid_from_lat_file( filename, ncid, grid_lat_from_file)
