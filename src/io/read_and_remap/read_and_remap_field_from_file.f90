@@ -50,6 +50,7 @@ contains
     integer                               :: ncid
     type(type_grid)                       :: grid_from_file
     type(type_grid_lonlat)                :: grid_lonlat_from_file
+    !type(type_grid_lat)                   :: grid_lat_from_file
     type(type_mesh)                       :: mesh_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
