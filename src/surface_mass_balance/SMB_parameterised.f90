@@ -8,8 +8,9 @@ module SMB_parameterised
   use model_configuration, only: C
   use parameters
   use mesh_types, only: type_mesh
-  use ice_model_types, only: type_ice_model
-  use SMB_model_types, only: type_SMB_model
+  use ice_model_types,     only: type_ice_model
+  use SMB_model_types,     only: type_SMB_model
+  use climate_model_types, only: type_climate_model
   USE parameters,      only: T0, L_fusion, sec_per_year, pi, ice_density
 
   implicit none
@@ -30,7 +31,7 @@ contains
     type(type_mesh),      intent(in)    :: mesh
     type(type_ice_model), intent(in)    :: ice
     type(type_SMB_model), intent(inout) :: SMB
-    type(climate),        intent(in)    :: climate
+    type(climate_model),  intent(in)    :: climate
     real(dp),             intent(in)    :: time
 
     ! Local variables:
@@ -88,8 +89,8 @@ contains
     DO vi = mesh%vi1, mesh%vi2
       ! Background albedo
       SMB%AlbedoSurf( vi) = albedo_soil
-      IF ((ice%mask_ocean( vi) == 1 .AND. ice%mask_shelf( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%AlbedoSurf( vi) = albedo_water
-      IF (ice%mask_ice(    vi) == 1) SMB%AlbedoSurf( vi) = albedo_ice
+      IF ((ice%mask_icefree_ocean( vi) == 1 .AND. ice%mask_floating_ice( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%AlbedoSurf( vi) = albedo_water
+      IF (ice%mask_grounded_ice(   vi) == 1 .OR. ice%mask_floating_ice(  vi) == 1) SMB%AlbedoSurf( vi) = albedo_ice
 
       DO m = 1, 12  ! Month loop
 
@@ -153,7 +154,7 @@ contains
 
   end subroutine run_SMB_model_parameterised_IMAUITM
 
-SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
+  subroutine initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Initialise the SMB model
     !
     ! Use a parameterised SMB scheme
@@ -185,12 +186,12 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_SMB_model_parameterised
+  end subroutine initialise_SMB_model_parameterised
 
-  SUBROUTINE initialise_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, region_name)
+  subroutine initialise_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, region_name)
     ! Allocate memory for the data fields of the SMB model.
 
-    IMPLICIT NONE
+    !IMPLICIT NONE
 
     ! In/output variables
     TYPE(type_mesh),          INTENT(IN)    :: mesh
@@ -288,7 +289,7 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Initialise albedo
     DO vi = mesh%vi1, mesh%vi2
       ! Background albedo
-      IF (ice%Hb_a( vi) < 0._dp) THEN
+      IF (ice%Hb( vi) < 0._dp) THEN
         SMB%AlbedoSurf( vi) = albedo_water
       ELSE
         SMB%AlbedoSurf( vi) = albedo_soil
@@ -298,16 +299,15 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
       END IF
       SMB%Albedo( :,vi) = SMB%AlbedoSurf( vi)
     END DO
-    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-  END SUBROUTINE initialise_climate_model_parameterised_IMAUITM
+  end subroutine initialise_climate_model_parameterised_IMAUITM
 
-  SUBROUTINE initialise_IMAUITM_firn_from_file( mesh, SMB, region_name)
+  subroutine initialise_IMAUITM_firn_from_file( mesh, SMB, region_name)
     ! If this is a restarted run, read the firn depth and meltpreviousyear data from the restart file
 
-    IMPLICIT NONE
+    !IMPLICIT NONE
 
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
@@ -360,6 +360,6 @@ SUBROUTINE initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_IMAUITM_firn_from_file
+  end subroutine initialise_IMAUITM_firn_from_file
 
 end module SMB_parameterised

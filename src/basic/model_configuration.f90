@@ -750,6 +750,7 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
 
     ! Parameterised SMB forcing
+    CHARACTER(LEN=256)  :: choice_SMB_model_parameterised_config        = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM_config          = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS_config          = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL_config          = ''
@@ -2772,6 +2773,7 @@ CONTAINS
       timeframe_SMB_prescribed_EAS_config                         , &
       timeframe_SMB_prescribed_GRL_config                         , &
       timeframe_SMB_prescribed_ANT_config                         , &
+      choice_SMB_model_parameterised_config                       , &
       choice_SMB_parameterised_NAM_config                         , &
       choice_SMB_parameterised_EAS_config                         , &
       choice_SMB_parameterised_GRL_config                         , &
@@ -3734,6 +3736,7 @@ CONTAINS
     C%timeframe_SMB_prescribed_ANT                           = timeframe_SMB_prescribed_ANT_config
 
     ! Parameterised SMB forcing
+    C%choice_SMB_parameterised                               = choice_SMB_parameterised_config
     C%choice_SMB_parameterised_NAM                           = choice_SMB_parameterised_NAM_config
     C%choice_SMB_parameterised_EAS                           = choice_SMB_parameterised_EAS_config
     C%choice_SMB_parameterised_GRL                           = choice_SMB_parameterised_GRL_config
