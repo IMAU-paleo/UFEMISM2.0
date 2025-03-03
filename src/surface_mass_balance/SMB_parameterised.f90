@@ -28,22 +28,22 @@ contains
     ! use an idealised SMB scheme
 
     ! In/output variables:
-    type(type_mesh),      intent(in)    :: mesh
-    type(type_ice_model), intent(in)    :: ice
-    type(type_SMB_model), intent(inout) :: SMB
-    type(climate_model),  intent(in)    :: climate
-    real(dp),             intent(in)    :: time
+    type(type_mesh),      intent(in)         :: mesh
+    type(type_ice_model), intent(in)         :: ice
+    type(type_SMB_model), intent(inout)      :: SMB
+    type(type_climate_model),  intent(in)    :: climate
+    real(dp),             intent(in)         :: time
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'run_SMB_model_parameterised'
     integer                       :: vi
 
     ! Run the chosen parameterised SMB model
-    SELECT CASE (C%choice_SMB_model_parameterised)
+    SELECT CASE (C%choice_SMB_parameterised)
       CASE ('IMAU-ITM')
         CALL run_SMB_model_parameterised_IMAUITM( mesh, ice, climate, SMB)
       CASE DEFAULT
-        CALL crash('unknown choice_SMB_model_parameterised "' // TRIM( C%choice_SMB_model_parameterised) // '"')
+        CALL crash('unknown choice_SMB_parameterised "' // TRIM( C%choice_SMB_parameterised) // '"')
     END SELECT
 
     ! Add routine to path
@@ -99,7 +99,7 @@ contains
 
         SMB%Albedo( m,vi) = MIN(albedo_snow, MAX( SMB%AlbedoSurf( vi), albedo_snow - (albedo_snow - SMB%AlbedoSurf( vi))  * &
                              EXP(-15._dp * SMB%FirnDepth( mprev,vi)) - 0.015_dp * SMB%MeltPreviousYear( vi)))
-        IF ((ice%mask_ocean( vi) == 1 .AND. ice%mask_shelf( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%Albedo( m,vi) = albedo_water
+        IF ((ice%mask_icefree_ocean( vi) == 1 .AND. ice%mask_floating_ice( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%Albedo( m,vi) = albedo_water
 
         ! Determine ablation as a function of surface temperature and albedo/insolation according to Bintanja et al. (2002)
         SMB%Melt( m,vi) = MAX(0._dp, ( SMB%C_abl_Ts         * (climate%T2m( m,vi) - T0) + &
@@ -134,7 +134,7 @@ contains
       liquid_water = SUM(SMB%Rainfall( :,vi)) + SUM(SMB%Melt( :,vi))
 
       SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,vi)))
-      IF (ice%mask_ice( vi)==0) SMB%Refreezing_year( vi) = 0._dp
+      IF (ice%mask_grounded_ice( vi)==0 .OR. ice%mask_floating_ice( vi)==0) SMB%Refreezing_year( vi) = 0._dp
 
       DO m = 1, 12
         SMB%Refreezing(  m,vi) = SMB%Refreezing_year( vi) / 12._dp
@@ -173,14 +173,14 @@ contains
 
     ! Print to terminal
     IF (par%master)  WRITE(*,"(A)") '   Initialising parameterised SMB model "' // &
-      colour_string( TRIM( C%choice_SMB_model_parameterised),'light blue') // '"...'
+      colour_string( TRIM( C%choice_SMB_parameterised),'light blue') // '"...'
 
     ! Initialise the chosen parameterised SMB model
-    SELECT CASE (C%choice_SMB_model_parameterised)
+    SELECT CASE (C%choice_SMB_parameterised)
       CASE ('IMAU-ITM')
         CALL initialise_SMB_model_parameterised_IMAUITM( mesh, ice, SMB, climate, region_name)
       CASE DEFAULT
-        CALL crash('unknown choice_SMB_model_parameterised "' // TRIM( C%choice_SMB_model_parameterised) // '"')
+        CALL crash('unknown choice_SMB_parameterised "' // TRIM( C%choice_SMB_parameterised) // '"')
     END SELECT
 
     ! Finalise routine path
@@ -302,7 +302,7 @@ contains
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-  end subroutine initialise_climate_model_parameterised_IMAUITM
+  end subroutine initialise_SMB_model_parameterised_IMAUITM
 
   subroutine initialise_IMAUITM_firn_from_file( mesh, SMB, region_name)
     ! If this is a restarted run, read the firn depth and meltpreviousyear data from the restart file
@@ -315,7 +315,7 @@ contains
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAUITM_firn_restart'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAUITM_firn_from_file'
     CHARACTER(LEN=256)                                 :: filename_restart_firn
     REAL(dp)                                           :: timeframe_restart_firn
     TYPE(type_restart_data)                            :: restart
