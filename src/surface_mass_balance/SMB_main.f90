@@ -162,7 +162,7 @@ CONTAINS
       CASE ('reconstructed')
         CALL initialise_SMB_model_reconstructed( mesh, SMB, region_name)
       CASE ('parameterised')  
-        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, time)  
+        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -215,7 +215,7 @@ CONTAINS
       CASE ('reconstructed')
         ! No need to do anything
       CASE ('parameterised')  
-        ! No need to do anything  
+        write_to_restart_file_SMB_model_region(mesh, SMB, region_name, time)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -225,7 +225,7 @@ CONTAINS
 
   END SUBROUTINE write_to_restart_file_SMB_model
 
-  SUBROUTINE write_to_restart_file_SMB_model_region(mesh, SMB, region_name)
+  SUBROUTINE write_to_restart_file_SMB_model_region(mesh, SMB, region_name, time)
     ! Write to the restart NetCDF file for the SMB model
 
     ! In/output variables:
@@ -258,9 +258,10 @@ CONTAINS
     CALL write_time_to_file( SMB%restart_filename, ncid, time)
 
     ! ! Write the SMB fields to the file
-    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'SMB', SMB%SMB)
+    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'SMB_monthly', SMB%SMB_monthly)
     CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'FirnDepth', SMB%FirnDepth)
-    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'MeltPreviousYear', SMB%MeltPreviousYear)
+    CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'MeltPreviousYear', SMB%MeltPreviousYear)
+    CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'SMB', SMB%SMB)
 
     ! Close the file
     CALL close_netcdf_file( ncid)

@@ -209,31 +209,7 @@ contains
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    ! allocate Data fields
-    !IF (par%master) THEN
-    !  ALLOCATE(SMB%AlbedoSurf      (   mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%MeltPreviousYear(   mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%FirnDepth       (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Rainfall        (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Snowfall        (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%AddedFirn       (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Melt            (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Refreezing      (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Refreezing_year (   mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Runoff          (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Albedo          (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%Albedo_year     (   mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%SMB_monthly     (12,mesh%vi1:mesh%vi2))
-    !  ALLOCATE(SMB%SMB             (   mesh%vi1:mesh%vi2))
-
-      ! Tuning parameters
-    !  ALLOCATE( SMB%C_abl_constant)
-    !  ALLOCATE( SMB%C_abl_Ts)
-    !  ALLOCATE( SMB%C_abl_Q)
-    !  ALLOCATE( SMB%C_refr)
-    !END IF
-
+    
     ! Determine which constants to use for this region
     IF     (region_name == 'NAM') THEN
       SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_NAM
