@@ -12,6 +12,7 @@ module SMB_parameterised
   use SMB_model_types,     only: type_SMB_model
   use climate_model_types, only: type_climate_model
   USE parameters,      only: T0, L_fusion, sec_per_year, pi, ice_density
+  use netcdf_io_main
 
   implicit none
 
@@ -77,7 +78,7 @@ contains
 
     ! Print to terminal
     if (par%master) write(*,"(a)") '   Initialising parameterised SMB model "' // &
-      colour_string( trim( C%choice_SMB_model_parameterised),'light blue') // '"...'
+      colour_string( trim( C%choice_SMB_parameterised),'light blue') // '"...'
 
     ! Run the chosen parameterised SMB model
 
@@ -89,8 +90,8 @@ contains
     DO vi = mesh%vi1, mesh%vi2
       ! Background albedo
       SMB%AlbedoSurf( vi) = albedo_soil
-      IF ((ice%mask_icefree_ocean( vi) == 1 .AND. ice%mask_floating_ice( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%AlbedoSurf( vi) = albedo_water
-      IF (ice%mask_grounded_ice(   vi) == 1 .OR. ice%mask_floating_ice(  vi) == 1) SMB%AlbedoSurf( vi) = albedo_ice
+      IF ((ice%mask_icefree_ocean( vi) .eqv. .TRUE. .AND. ice%mask_floating_ice( vi) .eqv. .FALSE.) .OR. ice%mask_noice( vi) .eqv. .TRUE.) SMB%AlbedoSurf( vi) = albedo_water
+      IF (ice%mask_grounded_ice(   vi) .eqv. .TRUE. .OR. ice%mask_floating_ice(  vi) .eqv. .TRUE.) SMB%AlbedoSurf( vi) = albedo_ice
 
       DO m = 1, 12  ! Month loop
 
@@ -99,7 +100,7 @@ contains
 
         SMB%Albedo( m,vi) = MIN(albedo_snow, MAX( SMB%AlbedoSurf( vi), albedo_snow - (albedo_snow - SMB%AlbedoSurf( vi))  * &
                              EXP(-15._dp * SMB%FirnDepth( mprev,vi)) - 0.015_dp * SMB%MeltPreviousYear( vi)))
-        IF ((ice%mask_icefree_ocean( vi) == 1 .AND. ice%mask_floating_ice( vi) == 0) .OR. ice%mask_noice( vi) == 1) SMB%Albedo( m,vi) = albedo_water
+        IF ((ice%mask_icefree_ocean( vi) .eqv. .TRUE. .AND. ice%mask_floating_ice( vi) .eqv. .FALSE.) .OR. ice%mask_noice( vi) .eqv. .TRUE.) SMB%Albedo( m,vi) = albedo_water
 
         ! Determine ablation as a function of surface temperature and albedo/insolation according to Bintanja et al. (2002)
         SMB%Melt( m,vi) = MAX(0._dp, ( SMB%C_abl_Ts         * (climate%T2m( m,vi) - T0) + &
@@ -134,7 +135,7 @@ contains
       liquid_water = SUM(SMB%Rainfall( :,vi)) + SUM(SMB%Melt( :,vi))
 
       SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,vi)))
-      IF (ice%mask_grounded_ice( vi)==0 .OR. ice%mask_floating_ice( vi)==0) SMB%Refreezing_year( vi) = 0._dp
+      IF (ice%mask_grounded_ice( vi) .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
 
       DO m = 1, 12
         SMB%Refreezing(  m,vi) = SMB%Refreezing_year( vi) / 12._dp
@@ -154,13 +155,14 @@ contains
 
   end subroutine run_SMB_model_parameterised_IMAUITM
 
-  subroutine initialise_SMB_model_parameterised( mesh, SMB, climate, region_name)
+  subroutine initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)
     ! Initialise the SMB model
     !
     ! Use a parameterised SMB scheme
 
     ! In- and output variables
     TYPE(type_mesh),          INTENT(IN)    :: mesh
+    TYPE(type_ice_model),      INTENT(IN)   :: ice
     TYPE(type_climate_model), INTENT(IN)    :: climate
     TYPE(type_SMB_model),     INTENT(INOUT) :: SMB
     CHARACTER(LEN=3),         INTENT(IN)    :: region_name
@@ -208,27 +210,29 @@ contains
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Data fields
-    ALLOCATE(SMB%AlbedoSurf      (   mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%MeltPreviousYear(   mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%FirnDepth       (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Rainfall        (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Snowfall        (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%AddedFirn       (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Melt            (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Refreezing      (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Refreezing_year (   mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Runoff          (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Albedo          (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%Albedo_year     (   mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%SMB_monthly     (12,mesh%vi1:mesh%vi2))
-    ALLOCATE(SMB%SMB             (   mesh%vi1:mesh%vi2))
+    ! allocate Data fields
+    !IF (par%master) THEN
+    !  ALLOCATE(SMB%AlbedoSurf      (   mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%MeltPreviousYear(   mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%FirnDepth       (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Rainfall        (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Snowfall        (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%AddedFirn       (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Melt            (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Refreezing      (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Refreezing_year (   mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Runoff          (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Albedo          (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%Albedo_year     (   mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%SMB_monthly     (12,mesh%vi1:mesh%vi2))
+    !  ALLOCATE(SMB%SMB             (   mesh%vi1:mesh%vi2))
 
-    ! Tuning parameters
-    ALLOCATE( SMB%C_abl_constant)
-    ALLOCATE( SMB%C_abl_Ts)
-    ALLOCATE( SMB%C_abl_Q)
-    ALLOCATE( SMB%C_refr)
+      ! Tuning parameters
+    !  ALLOCATE( SMB%C_abl_constant)
+    !  ALLOCATE( SMB%C_abl_Ts)
+    !  ALLOCATE( SMB%C_abl_Q)
+    !  ALLOCATE( SMB%C_refr)
+    !END IF
 
     ! Determine which constants to use for this region
     IF     (region_name == 'NAM') THEN
@@ -283,7 +287,7 @@ contains
       ! Initialise with the firn layer of a previous run
       CALL initialise_IMAUITM_firn_from_file( mesh, SMB, region_name)
     ELSE
-      CALL crash('unknown choice_SMB_IMAUITM_init_firn "' // TRIM( SMB_IMAUITM_choice_init_firn) // '"!')
+      CALL crash('unknown choice_SMB_IMAUITM_init_firn "' // TRIM( choice_SMB_IMAUITM_init_firn) // '"!')
     END IF
 
     ! Initialise albedo
@@ -318,7 +322,7 @@ contains
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAUITM_firn_from_file'
     CHARACTER(LEN=256)                                 :: filename_restart_firn
     REAL(dp)                                           :: timeframe_restart_firn
-    TYPE(type_restart_data)                            :: restart
+    !TYPE(type_restart_data)                            :: restart
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -327,22 +331,22 @@ contains
     SELECT CASE (region_name)
     CASE('NAM') 
       filename_restart_firn = C%filename_firn_IMAUITM_NAM
-      timeframe_restart_firn = C%timeframe_firn_IMAUITM_NAM
+      timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_NAM
     CASE('EAS') 
       filename_restart_firn = C%filename_firn_IMAUITM_EAS
-      timeframe_restart_firn = C%timeframe_firn_IMAUITM_EAS
+      timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_EAS
     CASE('GRL') 
       filename_restart_firn = C%filename_firn_IMAUITM_GRL
-      timeframe_restart_firn = C%timeframe_firn_IMAUITM_GRL
+      timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_GRL
     CASE('ANT') 
       filename_restart_firn = C%filename_firn_IMAUITM_ANT
-      timeframe_restart_firn = C%timeframe_firn_IMAUITM_ANT
+      timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_ANT
     CASE DEFAULT
         CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
     END SELECT
 
      ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising SMB-model firn layer from file "' // colour_string( TRIM(filename_restart_SMB),'light blue') // '"...'
+    IF (par%master)  WRITE(*,"(A)") '   Initialising SMB-model firn layer from file "' // colour_string( TRIM(filename_restart_firn),'light blue') // '"...'
 
 
     ! Read firn layer from file
