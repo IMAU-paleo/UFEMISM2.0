@@ -20,6 +20,7 @@ MODULE region_types
   USE basal_inversion_types                                  , ONLY: type_basal_inversion, type_hydrology_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
   use tracer_tracking_model_types, only: type_tracer_tracking_model
+  use transect_types, only: type_transect
 
   IMPLICIT NONE
 
@@ -100,6 +101,9 @@ MODULE region_types
     INTEGER                                 :: nROI                        ! Number of regions of interest for this model region
     TYPE(type_grid)   , DIMENSION(100)      :: output_grids_ROI            ! The square grids used for gridded output files for the region of interest
     CHARACTER(LEN=256), DIMENSION(100)      :: output_filenames_grid_ROI   ! Name of NetCDF output file for the region of interest (grid version)
+
+    ! Transects output
+    type(type_transect), dimension(:), allocatable :: transects
 
   END TYPE type_model_region
 

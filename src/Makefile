@@ -95,11 +95,13 @@ UFEMISM_source = \
   types/GIA_model_types.f90 \
   types/basal_inversion_types.f90 \
   types/tracer_tracking_model_types.f90 \
+  types/transect_types.f90 \
   types/region_types.f90 \
   \
   basic/parameters.f90 \
   basic/mpi_basic.f90 \
   basic/reallocate_mod.f90 \
+  basic/string_module.f90 \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
   \
@@ -194,6 +196,7 @@ UFEMISM_source = \
   io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
   io/netcdf_output/netcdf_write_field_grid.f90 \
   io/netcdf_output/netcdf_write_field_mesh.f90 \
+  io/netcdf_output/netcdf_write_field_transect.f90 \
   io/netcdf_output/netcdf_resource_tracking.f90 \
   io/netcdf_output/netcdf_output.f90 \
   \
@@ -206,12 +209,15 @@ UFEMISM_source = \
   mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
   mesh/remapping/create_maps_gridlonlat_mesh.f90 \
   mesh/remapping/remapping_mesh_to_mesh.f90 \
+  mesh/remapping/remapping_transects.f90 \
   mesh/remapping/apply_maps.f90 \
   mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
   \
   io/read_and_remap/read_and_remap_field_from_file.f90 \
   io/netcdf_io_main.f90 \
+  \
+  io/transects/transects_main.f90 \
   \
   reference_states/reference_geometries.f90 \
   \

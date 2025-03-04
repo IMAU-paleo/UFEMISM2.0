@@ -50,6 +50,7 @@ MODULE UFEMISM_main_model
   use ice_mass_and_fluxes, only: calc_ice_mass_and_fluxes
   use tracer_tracking_model_main, only: initialise_tracer_tracking_model, run_tracer_tracking_model, &
     remap_tracer_tracking_model
+  use transects_main, only: initialise_transects, write_to_transect_netcdf_output_files
 
   IMPLICIT NONE
 
@@ -278,6 +279,9 @@ CONTAINS
       DO i = 1, region%nROI
         CALL write_to_main_regional_output_file_grid_ROI( region, region%output_grids_ROI( i), region%output_filenames_grid_ROI( i))
       END DO
+
+      ! Write to the transect output files
+      call write_to_transect_netcdf_output_files( region)
     END IF
 
     IF (do_output_restart) THEN
@@ -603,6 +607,9 @@ CONTAINS
     CALL create_restart_file_SMB_model    ( region%mesh, region%SMB    , region%name)
     CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
     CALL create_restart_file_GIA_model    ( region%mesh, region%GIA    , region%name)
+
+    ! Initialise the output transects
+    call initialise_transects( region)
 
     ! Create the scalar regional output file
     CALL create_scalar_regional_output_file( region)

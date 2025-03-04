@@ -977,6 +977,12 @@ MODULE model_configuration
     REAL(dp)            :: dx_output_grid_ROI_GRL_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Greenland
     REAL(dp)            :: dx_output_grid_ROI_ANT_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Antarctica
 
+    ! Transects
+    character(len=1024) :: transects_NAM_config                         = ''                              ! List of transects to use for North America
+    character(len=1024) :: transects_EAS_config                         = ''                              ! List of transects to use for Eurasia
+    character(len=1024) :: transects_GRL_config                         = ''                              ! List of transects to use for Greenland
+    character(len=1024) :: transects_ANT_config                         = ''                              ! List of transects to use for Antarctica
+
     ! Which data fields we want to write to the main NetCDF output files
     CHARACTER(LEN=256)  :: choice_output_field_01_config                = 'none'
     CHARACTER(LEN=256)  :: choice_output_field_02_config                = 'none'
@@ -1983,6 +1989,12 @@ MODULE model_configuration
     REAL(dp)            :: dx_output_grid_ROI_GRL
     REAL(dp)            :: dx_output_grid_ROI_ANT
 
+    ! Transects
+    character(len=1024) :: transects_NAM
+    character(len=1024) :: transects_EAS
+    character(len=1024) :: transects_GRL
+    character(len=1024) :: transects_ANT
+
     ! Which data fields we want to write to the main NetCDF output files
     CHARACTER(LEN=256)  :: choice_output_field_01
     CHARACTER(LEN=256)  :: choice_output_field_02
@@ -2851,6 +2863,10 @@ CONTAINS
       dx_output_grid_ROI_EAS_config                               , &
       dx_output_grid_ROI_GRL_config                               , &
       dx_output_grid_ROI_ANT_config                               , &
+      transects_NAM_config                                        , &
+      transects_EAS_config                                        , &
+      transects_GRL_config                                        , &
+      transects_ANT_config                                        , &
       choice_output_field_01_config                               , &
       choice_output_field_02_config                               , &
       choice_output_field_03_config                               , &
@@ -3894,6 +3910,12 @@ CONTAINS
     C%dx_output_grid_ROI_EAS                                 = dx_output_grid_ROI_EAS_config
     C%dx_output_grid_ROI_GRL                                 = dx_output_grid_ROI_GRL_config
     C%dx_output_grid_ROI_ANT                                 = dx_output_grid_ROI_ANT_config
+
+    ! Transects
+    C%transects_NAM                                          = transects_NAM_config
+    C%transects_EAS                                          = transects_EAS_config
+    C%transects_GRL                                          = transects_GRL_config
+    C%transects_ANT                                          = transects_ANT_config
 
     ! Which data fields we want to write to the main NetCDF output files
     C%choice_output_field_01                                 = choice_output_field_01_config

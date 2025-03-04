@@ -5,12 +5,14 @@ module remapping_main
   use remapping_types, only: type_map
   use grid_types, only: type_grid, type_grid_lonlat
   use mesh_types, only: type_mesh
+  use transect_types, only: type_transect
   use interpolation, only: remap_cons_2nd_order_1D
   use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
   use remapping_grid_to_mesh_vertices
   use remapping_grid_to_mesh_triangles
   use remapping_mesh_vertices_to_grid
   use create_maps_gridlonlat_mesh
+  use remapping_transects
   use remapping_mesh_to_mesh
   use apply_maps
 
@@ -26,6 +28,8 @@ module remapping_main
   public :: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
   public :: map_from_mesh_to_mesh_2D, map_from_mesh_to_mesh_3D
   public :: map_from_vertical_to_vertical_2D_ocean
+  public :: map_from_mesh_vertices_to_transect_2D, map_from_mesh_vertices_to_transect_3D
+  public :: map_from_mesh_triangles_to_transect_2D, map_from_mesh_triangles_to_transect_3D
 
 contains
 
@@ -853,5 +857,241 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine map_from_vertical_to_vertical_2D_ocean
+
+  ! From a mesh to a transect
+  subroutine map_from_mesh_vertices_to_transect_2D( mesh, transect, d_mesh_partial, d_transect_partial, method)
+    ! Map a 2-D data field from the vertices of a mesh to a transect
+
+    ! In/output variables
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_transect),        intent(in   ) :: transect
+    real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:    ), intent(  out) :: d_transect_partial
+    character(len=*), optional, intent(in   ) :: method
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'map_from_mesh_vertices_to_transect_2D'
+    integer                        :: mi, mi_valid
+    logical                        :: found_map, found_empty_page
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .false.
+    do mi = 1, size( Atlas, 1)
+      if (Atlas( mi)%name_src == trim( mesh%name) // '_vertices' .and. &
+          Atlas( mi)%name_dst == 'transect_' // trim( transect%name)) then
+        ! if so specified, look for a mapping object with the correct method
+        if (present( method)) then
+          if (Atlas( mi)%method /= method) cycle
+        end if
+        found_map = .true.
+        mi_valid  = mi
+        exit
+      end if
+    end do
+
+    ! if no appropriate mapping object could be found, create one.
+    if (.not. found_map) then
+      found_empty_page = .false.
+      do mi = 1, size( Atlas,1)
+        if (.not. Atlas( mi)%is_in_use) then
+          found_empty_page = .true.
+          select case (method)
+          case default
+            call crash('invalid method "' // trim( method) // '"')
+          case ('trilin')
+            call create_map_from_mesh_vertices_to_transect_trilin( mesh, transect, Atlas( mi))
+          case ('nearest_neighbour')
+            call create_map_from_mesh_vertices_to_transect_nearest_neighbour( mesh, transect, Atlas( mi))
+          end select
+          mi_valid = mi
+          exit
+        end if
+      end do
+      ! Safety
+      if (.not. found_empty_page) call crash('No more room in Atlas - assign more memory!')
+    end if
+
+    ! Apply the appropriate mapping object
+    call apply_map_mesh_vertices_to_transect_2D( mesh, transect, &
+      Atlas( mi), d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_vertices_to_transect_2D
+
+  subroutine map_from_mesh_vertices_to_transect_3D( mesh, transect, d_mesh_partial, d_transect_partial, method)
+    ! Map a 3-D data field from the vertices of a mesh to a transect
+
+    ! In/output variables
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_transect),        intent(in   ) :: transect
+    real(dp), dimension(:,:  ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:,:  ), intent(  out) :: d_transect_partial
+    character(len=*), optional, intent(in   ) :: method
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'map_from_mesh_vertices_to_transect_3D'
+    integer                        :: mi, mi_valid
+    logical                        :: found_map, found_empty_page
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .false.
+    do mi = 1, size( Atlas, 1)
+      if (Atlas( mi)%name_src == trim( mesh%name) // '_vertices' .and. &
+          Atlas( mi)%name_dst == 'transect_' // trim( transect%name)) then
+        ! if so specified, look for a mapping object with the correct method
+        if (present( method)) then
+          if (Atlas( mi)%method /= method) cycle
+        end if
+        found_map = .true.
+        mi_valid  = mi
+        exit
+      end if
+    end do
+
+    ! if no appropriate mapping object could be found, create one.
+    if (.not. found_map) then
+      found_empty_page = .false.
+      do mi = 1, size( Atlas,1)
+        if (.not. Atlas( mi)%is_in_use) then
+          found_empty_page = .true.
+          call create_map_from_mesh_vertices_to_transect_trilin( mesh, transect, Atlas( mi))
+          mi_valid = mi
+          exit
+        end if
+      end do
+      ! Safety
+      if (.not. found_empty_page) call crash('No more room in Atlas - assign more memory!')
+    end if
+
+    ! Apply the appropriate mapping object
+    call apply_map_mesh_vertices_to_transect_3D( mesh, transect, &
+      Atlas( mi), d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_vertices_to_transect_3D
+
+  subroutine map_from_mesh_triangles_to_transect_2D( mesh, transect, d_mesh_partial, d_transect_partial, method)
+    ! Map a 2-D data field from the triangles of a mesh to a transect
+
+    ! In/output variables
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_transect),        intent(in   ) :: transect
+    real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:    ), intent(  out) :: d_transect_partial
+    character(len=*), optional, intent(in   ) :: method
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'map_from_mesh_triangles_to_transect_2D'
+    integer                        :: mi, mi_valid
+    logical                        :: found_map, found_empty_page
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .false.
+    do mi = 1, size( Atlas, 1)
+      if (Atlas( mi)%name_src == trim( mesh%name) // '_triangles' .and. &
+          Atlas( mi)%name_dst == 'transect_' // trim( transect%name)) then
+        ! if so specified, look for a mapping object with the correct method
+        if (present( method)) then
+          if (Atlas( mi)%method /= method) cycle
+        end if
+        found_map = .true.
+        mi_valid  = mi
+        exit
+      end if
+    end do
+
+    ! if no appropriate mapping object could be found, create one.
+    if (.not. found_map) then
+      found_empty_page = .false.
+      do mi = 1, size( Atlas,1)
+        if (.not. Atlas( mi)%is_in_use) then
+          found_empty_page = .true.
+          call create_map_from_mesh_triangles_to_transect( mesh, transect, Atlas( mi))
+          mi_valid = mi
+          exit
+        end if
+      end do
+      ! Safety
+      if (.not. found_empty_page) call crash('No more room in Atlas - assign more memory!')
+    end if
+
+    ! Apply the appropriate mapping object
+    call apply_map_mesh_triangles_to_transect_2D( mesh, transect, &
+      Atlas( mi), d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_triangles_to_transect_2D
+
+  subroutine map_from_mesh_triangles_to_transect_3D( mesh, transect, d_mesh_partial, d_transect_partial, method)
+    ! Map a 2-D data field from the triangles of a mesh to a transect
+
+    ! In/output variables
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_transect),        intent(in   ) :: transect
+    real(dp), dimension(:,:  ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:,:  ), intent(  out) :: d_transect_partial
+    character(len=*), optional, intent(in   ) :: method
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'map_from_mesh_triangles_to_transect_3D'
+    integer                        :: mi, mi_valid
+    logical                        :: found_map, found_empty_page
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .false.
+    do mi = 1, size( Atlas, 1)
+      if (Atlas( mi)%name_src == trim( mesh%name) // '_triangles' .and. &
+          Atlas( mi)%name_dst == 'transect_' // trim( transect%name)) then
+        ! if so specified, look for a mapping object with the correct method
+        if (present( method)) then
+          if (Atlas( mi)%method /= method) cycle
+        end if
+        found_map = .true.
+        mi_valid  = mi
+        exit
+      end if
+    end do
+
+    ! if no appropriate mapping object could be found, create one.
+    if (.not. found_map) then
+      found_empty_page = .false.
+      do mi = 1, size( Atlas,1)
+        if (.not. Atlas( mi)%is_in_use) then
+          found_empty_page = .true.
+          call create_map_from_mesh_triangles_to_transect( mesh, transect, Atlas( mi))
+          mi_valid = mi
+          exit
+        end if
+      end do
+      ! Safety
+      if (.not. found_empty_page) call crash('No more room in Atlas - assign more memory!')
+    end if
+
+    ! Apply the appropriate mapping object
+    call apply_map_mesh_triangles_to_transect_3D( mesh, transect, &
+      Atlas( mi), d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_triangles_to_transect_3D
 
 end module remapping_main
