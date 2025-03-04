@@ -387,6 +387,8 @@ CONTAINS
     CALL allocate_climate_snapshot( mesh, climate%matrix%GCM_warm, name = 'GCM_warm')
     CALL allocate_climate_snapshot( mesh, climate%matrix%GCM_cold, name = 'GCM_cold')
 
+! NEED TO FIX the read climate
+! working right now in read_climate_snapshot, check dev branch
     ! Read climate data from files
     CALL read_climate_snapshot( C%filename_PD_obs_climate       , grid, climate%matrix%PD_obs  , found_winds_PD_obs)
     CALL read_climate_snapshot( C%filename_climate_snapshot_PI  , grid, climate%matrix%GCM_PI  , found_winds_PI    )
@@ -540,18 +542,26 @@ CONTAINS
     IF (par%master) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
 
     ! Determine if the file contains climate snapshot data on a global lon/lat-grid or a regional x/y-grid
-    CALL determine_file_grid_type( filename, file_grid_type)
+    ! this is not needed, UFE2 detects how is the input file
+    !CALL determine_file_grid_type( filename, file_grid_type)
 
-    IF (file_grid_type == 'x/y') THEN
-      ! This file contains climate data on a regional x/y-grid
-      CALL read_climate_snapshot_xy(     filename, grid, snapshot, found_winds)
-    ELSEIF (file_grid_type == 'lon/lat') THEN
-      ! This file contains climate data on a global lon/lat-grid
-      CALL read_climate_snapshot_lonlat( filename, grid, snapshot, found_winds)
-    ELSE
-      CALL crash('unknown file_grid_type "' // TRIM( file_grid_type) // '"!')
-    END IF
+    call read_field_from_file_2D( filename_SMB_prescribed, 'SMB||surface_mass_balance||', mesh, SMB%SMB)
+    
+! MERGE read_climate_snapshot, now is just a function to read and remap
 
+    
+
+!    IF (file_grid_type == 'x/y') THEN
+!      ! This file contains climate data on a regional x/y-grid
+!      CALL read_climate_snapshot_xy(     filename, grid, snapshot, found_winds)
+!    ELSEIF (file_grid_type == 'lon/lat') THEN
+!      ! This file contains climate data on a global lon/lat-grid
+!      CALL read_climate_snapshot_lonlat( filename, grid, snapshot, found_winds)
+!    ELSE
+!      CALL crash('unknown file_grid_type "' // TRIM( file_grid_type) // '"!')
+!    END IF
+
+! keep safety checks!
     ! Safety checks
     CALL check_safety_temperature(   snapshot%T2m   )
     CALL check_safety_precipitation( snapshot%Precip)
