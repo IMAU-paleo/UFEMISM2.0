@@ -334,6 +334,8 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'create_restart_file_SMB_model'
     CHARACTER(LEN=256)                                    :: choice_SMB_model
+    CHARACTER(LEN=256)                                    :: filename_base
+    INTEGER                                               :: ncid
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -421,7 +423,23 @@ CONTAINS
       CASE ('prescribed')
         CALL initialise_SMB_model_prescribed( mesh_new, SMB, region_name)
       CASE ('parameterised')  
-        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
+        !CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
+        CALL reallocate_bounds( SMB%SMB            , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%AlbedoSurf      , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%MeltPreviousYear, mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Refreezing_year , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Albedo_year     , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%SMB             , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%FirnDepth   , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Rainfall    , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Snowfall    , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%AddedFirn   , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Melt        , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Refreezing  , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Runoff      , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%Albedo      , 12 , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%SMB_monthly , 12 , mesh_new%vi1, mesh_new%vi2)
+    
       CASE ('reconstructed')
         CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')  
       CASE DEFAULT

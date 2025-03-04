@@ -16,7 +16,7 @@ MODULE SMB_model_types
     ! The SMB model data structure.
 
     ! Main data fields
-    REAL(dp), DIMENSION(:,:),     ALLOCATABLE :: AlbedoSurf              ! Surface albedo underneath the snow layer (water, rock or ice)
+    REAL(dp), DIMENSION(:  ),     ALLOCATABLE :: AlbedoSurf              ! Surface albedo underneath the snow layer (water, rock or ice)
     REAL(dp), DIMENSION(:  ),     ALLOCATABLE :: MeltPreviousYear        ! [m.w.e.] total melt in the previous year
     REAL(dp), DIMENSION(:,:),     ALLOCATABLE :: FirnDepth               ! [m] depth of the firn layer
     REAL(dp), DIMENSION(:,:),     ALLOCATABLE :: Rainfall                ! Monthly rainfall (m)
