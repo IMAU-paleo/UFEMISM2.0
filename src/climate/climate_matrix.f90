@@ -28,12 +28,13 @@ CONTAINS
 
   ! Climate matrix with warm + cold snapshots, forced with CO2 (from record or from inverse routine) from Berends et al., 2018
   ! Generalised for different timeframes, L.B. Stap (2021)
-  SUBROUTINE run_climate_model_matrix( grid, ice, SMB, climate, region_name, time)
+  SUBROUTINE run_climate_model_matrix( mesh, grid, ice, SMB, climate, region_name, time)
     ! Use CO2 (either prescribed or inversely modelled) to force the 2-snapshot (PI-LGM) climate matrix (Berends et al., 2018)
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
@@ -354,34 +355,37 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix_precipitation
-  SUBROUTINE initialise_climate_matrix( grid, climate, region_name, mask_noice)
+  SUBROUTINE initialise_climate_matrix( mesh, climate, region_name, mask_noice)
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_matrix'
-    INTEGER                                            :: i,j,m
+    INTEGER                                            :: vi, m
     LOGICAL                                            :: found_winds_PD_obs, found_winds_PI, found_winds_warm, found_winds_cold
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, climate%matrix%I_abs          , climate%matrix%wI_abs          )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_T2m   , climate%matrix%wGCM_bias_T2m   )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_Precip, climate%matrix%wGCM_bias_Precip)
+    allocate( climate%matrix%I_abs(           mesh%vi1:mesh%vi2))
+    allocate( climate%matrix%GCM_bias_T2m(    mesh%vi1:mesh%vi2), 12)
+    allocate( climate%matrix%GCM_bias_Precip( mesh%vi1:mesh%vi2), 12)
+    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, climate%matrix%I_abs          , climate%matrix%wI_abs          )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_T2m   , climate%matrix%wGCM_bias_T2m   )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_Precip, climate%matrix%wGCM_bias_Precip)
 
     ! Allocate memory for the regional ERA40 climate and the final applied climate
-    CALL allocate_climate_snapshot( grid, climate%matrix%PD_obs,   name = 'PD_obs'  )
-    CALL allocate_climate_snapshot( grid, climate%matrix%GCM_PI,   name = 'GCM_PI'  )
-    CALL allocate_climate_snapshot( grid, climate%matrix%GCM_warm, name = 'GCM_warm')
-    CALL allocate_climate_snapshot( grid, climate%matrix%GCM_cold, name = 'GCM_cold')
+    CALL allocate_climate_snapshot( mesh, climate%matrix%PD_obs,   name = 'PD_obs'  )
+    CALL allocate_climate_snapshot( mesh, climate%matrix%GCM_PI,   name = 'GCM_PI'  )
+    CALL allocate_climate_snapshot( mesh, climate%matrix%GCM_warm, name = 'GCM_warm')
+    CALL allocate_climate_snapshot( mesh, climate%matrix%GCM_cold, name = 'GCM_cold')
 
     ! Read climate data from files
     CALL read_climate_snapshot( C%filename_PD_obs_climate       , grid, climate%matrix%PD_obs  , found_winds_PD_obs)
@@ -454,6 +458,322 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_climate_matrix
+  
+! == Some generally useful tools
+! ==============================
+
+  ! Allocate memory for a single climate snapshot
+  SUBROUTINE allocate_climate_snapshot( mesh, snapshot, name)
+    ! Allocate shared memory for a single climate snapshot
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    TYPE(type_climate_snapshot),         INTENT(INOUT) :: snapshot
+    CHARACTER(LEN=*),                    INTENT(IN)    :: name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_climate_snapshot'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    snapshot%name = name
+
+    allocate( snapshot%Hs( mesh%vi1:mesh%vi2))
+    allocate( snapshot%T2m(     mesh%vi1:mesh%vi2, 12))
+    allocate( snapshot%Precip(  mesh%vi1:mesh%vi2, 12))
+    allocate( snapshot%Wind_WE( mesh%vi1:mesh%vi2, 12))
+    allocate( snapshot%Wind_SN( mesh%vi1:mesh%vi2, 12))
+    allocate( snapshot%Wind_LR( mesh%vi1:mesh%vi2, 12))
+    allocate( snapshot%Wind_DU( mesh%vi1:mesh%vi2, 12))
+    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%Hs,             snapshot%wHs            )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%T2m,            snapshot%wT2m           )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Precip,         snapshot%wPrecip        )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_WE,        snapshot%wWind_WE       )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_SN,        snapshot%wWind_SN       )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_LR,        snapshot%wWind_LR       )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_DU,        snapshot%wWind_DU       )
+
+! this is not needed anymore, check!they need to be defined in types!
+!    CALL allocate_shared_dp_0D(                       snapshot%CO2,            snapshot%wCO2           )
+!    CALL allocate_shared_dp_0D(                       snapshot%orbit_time,     snapshot%worbit_time    )
+!    CALL allocate_shared_dp_0D(                       snapshot%orbit_ecc,      snapshot%worbit_ecc     )
+!    CALL allocate_shared_dp_0D(                       snapshot%orbit_obl,      snapshot%worbit_obl     )
+!    CALL allocate_shared_dp_0D(                       snapshot%orbit_pre,      snapshot%worbit_pre     )
+!    CALL allocate_shared_dp_0D(                       snapshot%sealevel,       snapshot%wsealevel      )
+
+    allocate( snapshot%lambda( mesh%vi1:mesh%vi2))
+    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%lambda,         snapshot%wlambda        )
+    
+    allocate( snapshot%Q_TOA(  mesh%vi1:mesh%vi2, 12))
+    allocate( snapshot%Albedo( mesh%vi1:mesh%vi2, 12))
+    allocate( snapshot%I_abs(  mesh%vi1:mesh%vi2))
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Q_TOA,          snapshot%wQ_TOA         )
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Albedo,         snapshot%wAlbedo        )
+    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%I_abs,          snapshot%wI_abs         )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE allocate_climate_snapshot
+    SUBROUTINE read_climate_snapshot( filename, mesh, snapshot, found_winds)
+    ! Read a climate snapshot from a NetCDF file. Works both for global lon/lat files and regional x/y files
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),                 INTENT(IN)    :: filename
+    TYPE(type_mesh),                    INTENT(IN)    :: mesh
+    TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
+    LOGICAL,                            INTENT(OUT)   :: found_winds
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot'
+    !CHARACTER(LEN=256)                                :: file_grid_type
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Write message to screen
+    IF (par%master) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
+
+    ! Determine if the file contains climate snapshot data on a global lon/lat-grid or a regional x/y-grid
+    CALL determine_file_grid_type( filename, file_grid_type)
+
+    IF (file_grid_type == 'x/y') THEN
+      ! This file contains climate data on a regional x/y-grid
+      CALL read_climate_snapshot_xy(     filename, grid, snapshot, found_winds)
+    ELSEIF (file_grid_type == 'lon/lat') THEN
+      ! This file contains climate data on a global lon/lat-grid
+      CALL read_climate_snapshot_lonlat( filename, grid, snapshot, found_winds)
+    ELSE
+      CALL crash('unknown file_grid_type "' // TRIM( file_grid_type) // '"!')
+    END IF
+
+    ! Safety checks
+    CALL check_safety_temperature(   snapshot%T2m   )
+    CALL check_safety_precipitation( snapshot%Precip)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_climate_snapshot
+  SUBROUTINE read_climate_snapshot_xy( filename, grid, snapshot, found_winds)
+    ! Read a climate snapshot from a NetCDF file that uses a global lon/lat-grid
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),                 INTENT(IN)    :: filename
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
+    LOGICAL,                            INTENT(OUT)   :: found_winds
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot_xy'
+    TYPE(type_netcdf_climate_snapshot)                :: netcdf
+    TYPE(type_grid)                                   :: grid_raw
+    REAL(dp), DIMENSION(:,:  ), POINTER               :: Hs_raw
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: T2m_raw
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: Precip_raw
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_LR_raw
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_DU_raw
+    INTEGER :: wHs_raw, wT2m_raw, wPrecip_raw, wWind_LR_raw, wWind_DU_raw
+    INTEGER                                           :: i,j,m
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Set up the lon/lat-grid for the raw data
+    CALL setup_grid_from_file( filename, grid_raw)
+
+    ! Check if all the required variables are present
+    netcdf%filename = filename
+    CALL inquire_climate_snapshot_file_xy( netcdf, found_winds)
+    CALL sync
+
+    ! Allocate memory for the data
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,     Hs_raw     , wHs_raw     )
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, T2m_raw    , wT2m_raw    )
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, Precip_raw , wPrecip_raw )
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, Wind_LR_raw, wWind_LR_raw)
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, Wind_DU_raw, wWind_DU_raw)
+
+    ! Read data from file
+    CALL read_climate_snapshot_file_xy( netcdf, Hs_raw, T2m_raw, Precip_raw, Wind_LR_raw, Wind_DU_raw, do_read_winds = found_winds)
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( Hs_raw     , 'Hs_raw'     )
+    CALL check_for_NaN_dp_3D( T2m_raw    , 'T2m_raw'    )
+    CALL check_for_NaN_dp_3D( Precip_raw , 'Precip_raw' )
+    CALL check_for_NaN_dp_3D( Wind_LR_raw, 'Wind_LR_raw')
+    CALL check_for_NaN_dp_3D( Wind_DU_raw, 'Wind_DU_raw')
+
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( Hs_raw     , wHs_raw     )
+    CALL transpose_dp_3D( T2m_raw    , wT2m_raw    )
+    CALL transpose_dp_3D( Precip_raw , wPrecip_raw )
+    CALL transpose_dp_3D( Wind_LR_raw, wWind_LR_raw)
+    CALL transpose_dp_3D( Wind_DU_raw, wWind_DU_raw)
+
+    ! Map log( Precip) to ensure positive values
+    DO i = grid_raw%i1, grid_raw%i2
+    DO j = 1, grid_raw%ny
+    DO m = 1, 12
+      Precip_raw( i,j,m) = LOG( Precip_raw( i,j,m))
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Map data to the model grid
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
+      grid%nx, grid%ny, grid%x, grid%y, Hs_raw, snapshot%Hs)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
+      grid%nx, grid%ny, grid%x, grid%y, T2m_raw, snapshot%T2m)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
+      grid%nx, grid%ny, grid%x, grid%y, Precip_raw, snapshot%Precip)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
+      grid%nx, grid%ny, grid%x, grid%y, Wind_LR_raw, snapshot%Wind_LR)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
+      grid%nx, grid%ny, grid%x, grid%y, Wind_DU_raw, snapshot%Wind_DU)
+
+    ! Get precipitation back from logarithm
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO m = 1, 12
+      snapshot%Precip( m,j,i) = EXP( snapshot%Precip( m,j,i))
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( grid_raw%wnx)
+    CALL deallocate_shared( grid_raw%wny)
+    CALL deallocate_shared( grid_raw%wx )
+    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( wHs_raw       )
+    CALL deallocate_shared( wT2m_raw      )
+    CALL deallocate_shared( wPrecip_raw   )
+    CALL deallocate_shared( wWind_LR_raw  )
+    CALL deallocate_shared( wWind_DU_raw  )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_climate_snapshot_xy
+  SUBROUTINE read_climate_snapshot_lonlat( filename, grid, snapshot, found_winds)
+    ! Read a climate snapshot from a NetCDF file that uses a global lon/lat-grid
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),                 INTENT(IN)    :: filename
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
+    LOGICAL,                            INTENT(OUT)   :: found_winds
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot_lonlat'
+    TYPE(type_netcdf_climate_snapshot)                :: netcdf
+    TYPE(type_grid_lonlat)                            :: grid_lonlat
+    REAL(dp), DIMENSION(:,:  ), POINTER               :: Hs_lonlat
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: T2m_lonlat
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: Precip_lonlat
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_WE_lonlat
+    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_SN_lonlat
+    INTEGER :: wHs_lonlat, wT2m_lonlat, wPrecip_lonlat, wWind_WE_lonlat, wWind_SN_lonlat
+    INTEGER                                           :: i,j,m
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Set up the lon/lat-grid for the raw data
+    CALL setup_lonlat_grid_from_file( filename, grid_lonlat)
+
+    ! Check if all the required variables are present
+    netcdf%filename = filename
+    CALL inquire_climate_snapshot_file_lonlat( netcdf, found_winds)
+    CALL sync
+
+    ! Allocate memory for the data
+    CALL allocate_shared_dp_2D( grid_lonlat%nlon, grid_lonlat%nlat,     Hs_lonlat     , wHs_lonlat     )
+    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, T2m_lonlat    , wT2m_lonlat    )
+    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, Precip_lonlat , wPrecip_lonlat )
+    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, Wind_WE_lonlat, wWind_WE_lonlat)
+    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, Wind_SN_lonlat, wWind_SN_lonlat)
+
+    ! Read data from file
+    CALL read_climate_snapshot_file_lonlat( netcdf, Hs_lonlat, T2m_lonlat, Precip_lonlat, Wind_WE_lonlat, Wind_SN_lonlat, do_read_winds = found_winds)
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( Hs_lonlat     , 'Hs_lonlat'     )
+    CALL check_for_NaN_dp_3D( T2m_lonlat    , 'T2m_lonlat'    )
+    CALL check_for_NaN_dp_3D( Precip_lonlat , 'Precip_lonlat' )
+    CALL check_for_NaN_dp_3D( Wind_WE_lonlat, 'Wind_WE_lonlat')
+    CALL check_for_NaN_dp_3D( Wind_SN_lonlat, 'Wind_SN_lonlat')
+
+    ! On rare occasions, some GCM data contains zero or (very, very small) negative values for precipitation; fix this.
+    DO i = grid_lonlat%i1, grid_lonlat%i2
+    DO j = 1, grid_lonlat%nlat
+    DO m = 1, 12
+      Precip_lonlat( i,j,m) = MAX( 1E-5_dp, Precip_lonlat( i,j,m))
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Map log( Precip) to ensure positive values after remapping
+    DO i = grid_lonlat%i1, grid_lonlat%i2
+    DO j = 1, grid_lonlat%nlat
+    DO m = 1, 12
+      Precip_lonlat( i,j,m) = LOG( Precip_lonlat( i,j,m))
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Map data to the model grid
+    CALL map_glob_to_grid_2D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Hs_lonlat     , snapshot%Hs     )
+    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, T2m_lonlat    , snapshot%T2m    )
+    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Precip_lonlat , snapshot%Precip )
+    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Wind_WE_lonlat, snapshot%Wind_WE)
+    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Wind_SN_lonlat, snapshot%Wind_SN)
+
+    ! Get precipitation back from logarithm
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO m = 1, 12
+      snapshot%Precip( m,j,i) = EXP( snapshot%Precip( m,j,i))
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Rotate zonal/meridional wind to x,y wind
+    CALL rotate_wind_to_model_grid( grid, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( grid_lonlat%wnlon)
+    CALL deallocate_shared( grid_lonlat%wnlat)
+    CALL deallocate_shared( grid_lonlat%wlon )
+    CALL deallocate_shared( grid_lonlat%wlat )
+    CALL deallocate_shared( wHs_lonlat       )
+    CALL deallocate_shared( wT2m_lonlat      )
+    CALL deallocate_shared( wPrecip_lonlat   )
+    CALL deallocate_shared( wWind_WE_lonlat  )
+    CALL deallocate_shared( wWind_SN_lonlat  )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_climate_snapshot_lonlat
+  
   SUBROUTINE initialise_matrix_calc_GCM_bias( grid, GCM_PI, PD_obs, GCM_bias_T2m, GCM_bias_Precip)
     ! Calculate the GCM bias in temperature and precipitation
     !
