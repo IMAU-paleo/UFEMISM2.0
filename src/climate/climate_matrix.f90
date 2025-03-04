@@ -52,10 +52,10 @@ CONTAINS
     CALL update_CO2_at_model_time( time) ! forcing module == NOT YET IN climate_realistic!
 
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
-    CALL run_climate_model_matrix_temperature( grid, ice, SMB, climate, region_name)
+    CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name)
 
     ! Use the (CO2 + ice-sheet geometry)-based interpolation scheme for precipitation
-    CALL run_climate_model_matrix_precipitation( grid, ice, climate, region_name)
+    CALL run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -67,6 +67,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
@@ -75,13 +76,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_temperature'
-    INTEGER                                            :: i,j,m
+    INTEGER                                            :: vi ,m
     REAL(dp)                                           :: CO2, w_CO2
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_ins,  w_ins_smooth,  w_ice,  w_tot
+    REAL(dp), DIMENSION(:    ), POINTER                ::  w_ins,  w_ins_smooth,  w_ice,  w_tot
     INTEGER                                            :: ww_ins, ww_ins_smooth, ww_ice, ww_tot
     REAL(dp)                                           :: w_ins_av
-    REAL(dp), DIMENSION(:,:,:), POINTER                :: T_ref_GCM
-    REAL(dp), DIMENSION(:,:  ), POINTER                :: Hs_GCM, lambda_GCM
+    REAL(dp), DIMENSION(:,:  ), POINTER                :: T_ref_GCM
+    REAL(dp), DIMENSION(:    ), POINTER                :: Hs_GCM, lambda_GCM
     INTEGER                                            :: wT_ref_GCM, wHs_GCM, wlambda_GCM
 
     REAL(dp), PARAMETER                                :: w_cutoff = 0.5_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
@@ -218,7 +219,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix_temperature
-  SUBROUTINE run_climate_model_matrix_precipitation( grid, ice, climate, region_name)
+  SUBROUTINE run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name)
     ! The (CO2 + ice geometry)-based matrix interpolation for precipitation, from Berends et al. (2018)
     ! For NAM and EAS, this is based on local ice geometry and uses the Roe&Lindzen precipitation model for downscaling.
     ! For GRL and ANT, this is based on total ice volume,  and uses the simple CC   precipitation model for downscaling.
@@ -228,6 +229,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
@@ -235,7 +237,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_precipitation'
-    INTEGER                                            :: i,j
+    INTEGER                                            :: vi, m
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_warm,  w_cold
     INTEGER                                            :: ww_warm, ww_cold
     REAL(dp)                                           :: w_tot
@@ -249,15 +251,15 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_warm,         ww_warm        )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_cold,         ww_cold        )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, T_ref_GCM,      wT_ref_GCM     )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, P_ref_GCM,      wP_ref_GCM     )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, Hs_GCM,         wHs_GCM        )
+    CALL allocate_shared_dp_1D(     mesh%nV, w_warm,         ww_warm        )
+    CALL allocate_shared_dp_1D(     mesh%nV, w_cold,         ww_cold        )
+    CALL allocate_shared_dp_2D( 12, mesh%nV, T_ref_GCM,      wT_ref_GCM     )
+    CALL allocate_shared_dp_2D( 12, mesh%nV, P_ref_GCM,      wP_ref_GCM     )
+    CALL allocate_shared_dp_1D(     mesh%nV, Hs_GCM,         wHs_GCM        )
 
     ! Calculate interpolation weights based on ice geometry
     ! =====================================================
-
+!! check ice%Hs_a should be ice%Hs now
     ! First calculate the total ice volume term (second term in the equation)
     w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, &
       (SUM( ice%Hs_a) - SUM( climate%matrix%GCM_warm%Hs)) / (SUM( climate%matrix%GCM_cold%Hs) - SUM( climate%matrix%GCM_warm%Hs)) ))
@@ -266,63 +268,64 @@ CONTAINS
       ! Combine total + local ice thicness; Berends et al., 2018, Eq. 12
 
       ! Then the local ice thickness term
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
+      DO vi = mesh%vi1, mesh%vi2
 
-        IF (climate%matrix%GCM_warm%Hs( j,i) < climate%matrix%GCM_PI%Hs( j,i) + 50._dp) THEN
-          IF (climate%matrix%GCM_cold%Hs( j,i) < climate%matrix%GCM_PI%Hs( j,i) + 50._dp) THEN
+        IF (climate%matrix%GCM_warm%Hs( vi) < climate%matrix%GCM_PI%Hs( vi) + 50._dp) THEN
+          IF (climate%matrix%GCM_cold%Hs( vi) < climate%matrix%GCM_PI%Hs( vi) + 50._dp) THEN
             ! No ice in any GCM state. Use only total ice volume.
-            w_cold( j,i) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, w_tot ))
-            w_warm( j,i) = 1._dp - w_cold( j,i)
+            w_cold( vi) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, w_tot ))
+            w_warm( vi) = 1._dp - w_cold( vi)
           ELSE
             ! No ice in warm climate, ice in cold climate. Linear inter- / extrapolation.
-            w_cold( j,i) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs_a( j,i) - climate%matrix%GCM_PI%Hs( j,i)) / (climate%matrix%GCM_cold%Hs( j,i) - climate%matrix%GCM_PI%Hs( j,i))) * w_tot ))
-            w_warm( j,i)  = 1._dp - w_cold( j,i)
+            w_cold( vi) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs_a( vi) - climate%matrix%GCM_PI%Hs( vi)) / (climate%matrix%GCM_cold%Hs( vi) - climate%matrix%GCM_PI%Hs( vi))) * w_tot ))
+            w_warm( vi)  = 1._dp - w_cold( vi)
           END IF
         ELSE
           ! Ice in both GCM states.  Linear inter- / extrapolation
-          w_cold( j,i) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs_a( j,i) - climate%matrix%GCM_PI%Hs( j,i)) / (climate%matrix%GCM_cold%Hs( j,i) - climate%matrix%GCM_PI%Hs( j,i))) * w_tot ))
-          w_warm( j,i)  = 1._dp - w_cold( j,i)
+          w_cold( vi) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs_a( vi) - climate%matrix%GCM_PI%Hs( vi)) / (climate%matrix%GCM_cold%Hs( vi) - climate%matrix%GCM_PI%Hs( vi))) * w_tot ))
+          w_warm( vi)  = 1._dp - w_cold( vi)
         END IF
 
       END DO
-      END DO
-      CALL sync
 
-      w_cold( :,grid%i1:grid%i2) = w_cold( :,grid%i1:grid%i2) * w_tot
-
+      w_cold( mesh%vi1:mesh%vi2) = w_cold( mesh%vi1:mesh%vi2) * w_tot 
+      
       ! Smooth the weighting field
       CALL smooth_Gaussian_2D( grid, w_cold, 200000._dp)
 
-      w_warm( :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2)
+      w_warm( mesh%vi1:mesh%vi2) = 1._dp - w_cold( mesh%vi1:mesh%vi2)
 
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
       ! Use only total ice volume and CO2; Berends et al., 2018, Eq. 13
 
-      w_cold( :,grid%i1:grid%i2) = w_tot
-      w_warm( :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2)
+      w_cold( mesh%vi1:mesh%vi2) = w_tot 
+      w_warm( mesh%vi1:mesh%vi2) = 1._dp - w_cold( mesh%vi1:mesh%vi2)
 
     END IF
-
+!
+!!! CHECK THE ChANGES DONE ABOvE WITH IMAU-ICE, MAKE SENSE AS BEFORE?
+!
     IF (C%switch_glacial_index_precip) THEN ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
       w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) )) )
-      w_cold( :,grid%i1:grid%i2) = w_tot
-      w_warm( :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2)
+      w_cold( mesh%vi1:mesh%vi2) = w_tot
+      w_warm( mesh%vi1:mesh%vi2) = 1._dp - w_cold( mesh%vi1:mesh%vi2)
     END IF
 
     ! Interpolate the GCM snapshots
     ! =============================
 
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    DO vi = mesh%vi1, mesh%vi2
 
-      T_ref_GCM(  :,j,i) =      (w_warm( j,i) *      climate%matrix%GCM_warm%T2m(    :,j,i))  + (w_cold( j,i) *     climate%matrix%GCM_cold%T2m(    :,j,i))   ! Berends et al., 2018 - Eq. 6
-      P_ref_GCM(  :,j,i) = EXP( (w_warm( j,i) *  LOG(climate%matrix%GCM_warm%Precip( :,j,i))) + (w_cold( j,i) * LOG(climate%matrix%GCM_cold%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
-      Hs_GCM(       j,i) =      (w_warm( j,i) *      climate%matrix%GCM_warm%Hs(       j,i))  + (w_cold( j,i) *     climate%matrix%GCM_cold%Hs(       j,i))   ! Berends et al., 2018 - Eq. 8
+      T_ref_GCM( vi,:) =      (w_warm( vi) *     climate%matrix%GCM_warm%T2m(    vi,: )) + & 
+                              (w_cold( vi) *     climate%matrix%GCM_cold%T2m(    vi,: ))   ! Berends et al., 2018 - Eq. 6
+                              
+      P_ref_GCM( vi,:) = EXP( (w_warm( vi) * LOG(climate%matrix%GCM_warm%Precip( vi,:))) + &
+                              (w_cold( vi) * LOG(climate%matrix%GCM_cold%Precip( vi,:)))) ! Berends et al., 2018 - Eq. 7
+                              
+      Hs_GCM(    vi  ) =      (w_warm( vi) *     climate%matrix%GCM_warm%Hs(     vi   )) + &
+                              (w_cold( vi) *     climate%matrix%GCM_cold%Hs(     vi   ))   ! Berends et al., 2018 - Eq. 8
 
     END DO
-    END DO
-    CALL sync
 
     ! Downscale precipitation from the coarse-resolution reference
     ! GCM orography to the fine-resolution ice-model orography
@@ -330,11 +333,14 @@ CONTAINS
 
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Use the Roe&Lindzen precipitation model to do this; Berends et al., 2018, Eqs. A3-A7
-      CALL adapt_precip_Roe( grid, Hs_GCM,   T_ref_GCM  , climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, P_ref_GCM, &
+!
+      !! here it probably goes mesh instead of grid, for now mesh added as input, double check if grid is needed in this call
+      !
+      CALL adapt_precip_Roe( mesh, grid, Hs_GCM,   T_ref_GCM  , climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, P_ref_GCM, &
                                    ice%Hs_a, climate%T2m, climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, climate%Precip)
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
       ! Use a simpler temperature-based correction; Berends et al., 2018, Eq. 14
-      CALL adapt_precip_CC( grid, ice%Hs_a, Hs_GCM, T_ref_GCM, P_ref_GCM, climate%Precip, region_name)
+      CALL adapt_precip_CC( mesh, grid, ice%Hs_a, Hs_GCM, T_ref_GCM, P_ref_GCM, climate%Precip, region_name)
     END IF
 
     ! Clean up after yourself
@@ -824,13 +830,14 @@ CONTAINS
   ! Two different parameterised precipitation models:
   ! - a simply Clausius-Clapeyron-based method            (used for GRL and ANT)
   ! - the Roe & Lindzen temperature/orography-based model (used for NAM and EAS)
-  SUBROUTINE adapt_precip_CC(  grid, Hs, Hs_GCM, T_ref_GCM, P_ref_GCM, Precip_GCM, region_name)
+  SUBROUTINE adapt_precip_CC( mesh, grid, Hs, Hs_GCM, T_ref_GCM, P_ref_GCM, Precip_GCM, region_name)
 
     USE parameters_module, ONLY: T0
 
     IMPLICIT NONE
 
     ! Input variables:
+    TYPE(type_mesh),                                   :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs              ! Model orography (m)
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs_GCM          ! Reference orography (m)           - total ice-weighted
