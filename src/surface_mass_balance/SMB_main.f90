@@ -22,7 +22,8 @@ MODULE SMB_main
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
   use plane_geometry, only: is_in_polygon
   use mesh_data_smoothing, only: smooth_Gaussian
-
+  use netcdf_io_main
+  
   IMPLICIT NONE
 
 CONTAINS
@@ -420,7 +421,7 @@ CONTAINS
       CASE ('prescribed')
         CALL initialise_SMB_model_prescribed( mesh_new, SMB, region_name)
       CASE ('parameterised')  
-        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, time)  
+        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
       CASE ('reconstructed')
         CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')  
       CASE DEFAULT
