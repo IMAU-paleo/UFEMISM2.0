@@ -491,7 +491,7 @@ CONTAINS
     ! ===== Surface mass balance =====
     ! ================================
 
-    CALL initialise_SMB_model( region%mesh, region%SMB, region%name)
+    CALL initialise_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name)
 
     ! ===== Basal mass balance =====
     ! ==============================

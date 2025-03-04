@@ -110,13 +110,15 @@ CONTAINS
 
   END SUBROUTINE run_SMB_model
 
-  SUBROUTINE initialise_SMB_model( mesh, SMB, region_name)
+  SUBROUTINE initialise_SMB_model( mesh, ice, climate, SMB, region_name)
     ! Initialise the SMB model
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_climate_model),               INTENT(IN)    :: climate
     TYPE(type_SMB_model),                   INTENT(OUT)   :: SMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
@@ -215,7 +217,7 @@ CONTAINS
       CASE ('reconstructed')
         ! No need to do anything
       CASE ('parameterised')  
-        write_to_restart_file_SMB_model_region(mesh, SMB, region_name, time)
+        call write_to_restart_file_SMB_model_region(mesh, SMB, region_name, time)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
