@@ -56,6 +56,9 @@ jobs:
       - name: Run integrated_tests/idealised/MISMIPplus - 05_4km_ice1r
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_05_4km_ice1r.cfg
 
+      - name: Run integrated_tests/idealised/MISMIPplus - 06_5km_misomip
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_06_5km_misomip.cfg
+
       - name: Analyse integrated_tests/idealised/MISMIPplus
         uses: matlab-actions/run-command@v2
         with:
