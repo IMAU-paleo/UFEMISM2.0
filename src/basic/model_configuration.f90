@@ -805,6 +805,11 @@ MODULE model_configuration
     LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
     REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
+    
+    ! BMB transition phase
+    LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
+    REAL(dp)            :: BMB_transition_phase_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB transition phase
+    REAL(dp)            :: BMB_transition_phase_t_end_config            = +9.9E9_dp                        ! [yr] End   time for BMB transition phase
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line; if so, use choice_BMB_subgrid; if not, apply "NMP"
@@ -946,6 +951,9 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_GIA_model_config                      = 'none'
     REAL(dp)            :: dt_GIA_config                                = 100._dp                         ! [yr] GIA model time step
     REAL(dp)            :: dx_GIA_config                                = 50E3_dp                         ! [m]  GIA model square grid resolution
+    REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config        = 1.0E+25                         ! [kg m^2 s^-2] Lithospheric flexural rigidity
+    REAL(dp)            :: ELRA_bedrock_relaxation_time_config          = 3000.0                          ! [yr] Relaxation time for bedrock adjustment
+    REAL(dp)            :: ELRA_mantle_density_config                   = 3300.0                          ! [kg m^-3] Mantle density
 
   ! == Sea level
   ! ============
@@ -984,6 +992,23 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_TLOVE_config                     = 1                               !     Tidal love numbers yes/no
     INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               !     Tidal love numbers degree
     REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! [m] Radius of CMB
+
+  ! == Tracer tracking
+  ! ==================
+
+    CHARACTER(LEN=256)  :: choice_tracer_tracking_model_config          = 'none'                          ! Which tracer-tracking model to use (current options: 'none', 'particles')
+
+    ! Settings for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dt_coupling_config             = 10._dp                          ! [yr] Coupling interval for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dx_particle_config             = 1e3_dp                          ! [m]  Distance that tracer-tracking particles should move in a single particle time step
+    REAL(dp)            :: tractrackpart_dt_particle_min_config         = 1._dp                           ! [yr] Minimum allowed time step for tracer-tracking particles
+    REAL(dp)            :: tractrackpart_dt_particle_max_config         = 1000._dp                        ! [yr] Maximum allowed time step for tracer-tracking particles
+    INTEGER             :: tractrackpart_n_max_particles_config         = 1000000                         !      Maximum number of particles (i.e. for how many particles is memory allocated)
+    REAL(dp)            :: tractrackpart_dt_new_particles_config        = 100._dp                         ! [yr] How often new batches of particles should be added
+    REAL(dp)            :: tractrackpart_dx_new_particles_config        = 50e3_dp                         ! [m]  How far new particles should be spaced apart (square grid)
+    INTEGER             :: tractrackpart_remap_n_nearest_config         = 4                               !      Between how many nearest particles should be interpolated when mapping tracers to the mesh
+    LOGICAL             :: tractrackpart_write_raw_output_config        = .FALSE.                         !      Whether or not to write the raw particle data to a NetCDF output file
+    REAL(dp)            :: tractrackpart_dt_raw_output_config           = 100._dp                         !      Time step for writing raw particle data to NetCDF
 
   ! == Output
   ! =========
@@ -1842,6 +1867,11 @@ MODULE model_configuration
     REAL(dp)            :: BMB_inversion_t_start
     REAL(dp)            :: BMB_inversion_t_end
 
+    ! BMB transition phase
+    LOGICAL             :: do_BMB_transition_phase
+    REAL(dp)            :: BMB_transition_phase_t_start
+    REAL(dp)            :: BMB_transition_phase_t_end
+
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line
     CHARACTER(LEN=256)  :: choice_BMB_subgrid
@@ -1853,10 +1883,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT
 
     ! Choice of BMB model in ROI
-    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI 
-    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI 
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI
+
 
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM
@@ -1981,6 +2012,9 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_GIA_model
     REAL(dp)            :: dt_GIA
     REAL(dp)            :: dx_GIA
+    REAL(dp)            :: ELRA_lithosphere_flex_rigidity
+    REAL(dp)            :: ELRA_bedrock_relaxation_time
+    REAL(dp)            :: ELRA_mantle_density
 
   ! == Sea level
   ! ============
@@ -2015,6 +2049,23 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_TLOVE
     INTEGER             :: SELEN_TABOO_DEG1
     REAL(dp)            :: SELEN_TABOO_RCMB
+
+  ! == Tracer tracking
+  ! ==================
+
+    CHARACTER(LEN=256)  :: choice_tracer_tracking_model
+
+    ! Settings for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dt_coupling
+    REAL(dp)            :: tractrackpart_dx_particle
+    REAL(dp)            :: tractrackpart_dt_particle_min
+    REAL(dp)            :: tractrackpart_dt_particle_max
+    INTEGER             :: tractrackpart_n_max_particles
+    REAL(dp)            :: tractrackpart_dt_new_particles
+    REAL(dp)            :: tractrackpart_dx_new_particles
+    INTEGER             :: tractrackpart_remap_n_nearest
+    LOGICAL             :: tractrackpart_write_raw_output
+    REAL(dp)            :: tractrackpart_dt_raw_output
 
   ! == Output
   ! =========
@@ -2813,6 +2864,9 @@ CONTAINS
       do_BMB_inversion_config                                     , &
       BMB_inversion_t_start_config                                , &
       BMB_inversion_t_end_config                                  , &
+      do_BMB_transition_phase_config                              , &
+      BMB_transition_phase_t_start_config                         , &
+      BMB_transition_phase_t_end_config                           , &
       do_subgrid_BMB_at_grounding_line_config                     , &
       choice_BMB_subgrid_config                                   , &
       choice_BMB_model_NAM_config                                 , &
@@ -2888,6 +2942,9 @@ CONTAINS
       choice_GIA_model_config                                     , &
       dt_GIA_config                                               , &
       dx_GIA_config                                               , &
+      ELRA_lithosphere_flex_rigidity_config                       , &
+      ELRA_bedrock_relaxation_time_config                         , &
+      ELRA_mantle_density_config                                  , &
       choice_sealevel_model_config                                , &
       fixed_sealevel_config                                       , &
       SELEN_run_at_t_start_config                                 , &
@@ -2909,6 +2966,17 @@ CONTAINS
       SELEN_TABOO_TLOVE_config                                    , &
       SELEN_TABOO_DEG1_config                                     , &
       SELEN_TABOO_RCMB_config                                     , &
+      choice_tracer_tracking_model_config                         , &
+      tractrackpart_dt_coupling_config                            , &
+      tractrackpart_dx_particle_config                            , &
+      tractrackpart_dt_particle_min_config                        , &
+      tractrackpart_dt_particle_max_config                        , &
+      tractrackpart_n_max_particles_config                        , &
+      tractrackpart_dt_new_particles_config                       , &
+      tractrackpart_dx_new_particles_config                       , &
+      tractrackpart_remap_n_nearest_config                        , &
+      tractrackpart_write_raw_output_config                       , &
+      tractrackpart_dt_raw_output_config                          , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
       dt_output_restart_config                                    , &
@@ -3793,6 +3861,11 @@ CONTAINS
     C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
     C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
 
+    ! BMB transition phase
+    C%do_BMB_transition_phase                                = do_BMB_transition_phase_config
+    C%BMB_transition_phase_t_start                           = BMB_transition_phase_t_start_config
+    C%BMB_transition_phase_t_end                             = BMB_transition_phase_t_end_config
+
     ! Grounding line treatment
     C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
     C%choice_BMB_subgrid                                     = choice_BMB_subgrid_config
@@ -3808,6 +3881,7 @@ CONTAINS
     C%choice_BMB_model_EAS_ROI                               = choice_BMB_model_EAS_ROI_config
     C%choice_BMB_model_GRL_ROI                               = choice_BMB_model_GRL_ROI_config
     C%choice_BMB_model_ANT_ROI                               = choice_BMB_model_ANT_ROI_config
+
 
     ! Prescribed BMB forcing
     C%choice_BMB_prescribed_NAM                              = choice_BMB_prescribed_NAM_config
@@ -3932,6 +4006,9 @@ CONTAINS
     C%choice_GIA_model                                       = choice_GIA_model_config
     C%dt_GIA                                                 = dt_GIA_config
     C%dx_GIA                                                 = dx_GIA_config
+    C%ELRA_lithosphere_flex_rigidity                         = ELRA_lithosphere_flex_rigidity_config
+    C%ELRA_bedrock_relaxation_time                           = ELRA_bedrock_relaxation_time_config
+    C%ELRA_mantle_density                                    = ELRA_mantle_density_config
 
   ! == Sea level
   ! ============
@@ -3966,6 +4043,23 @@ CONTAINS
     C%SELEN_TABOO_TLOVE                                      = SELEN_TABOO_TLOVE_config
     C%SELEN_TABOO_DEG1                                       = SELEN_TABOO_DEG1_config
     C%SELEN_TABOO_RCMB                                       = SELEN_TABOO_RCMB_config
+
+  ! == Tracer tracking
+  ! ==================
+
+    C%choice_tracer_tracking_model                           = choice_tracer_tracking_model_config
+
+    ! Settings for the particle-based tracer-tracking model
+    C%tractrackpart_dt_coupling                              = tractrackpart_dt_coupling_config
+    C%tractrackpart_dx_particle                              = tractrackpart_dx_particle_config
+    C%tractrackpart_dt_particle_min                          = tractrackpart_dt_particle_min_config
+    C%tractrackpart_dt_particle_max                          = tractrackpart_dt_particle_max_config
+    C%tractrackpart_n_max_particles                          = tractrackpart_n_max_particles_config
+    C%tractrackpart_dt_new_particles                         = tractrackpart_dt_new_particles_config
+    C%tractrackpart_dx_new_particles                         = tractrackpart_dx_new_particles_config
+    C%tractrackpart_remap_n_nearest                          = tractrackpart_remap_n_nearest_config
+    C%tractrackpart_write_raw_output                         = tractrackpart_write_raw_output_config
+    C%tractrackpart_dt_raw_output                            = tractrackpart_dt_raw_output_config
 
   ! == Output
   ! =========

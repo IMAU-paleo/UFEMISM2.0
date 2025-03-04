@@ -6,6 +6,7 @@ MODULE laddie_model_types
 ! ====================
 
   USE precisions                                             , ONLY: dp
+  USE CSR_sparse_matrix_type                                 , ONLY: type_sparse_matrix_CSR_dp
 
   IMPLICIT NONE
 
@@ -101,6 +102,11 @@ MODULE laddie_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_gl_b                   !                   Grounding line mask on b-grid
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_cf_b                   !                   Calving front mask on b-grid
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_oc_b                   !                   Icefree ocean mask on b-grid
+
+    ! Mapping operators
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_b
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_c
+    TYPE(type_sparse_matrix_CSR_dp)         :: M_map_UV_b_c
    
     ! Timestepping types
     TYPE(type_laddie_timestep)              :: now                         !                   Timestep now  

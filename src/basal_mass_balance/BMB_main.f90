@@ -158,6 +158,7 @@ CONTAINS
             END IF
           END IF
         END DO
+        CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
       CASE ('laddie_py')
         ! run_BMB_model_laddie and read BMB values only for region of interest
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .TRUE.)
@@ -179,6 +180,13 @@ CONTAINS
       CASE DEFAULT
         CALL apply_BMB_subgrid_scheme( mesh, ice, BMB)
     END SELECT
+
+    ! save BMB in BMB_modelled if applying transition phase
+    IF (C%do_BMB_transition_phase) THEN
+      DO vi = mesh%vi1, mesh%vi2
+        BMB%BMB_modelled( vi) = BMB%BMB( vi)
+      END DO
+    END IF 
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -239,6 +247,14 @@ CONTAINS
     ! Allocate reference BMB
     ALLOCATE( BMB%BMB_ref( mesh%vi1:mesh%vi2))
     BMB%BMB_ref = 0._dp
+
+    ! Allocate transition phase BMB
+    ALLOCATE( BMB%BMB_transition_phase( mesh%vi1:mesh%vi2))
+    BMB%BMB_transition_phase = 0._dp
+
+    ! Allocate modelled BMB
+    ALLOCATE( BMB%BMB_modelled( mesh%vi1:mesh%vi2))
+    BMB%BMB_modelled = 0._dp
 
     ! Allocate mask for cavities
     ALLOCATE( BMB%mask_floating_ice( mesh%vi1:mesh%vi2))
@@ -541,6 +557,8 @@ CONTAINS
     CALL reallocate_bounds( BMB%BMB_shelf, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_inv, mesh_new%vi1, mesh_new%vi2)
     CALL reallocate_bounds( BMB%BMB_ref, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( BMB%BMB_transition_phase, mesh_new%vi1, mesh_new%vi2)
+    CALL reallocate_bounds( BMB%BMB_modelled, mesh_new%vi1, mesh_new%vi2)
 
     ! Reallocate memory for cavity mask
     CALL reallocate_bounds( BMB%mask_floating_ice, mesh_new%vi1, mesh_new%vi2)
@@ -809,11 +827,6 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
 
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_subgrid_BMB'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
     ! Different sub-grid schemes for sub-shelf melt
         IF (C%do_subgrid_BMB_at_grounding_line) THEN
           IF     (C%choice_BMB_subgrid == 'FCMP') THEN
@@ -830,8 +843,6 @@ CONTAINS
           ! Apply NMP scheme
           IF (ice%fraction_gr( vi) == 0._dp) BMB%BMB( vi) = BMB%BMB_shelf( vi)
         END IF
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
 
   END SUBROUTINE compute_subgrid_BMB
 

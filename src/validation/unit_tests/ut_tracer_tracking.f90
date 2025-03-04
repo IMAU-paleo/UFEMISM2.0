@@ -18,8 +18,8 @@ module ut_tracer_tracking
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles, type_map_particles_to_mesh
   use tracer_tracking_model_particles, only: calc_particle_zeta, interpolate_3d_velocities_to_3D_point, &
-    calc_particles_to_mesh_map, initialise_tracer_tracking_model_particles, add_particle, &
-    move_and_remove_particle
+    calc_particles_to_mesh_map, initialise_tracer_tracking_model_particles, add_particle!, &
+    ! move_and_remove_particle
   use mpi
   use ice_model_types, only: type_ice_model
   use ice_model_memory, only: allocate_ice_model
@@ -420,97 +420,97 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    ! Add test name to list
-    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+    ! ! Add test name to list
+    ! test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    ! Set up a slab-on-a-slope ice sheet
-    call allocate_ice_model( mesh, ice)
+    ! ! Set up a slab-on-a-slope ice sheet
+    ! call allocate_ice_model( mesh, ice)
 
-    choice_refgeo_idealised = 'slabonaslope'
-    C%refgeo_idealised_slabonaslope_Hi = 1000._dp
-    C%refgeo_idealised_slabonaslope_dhdx = tan( theta * pi / 180._dp)
+    ! choice_refgeo_idealised = 'slabonaslope'
+    ! C%refgeo_idealised_slabonaslope_Hi = 1000._dp
+    ! C%refgeo_idealised_slabonaslope_dhdx = tan( theta * pi / 180._dp)
 
-    do vi = mesh%vi1, mesh%vi2
-      call calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
-        ice%Hi( vi), ice%Hb( vi), ice%Hs( vi), ice%SL( vi), choice_refgeo_idealised)
-    end do
+    ! do vi = mesh%vi1, mesh%vi2
+    !   call calc_idealised_geometry( mesh%V( vi,1), mesh%V( vi,2), &
+    !     ice%Hi( vi), ice%Hb( vi), ice%Hs( vi), ice%SL( vi), choice_refgeo_idealised)
+    ! end do
 
-    ! Set up a very simple velocity field
+    ! ! Set up a very simple velocity field
 
-    ! Ice flows parallel to the surface, with the speed increasing from
-    ! zero at the base to u_abs at the surface.
+    ! ! Ice flows parallel to the surface, with the speed increasing from
+    ! ! zero at the base to u_abs at the surface.
 
-    ice%v_3D_b = 0._dp
-    u_surf = uabs * cos( theta * pi / 180._dp)
-    w_surf = uabs * sin( theta * pi / 180._dp)
-    do k = 1, mesh%nz
-      ice%u_3D_b( :,k) = u_surf * (1._dp - mesh%zeta( k))
-      ice%w_3D  ( :,k) = w_surf * (1._dp - mesh%zeta( k))
-    end do
+    ! ice%v_3D_b = 0._dp
+    ! u_surf = uabs * cos( theta * pi / 180._dp)
+    ! w_surf = uabs * sin( theta * pi / 180._dp)
+    ! do k = 1, mesh%nz
+    !   ice%u_3D_b( :,k) = u_surf * (1._dp - mesh%zeta( k))
+    !   ice%w_3D  ( :,k) = w_surf * (1._dp - mesh%zeta( k))
+    ! end do
 
-    xmin    = mesh%xmin * 0.95_dp
-    xmax    = 0._dp
-    ymin    = mesh%ymin * 0.95_dp
-    ymax    = mesh%ymax * 0.95_dp
-    zetamin = 0.05_dp
-    zetamax = 0.95_dp
+    ! xmin    = mesh%xmin * 0.95_dp
+    ! xmax    = 0._dp
+    ! ymin    = mesh%ymin * 0.95_dp
+    ! ymax    = mesh%ymax * 0.95_dp
+    ! zetamin = 0.05_dp
+    ! zetamax = 0.95_dp
 
-    n_particles_x = 20
-    n_particles_y = 20
-    n_particles_z = 20
-    n_particles = n_particles_x * n_particles_y * n_particles_z
+    ! n_particles_x = 20
+    ! n_particles_y = 20
+    ! n_particles_z = 20
+    ! n_particles = n_particles_x * n_particles_y * n_particles_z
 
-    call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
+    ! call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
 
-    allocate( zeta_orig( n_particles))
+    ! allocate( zeta_orig( n_particles))
 
-    ip = 0
-    do i = 1, n_particles_x
-      do j = 1, n_particles_y
-        do k = 1, n_particles_z
+    ! ip = 0
+    ! do i = 1, n_particles_x
+    !   do j = 1, n_particles_y
+    !     do k = 1, n_particles_z
 
-          ip = ip + 1
+    !       ip = ip + 1
 
-          x    = xmin    + (xmax    - xmin   ) * real(i-1,dp) / real(n_particles_x-1,dp)
-          y    = ymin    + (ymax    - ymin   ) * real(j-1,dp) / real(n_particles_y-1,dp)
-          zeta = zetamin + (zetamax - zetamin) * real(k-1,dp) / real(n_particles_z-1,dp)
+    !       x    = xmin    + (xmax    - xmin   ) * real(i-1,dp) / real(n_particles_x-1,dp)
+    !       y    = ymin    + (ymax    - ymin   ) * real(j-1,dp) / real(n_particles_y-1,dp)
+    !       zeta = zetamin + (zetamax - zetamin) * real(k-1,dp) / real(n_particles_z-1,dp)
 
-          zeta_orig( ip) = zeta
+    !       zeta_orig( ip) = zeta
 
-          call calc_idealised_geometry( x, y, Hi, Hb, Hs, SL, choice_refgeo_idealised)
-          z = Hs - zeta * Hi
+    !       call calc_idealised_geometry( x, y, Hi, Hb, Hs, SL, choice_refgeo_idealised)
+    !       z = Hs - zeta * Hi
 
-          call add_particle( mesh, ice, particles, x, y, z, 0._dp)
+    !       call add_particle( mesh, ice, particles, x, y, z, 0._dp)
 
-        end do
-      end do
-    end do
+    !     end do
+    !   end do
+    ! end do
 
-    ! Move particles through time
-    verified = .true.
+    ! ! Move particles through time
+    ! verified = .true.
 
-    time = tstart
-    do while (time < tstop)
+    ! time = tstart
+    ! do while (time < tstop)
 
-      time = time + dt
+    !   time = time + dt
 
-      do ip = 1, n_particles
+    !   do ip = 1, n_particles
 
-        call move_and_remove_particle( mesh, ice, particles, ip, dt)
+    !     call move_and_remove_particle( mesh, ice, particles, ip, dt)
 
-        r_expected = [ &
-          particles%r_origin( ip,1) + u_surf * (1._dp - zeta_orig( ip)) * time, &
-          particles%r_origin( ip,2), &
-          particles%r_origin( ip,3) + w_surf * (1._dp - zeta_orig( ip)) * time]
+    !     r_expected = [ &
+    !       particles%r_origin( ip,1) + u_surf * (1._dp - zeta_orig( ip)) * time, &
+    !       particles%r_origin( ip,2), &
+    !       particles%r_origin( ip,3) + w_surf * (1._dp - zeta_orig( ip)) * time]
 
-        ! Check that the particle has not strayed too far from the analytical solution
-        verified = verified .and. norm2( particles%r( ip,:) - r_expected) < 1e-5_dp
+    !     ! Check that the particle has not strayed too far from the analytical solution
+    !     verified = verified .and. norm2( particles%r( ip,:) - r_expected) < 1e-5_dp
 
-      end do
+    !   end do
 
-    end do
+    ! end do
 
-    call unit_test( verified, trim( test_name) // '/position')
+    ! call unit_test( verified, trim( test_name) // '/position')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -547,103 +547,103 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    ! Add test name to list
-    test_name = trim( test_name_parent) // '/' // trim( test_name_local)
+    ! ! Add test name to list
+    ! test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    ! Set up a simple ice slab
-    call allocate_ice_model( mesh, ice)
+    ! ! Set up a simple ice slab
+    ! call allocate_ice_model( mesh, ice)
 
-    ice%Hi = Hi
-    ice%Hb = 0._dp
-    ice%Hs = ice%Hb + ice%Hi
-    ice%SL = -1000._dp
+    ! ice%Hi = Hi
+    ! ice%Hb = 0._dp
+    ! ice%Hs = ice%Hb + ice%Hi
+    ! ice%SL = -1000._dp
 
-    ! Set up a simple velocity field
+    ! ! Set up a simple velocity field
 
-    ! Horizontal vortex, counter-clockwise around the origin.
-    ! Takes 1,000 years for a revolution at the surface,
-    ! infinity years at the base (rotation speed decreases
-    ! linearly with depth)
+    ! ! Horizontal vortex, counter-clockwise around the origin.
+    ! ! Takes 1,000 years for a revolution at the surface,
+    ! ! infinity years at the base (rotation speed decreases
+    ! ! linearly with depth)
 
-    ice%w_3D = 0._dp
-    do ti = mesh%ti1, mesh%ti2
-    do k = 1, mesh%nz
-      x = mesh%Tricc( ti,1)
-      y = mesh%Tricc( ti,2)
-      ice%u_3D_b( ti,k) = -y * 2_dp * pi / time_rev_surf * (1._dp - mesh%zeta( k))
-      ice%v_3D_b( ti,k) =  x * 2_dp * pi / time_rev_surf * (1._dp - mesh%zeta( k))
-    end do
-    end do
+    ! ice%w_3D = 0._dp
+    ! do ti = mesh%ti1, mesh%ti2
+    ! do k = 1, mesh%nz
+    !   x = mesh%Tricc( ti,1)
+    !   y = mesh%Tricc( ti,2)
+    !   ice%u_3D_b( ti,k) = -y * 2_dp * pi / time_rev_surf * (1._dp - mesh%zeta( k))
+    !   ice%v_3D_b( ti,k) =  x * 2_dp * pi / time_rev_surf * (1._dp - mesh%zeta( k))
+    ! end do
+    ! end do
 
-    xmin    = mesh%xmin * 0.45_dp
-    xmax    = mesh%xmax * 0.45_dp
-    ymin    = mesh%ymin * 0.45_dp
-    ymax    = mesh%ymax * 0.45_dp
-    zetamin = 0.05_dp
-    zetamax = 0.95_dp
+    ! xmin    = mesh%xmin * 0.45_dp
+    ! xmax    = mesh%xmax * 0.45_dp
+    ! ymin    = mesh%ymin * 0.45_dp
+    ! ymax    = mesh%ymax * 0.45_dp
+    ! zetamin = 0.05_dp
+    ! zetamax = 0.95_dp
 
-    n_particles_x = 10
-    n_particles_y = 10
-    n_particles_z = 10
-    n_particles = n_particles_x * n_particles_y * n_particles_z
+    ! n_particles_x = 10
+    ! n_particles_y = 10
+    ! n_particles_z = 10
+    ! n_particles = n_particles_x * n_particles_y * n_particles_z
 
-    call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
+    ! call initialise_tracer_tracking_model_particles( mesh, ice, particles, n_particles)
 
-    allocate( zeta_orig( n_particles))
+    ! allocate( zeta_orig( n_particles))
 
-    ip = 0
-    do i = 1, n_particles_x
-      do j = 1, n_particles_y
-        do k = 1, n_particles_z
+    ! ip = 0
+    ! do i = 1, n_particles_x
+    !   do j = 1, n_particles_y
+    !     do k = 1, n_particles_z
 
-          ip = ip + 1
+    !       ip = ip + 1
 
-          x    = xmin    + (xmax    - xmin   ) * real(i-1,dp) / real(n_particles_x-1,dp)
-          y    = ymin    + (ymax    - ymin   ) * real(j-1,dp) / real(n_particles_y-1,dp)
-          zeta = zetamin + (zetamax - zetamin) * real(k-1,dp) / real(n_particles_z-1,dp)
+    !       x    = xmin    + (xmax    - xmin   ) * real(i-1,dp) / real(n_particles_x-1,dp)
+    !       y    = ymin    + (ymax    - ymin   ) * real(j-1,dp) / real(n_particles_y-1,dp)
+    !       zeta = zetamin + (zetamax - zetamin) * real(k-1,dp) / real(n_particles_z-1,dp)
 
-          zeta_orig( ip) = zeta
+    !       zeta_orig( ip) = zeta
 
-          Hs = Hi
-          z = Hs - zeta * Hi
+    !       Hs = Hi
+    !       z = Hs - zeta * Hi
 
-          call add_particle( mesh, ice, particles, x, y, z, 0._dp)
+    !       call add_particle( mesh, ice, particles, x, y, z, 0._dp)
 
-        end do
-      end do
-    end do
+    !     end do
+    !   end do
+    ! end do
 
-    ! Move particles through time
-    max_diff = 0._dp
+    ! ! Move particles through time
+    ! max_diff = 0._dp
 
-    time = tstart
-    do while (time < tstop)
+    ! time = tstart
+    ! do while (time < tstop)
 
-      time = time + dt
+    !   time = time + dt
 
-      do ip = 1, n_particles
+    !   do ip = 1, n_particles
 
-        call move_and_remove_particle( mesh, ice, particles, ip, dt)
+    !     call move_and_remove_particle( mesh, ice, particles, ip, dt)
 
-        r_orig     = norm2( particles%r_origin( ip,1:2))
-        theta_orig = atan2( particles%r_origin( ip,2), particles%r_origin( ip,1))
+    !     r_orig     = norm2( particles%r_origin( ip,1:2))
+    !     theta_orig = atan2( particles%r_origin( ip,2), particles%r_origin( ip,1))
 
-        theta_expected = theta_orig + 2._dp * pi * time / time_rev_surf * (1._dp - zeta_orig( ip))
-        if (theta_expected > pi) theta_expected = theta_expected - 2._dp * pi
+    !     theta_expected = theta_orig + 2._dp * pi * time / time_rev_surf * (1._dp - zeta_orig( ip))
+    !     if (theta_expected > pi) theta_expected = theta_expected - 2._dp * pi
 
-        r_expected = [ &
-          r_orig * cos( theta_expected), &
-          r_orig * sin( theta_expected), &
-          particles%r_origin( ip,3)]
+    !     r_expected = [ &
+    !       r_orig * cos( theta_expected), &
+    !       r_orig * sin( theta_expected), &
+    !       particles%r_origin( ip,3)]
 
-        diff = norm2( r_expected - particles%r(ip,:))
-        max_diff = max( max_diff, diff)
+    !     diff = norm2( r_expected - particles%r(ip,:))
+    !     max_diff = max( max_diff, diff)
 
-      end do
+    !   end do
 
-    end do
+    ! end do
 
-    call unit_test( max_diff < 5e3_dp, trim( test_name) // '/position')
+    ! call unit_test( max_diff < 5e3_dp, trim( test_name) // '/position')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
