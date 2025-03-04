@@ -7,7 +7,7 @@ MODULE climate_realistic
 
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
+  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string, warning
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
@@ -33,7 +33,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
-    TYPE(type_global_forcing)               INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
@@ -69,7 +69,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
-    TYPE(type_global_forcing)               INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -109,7 +109,7 @@ CONTAINS
 
       ! If the simulation is properly set up with times in [ka], we just get the absolute value of the initial time
       ! TODO: what is the standard? time in [ka] or in "[a]"
-      IF C%start_time_of_run < 0._dp
+      IF (C%start_time_of_run < 0._dp) THEN
         timeframe_init_insolation = ABS(C%start_time_of_run)
       ELSE
         timeframe_init_insolation = 0._dp
@@ -143,7 +143,7 @@ CONTAINS
     ! TODO: checks with what exactly we need to load here to know which global forcings need to be read
     ! e.g., insolation, CO2, d18O, etc...
     ! read and load the insolation data
-    CALL initialise_insolation_forcing( forcing)
+    CALL initialise_insolation_forcing( forcing, mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -151,13 +151,14 @@ CONTAINS
   END SUBROUTINE initialise_global_forcings
 
   ! == Insolation
-  SUBROUTINE initialise_insolation_forcing( forcing)
+  SUBROUTINE initialise_insolation_forcing( forcing, mesh)
     ! initialise the insolation series in the forcing structure
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_global_forcing),         INTENT(INOUT) :: forcing
+    TYPE(type_mesh)                       INTENT(IN) :: mesh
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'initialise_insolation_forcing'
@@ -186,24 +187,24 @@ CONTAINS
       END IF ! IF (par%master) THEN
 
       ! TODO: do we need to allocate these variables?!
-      ALLOCATE( forcing%ins_nyears)
-      ALLOCATE( forcing%ins_nlat)
-      ALLOCATE( forcing%ins_nlon)
-      ALLOCATE( forcing%wins_nlat  )
-      ALLOCATE( forcing%wins_nyears)
+      !ALLOCATE( forcing%ins_nyears)
+      !ALLOCATE( forcing%ins_nlat)
+      !ALLOCATE( forcing%ins_nlon)
+      !ALLOCATE( forcing%wins_nlat  )
+      !ALLOCATE( forcing%wins_nyears)
       forcing%ins_nlon = 360
 
       ! Insolation
-      ALLOCATE(forcing%ins_time       ( forcing%ins_nyears))
-      ALLOCATE(forcing%ins_lat        (   forcing%ins_nlat))
-      ALLOCATE(forcing%Q_TOA0         (forcing%ins_nlon,forcing%ins_nlat,12))
-      ALLOCATE(forcing%Q_TOA1         (forcing%ins_nlon,forcing%ins_nlat,12))
+      !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
+      !ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
+      !ALLOCATE(forcing%ins_Q_TOA0         (forcing%ins_nlon,forcing%ins_nlat,12))
+      !ALLOCATE(forcing%ins_Q_TOA1         (forcing%ins_nlon,forcing%ins_nlat,12))
       
       ! Read time and latitude data
       IF (par%master) THEN
 
         call read_time_from_file( C%filename_insolation, forcing%ins_time)
-        forcing%ins_nyears = len(forcing%ins_time) ! TODO: is this the proper way to do it?!
+        forcing%ins_nyears = size(forcing%ins_time) ! TODO: is this the proper way to do it?!
 
         ! Read the fields at the closest timeframes from ins_t0 and ins_t1 (function find_timeframe will do that)
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
@@ -243,7 +244,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'get_insolation_at_time'
     REAL(dp)                                         :: time_applied
     INTEGER                                          :: vi,m !,ilat_l,ilat_u
-    ! REAL(dp)                                         :: wt0, wt1, wlat_l, wlat_u ! not necessary?
+    REAL(dp)                                         :: wt0, wt1!, wlat_l, wlat_u ! not necessary?
     ! REAL(dp), DIMENSION(:  ), ALLOCATABLE            ::  Q_TOA_int ! not necessary?
     ! INTEGER                                          :: wQ_TOA_int ! not necessary?
 
@@ -266,7 +267,7 @@ CONTAINS
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time_applied < forcing%ins_t0 .OR. time_applied > forcing%ins_t1) THEN
-      CALL update_insolation_timeframes_from_file( forcing, time_applied) ! TODO
+      CALL update_insolation_timeframes_from_file( forcing, time_applied, mesh)
     END IF
 
     ! TODO: Is it necessary to allocate shared memory for timeframe-interpolated lat-month-only insolation?
@@ -277,7 +278,7 @@ CONTAINS
     wt1 = 1._dp - wt0
 
     ! Interpolate the two timeframes
-    do vi = mesh%vi1, mesh%v2
+    do vi = mesh%vi1, mesh%vi2
       do m = 1, 12
         Q_TOA(vi, m) = wt0 * forcing%ins_Q_TOA0(vi, m) + wt1 * forcing%ins_Q_TOA1(vi, m) ! TODO: does it need to be in par%master?
       end do
@@ -291,16 +292,17 @@ CONTAINS
 
   END SUBROUTINE get_insolation_at_time
 
-  SUBROUTINE update_insolation_timeframes_from_file( forcing, time)
+  SUBROUTINE update_insolation_timeframes_from_file( forcing, time, mesh)
     ! Read the NetCDF file containing the insolation forcing data. Only read the time frames enveloping the current
     ! coupling timestep to save on memory usage. Only done by master.
 
     ! NOTE: assumes time in forcing file is in kyr
 
-    IMPLICIT NONE
+    !IMPLICIT NONE
 
+    TYPE(type_mesh),                      INTENT(IN)   :: mesh
     TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
-    REAL(dp),                            INTENT(IN)    :: time
+    REAL(dp),                             INTENT(IN)   :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_insolation_timeframes_from_file'
