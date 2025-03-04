@@ -158,7 +158,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_global_forcing),         INTENT(INOUT) :: forcing
-    TYPE(type_mesh)                       INTENT(IN) :: mesh
+    TYPE(type_mesh),                      INTENT(IN) :: mesh
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'initialise_insolation_forcing'
@@ -235,10 +235,10 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                   INTENT(IN)    :: mesh
-    TYPE(type_global_forcing),         INTENT(INOUT) :: forcing
-    REAL(dp),                          INTENT(IN)    :: time
-    REAL(dp), DIMENSION(:,:),          INTENT(OUT)   :: Q_TOA
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
+    REAL(dp),                               INTENT(IN)    :: time
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE,  INTENT(OUT)   :: Q_TOA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'get_insolation_at_time'
