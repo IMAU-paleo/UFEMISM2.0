@@ -87,7 +87,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL run_climate_model_idealised( mesh, ice, climate, time)
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL run_climate_model_realistic( mesh, ice, climate, time)
+      CALL run_climate_model_realistic( mesh, ice, climate, forcing, time)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -398,7 +398,8 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to remap anything here
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh_new, climate, region_name)
+      CALL reallocate_bounds( forcing%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+      CALL reallocate_bounds( forcing%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
