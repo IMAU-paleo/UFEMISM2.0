@@ -769,10 +769,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT_config            = ''
 
     ! timeframe for restarting from the firn model
-    REAL(dp)            :: timeframe_firn_IMAUITM_NAM_config           = 1E9_dp
-    REAL(dp)            :: timeframe_firn_IMAUITM_EAS_config           = 1E9_dp
-    REAL(dp)            :: timeframe_firn_IMAUITM_GRL_config           = 1E9_dp
-    REAL(dp)            :: timeframe_firn_IMAUITM_ANT_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_NAM_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_EAS_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_GRL_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_ANT_config           = 1E9_dp
 
     ! Tuning parameters for the IMAU-ITM SMB model
     REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness_config   = 1._dp                            ! Initial firn thickness of the IMAU-ITEM SMB model [m] (used when SMB_IMAUITM_choice_init_firn = "uniform")
@@ -1804,10 +1804,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT
 
     ! timeframe for restarting from the firn model
-    REAL(dp)            :: timeframe_firn_IMAUITM_NAM
-    REAL(dp)            :: timeframe_firn_IMAUITM_EAS
-    REAL(dp)            :: timeframe_firn_IMAUITM_GRL
-    REAL(dp)            :: timeframe_firn_IMAUITM_ANT
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_NAM
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_EAS
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_GRL
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_ANT
 
     ! Tuning parameters for the IMAU-ITM SMB model
     REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness
@@ -2787,10 +2787,10 @@ CONTAINS
       filename_firn_IMAUITM_EAS_config                            , &
       filename_firn_IMAUITM_GRL_config                            , &
       filename_firn_IMAUITM_ANT_config                            , &
-      timeframe_firn_IMAUITM_NAM_config                           , &
-      timeframe_firn_IMAUITM_EAS_config                           , &
-      timeframe_firn_IMAUITM_GRL_config                           , &
-      timeframe_firn_IMAUITM_ANT_config                           , &
+      timeframe_restart_firn_IMAUITM_NAM_config                   , &
+      timeframe_restart_firn_IMAUITM_EAS_config                   , &
+      timeframe_restart_firn_IMAUITM_GRL_config                   , &
+      timeframe_restart_firn_IMAUITM_ANT_config                   , &
       SMB_IMAUITM_initial_firn_thickness_config                   , &
       SMB_IMAUITM_C_abl_constant_NAM_config                       , &
       SMB_IMAUITM_C_abl_constant_EAS_config                       , &
@@ -3756,10 +3756,10 @@ CONTAINS
     C%filename_firn_IMAUITM_ANT                              = filename_firn_IMAUITM_ANT_config
 
     ! timeframe for restarting from the firn model
-    C%timeframe_firn_IMAUITM_NAM                             = timeframe_firn_IMAUITM_NAM_config
-    C%timeframe_firn_IMAUITM_EAS                             = timeframe_firn_IMAUITM_EAS_config
-    C%timeframe_firn_IMAUITM_GRL                             = timeframe_firn_IMAUITM_GRL_config
-    C%timeframe_firn_IMAUITM_ANT                             = timeframe_firn_IMAUITM_ANT_config
+    C%timeframe_restart_firn_IMAUITM_NAM                    = timeframe_restart_firn_IMAUITM_NAM_config
+    C%timeframe_restart_firn_IMAUITM_EAS                    = timeframe_restart_firn_IMAUITM_EAS_config
+    C%timeframe_restart_firn_IMAUITM_GRL                    = timeframe_restart_firn_IMAUITM_GRL_config
+    C%timeframe_restart_firn_IMAUITM_ANT                    = timeframe_restart_firn_IMAUITM_ANT_config
 
     ! Tuning parameters for the IMAU-ITM SMB model
     C%SMB_IMAUITM_initial_firn_thickness                     = SMB_IMAUITM_initial_firn_thickness_config
