@@ -354,7 +354,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_climate_model_region
 
-  SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, region_name)
+  SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, forcing, region_name)
     ! Remap the climate model
 
     IMPLICIT NONE
@@ -363,6 +363,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
