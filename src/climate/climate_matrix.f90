@@ -333,14 +333,11 @@ CONTAINS
 
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Use the Roe&Lindzen precipitation model to do this; Berends et al., 2018, Eqs. A3-A7
-!
-      !! here it probably goes mesh instead of grid, for now mesh added as input, double check if grid is needed in this call
-      !
-      CALL adapt_precip_Roe( mesh, grid, Hs_GCM,   T_ref_GCM  , climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, P_ref_GCM, &
+      CALL adapt_precip_Roe( mesh, Hs_GCM,   T_ref_GCM  , climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, P_ref_GCM, &
                                    ice%Hs_a, climate%T2m, climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, climate%Precip)
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
       ! Use a simpler temperature-based correction; Berends et al., 2018, Eq. 14
-      CALL adapt_precip_CC( mesh, grid, ice%Hs_a, Hs_GCM, T_ref_GCM, P_ref_GCM, climate%Precip, region_name)
+      CALL adapt_precip_CC( mesh, ice%Hs_a, Hs_GCM, T_ref_GCM, P_ref_GCM, climate%Precip, region_name)
     END IF
 
     ! Clean up after yourself
@@ -830,44 +827,41 @@ CONTAINS
   ! Two different parameterised precipitation models:
   ! - a simply Clausius-Clapeyron-based method            (used for GRL and ANT)
   ! - the Roe & Lindzen temperature/orography-based model (used for NAM and EAS)
-  SUBROUTINE adapt_precip_CC( mesh, grid, Hs, Hs_GCM, T_ref_GCM, P_ref_GCM, Precip_GCM, region_name)
+  SUBROUTINE adapt_precip_CC( mesh, Hs, Hs_GCM, T_ref_GCM, P_ref_GCM, Precip_GCM, region_name)
 
     USE parameters_module, ONLY: T0
 
     IMPLICIT NONE
 
     ! Input variables:
-    TYPE(type_mesh),                                   :: mesh
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs              ! Model orography (m)
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs_GCM          ! Reference orography (m)           - total ice-weighted
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: T_ref_GCM       ! Reference temperature (K)         - total ice-weighted
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: P_ref_GCM       ! Reference precipitation (m/month) - total ice-weighted
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: Hs              ! Model orography (m)
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: Hs_GCM          ! Reference orography (m)           - total ice-weighted
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: T_ref_GCM       ! Reference temperature (K)         - total ice-weighted
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: P_ref_GCM       ! Reference precipitation (m/month) - total ice-weighted
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Output variables:
-    REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: Precip_GCM      ! Climate matrix precipitation
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Precip_GCM      ! Climate matrix precipitation
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_CC'
-    INTEGER                                            :: i,j,m
-    REAL(dp), DIMENSION(:,:,:), POINTER                ::  T_inv,  T_inv_ref
+    INTEGER                                            :: vi,m
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  T_inv,  T_inv_ref
     INTEGER                                            :: wT_inv, wT_inv_ref
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, T_inv,     wT_inv    )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, T_inv_ref, wT_inv_ref)
+    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv,     wT_inv    )
+    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv_ref, wT_inv_ref)
 
     ! Calculate inversion layer temperatures
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
     DO m = 1, 12
-      T_inv_ref( m,j,i) = 88.9_dp + 0.67_dp *  T_ref_GCM( m,j,i)
-      T_inv(     m,j,i) = 88.9_dp + 0.67_dp * (T_ref_GCM( m,j,i) - 0.008_dp * (Hs( j,i) - Hs_GCM( j,i)))
-    END DO
+    DO vi = mesh%vi1, mesh%vi2
+      T_inv_ref( vi,m) = 88.9_dp + 0.67_dp *  T_ref_GCM( vi,m)
+      T_inv(     vi,m) = 88.9_dp + 0.67_dp * (T_ref_GCM( vi,m) - C%constant_lapserate * (Hs( vi) - Hs_GCM( vi)))
     END DO
     END DO
     CALL sync
@@ -875,11 +869,9 @@ CONTAINS
     IF     (region_name == 'GRL') THEN
       ! Method of Jouzel and Merlivat (1984), see equation (4.82) in Huybrechts (1992)
 
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
       DO m = 1, 12
-        Precip_GCM( m,j,i) = P_ref_GCM( m,j,i) * 1.04**(T_inv( m,j,i) - T_inv_ref( m,j,i))
-      END DO
+      DO vi = mesh%vi1, mesh%vi2
+        Precip_GCM( vi,m) = P_ref_GCM( vi,m) * 1.04**(T_inv( vi,m) - T_inv_ref( vi,m))
       END DO
       END DO
       CALL sync
@@ -887,17 +879,16 @@ CONTAINS
     ELSEIF (region_name == 'ANT') THEN
       ! As with Lorius/Jouzel method (also Huybrechts, 2002
 
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
       DO m = 1, 12
-        Precip_GCM( m,j,i) = P_ref_GCM( m,j,i) * (T_inv_ref( m,j,i) / T_inv( m,j,i))**2 * EXP(22.47_dp * (T0 / T_inv_ref( m,j,i) - T0 / T_inv( m,j,i)))
-      END DO
+      DO vi = mesh%vi1, mesh%vi2
+        Precip_GCM( vi,m) = P_ref_GCM( vi,m) * (T_inv_ref( vi,m) / T_inv( vi,m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
       END DO
       END DO
       CALL sync
 
     ELSE
-      CALL crash('adapt_precip_CC should only be used for Greenland and Antarctica!')
+      IF (par%master) WRITE(0,*) '  ERROR - adapt_precip_CC should only be used for Greenland and Antarctica!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
 
     ! Clean up after yourself
@@ -908,64 +899,62 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE adapt_precip_CC
-  SUBROUTINE adapt_precip_Roe( grid, Hs1, T2m1, Wind_LR1, Wind_DU1, Precip1, &
+  SUBROUTINE adapt_precip_Roe( mesh, Hs1, T2m1, Wind_LR1, Wind_DU1, Precip1, &
                                      Hs2, T2m2, Wind_LR2, Wind_DU2, Precip2)
     ! Adapt precipitation from reference state 1 to model state 2, using the Roe&Lindzen precipitation model
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs1,      Hs2
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: T2m1,     T2m2
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: Wind_LR1, Wind_LR2
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: Wind_DU1, Wind_DU2
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: Precip1
-    REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: Precip2
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: Hs1,      Hs2
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: T2m1,     T2m2
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Wind_LR1, Wind_LR2
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Wind_DU1, Wind_DU2
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Precip1
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Precip2
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_Roe'
-    INTEGER                                            :: i,j,m
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dHs_dx1,  dHs_dx2
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dHs_dy1,  dHs_dy2
+    INTEGER                                            :: vi,m
+    REAL(dp), DIMENSION(:    ), POINTER                ::  dHs_dx1,  dHs_dx2
+    REAL(dp), DIMENSION(:    ), POINTER                ::  dHs_dy1,  dHs_dy2
     INTEGER                                            :: wdHs_dx1, wdHs_dx2
     INTEGER                                            :: wdHs_dy1, wdHs_dy2
-    REAL(dp), DIMENSION(:,:,:), POINTER                ::  Precip_RL1,  Precip_RL2,  dPrecip_RL
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Precip_RL1,  Precip_RL2,  dPrecip_RL
     INTEGER                                            :: wPrecip_RL1, wPrecip_RL2, wdPrecip_RL
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, dHs_dx1,     wdHs_dx1   )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, dHs_dx2,     wdHs_dx2   )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, dHs_dy1,     wdHs_dy1   )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, dHs_dy2,     wdHs_dy2   )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, Precip_RL1,  wPrecip_RL1)
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, Precip_RL2,  wPrecip_RL2)
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, dPrecip_RL,  wdPrecip_RL)
+    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx1,     wdHs_dx1   )
+    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx2,     wdHs_dx2   )
+    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy1,     wdHs_dy1   )
+    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy2,     wdHs_dy2   )
+    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL1,  wPrecip_RL1)
+    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL2,  wPrecip_RL2)
+    CALL allocate_shared_dp_2D( mesh%nv, 12, dPrecip_RL,  wdPrecip_RL)
 
     ! Calculate surface slopes for both states
-    CALL ddx_a_to_a_2D( grid, Hs1, dHs_dx1)
-    CALL ddx_a_to_a_2D( grid, Hs2, dHs_dx2)
-    CALL ddy_a_to_a_2D( grid, Hs1, dHs_dy1)
-    CALL ddy_a_to_a_2D( grid, Hs2, dHs_dy2)
+    CALL ddx_a_to_a_2D( mesh, Hs1, dHs_dx1)
+    CALL ddx_a_to_a_2D( mesh, Hs2, dHs_dx2)
+    CALL ddy_a_to_a_2D( mesh, Hs1, dHs_dy1)
+    CALL ddy_a_to_a_2D( mesh, Hs2, dHs_dy2)
 
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
 
       ! Calculate precipitation with the Roe&Lindzen model for both states
-      CALL precipitation_model_Roe( T2m1( m,j,i), dHs_dx1( j,i), dHs_dy1( j,i), Wind_LR1( m,j,i), Wind_DU1( m,j,i), Precip_RL1( m,j,i))
-      CALL precipitation_model_Roe( T2m2( m,j,i), dHs_dx2( j,i), dHs_dy2( j,i), Wind_LR2( m,j,i), Wind_DU2( m,j,i), Precip_RL2( m,j,i))
+      CALL precipitation_model_Roe( T2m1( vi,m), dHs_dx1( vi), dHs_dy1( vi), Wind_LR1( vi,m), Wind_DU1( vi,m), Precip_RL1( vi,m))
+      CALL precipitation_model_Roe( T2m2( vi,m), dHs_dx2( vi), dHs_dy2( vi), Wind_LR2( vi,m), Wind_DU2( vi,m), Precip_RL2( vi,m))
 
       ! Calculate the ratio between those two precipitation rates
-      dPrecip_RL( m,j,i) = MAX(0.01_dp, MIN( 2._dp, Precip_RL2( m,j,i) / Precip_RL1( m,j,i) ))
+      dPrecip_RL( vi,m) = MAX(0.01_dp, MIN( 2._dp, Precip_RL2( vi,m) / Precip_RL1( vi,m) ))
 
       ! Applied model precipitation = (matrix-interpolated GCM reference precipitation) * RL ratio
-      Precip2( m,j,i) = Precip1( m,j,i) * dPrecip_RL( m,j,i)
+      Precip2( vi,m) = Precip1( vi,m) * dPrecip_RL( vi,m)
 
-    END DO
     END DO
     END DO
     CALL sync
