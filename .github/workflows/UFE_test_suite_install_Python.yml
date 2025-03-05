@@ -33,6 +33,7 @@ jobs:
       - name: Install environment
         run: |
           conda env create -n ufelad -f tools/python/dev-spec.txt python=3.10
+          conda init
           conda activate ufelad
           python -m pip install -vv --no-deps --no-build-isolation .
 
