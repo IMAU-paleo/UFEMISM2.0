@@ -6,18 +6,15 @@ on:
 jobs:
   install_python:
     runs-on: macos-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13"
 
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
@@ -31,12 +28,12 @@ jobs:
           channels: conda-forge
           channel-priority: strict
           auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13"
 
       - name: Install environment
         run: |
           conda create -n environment --file tools/python/environment.yml \
-            python=${{ matrix.python-version }}
+            python=3.13
           conda activate environment
           python -m pip install -vv --no-deps --no-build-isolation .
 
