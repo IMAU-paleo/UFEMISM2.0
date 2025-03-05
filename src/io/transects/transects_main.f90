@@ -56,6 +56,12 @@ contains
       transects_str = C%transects_ANT
     end select
 
+    if (transects_str == '') then
+      allocate( region%transects( 0))
+      call finalise_routine( routine_name)
+      return
+    end if
+
     call separate_strings_by_double_vertical_bars( transects_str, transect_strs)
 
     allocate( region%transects( size(transect_strs)))
