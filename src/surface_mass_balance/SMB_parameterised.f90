@@ -56,9 +56,10 @@ contains
   end subroutine run_SMB_model_parameterised
 
   subroutine run_SMB_model_parameterised_IMAUITM( mesh, ice, climate, SMB)
-    ! Initialise the SMB model
-    !
-    ! use a parameterised SMB scheme
+    ! Run the IMAU-ITM SMB model.
+
+    ! NOTE: all the SMB components are in meters of water equivalent;
+    !       the end result (SMB and SMB_year) are in meters of ice equivalent.
 
     ! In- and output variables
     type(type_mesh),          intent(in)    :: mesh
@@ -71,7 +72,7 @@ contains
     integer                       :: vi
     integer                       :: m,mprev
     real(dp)                      :: snowfrac, liquid_water, sup_imp_wat
-    real(dp)                      :: dummy_dp
+    !real(dp)                      :: dummy_dp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -84,8 +85,8 @@ contains
 
     ! Initialise
     ! To prevent compiler warnings
-    dummy_dp = mesh%xmin
-    dummy_dp = SMB%SMB( mesh%vi1)
+    !dummy_dp = mesh%xmin
+    !dummy_dp = SMB%SMB( mesh%vi1)
 
     DO vi = mesh%vi1, mesh%vi2
       ! Background albedo
@@ -111,8 +112,9 @@ contains
 
         ! NOTE: commented version is the old ANICE version, supposedly based on "physics" (which we cant check), but
         !       the new version was tuned to RACMO output and produced significantly better snow fractions...
-        !snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m(vi,m) - T0) / 3.5_dp)  / 1.25664_dp)))
-        snowfrac = MAX(0._dp, MIN(1._dp, 0.725_dp * (1 - ATAN((climate%T2m( vi,m) - T0) / 5.95_dp) / 1.8566_dp)))
+        ! However there is still snowfall even if temperatures are at 300 K, which does not seem realistic.
+        snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m(vi,m) - T0) / 3.5_dp)  / 1.25664_dp))) ! ANICE "realistic" snow fractions
+        !snowfrac = MAX(0._dp, MIN(1._dp, 0.725_dp * (1 - ATAN((climate%T2m( vi,m) - T0) / 5.95_dp) / 1.8566_dp))) ! IMAU-ICE "tuned" snow fractions
 
         SMB%Snowfall( vi,m) = climate%Precip( vi,m) *          snowfrac
         SMB%Rainfall( vi,m) = climate%Precip( vi,m) * (1._dp - snowfrac)
@@ -134,7 +136,11 @@ contains
       sup_imp_wat  = SMB%C_refr * MAX(0._dp, T0 - SUM(climate%T2m( vi,:))/12._dp)
       liquid_water = SUM(SMB%Rainfall( vi,:)) + SUM(SMB%Melt( vi,:))
 
-      SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:)))
+      ! Note: Refreezing is limited by the ability of the firn layer to store melt water. currently a ten meter firn layer can store
+      ! 2.5 m of water. However, this is based on expert judgement, NOT empirical evidence.
+      SMB%Refreezing_year( vi) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,vi))), 0.25_dp * SUM(SMB%FirnDepth( :,vi)/12._dp)) ! version from IMAU-ICE dev branch
+      !SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))) ! outdated version on main branch
+      
       IF (ice%mask_grounded_ice( vi) .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
 
       DO m = 1, 12
@@ -147,9 +153,13 @@ contains
 
       ! Calculate total melt over this year, to be used for determining next year's albedo
       SMB%MeltPreviousYear( vi) = SUM(SMB%Melt( vi,:))
-    END DO
-    
 
+    END DO
+
+    ! Convert final SMB from water to ice equivalent
+      SMB%SMB_monthly( mesh%vi1:mesh%vi2,:) = SMB%SMB_monthly(  mesh%vi1:mesh%vi2,:) * 1000._dp / ice_density
+      SMB%SMB(         mesh%vi1:mesh%vi2)   = SMB%SMB(          mesh%vi1:mesh%vi2)   * 1000._dp / ice_density
+    
     ! Finalise routine path
     call finalise_routine( routine_name)
 
