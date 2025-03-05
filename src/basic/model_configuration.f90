@@ -669,7 +669,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
     ! == Climate - Insolation
-    CHARACTER(LEN=256)  :: choice_insolation_forcing_config             = 'static'                         ! 'static' or 'realistic'
+    CHARACTER(LEN=256)  :: choice_insolation_forcing_config             = 'none'                           ! 'none', 'static' or 'realistic'
     CHARACTER(LEN=256)  :: filename_insolation_config                   = ''                               ! File with the insolation solution (Laskar 2004)
     REAL(dp)            :: static_insolation_time_config                = 0._dp                            ! [ka?] time to use for a static insolation
 
@@ -3727,6 +3727,10 @@ CONTAINS
     C%filename_climate_snapshot_EAS                          = filename_climate_snapshot_EAS_config
     C%filename_climate_snapshot_GRL                          = filename_climate_snapshot_GRL_config
     C%filename_climate_snapshot_ANT                          = filename_climate_snapshot_ANT_config
+
+    C%choice_insolation_forcing                              = choice_insolation_forcing_config
+    C%filename_insolation                                    = filename_insolation_config
+    C%static_insolation_time                                 = static_insolation_time_config
 
   ! == Ocean
   ! ========
