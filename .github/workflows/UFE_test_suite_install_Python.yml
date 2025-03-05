@@ -41,5 +41,7 @@ jobs:
         env:
           CHECK_IMAGES: False
         run: |
+          conda init --all
+          source ~/.bashrc
           conda activate ufelad
           conda list
