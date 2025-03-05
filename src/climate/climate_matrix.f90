@@ -545,6 +545,49 @@ CONTAINS
     ! this is not needed, UFE2 detects how is the input file
     !CALL determine_file_grid_type( filename, file_grid_type)
 
+! check this function! I need to add it
+    ! Check if wind fields are included in this file; if not, return -1
+    CALL inquire_var_multiple_options( filename, field_name_options_wind_WE, found_wind_WE)
+    CALL inquire_var_multiple_options( filename, field_name_options_wind_SN, found_wind_SN)
+
+    ! Winds may also be LR or DU, check for that as well
+    CALL inquire_var_multiple_options( filename, 'Wind_LR', found_wind_LR)
+    CALL inquire_var_multiple_options( filename, 'Wind_DU', found_wind_DU)
+
+    ! Check if South-North / East-West winds exist
+    IF (found_wind_WE /= -1 .AND. found_wind_SN /= -1) THEN
+         found_winds = .TRUE.
+    ELSE
+         found_winds = .FALSE.
+    END IF
+
+    ! Check instead if the file contains Left-Right / Up-Down winds
+    IF (found_wind_DU /= -1 .AND. found_wind_LR /= -1) THEN
+         found_winds_LRDU = .TRUE.
+    ELSE
+         found_winds_LRDU = .FALSE.
+    END IF
+! 5th input now is: time_to_read = timeframe_SMB_prescribed. Is optional but think about it
+    CALL read_field_from_file_2D(         filename, field_name_options_Hs , mesh, snapshot%Hs    )
+    CALL read_field_from_file_2D_monthly( filename, 'T2m'                 , mesh, snapshot%T2m   )
+    CALL read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, snapshot%Precip)
+
+    IF (found_winds) THEN
+         CALL read_field_from_file_2D_monthly( filename, field_name_options_wind_WE, mesh, snapshot%Wind_WE)
+         CALL read_field_from_file_2D_monthly( filename, field_name_options_wind_SN, mesh, snapshot%Wind_SN)
+
+         ! Make sure to project SN and WE winds to DU and LR winds
+         CALL rotate_wind_to_model_mesh( mesh, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
+         CALL rotate_wind_to_model_mesh( mesh, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
+    ELSEIF (found_winds_LRDU) THEN
+         ! LR and DU winds are already correctly rotated, so these field need to be loaded.
+         CALL read_field_from_file_2D_monthly( filename, 'Wind_LR', mesh, snapshot%wind_LR)
+         CALL read_field_from_file_2D_monthly( filename, 'Wind_DU', mesh, snapshot%wind_DU)
+    ELSE
+        ! There are no wind fields in the file
+    END IF
+
+
     call read_field_from_file_2D( filename_SMB_prescribed, 'SMB||surface_mass_balance||', mesh, SMB%SMB)
     
 ! MERGE read_climate_snapshot, now is just a function to read and remap
@@ -1354,7 +1397,55 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE precipitation_model_Roe
+  ! Rotate wind_WE, wind_SN to wind_LR, wind_DU
+  SUBROUTINE rotate_wind_to_model_mesh( mesh, wind_WE, wind_SN, wind_LR, wind_DU)
+    ! Code copied from ANICE.
 
+    USE parameters, ONLY: pi
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: wind_WE
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: wind_SN
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: wind_LR
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: wind_DU
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'rotate_wind_to_model_mesh'
+    INTEGER                                            :: vi,m
+    REAL(dp)                                           :: longitude_start, Uwind_x, Uwind_y, Vwind_x, Vwind_y
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! First find the first longitude which defines the start of quadrant I:
+    longitude_start = mesh%lambda_M - 90._dp
+
+    DO vi = mesh%vi1, mesh%vi2
+    DO m = 1, 12
+
+      ! calculate x and y from the zonal wind
+      Uwind_x =   wind_WE( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+      Uwind_y = - wind_WE( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+
+      ! calculate x and y from the meridional winds
+      Vwind_x =   wind_SN( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+      Vwind_y =   wind_SN( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+
+      ! Sum up wind components
+      wind_LR( vi,m) = Uwind_x + Vwind_x   ! winds left to right
+      wind_DU( vi,m) = Uwind_y + Vwind_y   ! winds bottom to top
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE rotate_wind_to_model_mesh
   ! Safety checks
   SUBROUTINE check_safety_temperature( T2m)
     ! Safety checks on a monthly temperature field
