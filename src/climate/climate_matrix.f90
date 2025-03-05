@@ -572,8 +572,11 @@ CONTAINS
     call read_field_from_file_2D_monthly( filename, 'Wind_WE||uas||'      , mesh, snapshot%Wind_WE) ! is needed the last ||? I copy it from SMB_realistic
     call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
 
-    CALL check_safety_temperature(   snapshot%T2m   )
-    CALL check_safety_precipitation( snapshot%Precip)
+    call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
+    
+    ! option to do safety check here, I moved it after run, so it will check also with the forcings! functions not needed
+    !CALL check_safety_temperature(   snapshot%T2m   )
+    !CALL check_safety_precipitation( snapshot%Precip)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
