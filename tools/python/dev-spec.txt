@@ -1,0 +1,7 @@
+# base
+
+python >= 3.10
+netcdf4
+numpy
+scipy
+xarray

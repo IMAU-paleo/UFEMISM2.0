@@ -11,10 +11,10 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.10"
 
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
@@ -32,7 +32,7 @@ jobs:
 
       - name: Install environment
         run: |
-          conda env create -f tools/python/environment.yml
+          conda env create -n ufelad -f tools/python/dev-spec.txt python=3.10
           conda activate ufelad
           python -m pip install -vv --no-deps --no-build-isolation .
 
