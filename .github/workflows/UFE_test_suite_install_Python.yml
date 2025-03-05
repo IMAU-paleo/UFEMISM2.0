@@ -36,7 +36,6 @@ jobs:
           conda init --all
           source ~/.bashrc
           conda activate ufelad
-          python -m pip install -vv --no-deps --no-build-isolation .
 
       - name: Run Tests
         env:
