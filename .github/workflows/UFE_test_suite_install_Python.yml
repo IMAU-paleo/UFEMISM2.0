@@ -32,7 +32,7 @@ jobs:
 
       - name: Install environment
         run: |
-          conda create -f tools/python/environment.yml
+          conda env create -f tools/python/environment.yml
           conda activate ufelad
           python -m pip install -vv --no-deps --no-build-isolation .
 
