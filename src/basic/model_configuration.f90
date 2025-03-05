@@ -750,7 +750,7 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
 
     ! Parameterised SMB forcing
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_config              = ''
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_config              = 'IMAU-ITM'
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM_config          = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS_config          = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL_config          = ''
