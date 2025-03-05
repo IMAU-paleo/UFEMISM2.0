@@ -111,7 +111,6 @@ contains
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_reading( filename, ncid)
 
-    !TODO: Set up the grid from the file
     call setup_lonlat_grid_from_lat_file( filename, ncid, grid_loc, vec_loc)
 
     ! Look for the specified variable in the file
