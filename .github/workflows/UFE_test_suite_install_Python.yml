@@ -34,6 +34,7 @@ jobs:
         run: |
           conda env create -n ufelad --file=tools/python/dev-spec.txt python=3.10
           conda init --all
+          source ~/.bashrc
           conda activate ufelad
           python -m pip install -vv --no-deps --no-build-isolation .
 
