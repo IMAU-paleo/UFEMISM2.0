@@ -58,6 +58,27 @@ CONTAINS
     ! Use the (CO2 + ice-sheet geometry)-based interpolation scheme for precipitation
     CALL run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name)
 
+    ! == Safety checks
+    ! ================
+
+! copied and pasted from UFE1.x Check the names of the variables!
+    DO vi = mesh%vi1, mesh%vi2
+    DO m = 1, 12
+      IF (climate_matrix%applied%T2m( vi,m) < 150._dp) THEN
+        CALL warning('excessively low temperatures (<150K) detected!')
+      ELSEIF (climate_matrix%applied%T2m( vi,m) < 0._dp) THEN
+        CALL crash('negative temperatures (<0K) detected!')
+      ELSEIF (climate_matrix%applied%T2m( vi,m) /= climate_matrix%applied%T2m( vi,m)) THEN
+        CALL crash('NaN temperatures  detected!')
+      ELSEIF (climate_matrix%applied%Precip( vi,m) <= 0._dp) THEN
+        CALL crash('zero/negative precipitation detected!')
+      ELSEIF (climate_matrix%applied%Precip( vi,m) /= climate_matrix%applied%Precip( vi,m)) THEN
+        CALL crash('NaN precipitation detected!')
+      END IF
+    END DO
+    END DO
+    CALL sync
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -520,7 +541,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE allocate_climate_snapshot
-    SUBROUTINE read_climate_snapshot( filename, mesh, snapshot, found_winds)
+    SUBROUTINE read_climate_snapshot( filename, mesh, snapshot)
     ! Read a climate snapshot from a NetCDF file. Works both for global lon/lat files and regional x/y files
 
     IMPLICIT NONE
@@ -529,11 +550,9 @@ CONTAINS
     CHARACTER(LEN=256),                 INTENT(IN)    :: filename
     TYPE(type_mesh),                    INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
-    LOGICAL,                            INTENT(OUT)   :: found_winds
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot'
-    !CHARACTER(LEN=256)                                :: file_grid_type
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -541,71 +560,18 @@ CONTAINS
     ! Write message to screen
     IF (par%master) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
 
-    ! Determine if the file contains climate snapshot data on a global lon/lat-grid or a regional x/y-grid
-    ! this is not needed, UFE2 detects how is the input file
-    !CALL determine_file_grid_type( filename, file_grid_type)
+    ! here in IMAU-ICE it check the name variable of the wind. In UFEMISM2.0 the subroutine is called as inquire_var_multopt
+    ! to use it would need to have ncid this means open the netcdf file and it will be a lot of code writing that do not look nice
+    ! For simplicity now, we will assume that wind is WE, SN as UFE1.x
+    ! call inquire_var_multopt( filename, ncid, var_name_options = 'x||X||x1||X1||x-coordinate||X-coordinate||easting', id_var)
 
-! check this function! I need to add it
-    ! Check if wind fields are included in this file; if not, return -1
-    CALL inquire_var_multiple_options( filename, field_name_options_wind_WE, found_wind_WE)
-    CALL inquire_var_multiple_options( filename, field_name_options_wind_SN, found_wind_SN)
-
-    ! Winds may also be LR or DU, check for that as well
-    CALL inquire_var_multiple_options( filename, 'Wind_LR', found_wind_LR)
-    CALL inquire_var_multiple_options( filename, 'Wind_DU', found_wind_DU)
-
-    ! Check if South-North / East-West winds exist
-    IF (found_wind_WE /= -1 .AND. found_wind_SN /= -1) THEN
-         found_winds = .TRUE.
-    ELSE
-         found_winds = .FALSE.
-    END IF
-
-    ! Check instead if the file contains Left-Right / Up-Down winds
-    IF (found_wind_DU /= -1 .AND. found_wind_LR /= -1) THEN
-         found_winds_LRDU = .TRUE.
-    ELSE
-         found_winds_LRDU = .FALSE.
-    END IF
 ! 5th input now is: time_to_read = timeframe_SMB_prescribed. Is optional but think about it
-    CALL read_field_from_file_2D(         filename, field_name_options_Hs , mesh, snapshot%Hs    )
-    CALL read_field_from_file_2D_monthly( filename, 'T2m'                 , mesh, snapshot%T2m   )
-    CALL read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, snapshot%Precip)
+    CALL read_field_from_file_2D(         filename, field_name_options_Hs , mesh, snapshot%Hs     )
+    CALL read_field_from_file_2D_monthly( filename, 'T2m'                 , mesh, snapshot%T2m    )
+    CALL read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, snapshot%Precip )
+    call read_field_from_file_2D_monthly( filename, 'Wind_WE||uas||'      , mesh, snapshot%Wind_WE) ! is needed the last ||? I copy it from SMB_realistic
+    call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
 
-    IF (found_winds) THEN
-         CALL read_field_from_file_2D_monthly( filename, field_name_options_wind_WE, mesh, snapshot%Wind_WE)
-         CALL read_field_from_file_2D_monthly( filename, field_name_options_wind_SN, mesh, snapshot%Wind_SN)
-
-         ! Make sure to project SN and WE winds to DU and LR winds
-         CALL rotate_wind_to_model_mesh( mesh, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
-         CALL rotate_wind_to_model_mesh( mesh, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
-    ELSEIF (found_winds_LRDU) THEN
-         ! LR and DU winds are already correctly rotated, so these field need to be loaded.
-         CALL read_field_from_file_2D_monthly( filename, 'Wind_LR', mesh, snapshot%wind_LR)
-         CALL read_field_from_file_2D_monthly( filename, 'Wind_DU', mesh, snapshot%wind_DU)
-    ELSE
-        ! There are no wind fields in the file
-    END IF
-
-
-    call read_field_from_file_2D( filename_SMB_prescribed, 'SMB||surface_mass_balance||', mesh, SMB%SMB)
-    
-! MERGE read_climate_snapshot, now is just a function to read and remap
-
-    
-
-!    IF (file_grid_type == 'x/y') THEN
-!      ! This file contains climate data on a regional x/y-grid
-!      CALL read_climate_snapshot_xy(     filename, grid, snapshot, found_winds)
-!    ELSEIF (file_grid_type == 'lon/lat') THEN
-!      ! This file contains climate data on a global lon/lat-grid
-!      CALL read_climate_snapshot_lonlat( filename, grid, snapshot, found_winds)
-!    ELSE
-!      CALL crash('unknown file_grid_type "' // TRIM( file_grid_type) // '"!')
-!    END IF
-
-! keep safety checks!
-    ! Safety checks
     CALL check_safety_temperature(   snapshot%T2m   )
     CALL check_safety_precipitation( snapshot%Precip)
 
