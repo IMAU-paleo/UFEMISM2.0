@@ -341,7 +341,8 @@ contains
 
     ! Generate the vector of longitudes - hardcoded to be at 1 degree resolution
     do i=1, nlon
-        lon(i) = -180 + 360 * (i - 1) / (nlon - 1)
+        !lon(i) = -180 + 360 * (i - 1) / (nlon - 1) ! longitude going from -180 to + 180
+        lon(i) = i*dlon                             ! longitude going from 0 to 360
     end do
 
     ! Add routine to path
@@ -353,7 +354,7 @@ contains
     ! Check latitude grid dimension and variables for validity
     call check_lat( filename, ncid)
 
-    ! Inquire lon and lat dimensions
+    ! Inquire lat dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat, dim_length = grid%nlat)
     grid%nlon = nlon
     vec%nlat  = grid%nlat
@@ -367,9 +368,9 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read y and assign x
-    call read_var_master( filename, ncid, id_var_lat, grid%lat)
+    call read_var_master( filename, ncid, id_var_lat, vec%lat)
     grid%lon = lon
-    vec%lat  = grid%lat
+    grid%lat  = vec%lat
 
     ! Broadcast x and y from the master to the other processes
     call MPI_BCAST( grid%lon, grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
