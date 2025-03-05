@@ -187,34 +187,35 @@ CONTAINS
         forcing%ins_t0 = C%start_time_of_run - 100._dp
         forcing%ins_t1 = C%start_time_of_run - 90._dp
         WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
-      END IF ! IF (par%master) THEN
+      !END IF ! IF (par%master) THEN
 
-      ! TODO: do we need to allocate these variables?!
-      !ALLOCATE( forcing%ins_nyears)
-      !ALLOCATE( forcing%ins_nlat)
-      !ALLOCATE( forcing%ins_nlon)
-      !ALLOCATE( forcing%wins_nlat  )
-      !ALLOCATE( forcing%wins_nyears)
-      forcing%ins_nlon = 360
+        ! TODO: do we need to allocate these variables?!
+        !ALLOCATE( forcing%ins_nyears)
+        !ALLOCATE( forcing%ins_nlat)
+        !ALLOCATE( forcing%ins_nlon)
+        !ALLOCATE( forcing%wins_nlat  )
+        !ALLOCATE( forcing%wins_nyears)
+        forcing%ins_nlon = 360
 
-      ! Insolation
-      !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
-      !ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
-      !ALLOCATE(forcing%ins_Q_TOA0         (forcing%ins_nlon,forcing%ins_nlat,12))
-      !ALLOCATE(forcing%ins_Q_TOA1         (forcing%ins_nlon,forcing%ins_nlat,12))
+        ! Insolation
+        !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
+        !ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
+        !ALLOCATE(forcing%ins_Q_TOA0         (forcing%ins_nlon,forcing%ins_nlat,12))
+        !ALLOCATE(forcing%ins_Q_TOA1         (forcing%ins_nlon,forcing%ins_nlat,12))
       
       ! Read time and latitude data
-      IF (par%master) THEN
-
+      !IF (par%master) THEN
+        WRITE(0,*) '     Reading time...'
         call read_time_from_file( C%filename_insolation, forcing%ins_time)
+        WRITE(0,*) '     Time was read.'
         forcing%ins_nyears = size(forcing%ins_time) ! TODO: is this the proper way to do it?!
 
         ! Read the fields at the closest timeframes from ins_t0 and ins_t1 (function find_timeframe will do that)
         ! TODO: this is where things are going wrong
-        IF (par%master)  WRITE(*,"(A)") '     Reading Q_TOA...'
+        WRITE(0,*) '     Reading Q_TOA...'
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_t1)
-        IF (par%master)  WRITE(*,"(A)") '     Q_TOA is read.'
+        WRITE(0,*) '     Q_TOA is read.'
 
         str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after initialisation at times {dp_01} and {dp_02}'
         call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
@@ -223,7 +224,7 @@ CONTAINS
         call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
         call insert_val_into_string_dp(  str, '{dp_01}', forcing%ins_t0)
         call insert_val_into_string_dp(  str, '{dp_02}', forcing%ins_t1)
-        IF (par%master)  WRITE(*,"(A)") trim(str)
+        WRITE(0,*) trim(str)
 
         IF (C%start_time_of_run < forcing%ins_time(1)) THEN
           CALL warning(' Model time starts before start of insolation record; the model will crash lol')
@@ -281,7 +282,7 @@ CONTAINS
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time_applied < forcing%ins_t0 .OR. time_applied > forcing%ins_t1) THEN
-      IF (par%master)  WRITE(0,"(A)") '   Calling update_insolation_timeframes...'
+      IF (par%master)  WRITE(0,*) '   Calling update_insolation_timeframes...'
       CALL update_insolation_timeframes_from_file( forcing, time_applied, mesh)
     END IF
 
@@ -368,7 +369,7 @@ CONTAINS
       call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
       call insert_val_into_string_int(  str, '{int_03}', size(forcing%ins_Q_TOA1,1))
       call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
-      IF (par%master)  WRITE(*,"(A)") trim(str)
+      IF (par%master)  WRITE(0,*) trim(str)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
