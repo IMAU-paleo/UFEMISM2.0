@@ -9,7 +9,7 @@ module read_and_remap_field_from_file
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
   use remapping_main
@@ -56,6 +56,7 @@ contains
     real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_mesh_partial_from_file
     character(len=1024), parameter        :: method_mesh2mesh = '2nd_order_conservative'
+    character(len=256)                    :: str
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -82,6 +83,11 @@ contains
       call open_existing_netcdf_file_for_reading( filename, ncid)
       call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file, grid_lat_from_file)
       call close_netcdf_file( ncid)
+      str = ' Resulting lonlat grid has dimensions ({int_01},{int_02}), lat-only grid has size {int_03}'
+      call insert_val_into_string_int( str, '{int_01}', grid_lonlat_from_file%nlon)
+      call insert_val_into_string_int( str, '{int_02}', grid_lonlat_from_file%nlat)
+      call insert_val_into_string_int( str, '{int_03}', grid_lat_from_file%nlat)
+      IF (par%master)  WRITE(*,"(A)") trim(str)
 
       ! allocate memory for gridded data
       allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))

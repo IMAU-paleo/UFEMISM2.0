@@ -7,7 +7,7 @@ MODULE climate_realistic
 
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string, warning
+  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string, warning, insert_val_into_string_int,insert_val_into_string_dp
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
@@ -105,6 +105,7 @@ CONTAINS
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh, climate%T2m)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh, climate%Precip)
 
+      IF (par%master)  WRITE(*,"(A)") '     Initialising global forcings...'
       CALL initialise_global_forcings( mesh, forcing)
 
       ! If the simulation is properly set up with times in [ka], we just get the absolute value of the initial time
@@ -114,6 +115,7 @@ CONTAINS
       ELSE
         timeframe_init_insolation = 0._dp
       END IF
+      IF (par%master)  WRITE(*,"(A)") '     Calling getting insolation at time...'
       CALL get_insolation_at_time( mesh, timeframe_init_insolation, forcing, climate%Q_TOA) ! TODO: check logic
 
     ELSE
@@ -162,6 +164,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'initialise_insolation_forcing'
+    CHARACTER(LEN=256)                               :: str
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -207,9 +210,20 @@ CONTAINS
         forcing%ins_nyears = size(forcing%ins_time) ! TODO: is this the proper way to do it?!
 
         ! Read the fields at the closest timeframes from ins_t0 and ins_t1 (function find_timeframe will do that)
+        ! TODO: this is where things are going wrong
+        IF (par%master)  WRITE(*,"(A)") '     Reading Q_TOA...'
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_t1)
-        
+        IF (par%master)  WRITE(*,"(A)") '     Q_TOA is read.'
+
+        str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after initialisation at times {dp_01} and {dp_02}'
+        call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
+        call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
+        call insert_val_into_string_int(  str, '{int_03}', size(forcing%ins_Q_TOA1,1))
+        call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
+        call insert_val_into_string_dp(  str, '{dp_01}', forcing%ins_t0)
+        call insert_val_into_string_dp(  str, '{dp_02}', forcing%ins_t1)
+        IF (par%master)  WRITE(*,"(A)") trim(str)
 
         IF (C%start_time_of_run < forcing%ins_time(1)) THEN
           CALL warning(' Model time starts before start of insolation record; the model will crash lol')
@@ -267,6 +281,7 @@ CONTAINS
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time_applied < forcing%ins_t0 .OR. time_applied > forcing%ins_t1) THEN
+      IF (par%master)  WRITE(0,"(A)") '   Calling update_insolation_timeframes...'
       CALL update_insolation_timeframes_from_file( forcing, time_applied, mesh)
     END IF
 
@@ -280,7 +295,7 @@ CONTAINS
     ! Interpolate the two timeframes
     do vi = mesh%vi1, mesh%vi2
       do m = 1, 12
-        Q_TOA(vi, m) = wt0 * forcing%ins_Q_TOA0(vi, m) + wt1 * forcing%ins_Q_TOA1(vi, m) ! TODO: does it need to be in par%master?
+        Q_TOA(vi, m) = wt0 * forcing%ins_Q_TOA0(vi, m) + wt1 * forcing%ins_Q_TOA1(vi, m)
       end do
     end do
 
@@ -307,6 +322,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_insolation_timeframes_from_file'
     INTEGER                                            :: ti0, ti1
+    CHARACTER(LEN=256)                                 :: str
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -346,6 +362,13 @@ CONTAINS
       ! Read new insolation fields from the NetCDF file
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_t1)
+
+      str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after update'
+      call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
+      call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
+      call insert_val_into_string_int(  str, '{int_03}', size(forcing%ins_Q_TOA1,1))
+      call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
+      IF (par%master)  WRITE(*,"(A)") trim(str)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')

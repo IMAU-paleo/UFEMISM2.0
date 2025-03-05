@@ -4,7 +4,7 @@ module netcdf_setup_grid_mesh_from_file
   use mpi
   use precisions, only: dp
   use mpi_basic, only: par
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
   use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
@@ -338,6 +338,7 @@ contains
     integer, parameter                   :: nlon = 360
     real(dp), parameter                  :: dlon = 1.0
     real(dp), allocatable, dimension(:)  :: lon
+    CHARACTER(LEN=256)                                 :: str
 
     ! Generate the vector of longitudes - hardcoded to be at 1 degree resolution
     do i=1, nlon
@@ -362,7 +363,13 @@ contains
     ! allocate memory for lon and lat
     allocate( grid%lon( grid%nlon))
     allocate( grid%lat( grid%nlat))
-    allocate(  vec%lat( grid%nlat))
+    allocate(  vec%lat(  vec%nlat))
+
+    str = ' insolation grid has size ({int_01},{int_02}), and lat-only grid has size ({int_03})'
+    call insert_val_into_string_int( str, '{int_01}', grid%nlon)
+    call insert_val_into_string_int( str, '{int_02}', grid%nlat)
+    call insert_val_into_string_int( str, '{int_03}',  vec%nlat)
+    IF (par%master)  WRITE(0,"(A)") trim(str)
 
     ! Inquire lat variable
     call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
