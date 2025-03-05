@@ -32,14 +32,14 @@ jobs:
 
       - name: Install environment
         run: |
-          conda create -n environment --file tools/python/environment.yml \
+          conda create -n ufelad --file tools/python/environment.yml \
             python=3.13
-          conda activate environment
+          conda activate ufelad
           python -m pip install -vv --no-deps --no-build-isolation .
 
       - name: Run Tests
         env:
           CHECK_IMAGES: False
         run: |
-          conda activate environment
+          conda activate ufelad
           conda list
