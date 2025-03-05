@@ -1,0 +1,48 @@
+name: UFEMISM Test Suite - install Python
+run-name: ${{ github.actor }} - UFEMISM Test Suite - install Python
+on:
+  workflow_call:
+
+jobs:
+  install_python:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Set up Conda Environment
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: "environment_ci"
+          miniforge-variant: Miniforge3
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install environment
+        run: |
+          conda create -n environment --file tools/python/environment.yml \
+            python=${{ matrix.python-version }}
+          conda activate environment
+          python -m pip install -vv --no-deps --no-build-isolation .
+
+      - name: Run Tests
+        env:
+          CHECK_IMAGES: False
+        run: |
+          conda activate environment
+          conda list

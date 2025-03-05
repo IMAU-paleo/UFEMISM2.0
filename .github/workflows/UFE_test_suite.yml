@@ -18,6 +18,10 @@ jobs:
   install_and_cache_Matlab:
     uses: ./.github/workflows/UFE_test_suite_install_and_cache_Matlab.yml
 
+  # Install Python
+  install_Python:
+    uses: ./.github/workflows/UFE_test_suite_install_Python.yml
+
   # Run the unit tests and analyse the results
   run_unit_tests:
     needs: [compile_and_cache_UFEMISM, install_and_cache_Matlab]
