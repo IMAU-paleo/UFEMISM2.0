@@ -377,12 +377,13 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix_precipitation
-  SUBROUTINE initialise_climate_matrix( mesh, climate, region_name, mask_noice)
+  SUBROUTINE initialise_climate_matrix( mesh, grid, climate, region_name, mask_noice)
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
+    type(type_mesh),                     intent(in)    :: grid !used to smooth later on, check if grid is called during initialise
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
@@ -424,13 +425,14 @@ CONTAINS
     climate%matrix%GCM_warm%lambda( mesh%vi1:mesh%vi2) = C%constant_lapserate
 
     IF     (region_name == 'NAM' .OR. region_name == 'EAS') THEN
-    !fixing this with Ufe1.x
-      CALL initialise_matrix_calc_spatially_variable_lapserate( mesh, climate%matrix%GCM_PI, climate%matrix%GCM_cold)
+      CALL initialise_matrix_calc_spatially_variable_lapserate( mesh, grid, climate%matrix%GCM_PI, climate%matrix%GCM_cold)
     ELSEIF (region_name == 'GLR' .OR. region_name == 'ANT') THEN
       climate%matrix%GCM_cold%lambda( mesh%vi1:mesh%vi2) = C%constant_lapserate
       CALL sync
     END IF
 
+! fixing this function now
+!
     ! Calculate GCM bias
     CALL initialise_matrix_calc_GCM_bias( grid, climate%matrix%GCM_PI, climate%matrix%PD_obs, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
@@ -564,7 +566,7 @@ CONTAINS
 
   END SUBROUTINE read_climate_snapshot
   
-  SUBROUTINE initialise_matrix_calc_GCM_bias( grid, GCM_PI, PD_obs, GCM_bias_T2m, GCM_bias_Precip)
+  SUBROUTINE initialise_matrix_calc_GCM_bias( mesh, GCM_PI, PD_obs, GCM_bias_T2m, GCM_bias_Precip)
     ! Calculate the GCM bias in temperature and precipitation
     !
     ! Account for the fact that the GCM PI snapshot has a lower resolution, and therefore
@@ -573,36 +575,33 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),         INTENT(IN)    :: GCM_PI, PD_obs
-    REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: GCM_bias_T2m
-    REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: GCM_bias_Precip
+    REAL(dp), DIMENSION(:,:),          INTENT(OUT)   :: GCM_bias_T2m
+    REAL(dp), DIMENSION(:,:),          INTENT(OUT)   :: GCM_bias_Precip
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_matrix_calc_GCM_bias'
-    INTEGER                                            :: i,j,m
+    INTEGER                                            :: vi,m
     REAL(dp)                                           :: T2m_SL_GCM, T2m_SL_obs
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Calculate bias
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
 
       ! Scale modelled and observed temperature to sea level using a constant lapse rate
-      T2m_SL_GCM = GCM_PI%T2m( m,j,i) + GCM_PI%Hs( j,i) * C%constant_lapserate
-      T2m_SL_obs = PD_obs%T2m( m,j,i) + PD_obs%Hs( j,i) * C%constant_lapserate
+      T2m_SL_GCM = GCM_PI%T2m( vi,m) + GCM_PI%Hs( vi) * C%constant_lapserate
+      T2m_SL_obs = PD_obs%T2m( vi,m) + PD_obs%Hs( vi) * C%constant_lapserate
 
       ! Calculate bias
-      GCM_bias_T2m(    m,j,i) = T2m_SL_GCM            - T2m_SL_obs
-      GCM_bias_Precip( m,j,i) = GCM_PI%Precip( m,j,i) / PD_obs%Precip( m,j,i)
+      GCM_bias_T2m(    vi,m) = T2m_SL_GCM           - T2m_SL_obs
+      GCM_bias_Precip( vi,m) = GCM_PI%Precip( vi,m) / PD_obs%Precip( vi,m)
 
     END DO
     END DO
-    END DO
-    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
