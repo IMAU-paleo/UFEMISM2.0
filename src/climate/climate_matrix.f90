@@ -430,12 +430,12 @@ CONTAINS
       climate%matrix%GCM_cold%lambda( mesh%vi1:mesh%vi2) = C%constant_lapserate
       CALL sync
     END IF
-
+!
+! the GCM bias is also applied to Hs in Ufe1.x for consistency, should I add it??
+!
     ! Calculate GCM bias
     CALL initialise_matrix_calc_GCM_bias( mesh, climate%matrix%GCM_PI, climate%matrix%PD_obs, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
-
-! fixing the initialise apply bias correction
 
     ! Apply bias correction
     IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( mesh, climate%matrix%GCM_warm, &
@@ -443,6 +443,8 @@ CONTAINS
     IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( mesh, climate%matrix%GCM_cold, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
+! working on this now
+!
     ! Get reference absorbed insolation for the GCM snapshots
     CALL initialise_matrix_calc_absorbed_insolation( grid, climate%matrix%GCM_warm, region_name, mask_noice)
     CALL initialise_matrix_calc_absorbed_insolation( grid, climate%matrix%GCM_cold, region_name, mask_noice)
@@ -749,13 +751,13 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_matrix_calc_spatially_variable_lapserate
-  SUBROUTINE initialise_matrix_calc_absorbed_insolation( grid, snapshot, region_name, mask_noice)
+  SUBROUTINE initialise_matrix_calc_absorbed_insolation( mesh, snapshot, region_name, mask_noice)
     ! Calculate the yearly absorbed insolation for this (regional) GCM snapshot, to be used in the matrix interpolation
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_mesh),                      INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
@@ -773,7 +775,7 @@ CONTAINS
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
 
-    CALL get_insolation_at_time( grid, snapshot%orbit_time, snapshot%Q_TOA)
+    CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot%Q_TOA)
 
     ! Create temporary "dummy" climate, ice & SMB data structures,
     ! so we can run the SMB model and determine the reference albedo field
@@ -783,68 +785,68 @@ CONTAINS
     ! =======
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%T2m,    climate_dummy%wT2m)
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Precip, climate_dummy%wPrecip)
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Q_TOA,  climate_dummy%wQ_TOA)
+    allocate( climate_dummy%T2m(    mesh%vi1:mesh%vi2, 12))
+    allocate( climate_dummy%Precip( mesh%vi1:mesh%vi2, 12))
+    allocate( climate_dummy%Q_TOA(  mesh%vi1:mesh%vi2, 12))
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%T2m,    climate_dummy%wT2m)
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Precip, climate_dummy%wPrecip)
+    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Q_TOA,  climate_dummy%wQ_TOA)
 
     ! Copy climate fields
-    climate_dummy%T2m(    :,:,grid%i1:grid%i2) = snapshot%T2m(    :,:,grid%i1:grid%i2)
-    climate_dummy%Precip( :,:,grid%i1:grid%i2) = snapshot%Precip( :,:,grid%i1:grid%i2)
-    climate_dummy%Q_TOA(  :,:,grid%i1:grid%i2) = snapshot%Q_TOA(  :,:,grid%i1:grid%i2)
+    climate_dummy%T2m(    mesh%vi1:mesh%vi2,:) = snapshot%T2m(    mesh%vi1:mesh%vi2,:)
+    climate_dummy%Precip( mesh%vi1:mesh%vi2,:) = snapshot%Precip( mesh%vi1:mesh%vi2,:)
+    climate_dummy%Q_TOA(  mesh%vi1:mesh%vi2,:) = snapshot%Q_TOA(  mesh%vi1:mesh%vi2,:)
 
     ! Ice
     ! ===
-
-    CALL allocate_shared_int_2D(    grid%ny, grid%nx, ice_dummy%mask_ocean_a   , ice_dummy%wmask_ocean_a   )
-    CALL allocate_shared_int_2D(    grid%ny, grid%nx, ice_dummy%mask_ice_a     , ice_dummy%wmask_ice_a     )
-    CALL allocate_shared_int_2D(    grid%ny, grid%nx, ice_dummy%mask_shelf_a   , ice_dummy%wmask_shelf_a   )
+    allocate( ice_dummy%mask_ocean_a( mesh%vi1:mesh%vi2))
+    allocate( ice_dummy%mask_ice_a(   mesh%vi1:mesh%vi2))
+    allocate( ice_dummy%mask_shelf_a( mesh%vi1:mesh%vi2))
 
     ! Fill in masks for the SMB model
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    DO vi = mesh%vi1, mesh%vi2
 
-      IF (snapshot%Hs( j,i) == MINVAL(snapshot%Hs)) THEN
-        ice_dummy%mask_ocean_a( j,i) = 1
+      IF (snapshot%Hs( vi) == MINVAL(snapshot%Hs)) THEN
+        ice_dummy%mask_ocean_a( vi) = 1
       ELSE
-        ice_dummy%mask_ocean_a( j,i) = 0
+        ice_dummy%mask_ocean_a( vi) = 0
       END IF
 
-      IF (snapshot%Hs( j,i) > 100._dp .AND. SUM(snapshot%T2m( :,j,i)) / 12._dp < 0._dp) THEN
-        ice_dummy%mask_ice_a(   j,i) = 1
+      ! this IF is like (climate%Mask_ice( vi) > .3_dp) in Ufe1.x
+      IF (snapshot%Hs( vi) > 100._dp .AND. SUM(snapshot%T2m( vi,:)) / 12._dp < 0._dp) THEN
+        ice_dummy%mask_ice_a(   vi) = 1
       ELSE
-        ice_dummy%mask_ice_a(   j,i) = 0
+        ice_dummy%mask_ice_a(   vi) = 0
       END IF
 
       ! mask_shelf is used in the SMB model only to find open ocean; since mask_ocean
       ! in this case already marks only open ocean, no need to look for shelves
-      ice_dummy%mask_shelf_a( j,i) = 0
+      ice_dummy%mask_shelf_a( vi) = 0
 
     END DO
-    END DO
-    CALL sync
 
     ! SMB
     ! ===
+    allocate( SMB_dummy%AlbedoSurf(       mesh%vi1:mesh%vi2)
+    allocate( SMB_dummy%MeltPreviousYear( mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%FirnDepth(        mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Rainfall(         mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Snowfall(         mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%AddedFirn(        mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Melt(             mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Refreezing(       mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Refreezing_year(  mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%Runoff(           mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Albedo(           mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Albedo_year(      mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%SMB(              mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%SMB_year(         mesh%vi1:mesh%vi2))
 
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%AlbedoSurf      , SMB_dummy%wAlbedoSurf      )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%MeltPreviousYear, SMB_dummy%wMeltPreviousYear)
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%FirnDepth       , SMB_dummy%wFirnDepth       )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Rainfall        , SMB_dummy%wRainfall        )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Snowfall        , SMB_dummy%wSnowfall        )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%AddedFirn       , SMB_dummy%wAddedFirn       )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Melt            , SMB_dummy%wMelt            )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Refreezing      , SMB_dummy%wRefreezing      )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%Refreezing_year , SMB_dummy%wRefreezing_year )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Runoff          , SMB_dummy%wRunoff          )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Albedo          , SMB_dummy%wAlbedo          )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%Albedo_year     , SMB_dummy%wAlbedo_year     )
-    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%SMB             , SMB_dummy%wSMB             )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%SMB_year        , SMB_dummy%wSMB_year        )
-
-    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_constant, SMB_dummy%wC_abl_constant)
-    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Ts,       SMB_dummy%wC_abl_Ts      )
-    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Q,        SMB_dummy%wC_abl_Q       )
-    CALL allocate_shared_dp_0D( SMB_dummy%C_refr,         SMB_dummy%wC_refr        )
+! not needed anymore.. commment for now
+!    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_constant, SMB_dummy%wC_abl_constant)
+!    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Ts,       SMB_dummy%wC_abl_Ts      )
+!    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Q,        SMB_dummy%wC_abl_Q       )
+!    CALL allocate_shared_dp_0D( SMB_dummy%C_refr,         SMB_dummy%wC_refr        )
 
     IF (par%master) THEN
       IF     (region_name == 'NAM') THEN
@@ -869,26 +871,23 @@ CONTAINS
         SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_ANT
       END IF
     END IF ! IF (par%master) THEN
-    CALL sync
 
     ! Run the SMB model for 10 years for this particular climate
     ! (experimentally determined to be long enough to converge)
     DO i = 1, 10
-      CALL run_SMB_model( grid, ice_dummy, climate_dummy, 0._dp, SMB_dummy, mask_noice)
+      CALL run_SMB_model( mesh, ice_dummy, climate_dummy, 0._dp, SMB_dummy, mask_noice)
     END DO
-    CALL sync
 
     ! Calculate yearly total absorbed insolation
-    snapshot%I_abs( :,grid%i1:grid%i2) = 0._dp
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    snapshot%I_abs( mesh%vi1:mesh%vi2,:) = 0._dp
+    DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-      snapshot%I_abs( j,i) = snapshot%I_abs( j,i) + snapshot%Q_TOA( m,j,i) * (1._dp - SMB_dummy%Albedo( m,j,i))
+      snapshot%I_abs( vi) = snapshot%I_abs( vi) + snapshot%Q_TOA( vi,m) * (1._dp - SMB_dummy%Albedo( vi,m))
     END DO
     END DO
-    END DO
-    CALL sync
-
+!
+! CHECK HOW TO DO THIS
+!
     ! Clean up after yourself
     CALL deallocate_shared( ice_dummy%wmask_ocean_a)
     CALL deallocate_shared( ice_dummy%wmask_ice_a)
