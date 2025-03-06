@@ -36,55 +36,8 @@ addpath([foldername_automated_testing '/scoreboard/scripts'])
 %%
 
 % Read output of ice1r_4km
-foldername = [foldername_test '/results_4km_ice1r'];
-timeframes = get_UFEMISM_filelist( foldername, 'ANT');
-
-time = zeros( length( timeframes),1);
-x_GL = zeros( length( timeframes),1);
-
-filename = '';
-for tfi = 1: length( timeframes)
-
-  % Read and interpolate UFEMISM output
-
-  filename_prev = filename;
-  filename      = timeframes(tfi).filename;
-  ti            = timeframes(tfi).ti;
-
-  if ~strcmp( filename_prev, filename)
-    mesh = read_mesh_from_file( filename);
-    xt = (mesh.xmin: 1000: mesh.xmax)';
-    yt = xt * 0;
-    A = calc_transect_matrix( mesh, xt, yt);
-  end
-
-  Hi = A * ncread( filename, 'Hi', [1,ti], [Inf,1]);
-  Hb = A * ncread( filename, 'Hb', [1,ti], [Inf,1]);
-
-  TAF = Hi - max( 0, (-Hb) * (1028 / 910));
-
-  % Calculate GL position
-
-  ir = 1;
-  while TAF(ir) > 0
-    ir = ir+1;
-  end
-  il = ir-1;
-
-  x1 = xt(il);
-  x2 = xt(ir);
-
-  f0 = 0;
-  f1 = TAF(il);
-  f2 = TAF(ir);
-
-  lambda = (f2 - f1) / (x2 - x1);
-  x0 = x1 + (f0 - f1) / lambda;
-
-  time( tfi) = timeframes( tfi).time;
-  x_GL( tfi) = x0;
- 
-end
+filename = [foldername_test '/results_4km_ice1r/transect_westeast.nc'];
+x_GL = ncread( filename,'grounding_line_distance_from_start');
 
 % Smooth grounding-line position over time
 x_GL_smooth = x_GL;
