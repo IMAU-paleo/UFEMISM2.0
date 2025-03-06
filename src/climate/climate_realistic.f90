@@ -69,7 +69,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
-    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),              INTENT(OUT)   :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -104,6 +104,10 @@ CONTAINS
       CALL read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh, climate%Hs)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh, climate%T2m)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh, climate%Precip)
+      allocate(climate%lambda( mesh%vi1:mesh%vi2))
+      allocate(climate%Q_TOA(  mesh%vi1:mesh%vi2,12))
+      allocate(climate%Albedo( mesh%vi1:mesh%vi2,12))
+      allocate(climate%I_abs(  mesh%vi1:mesh%vi2))
 
       IF (par%master)  WRITE(*,"(A)") '     Initialising global forcings...'
       CALL initialise_global_forcings( mesh, forcing)
@@ -134,7 +138,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                   INTENT(IN)    :: mesh
-    TYPE(type_global_forcing),         INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),         INTENT(OUT)   :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'initialise_global_forcings'
@@ -146,6 +150,10 @@ CONTAINS
     ! e.g., insolation, CO2, d18O, etc...
     ! read and load the insolation data
     CALL initialise_insolation_forcing( forcing, mesh)
+
+    ! CO2 record - not yet implemented
+    
+    ! d18O record - not yet implemented
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -159,7 +167,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_global_forcing),         INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),         INTENT(OUT)   :: forcing
     TYPE(type_mesh),                      INTENT(IN) :: mesh
 
     ! Local variables:
@@ -178,7 +186,7 @@ CONTAINS
       ! The times at which we have insolation fields from Laskar, between which we'll interpolate
       ! to find the insolation at model time (assuming that t0 <= model_time <= t1)
 
-      ALLOCATE( forcing%ins_t0) ! TODO: do we need to allocate that?
+      ALLOCATE( forcing%ins_t0)
       ALLOCATE( forcing%ins_t1)
 
       IF (par%master) THEN
@@ -187,24 +195,28 @@ CONTAINS
         forcing%ins_t0 = C%start_time_of_run - 100._dp
         forcing%ins_t1 = C%start_time_of_run - 90._dp
         WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
-      !END IF ! IF (par%master) THEN
-
-        ! TODO: do we need to allocate these variables?!
-        !ALLOCATE( forcing%ins_nyears)
-        !ALLOCATE( forcing%ins_nlat)
-        !ALLOCATE( forcing%ins_nlon)
-        !ALLOCATE( forcing%wins_nlat  )
-        !ALLOCATE( forcing%wins_nyears)
-        forcing%ins_nlon = 360
+      END IF ! IF (par%master) THEN
 
         ! Insolation
-        !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
-        !ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
-        !ALLOCATE(forcing%ins_Q_TOA0         (forcing%ins_nlon,forcing%ins_nlat,12))
-        !ALLOCATE(forcing%ins_Q_TOA1         (forcing%ins_nlon,forcing%ins_nlat,12))
+        ALLOCATE( forcing%ins_nyears)
+        ALLOCATE( forcing%ins_nlat)
+        ALLOCATE( forcing%ins_nlon)
+        !ALLOCATE( forcing%wins_nlat  )
+        !ALLOCATE( forcing%wins_nyears)
+        ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
+        ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
+        ALLOCATE(forcing%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
+        ALLOCATE(forcing%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
+        forcing%ins_nyears = 6001
+        forcing%ins_nlat   = 181
+        forcing%ins_nlon   = 360
+        forcing%ins_time   = 0._dp
+        forcing%ins_lat    = 0._dp
+        forcing%ins_Q_TOA0 = 0._dp
+        forcing%ins_Q_TOA1 = 0._dp
       
       ! Read time and latitude data
-      !IF (par%master) THEN
+      IF (par%master) THEN
         WRITE(0,*) '     Reading time...'
         call read_time_from_file( C%filename_insolation, forcing%ins_time)
         WRITE(0,*) '     Time was read.'
@@ -300,9 +312,6 @@ CONTAINS
       end do
     end do
 
-    ! TODO: what do we need to clean up?!
-    !CALL deallocate_shared( wQ_TOA_int)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -314,7 +323,7 @@ CONTAINS
 
     ! NOTE: assumes time in forcing file is in kyr
 
-    !IMPLICIT NONE
+    IMPLICIT NONE
 
     TYPE(type_mesh),                      INTENT(IN)   :: mesh
     TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
