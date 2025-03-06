@@ -631,16 +631,13 @@ subroutine check_time( filename, ncid)
   call init_routine( routine_name, do_track_resource_use = .false.)
 
   ! inquire dimension
-  WRITE(0,*) '     Check time: inquiring dims...'
   call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim, dim_length = n, dim_name = dim_name)
 
   ! Safety checks on dimension
-  WRITE(0,*) '     Check time: safety checks...'
   if (id_dim == -1) call crash('no valid time dimension could be found in file "' // trim( filename) // '"!')
   if (n < 0) call crash('time dimension in file "' // trim( filename) // '" has length n = {int_01}!', int_01  = n)
 
   ! inquire variable
-  WRITE(0,*) '     Check time: inquiring variable...'
   call inquire_var_multopt( filename, ncid, field_name_options_time, id_var, &
     var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
   if (id_var == -1) call crash('no valid time variable could be found in file "' // trim( filename) // '"!')
@@ -655,7 +652,6 @@ subroutine check_time( filename, ncid)
     allocate( time( n))
 
     ! Read variable
-    WRITE(0,*) '     Check time: reading variable...'
     call read_var_master( filename, ncid, id_var, time)
 
     ! Check validity
