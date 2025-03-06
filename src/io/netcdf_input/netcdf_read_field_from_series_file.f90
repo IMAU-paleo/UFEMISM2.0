@@ -196,47 +196,49 @@ contains
 
   end subroutine read_field_from_lat_file_1D_monthly
 
-  subroutine read_time_from_file( filename, time_from_file)
+  subroutine read_time_from_file( filename, time)
     ! Reads the time variable/dimension of a file
 
     ! In/output variables:
     character(len=*),               intent(in   )  :: filename
-    real(dp), dimension(:),         intent(out   ) :: time_from_file
+    real(dp), dimension(:),         intent(out   ) :: time
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'read_time_from_file'
     integer                             :: ncid
     integer                             :: nt, id_dim_time, id_var_time
-    !real(dp), dimension(:), allocatable :: time_from_file
+    real(dp), dimension(:), allocatable :: time_from_file
     integer                             :: ierr
 
     ! Add routine to path
     call init_routine( routine_name)
 
     ! Open the NetCDF file
-    WRITE(0,*) '     Opening file to read time...'
+    if (par%master) WRITE(0,*) '     Opening file to read time...'
     call open_existing_netcdf_file_for_reading( filename, ncid)
 
     ! Check if the file contains a valid time dimension and variable
-    WRITE(0,*) '     Checking time...'
+    if (par%master) WRITE(0,*) '     Checking time...'
     call check_time( filename, ncid)
 
     ! inquire size of time dimension
-    WRITE(0,*) '     Inquiring time dimension...'
+    if (par%master) WRITE(0,*) '     Inquiring time dimension...'
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
 
     ! inquire time variable ID
-    WRITE(0,*) '     Inquiring time as variable...'
+    if (par%master) WRITE(0,*) '     Inquiring time as variable...'
     call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
     ! allocate memory
-    !if (par%master) allocate( time_from_file( nt)) ! TODO: do we need to allocate time?
+    allocate( time_from_file( nt)) ! TODO: do we need to allocate time?
 
     ! Read time from file
-    WRITE(0,*) '     Reading variable...'
+    if (par%master) WRITE(0,*) '     Reading variable...'
     call read_var_master( filename, ncid, id_var_time, time_from_file)
-    WRITE(0,*) '     MPI broadcasting...'
+    if (par%master) WRITE(0,*) '     MPI broadcasting...'
     call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    time = time_from_file
+    !deallocate(time)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
