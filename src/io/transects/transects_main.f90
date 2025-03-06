@@ -247,6 +247,11 @@ contains
       waypoints(1,:) = [0._dp,mesh%ymin]
       waypoints(2,:) = [0._dp,mesh%ymax]
 
+    case('ISMIP-HOM')
+      allocate(waypoints(2,2))
+      waypoints(1,:) = [mesh%xmin/2._dp,mesh%ymin/4._dp]
+      waypoints(2,:) = [mesh%xmax/2._dp,mesh%ymin/4._dp]
+
     ! == Realistic ==
     ! ===============
 
