@@ -431,16 +431,16 @@ CONTAINS
       CALL sync
     END IF
 
-! fixing this function now
-!
     ! Calculate GCM bias
-    CALL initialise_matrix_calc_GCM_bias( grid, climate%matrix%GCM_PI, climate%matrix%PD_obs, &
+    CALL initialise_matrix_calc_GCM_bias( mesh, climate%matrix%GCM_PI, climate%matrix%PD_obs, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
+! fixing the initialise apply bias correction
+
     ! Apply bias correction
-    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( grid, climate%matrix%GCM_warm, &
+    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( mesh, climate%matrix%GCM_warm, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
-    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( grid, climate%matrix%GCM_cold, &
+    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( mesh, climate%matrix%GCM_cold, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
     ! Get reference absorbed insolation for the GCM snapshots
@@ -607,30 +607,29 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_matrix_calc_GCM_bias
-  SUBROUTINE initialise_matrix_apply_bias_correction( grid, snapshot, bias_T2m, bias_Precip)
+  SUBROUTINE initialise_matrix_apply_bias_correction( mesh, snapshot, bias_T2m, bias_Precip)
     ! Apply a bias correction to this (GCM) snapshot
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_mesh),                      INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
-    REAL(dp), DIMENSION(:,:,:),           INTENT(IN)    :: bias_T2m
-    REAL(dp), DIMENSION(:,:,:),           INTENT(IN)    :: bias_Precip
+    REAL(dp), DIMENSION(:,:),           INTENT(IN)    :: bias_T2m
+    REAL(dp), DIMENSION(:,:),           INTENT(IN)    :: bias_Precip
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_apply_bias_correction'
-    INTEGER                                             :: i,j,m
+    INTEGER                                             :: vi,m
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Apply bias correction
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-      snapshot%T2m(    m,j,i) = snapshot%T2m(    m,j,i) - bias_T2m(    m,j,i)
-      snapshot%Precip( m,j,i) = snapshot%Precip( m,j,i) / bias_Precip( m,j,i)
+      snapshot%T2m(    vi,m) = snapshot%T2m(    vi,m) - bias_T2m(    vi,m)
+      snapshot%Precip( vi,m) = snapshot%Precip( vi,m) / bias_Precip( vi,m)
     END DO
     END DO
     END DO
