@@ -66,27 +66,18 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate memory (estimate that there are about 3 times as many edges as there are vertices)
-    mesh%nE_mem = mesh%nV * 3
-    mesh%nE     = 0
-    ALLOCATE( mesh%E(    mesh%nE_mem,   2          ), source = 0._dp)
-    ALLOCATE( mesh%VE(   mesh%nV_mem,   mesh%nC_mem), source = 0    )
-    ALLOCATE( mesh%EV(   mesh%nE_mem,   4          ), source = 0    )
-    ALLOCATE( mesh%ETri( mesh%nE_mem,   2          ), source = 0    )
-    ALLOCATE( mesh%TriE( mesh%nTri_mem, 3          ), source = 0    )
-    ALLOCATE( mesh%EBI(  mesh%nE_mem               ), source = 0    )
+    ! Allocate memory
+    mesh%nE = sum( mesh%nC) / 2   ! Because every edge is listed by both vertices spanning it
+    ALLOCATE( mesh%E(    mesh%nE,   2          ), source = 0._dp)
+    ALLOCATE( mesh%VE(   mesh%nV,   mesh%nC_mem), source = 0    )
+    ALLOCATE( mesh%EV(   mesh%nE,   4          ), source = 0    )
+    ALLOCATE( mesh%ETri( mesh%nE,   2          ), source = 0    )
+    ALLOCATE( mesh%TriE( mesh%nTri, 3          ), source = 0    )
+    ALLOCATE( mesh%EBI(  mesh%nE               ), source = 0    )
+
+    mesh%nE = 0
 
     DO vi = 1, mesh%nV
-
-      ! Extend memory if necessary
-      IF (mesh%nE > mesh%nE_mem - 2*mesh%nC_mem) THEN
-        mesh%nE_mem = mesh%nE + 1000
-        CALL reallocate( mesh%E   , mesh%nE_mem,   2)
-        CALL reallocate( mesh%EV  , mesh%nE_mem,   4)
-        CALL reallocate( mesh%ETri, mesh%nE_mem,   2)
-        CALL reallocate( mesh%TriE, mesh%nTri_mem, 3)
-        CALL reallocate( mesh%EBI , mesh%nE_mem     )
-      END IF
 
       DO ci = 1, mesh%nC( vi)
 
@@ -175,7 +166,7 @@ CONTAINS
 
     ! Define TriE
     DO ti = 1, mesh%nTri
-    
+
       DO ci = 1, 3
 
         ! Find the two vertices opposite from Tri(ti, ci)
@@ -191,7 +182,7 @@ CONTAINS
             vi2 = mesh%Tri(ti, 2)
         END SELECT
 
-        ! Loop over connections of first vertex 
+        ! Loop over connections of first vertex
         DO cj = 1, mesh%nC( vi1)
           ! Check whether connection is to second vertex
           IF (mesh%C( vi1, cj) == vi2) THEN
@@ -199,19 +190,11 @@ CONTAINS
             mesh%TriE(ti, ci) = mesh%VE(vi1, cj)
             EXIT
           END IF
-        END DO ! cj = 1, mesh%nC( vi1) 
+        END DO ! cj = 1, mesh%nC( vi1)
 
       END DO ! DO ci = 1, 3
 
     END DO ! DO ti = 1, mesh%nTri
-
-    ! Crop memory
-    mesh%nE_mem = mesh%nE
-    CALL reallocate( mesh%E   , mesh%nE,   2)
-    CALL reallocate( mesh%EV  , mesh%nE,   4)
-    CALL reallocate( mesh%ETri, mesh%nE,   2)
-    CALL reallocate( mesh%TriE, mesh%nTri, 3)
-    CALL reallocate( mesh%EBI , mesh%nE     )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
