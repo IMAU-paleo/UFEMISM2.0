@@ -149,7 +149,7 @@ UFEMISM_source = \
   mesh/Delaunay/split_border_edges.f90 \
   mesh/Delaunay/split_edges.f90 \
   mesh/Delaunay/split_triangles.f90 \
-  mesh/mesh_edges.f90 \
+  mesh/edges/mesh_edges.f90 \
   mesh/Voronoi_mesh/mesh_Voronoi.f90 \
   mesh/mesh_refinement_basic.f90 \
   mesh/mesh_refinement_basic_ROI.f90 \
