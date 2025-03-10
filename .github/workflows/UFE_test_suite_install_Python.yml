@@ -11,28 +11,10 @@ jobs:
       - name: Checkout Code Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.12
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: 'pip'
+        run: pip install -r tools/python/dev-spec.txt
 
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
-
-      - name: Set up Conda Environment
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          activate-environment: "environment_ci"
-          miniforge-variant: Miniforge3
-          miniforge-version: latest
-          channels: conda-forge
-          channel-priority: strict
-          auto-update-conda: true
-          python-version: "3.12"
-
-      - name: Install environment
-        run: |
-          conda env create -n ufelad --file=tools/python/dev-spec.txt python=3.12
-          conda init --all
-          source ~/.bashrc
-          conda activate ufelad
