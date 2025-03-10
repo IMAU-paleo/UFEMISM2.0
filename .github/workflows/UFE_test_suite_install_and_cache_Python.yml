@@ -1,5 +1,5 @@
-name: UFEMISM Test Suite - install Python
-run-name: ${{ github.actor }} - UFEMISM Test Suite - install Python
+name: UFEMISM Test Suite - install and cache Python
+run-name: ${{ github.actor }} - UFEMISM Test Suite - install and cache Python
 on:
   workflow_call:
 
