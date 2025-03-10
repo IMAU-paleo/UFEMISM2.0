@@ -30,6 +30,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: 'pip'
+
+      - name: Install packages
         run: pip install -r tools/python/dev-spec.txt
 
       - name: Checkout UFEMISM repository
