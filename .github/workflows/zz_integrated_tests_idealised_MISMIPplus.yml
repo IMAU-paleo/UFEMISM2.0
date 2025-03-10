@@ -31,7 +31,7 @@ jobs:
           python-version: "3.12"
           cache: 'pip'
 
-      - run: pip install -r tools/python/dev-spec.txt
+      - run: pip install -r tools/python/requirements.txt
 
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
