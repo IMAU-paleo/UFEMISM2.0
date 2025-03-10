@@ -25,13 +25,15 @@ list_of_scoreboard_files = dir( [foldername_automated_testing '/scoreboard/score
 
 i = 1;
 while i <= length( list_of_scoreboard_files)
+
   if ~endsWith( list_of_scoreboard_files(i).name, '.xml')
     i = i+1;
     continue
   end
-
-  run_i = read_scoreboard_file( list_of_scoreboard_files(i).name);
-  run_i.filename = list_of_scoreboard_files(i).name;
+  
+  filename_i = [foldername_automated_testing '/scoreboard/scoreboard_files/' list_of_scoreboard_files(i).name];
+  run_i = read_scoreboard_file( filename_i);
+  run_i.filename = filename_i;
 
   disp(['Deleting old scoreboard files for test ' char(run_i.name) '...'])
 
@@ -39,17 +41,22 @@ while i <= length( list_of_scoreboard_files)
 
   j = i+1;
   while j <= length( list_of_scoreboard_files)
+
     if ~endsWith( list_of_scoreboard_files(j).name, '.xml')
       break
     end
-    run_j = read_scoreboard_file( list_of_scoreboard_files(j).name);
-    run_j.filename = list_of_scoreboard_files(j).name;
+
+    filename_j = [foldername_automated_testing '/scoreboard/scoreboard_files/' list_of_scoreboard_files(j).name];
+    run_j = read_scoreboard_file( filename_j);
+    run_j.filename = filename_j;
+
     if strcmpi( run_i.name, run_j.name) && strcmpi( run_i.category, run_j.category)
       all_runs_of_this_test( end+1) = run_j;
       j = j+1;
     else
       break
     end
+
   end
 
   % Sort by date and time
@@ -63,8 +70,7 @@ while i <= length( list_of_scoreboard_files)
 
   % Delete all but 10 most recent runs of this test
   for ii = 1: length(all_runs_of_this_test)-9
-    filename = [foldername_automated_testing '/scoreboard/scoreboard_files/' all_runs_of_this_test(ii).filename];
-    delete( filename)
+    delete( all_runs_of_this_test(ii).filename)
   end
 
   i = j;
