@@ -146,20 +146,15 @@ for Li = 1:6
     end
 
     foldername = ['results_ISMIP_HOM_D_' num2str(L) '_' approx];
-    filename = [foldername '/main_output_ANT_00001.nc'];
-    mesh = read_mesh_from_file( filename);
-
-    % Calculate velocity transect
-    xt = HO.(ex).x * L*1e3;
-    yt = xt*0 + L*1e3 / 4;
-    A = calc_transect_matrix( mesh, xt, yt);
-    u_surf = ncread( filename,'u_surf');
-    u_surf = A * u_surf;
+    filename = [foldername '/transect_ISMIP-HOM.nc'];
+    V = ncread( filename,'V');
+    xt = fliplr(linspace(0,1,size(V,1)));
+    u_3D = ncread( filename,'u_par');
+    u_surf = u_3D(:,1);
 
     % Plot results
-    line('parent',ax,'xdata',HO.(ex).x,'ydata',u_surf,'color',colour,...
+    line('parent',ax,'xdata',xt,'ydata',u_surf,'color',colour,...
       'linewidth',2)
-    drawnow('update')
 
   end
 end
