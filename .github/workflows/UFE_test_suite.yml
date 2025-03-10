@@ -42,7 +42,7 @@ jobs:
 
   # Run the integrated tests and analyse the results
   run_and_analyse_integrated_tests:
-    needs: [compile_and_cache_UFEMISM, install_and_cache_Matlab]
+    needs: [compile_and_cache_UFEMISM, install_and_cache_Matlab, install_Python]
     uses: ./.github/workflows/UFE_test_suite_run_and_analyse_integrated_tests.yml
 
   # Download artifacts with scoreboard files from the component and integrated tests
