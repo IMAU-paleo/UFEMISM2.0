@@ -1,10 +1,9 @@
 import sys
-sys.path.append('../../../scoreboard/scripts')
-
-from single_test_run import *
 
 print('Analysing integrated test idealised/MISMIPplus/MISOMIP ...')
 print('')
+
+# Get foldername automated testing
 
 Nargs = len(sys.argv)
 assert Nargs < 3, 'Too many arguments'
@@ -15,6 +14,11 @@ else:
   # Assume this is a GitHub Workflow run
  
   foldername_automated_testing = sys.argv[1] 
+
+# Import python script
+
+sys.path.append(f'{foldername_automated_testing}/scoreboard/scripts')
+from single_test_run import *
 
 test_name = 'MISOMIP'
 test_path = f'integrated_tests/idealised/MISMIPplus'
