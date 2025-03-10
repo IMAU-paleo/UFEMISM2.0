@@ -22,6 +22,3 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r tools/python/requirements.txt
 
-      - name: Analyse integrated_tests/idealised/MISMIPplus/MISOMIP
-        run: python automated_testing/integrated_tests/idealised/MISMIPplus/analyse_integrated_test_misomip.py ${{github.workspace}}/automated_testing
-
