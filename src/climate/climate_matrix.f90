@@ -885,34 +885,6 @@ CONTAINS
       snapshot%I_abs( vi) = snapshot%I_abs( vi) + snapshot%Q_TOA( vi,m) * (1._dp - SMB_dummy%Albedo( vi,m))
     END DO
     END DO
-!
-! CHECK HOW TO DO THIS
-!
-    ! Clean up after yourself
-    CALL deallocate_shared( ice_dummy%wmask_ocean_a)
-    CALL deallocate_shared( ice_dummy%wmask_ice_a)
-    CALL deallocate_shared( ice_dummy%wmask_shelf_a)
-    CALL deallocate_shared( climate_dummy%wT2m)
-    CALL deallocate_shared( climate_dummy%wPrecip)
-    CALL deallocate_shared( climate_dummy%wQ_TOA)
-    CALL deallocate_shared( SMB_dummy%wAlbedoSurf)
-    CALL deallocate_shared( SMB_dummy%wMeltPreviousYear)
-    CALL deallocate_shared( SMB_dummy%wFirnDepth)
-    CALL deallocate_shared( SMB_dummy%wRainfall)
-    CALL deallocate_shared( SMB_dummy%wSnowfall)
-    CALL deallocate_shared( SMB_dummy%wAddedFirn)
-    CALL deallocate_shared( SMB_dummy%wMelt)
-    CALL deallocate_shared( SMB_dummy%wRefreezing)
-    CALL deallocate_shared( SMB_dummy%wRefreezing_year)
-    CALL deallocate_shared( SMB_dummy%wRunoff)
-    CALL deallocate_shared( SMB_dummy%wAlbedo)
-    CALL deallocate_shared( SMB_dummy%wAlbedo_year)
-    CALL deallocate_shared( SMB_dummy%wSMB)
-    CALL deallocate_shared( SMB_dummy%wSMB_year)
-    CALL deallocate_shared( SMB_dummy%wC_abl_constant)
-    CALL deallocate_shared( SMB_dummy%wC_abl_Ts)
-    CALL deallocate_shared( SMB_dummy%wC_abl_Q)
-    CALL deallocate_shared( SMB_dummy%wC_refr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
