@@ -22,13 +22,13 @@ from single_test_run import *
 
 # Basic info of run
 test_name = 'MISOMIP'
-test_path = f'integrated_tests/idealised/MISMIPplus'
+test_path = 'integrated_tests/idealised/MISMIPplus'
 
 # Initialise run
 single_run = Single_run(test_name, test_path) 
 
 # Add cost functions
-ds = xr.open_dataset('results_5km_iceocean1r/transect_westeast.nc')
+ds = xr.open_dataset(f'{foldername_automated_testing}/{test_path}/results_5km_iceocean1r/transect_westeast.nc')
 x_GL = ds.grounding_line_distance_from_start.values
 ds.close()
 
