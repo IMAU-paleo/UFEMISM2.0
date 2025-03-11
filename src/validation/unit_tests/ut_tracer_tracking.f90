@@ -23,7 +23,7 @@ module ut_tracer_tracking
   use mpi
   use ice_model_types, only: type_ice_model
   use ice_model_memory, only: allocate_ice_model
-  use reference_geometries, only: calc_idealised_geometry
+  use reference_geometries_main, only: calc_idealised_geometry
 
   implicit none
 

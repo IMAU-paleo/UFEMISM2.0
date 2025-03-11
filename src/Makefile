@@ -219,7 +219,7 @@ UFEMISM_source = \
   \
   io/transects/transects_main.f90 \
   \
-  reference_states/reference_geometries.f90 \
+  reference_geometries/reference_geometries_main.f90 \
   \
   basal_conditions/geothermal_heat_flux.f90 \
   basal_conditions/basal_hydrology.f90 \

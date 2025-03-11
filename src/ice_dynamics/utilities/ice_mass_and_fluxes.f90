@@ -12,7 +12,7 @@ module ice_mass_and_fluxes
   use SMB_model_types, only: type_SMB_model
   use BMB_model_types, only: type_BMB_model
   use LMB_model_types, only: type_LMB_model
-  use reference_geometries, only: type_reference_geometry
+  use reference_geometry_types, only: type_reference_geometry
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all
 
