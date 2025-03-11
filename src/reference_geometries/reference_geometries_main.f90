@@ -1,4 +1,4 @@
-MODULE reference_geometries
+MODULE reference_geometries_main
 
   ! Contains the routines for setting up the three "reference geometries":
   ! - refgeo_init:   initial, used to initialise the simulation
@@ -1654,4 +1654,4 @@ CONTAINS
 
   end subroutine remove_tiny_islands
 
-END MODULE reference_geometries
+END MODULE reference_geometries_main
