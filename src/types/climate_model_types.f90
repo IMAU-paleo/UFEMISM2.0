@@ -60,6 +60,7 @@ MODULE climate_model_types
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_time
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_lat
       REAL(dp),                   ALLOCATABLE     :: ins_t0, ins_t1
+      INTEGER,                    ALLOCATABLE     :: ins_ti0,ins_ti1
       REAL(dp), DIMENSION(:,:  ), ALLOCATABLE     :: ins_Q_TOA0, ins_Q_TOA1
       
       INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1

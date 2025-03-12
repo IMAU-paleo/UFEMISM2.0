@@ -167,12 +167,13 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_global_forcing),         INTENT(OUT)   :: forcing
+    TYPE(type_global_forcing),           INTENT(OUT) :: forcing
     TYPE(type_mesh),                      INTENT(IN) :: mesh
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'initialise_insolation_forcing'
     CHARACTER(LEN=256)                               :: str
+    INTEGER                                          :: ncid
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -188,19 +189,25 @@ CONTAINS
 
       ALLOCATE( forcing%ins_t0)
       ALLOCATE( forcing%ins_t1)
+      ALLOCATE( forcing%ins_ti0)
+      ALLOCATE( forcing%ins_ti1)
 
       IF (par%master) THEN
 
+        call open_existing_netcdf_file_for_reading( filename, ncid)
+
         ! get the closest timeframe to the initial time for t0
-        CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run, forcing%ins_t0)
+        CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run, forcing%ins_ti0)
+        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, forcing%ins_ti0)
 
         ! if the initial time is after the closest timeframe, we read one step later for t1
-        IF (C%_start_time_of_run >= closest_t0) THEN
-          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run+1000._dp, forcing%ins_t1)
+        IF (C%start_time_of_run >= closest_t0) THEN
+          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run+1000._dp, forcing%ins_ti1)
         ELSE
         ! otherwise we read one step before for t1
-          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run-1000._dp, forcing%ins_t1)
+          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run-1000._dp, forcing%ins_ti1)
         END IF
+        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, forcing%ins_ti1)
 
         WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
       END IF ! IF (par%master) THEN
@@ -225,8 +232,8 @@ CONTAINS
       IF (par%master) THEN
         ! Read the fields at ins_t0 and ins_t1
         WRITE(0,*) '     Reading Q_TOA...'
-        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
-        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_t1)
+        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_ti0)
+        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_ti1)
         WRITE(0,*) '     Q_TOA is read.'
 
 
@@ -332,7 +339,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_insolation_timeframes_from_file'
-    INTEGER                                            :: ti0, ti1
+    INTEGER                                            :: ti0, ti1, ncid
     CHARACTER(LEN=256)                                 :: str
 
     ! Add routine to path
@@ -347,16 +354,20 @@ CONTAINS
       ! Find time indices to be read
       IF (par%master) THEN
 
+        call open_existing_netcdf_file_for_reading( filename, ncid)
+
         ! get the closest timeframe to the initial time for t0
-        CALL find_timeframe( C%filename_insolation, ncid, time, forcing%ins_t0)
+        CALL find_timeframe( C%filename_insolation, ncid, time, forcing%ins_ti0)
+        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, forcing%ins_ti0)
 
         ! if the initial time is after the closest timeframe, we read one step later for t1
-        IF (C%_start_time_of_run >= closest_t0) THEN
-          CALL find_timeframe( C%filename_insolation, ncid, time+1000._dp, forcing%ins_t1)
+        IF (C%start_time_of_run >= closest_t0) THEN
+          CALL find_timeframe( C%filename_insolation, ncid, time+1000._dp, forcing%ins_ti1)
         ELSE
         ! otherwise we read one step before for t1
-          CALL find_timeframe( C%filename_insolation, ncid, time-1000._dp, forcing%ins_t1)
+          CALL find_timeframe( C%filename_insolation, ncid, time-1000._dp, forcing%ins_ti1)
         END IF
+        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, forcing%ins_ti1)
       END IF ! IF (par%master) THEN
 
       ! Read new insolation fields from the NetCDF file
