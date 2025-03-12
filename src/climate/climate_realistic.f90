@@ -190,44 +190,45 @@ CONTAINS
       ALLOCATE( forcing%ins_t1)
 
       IF (par%master) THEN
-        ! Give impossible values to timeframes, so that the first call to get_insolation_at_time
-        ! is guaranteed to first read two new timeframes from the NetCDF file
-        forcing%ins_t0 = C%start_time_of_run - 100._dp
-        forcing%ins_t1 = C%start_time_of_run - 90._dp
+
+        ! get the closest timeframe to the initial time for t0
+        CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run, forcing%ins_t0)
+
+        ! if the initial time is after the closest timeframe, we read one step later for t1
+        IF (C%_start_time_of_run >= closest_t0) THEN
+          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run+1000._dp, forcing%ins_t1)
+        ELSE
+        ! otherwise we read one step before for t1
+          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run-1000._dp, forcing%ins_t1)
+        END IF
+
         WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
       END IF ! IF (par%master) THEN
 
         ! Insolation
-        ALLOCATE( forcing%ins_nyears)
+        !ALLOCATE( forcing%ins_nyears)
         ALLOCATE( forcing%ins_nlat)
         ALLOCATE( forcing%ins_nlon)
         !ALLOCATE( forcing%wins_nlat  )
         !ALLOCATE( forcing%wins_nyears)
-        ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
+        !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
         ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
         ALLOCATE(forcing%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
         ALLOCATE(forcing%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
-        forcing%ins_nyears = 6001
         forcing%ins_nlat   = 181
         forcing%ins_nlon   = 360
-        forcing%ins_time   = 0._dp
         forcing%ins_lat    = 0._dp
         forcing%ins_Q_TOA0 = 0._dp
         forcing%ins_Q_TOA1 = 0._dp
       
       ! Read time and latitude data
       IF (par%master) THEN
-        WRITE(0,*) '     Reading time...'
-        call read_time_from_file( C%filename_insolation, forcing%ins_time)
-        WRITE(0,*) '     Time was read.'
-        forcing%ins_nyears = size(forcing%ins_time) ! TODO: is this the proper way to do it?!
-
-        ! Read the fields at the closest timeframes from ins_t0 and ins_t1 (function find_timeframe will do that)
-        ! TODO: this is where things are going wrong
+        ! Read the fields at ins_t0 and ins_t1
         WRITE(0,*) '     Reading Q_TOA...'
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_t1)
         WRITE(0,*) '     Q_TOA is read.'
+
 
         str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after initialisation at times {dp_01} and {dp_02}'
         call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
@@ -341,31 +342,20 @@ CONTAINS
       CALL crash('insolation should not be used when choice_insolation_forcing = "none"!')
     ELSEIF (C%choice_insolation_forcing == 'static' .OR. &
             C%choice_insolation_forcing == 'realistic') THEN
+
       ! Update insolation
-
-      ! Check if data for model time is available
-      IF (time < forcing%ins_time(1)) THEN
-        CALL crash('queried time before start of insolation record!')
-      END IF
-
       ! Find time indices to be read
       IF (par%master) THEN
-        IF (time <= forcing%ins_time( forcing%ins_nyears)) THEN
-          ti1 = 1
-          DO WHILE (forcing%ins_time(ti1) < time)
-            ti1 = ti1 + 1
-          END DO
-          ti0 = ti1 - 1
 
-          forcing%ins_t0 = forcing%ins_time(ti0)
-          forcing%ins_t1 = forcing%ins_time(ti1)
+        ! get the closest timeframe to the initial time for t0
+        CALL find_timeframe( C%filename_insolation, ncid, time, forcing%ins_t0)
+
+        ! if the initial time is after the closest timeframe, we read one step later for t1
+        IF (C%_start_time_of_run >= closest_t0) THEN
+          CALL find_timeframe( C%filename_insolation, ncid, time+1000._dp, forcing%ins_t1)
         ELSE
-          ! Constant PD insolation for future projections
-          ti0 = forcing%ins_nyears
-          ti1 = forcing%ins_nyears
-
-          forcing%ins_t0 = forcing%ins_time(ti0) - 1._dp
-          forcing%ins_t1 = forcing%ins_time(ti1)
+        ! otherwise we read one step before for t1
+          CALL find_timeframe( C%filename_insolation, ncid, time-1000._dp, forcing%ins_t1)
         END IF
       END IF ! IF (par%master) THEN
 
