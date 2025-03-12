@@ -2,7 +2,7 @@ module netcdf_read_field_from_series_file
   use mpi
   use precisions, only: dp
   use mpi_basic, only: par
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
   use model_configuration, only: C
   use mpi_distributed_memory, only: distribute_from_master
   use netcdf_determine_indexing
@@ -94,13 +94,13 @@ contains
     type(type_grid_lat)                       :: vec_loc
     type(type_grid_lonlat)                    :: grid_loc
     integer                                   :: id_var
-    character(len=1024)                       :: var_name
+    character(len=1024)                       :: var_name, str
     character(len=1024)                       :: latdir
     real(dp), dimension(:,:  ),   allocatable :: d_vec
     real(dp), dimension(:,:,:),   allocatable :: d_vec_with_time
     real(dp), dimension(:,:,:  ), allocatable :: d_grid
     real(dp), dimension(:,:,:,:), allocatable :: d_grid_with_time
-    integer                                   :: ti, i
+    integer                                   :: ti, i, m
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -118,14 +118,16 @@ contains
     if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
 
     ! Check if the file has a valid month dimension
+    if (par%master) WRITE(0,*) '    Checking if file has a valid month dimension...'
     call check_month( filename, ncid)
 
     ! Check if the variable has the required dimensions
+    if (par%master) WRITE(0,*) '    Checking if desired variable has the required dimensions...'
     call check_lat_grid_field_dp_1D_monthly( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_vec( vec_loc%nlat, 12))
-    if (par%master) allocate( d_grid( grid_loc%nlon, grid_loc%nlat, 12))
+    allocate( d_vec( vec_loc%nlat, 12))
+    allocate( d_grid( grid_loc%nlon, grid_loc%nlat, 12))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
@@ -140,18 +142,23 @@ contains
     else
       ! allocate memory
       !if (par%master) allocate( d_grid_with_time( grid_loc%nlon, vec_loc%nlat, 12, 1)) ! probably not used
-      if (par%master) allocate( d_vec_with_time( vec_loc%nlat, 12, 1))
+      allocate( d_vec_with_time( 1, 12, vec_loc%nlat))
 
       ! Find out which timeframe to read
+      if (par%master) WRITE(0,*) '    Finding timeframe to read...'
       call find_timeframe( filename, ncid, time_to_read, ti)
 
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_vec_with_time, start = (/ 1, 1, ti /), count = (/ vec_loc%nlat, 12, 1 /) )
+      if (par%master) WRITE(0,*) '    Actually reading the data...'
+      call read_var_master( filename, ncid, id_var, d_vec_with_time, start = (/ ti, 1, 1 /), count = (/ 1, 12, vec_loc%nlat /) )
       
-      ! Copy to output memory, replicating along the longitudes
+      ! Copy to output memory, replicating along the longitudes and into the proper dimensions
+      if (par%master) WRITE(0,*) '    Copying lat-only vector to latlon grid...'
       if (par%master) then
         do i = 1, grid_loc%nlon
-            d_grid(i,:,:) = d_vec_with_time(:,:,1)
+        do m = 1, 12
+            d_grid(i,:,m) = d_vec_with_time(1,m,:)
+        end do
         end do
 
         ! Copy to output memory = already done in the step above
@@ -160,6 +167,12 @@ contains
         ! Clean up after yourself
         deallocate( d_vec_with_time)
       end if
+      str = ' Raw grid has dimensions ({int_01},{int_02},{int_03})'
+      call insert_val_into_string_int( str, '{int_01}', size(d_grid,1))
+      call insert_val_into_string_int( str, '{int_02}', size(d_grid,2))
+      call insert_val_into_string_int( str, '{int_03}', size(d_grid,3))
+      IF (par%master)  WRITE(0,"(A)") trim(str)
+
     end if
 
     ! Close the NetCDF file
@@ -187,7 +200,7 @@ contains
     call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_grid)
+    deallocate( d_grid)
     call deallocate_lonlat_grid( grid_loc)
     call deallocate_lat_grid(vec_loc)
 

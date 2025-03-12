@@ -187,39 +187,15 @@ CONTAINS
       ! Initialise insolation
       ! The times at which we have insolation fields from Laskar, between which we'll interpolate
       ! to find the insolation at model time (assuming that t0 <= model_time <= t1)
+      IF (par%master)   WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
 
+      ! Memory allocation
       ALLOCATE( forcing%ins_t0)
       ALLOCATE( forcing%ins_t1)
       ALLOCATE( forcing%ins_ti0)
       ALLOCATE( forcing%ins_ti1)
-
-      IF (par%master) THEN
-
-        !call open_existing_netcdf_file_for_reading(  C%filename_insolation, ncid)
-
-        ! get the closest timeframe to the initial time for t0
-        !CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run, forcing%ins_ti0)
-        !CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, forcing%ins_t0)
-
-        ! if the initial time is after the closest timeframe, we read one step later for t1
-        !IF (C%start_time_of_run >= forcing%ins_t0) THEN
-        !  CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run+1000._dp, forcing%ins_t1)
-        !ELSE
-        ! otherwise we read one step before for t1
-        !  CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run-1000._dp, forcing%ins_t1)
-        !END IF
-        
-
-        WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
-      END IF ! IF (par%master) THEN
-
-      ! Insolation
-      !ALLOCATE( forcing%ins_nyears)
       ALLOCATE( forcing%ins_nlat)
       ALLOCATE( forcing%ins_nlon)
-      !ALLOCATE( forcing%wins_nlat  )
-      !ALLOCATE( forcing%wins_nyears)
-      !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
       ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
       ALLOCATE(forcing%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
       ALLOCATE(forcing%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
@@ -230,11 +206,7 @@ CONTAINS
       forcing%ins_Q_TOA0 = 0._dp
       forcing%ins_Q_TOA1 = 0._dp
       
-      ! Read time and latitude data
-      !IF (par%master) THEN
-        ! Read the fields at ins_t0 and ins_t1
-        
-      if (par%master) WRITE(0,*) '     Reading ins_t0...'
+      ! Read the fields at ins_t0
       call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = forcing%ins_t0)
 
       if (par%master) WRITE(0,*) '     Reading Q_TOA0...'
@@ -254,24 +226,26 @@ CONTAINS
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
       if (par%master) WRITE(0,*) '     Q_TOA is read.'
 
-      if (par%master) THEN
-          str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after initialisation at times {dp_01} and {dp_02}'
-          call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
-          call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
-          call insert_val_into_string_int(  str, '{int_03}', size(forcing%ins_Q_TOA1,1))
-          call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
-          call insert_val_into_string_dp(  str, '{dp_01}', forcing%ins_t0)
-          call insert_val_into_string_dp(  str, '{dp_02}', forcing%ins_t1)
-          WRITE(0,*) trim(str)
-      end if
-      IF (C%start_time_of_run < forcing%ins_time(1)) THEN
-        CALL warning(' Model time starts before start of insolation record; the model will crash lol')
+      
+        str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02},{int_03}), and ins_Q_TOA1 has size ({int_04},{int_05},{int_06}) after initialisation at times {dp_01} and {dp_02}'
+        call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
+        call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
+        !call insert_val_into_string_int( str, '{int_03}', size(forcing%ins_Q_TOA0,3))
+        call insert_val_into_string_int( str, '{int_04}', size(forcing%ins_Q_TOA1,1))
+        call insert_val_into_string_int( str, '{int_05}', size(forcing%ins_Q_TOA1,2))
+        !call insert_val_into_string_int( str, '{int_06}', size(forcing%ins_Q_TOA1,3))
+        call insert_val_into_string_dp(  str, '{dp_01}',  forcing%ins_t0)
+        call insert_val_into_string_dp(  str, '{dp_02}',  forcing%ins_t1)
+        if (par%master) THEN
+            WRITE(0,*) trim(str)
+        end if
+
+      IF (C%start_time_of_run < forcing%ins_t0) THEN
+        CALL warning(' Model time starts before start of insolation record; the model will crash (lol) or use the first available record, which might be awfully wrong')
       END IF
-      IF (C%end_time_of_run > forcing%ins_time(forcing%ins_nyears)) THEN
+      IF (C%end_time_of_run > forcing%ins_t1) THEN
         CALL warning(' Model time will reach beyond end of insolation record; constant extrapolation will be used in that case!')
-        ! will it, though?
       END IF
-      !END IF
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
