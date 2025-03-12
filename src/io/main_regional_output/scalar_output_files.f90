@@ -6,6 +6,7 @@ module scalar_output_files
   use model_configuration, only: C
   use region_types, only: type_model_region
   use netcdf_io_main
+  use reallocate_mod
 
   implicit none
 
@@ -180,7 +181,7 @@ contains
   end subroutine create_scalar_regional_output_file
 
   subroutine allocate_scalar_output_buffer( region)
-    !< Allocate memory to buffer the scalar output data
+    !< Allocate memory to buffer the scalar output data between output writing intervals
 
     ! In/output variables:
     type(type_model_region), intent(inout) :: region
@@ -246,5 +247,72 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine allocate_scalar_output_buffer
+
+  subroutine extend_scalar_output_buffer( region)
+    !< Extend memory to buffer the scalar output data between output writing intervals
+
+    ! In/output variables:
+    type(type_model_region), intent(inout) :: region
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'extend_scalar_output_buffer'
+    integer                        :: n_mem
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Only allocate memory for this on the master
+    if (par%master) then
+
+      n_mem = region%scalars%buffer%n_mem * 2
+      region%scalars%buffer%n_mem = n_mem
+
+      call reallocate( region%scalars%buffer%time             , n_mem, source = 0._dp)
+
+      call reallocate( region%scalars%buffer%ice_area         , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%ice_volume       , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%ice_volume_af    , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%ice_area_PD      , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%ice_volume_PD    , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%ice_volume_af_PD , n_mem, source = 0._dp)
+
+      call reallocate( region%scalars%buffer%SMB_total        , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%SMB_gr           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%SMB_fl           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%SMB_land         , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%SMB_ocean        , n_mem, source = 0._dp)
+
+      call reallocate( region%scalars%buffer%BMB_total        , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%BMB_gr           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%BMB_fl           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%BMB_land         , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%BMB_ocean        , n_mem, source = 0._dp)
+
+      call reallocate( region%scalars%buffer%LMB_total        , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%LMB_gr           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%LMB_fl           , n_mem, source = 0._dp)
+
+      call reallocate( region%scalars%buffer%AMB_total        , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%AMB_gr           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%AMB_fl           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%AMB_land         , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%AMB_ocean        , n_mem, source = 0._dp)
+
+      call reallocate( region%scalars%buffer%gl_flux          , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%cf_gr_flux       , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%cf_fl_flux       , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%margin_land_flux , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%margin_ocean_flux, n_mem, source = 0._dp)
+
+      call reallocate( region%scalars%buffer%dt_ice           , n_mem, source = 0._dp)
+      call reallocate( region%scalars%buffer%n_visc_its       , n_mem, source = 0)
+      call reallocate( region%scalars%buffer%n_Axb_its        , n_mem, source = 0)
+
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine extend_scalar_output_buffer
 
 end module scalar_output_files
