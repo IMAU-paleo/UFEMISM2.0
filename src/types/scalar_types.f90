@@ -9,7 +9,7 @@ module scalar_types
   public :: type_regional_scalars, type_scalar_output_buffer
 
   type type_scalar_output_buffer
-    !< Memory for buffering scalar output (from every model time step) before writing to output every dt_output
+    !< Memory for buffering scalar output (from every model time step) between output writing intervals
 
     integer :: n_mem         !< Number of timeframes for which memory has been allocated
     integer :: n             !< Number of timeframes that are currently buffered

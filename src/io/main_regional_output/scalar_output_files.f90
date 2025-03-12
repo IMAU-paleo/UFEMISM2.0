@@ -1,5 +1,6 @@
 module scalar_output_files
 
+  use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
   use model_configuration, only: C
@@ -92,7 +93,7 @@ contains
     !< Create the scalar regional output NetCDF file
 
     ! In/output variables:
-    type(type_model_region)                            , intent(inout) :: region
+    type(type_model_region), intent(inout) :: region
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_scalar_regional_output_file'
@@ -163,10 +164,12 @@ contains
     call add_field_dp_0D( filename, ncid, 'margin_ocean_flux', long_name = 'Total lateral flux exiting the ice margin into water', units = 'Gt yr^-1')
 
     ! Numerical stability info
-    call add_field_dp_0D(  filename, ncid, 'dt_ice',     long_name = 'Ice-dynamical time step', units = 'yr')
-    call add_field_int_0D( filename, ncid, 'n_visc_its', long_name = 'Number of non-linear viscosity iterations')
-    call add_field_int_0D( filename, ncid, 'n_Axb_its',  long_name = 'Number of iterations in iterative solver for linearised momentum balance')
+    call add_field_dp_0D(  filename, ncid, 'dt_ice',           long_name = 'Ice-dynamical time step', units = 'yr')
+    call add_field_int_0D( filename, ncid, 'n_visc_its',       long_name = 'Number of non-linear viscosity iterations')
+    call add_field_int_0D( filename, ncid, 'n_Axb_its',        long_name = 'Number of iterations in iterative solver for linearised momentum balance')
 
+    ! Allocate memory to buffer scalar output data between output writing intervals
+    call allocate_scalar_output_buffer( region)
 
     ! Close the file
     call close_netcdf_file( ncid)
@@ -175,5 +178,73 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine create_scalar_regional_output_file
+
+  subroutine allocate_scalar_output_buffer( region)
+    !< Allocate memory to buffer the scalar output data
+
+    ! In/output variables:
+    type(type_model_region), intent(inout) :: region
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'allocate_scalar_output_buffer'
+    integer                        :: n_mem
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Only allocate memory for this on the master
+    if (par%master) then
+
+      n_mem = 1000
+      region%scalars%buffer%n_mem = n_mem
+      region%scalars%buffer%n     = 0
+
+      allocate( region%scalars%buffer%time             ( n_mem), source = 0._dp)
+
+      allocate( region%scalars%buffer%ice_area         ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%ice_volume       ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%ice_volume_af    ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%ice_area_PD      ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%ice_volume_PD    ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%ice_volume_af_PD ( n_mem), source = 0._dp)
+
+      allocate( region%scalars%buffer%SMB_total        ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%SMB_gr           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%SMB_fl           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%SMB_land         ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%SMB_ocean        ( n_mem), source = 0._dp)
+
+      allocate( region%scalars%buffer%BMB_total        ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%BMB_gr           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%BMB_fl           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%BMB_land         ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%BMB_ocean        ( n_mem), source = 0._dp)
+
+      allocate( region%scalars%buffer%LMB_total        ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%LMB_gr           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%LMB_fl           ( n_mem), source = 0._dp)
+
+      allocate( region%scalars%buffer%AMB_total        ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%AMB_gr           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%AMB_fl           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%AMB_land         ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%AMB_ocean        ( n_mem), source = 0._dp)
+
+      allocate( region%scalars%buffer%gl_flux          ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%cf_gr_flux       ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%cf_fl_flux       ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%margin_land_flux ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%margin_ocean_flux( n_mem), source = 0._dp)
+
+      allocate( region%scalars%buffer%dt_ice           ( n_mem), source = 0._dp)
+      allocate( region%scalars%buffer%n_visc_its       ( n_mem), source = 0)
+      allocate( region%scalars%buffer%n_Axb_its        ( n_mem), source = 0)
+
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine allocate_scalar_output_buffer
 
 end module scalar_output_files
