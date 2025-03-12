@@ -1,4 +1,4 @@
-module scalar_output
+module scalar_output_files
 
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
@@ -336,4 +336,4 @@ contains
 
   end subroutine create_scalar_regional_output_file_field
 
-end module scalar_output
+end module scalar_output_files

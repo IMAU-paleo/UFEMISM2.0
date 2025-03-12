@@ -39,10 +39,10 @@ MODULE UFEMISM_main_model
   use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
-  USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
-                                                                     write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
-                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
-  use scalar_output, only: create_scalar_regional_output_file, write_to_scalar_regional_output_file
+  USE mesh_output_files, only: create_main_regional_output_file_mesh, write_to_main_regional_output_file_mesh
+  use grid_output_files, only: create_main_regional_output_file_grid, write_to_main_regional_output_file_grid, &
+    create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
+  use scalar_output_files, only: create_scalar_regional_output_file, write_to_scalar_regional_output_file
   use mesh_ROI_polygons
   use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
