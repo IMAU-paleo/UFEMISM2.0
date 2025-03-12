@@ -42,7 +42,7 @@ MODULE UFEMISM_main_model
   USE mesh_output_files, only: create_main_regional_output_file_mesh, write_to_main_regional_output_file_mesh
   use grid_output_files, only: create_main_regional_output_file_grid, write_to_main_regional_output_file_grid, &
     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
-  use scalar_output_files, only: create_scalar_regional_output_file, write_to_scalar_regional_output_file
+  use scalar_output_files, only: create_scalar_regional_output_file, buffer_scalar_output, write_to_scalar_regional_output_file
   use mesh_ROI_polygons
   use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
@@ -208,8 +208,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Write to scalar regional output file
-    CALL write_to_scalar_regional_output_file( region)
+    ! Buffer scalar output data
+    call buffer_scalar_output( region)
 
     ! Determine time of next output event
     t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
@@ -272,6 +272,7 @@ CONTAINS
     END IF ! IF (.NOT. region%output_files_match_current_mesh) THEN
 
     IF (do_output_main) THEN
+
       ! Write to the main regional output files
       CALL write_to_main_regional_output_file_mesh( region)
 
@@ -282,6 +283,10 @@ CONTAINS
 
       ! Write to the transect output files
       call write_to_transect_netcdf_output_files( region)
+
+      ! Write to the regional scalar output file
+      call write_to_scalar_regional_output_file( region)
+
     END IF
 
     IF (do_output_restart) THEN
@@ -639,9 +644,6 @@ CONTAINS
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-
-    ! CALL write_to_main_regional_output_file_mesh( region)
-    ! stop ':)'
 
   END SUBROUTINE initialise_model_region
 
