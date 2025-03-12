@@ -12,7 +12,7 @@ module ice_mass_and_fluxes
   use SMB_model_types, only: type_SMB_model
   use BMB_model_types, only: type_BMB_model
   use LMB_model_types, only: type_LMB_model
-  use reference_geometries, only: type_reference_geometry
+  use reference_geometry_types, only: type_reference_geometry
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all
 
@@ -34,7 +34,7 @@ contains
     type(type_BMB_model),          intent(in   ) :: BMB
     type(type_LMB_model),          intent(in   ) :: LMB
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
-    type(type_regional_scalars),   intent(  out) :: scalars
+    type(type_regional_scalars),   intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_ice_model_scalars'
@@ -80,7 +80,7 @@ contains
     ! In/output variables:
     type(type_mesh),               intent(in   ) :: mesh
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
-    type(type_regional_scalars),   intent(  out) :: scalars
+    type(type_regional_scalars),   intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area_PD'
@@ -133,9 +133,9 @@ contains
     ! Calculate total regional ice volume and area
 
     ! In/output variables:
-    type(type_mesh),             intent(in)  :: mesh
-    type(type_ice_model),        intent(in)  :: ice
-    type(type_regional_scalars), intent(out) :: scalars
+    type(type_mesh),             intent(in   ) :: mesh
+    type(type_ice_model),        intent(in   ) :: ice
+    type(type_regional_scalars), intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area'
@@ -182,7 +182,7 @@ contains
     type(type_SMB_model),        intent(in   ) :: SMB
     type(type_BMB_model),        intent(in   ) :: BMB
     type(type_LMB_model),        intent(in   ) :: LMB
-    type(type_regional_scalars), intent(  out) :: scalars
+    type(type_regional_scalars), intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_integrated_fluxes'

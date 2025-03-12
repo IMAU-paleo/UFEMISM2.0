@@ -16,7 +16,7 @@ MODULE UFEMISM_main_model
   USE ice_model_types                                        , ONLY: type_ice_model
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
-  USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
+  use reference_geometries_main, only: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
   USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
@@ -39,10 +39,10 @@ MODULE UFEMISM_main_model
   use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
-  USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
-                                                                     write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
-                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
-                                                                     create_scalar_regional_output_file, write_to_scalar_regional_output_file
+  USE mesh_output_files, only: create_main_regional_output_file_mesh, write_to_main_regional_output_file_mesh
+  use grid_output_files, only: create_main_regional_output_file_grid, write_to_main_regional_output_file_grid, &
+    create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
+  use scalar_output_files, only: create_scalar_regional_output_file, buffer_scalar_output, write_to_scalar_regional_output_file
   use mesh_ROI_polygons
   use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
@@ -208,8 +208,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Write to scalar regional output file
-    CALL write_to_scalar_regional_output_file( region)
+    ! Buffer scalar output data
+    call buffer_scalar_output( region)
 
     ! Determine time of next output event
     t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
@@ -272,6 +272,7 @@ CONTAINS
     END IF ! IF (.NOT. region%output_files_match_current_mesh) THEN
 
     IF (do_output_main) THEN
+
       ! Write to the main regional output files
       CALL write_to_main_regional_output_file_mesh( region)
 
@@ -282,6 +283,10 @@ CONTAINS
 
       ! Write to the transect output files
       call write_to_transect_netcdf_output_files( region)
+
+      ! Write to the regional scalar output file
+      call write_to_scalar_regional_output_file( region)
+
     END IF
 
     IF (do_output_restart) THEN
@@ -639,9 +644,6 @@ CONTAINS
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-
-    ! CALL write_to_main_regional_output_file_mesh( region)
-    ! stop ':)'
 
   END SUBROUTINE initialise_model_region
 

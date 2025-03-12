@@ -198,6 +198,12 @@ CONTAINS
         CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
     END SELECT
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_BMB_prescribed,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_BMB_prescribed)
+      call find_last_timeframe(   filename_BMB_prescribed, timeframe_BMB_prescribed)
+    end if
+
     ! Print to terminal
     IF (par%master)  WRITE(*,"(A)") '   Initialising BMB from file "' // colour_string( TRIM( filename_BMB_prescribed),'light blue') // '"...'
 

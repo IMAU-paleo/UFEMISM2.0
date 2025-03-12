@@ -83,7 +83,6 @@ module mesh_types
 
     ! Edges (c-grid)
     integer                                 :: nE                            !           Number of edges
-    integer                                 :: nE_mem                        !           Size of allocated memory for edges
     real(dp), dimension(:,:  ), allocatable :: E                             ! [m]       The x,y-coordinates of all the edges
     integer,  dimension(:,:  ), allocatable :: VE                            !           Vertex-to-edge connectivity list
     integer,  dimension(:,:  ), allocatable :: EV                            !           Edge-to-vertex connectivity list

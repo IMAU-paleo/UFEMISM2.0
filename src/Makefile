@@ -149,7 +149,7 @@ UFEMISM_source = \
   mesh/Delaunay/split_border_edges.f90 \
   mesh/Delaunay/split_edges.f90 \
   mesh/Delaunay/split_triangles.f90 \
-  mesh/mesh_edges.f90 \
+  mesh/edges/mesh_edges.f90 \
   mesh/Voronoi_mesh/mesh_Voronoi.f90 \
   mesh/mesh_refinement_basic.f90 \
   mesh/mesh_refinement_basic_ROI.f90 \
@@ -219,7 +219,9 @@ UFEMISM_source = \
   \
   io/transects/transects_main.f90 \
   \
-  reference_states/reference_geometries.f90 \
+  reference_geometries/idealised_geometries.f90 \
+  reference_geometries/preprocess_geometry.f90 \
+  reference_geometries/reference_geometries_main.f90 \
   \
   basal_conditions/geothermal_heat_flux.f90 \
   basal_conditions/basal_hydrology.f90 \
@@ -301,7 +303,10 @@ UFEMISM_source = \
   tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
-  main/main_regional_output.f90 \
+  io/main_regional_output/scalar_output_files.f90 \
+  io/main_regional_output/grid_output_files.f90 \
+  io/main_regional_output/mesh_output_files.f90 \
+  \
   main/UFEMISM_main_model.f90 \
   \
   validation/unit_tests/ut_basic.f90 \
