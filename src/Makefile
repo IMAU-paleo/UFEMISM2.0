@@ -303,8 +303,9 @@ UFEMISM_source = \
   tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
-  io/main_regional_output/scalar_output.f90 \
-  io/main_regional_output/main_regional_output.f90 \
+  io/main_regional_output/scalar_output_files.f90 \
+  io/main_regional_output/grid_output_files.f90 \
+  io/main_regional_output/mesh_output_files.f90 \
   \
   main/UFEMISM_main_model.f90 \
   \
