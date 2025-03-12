@@ -1,16 +1,61 @@
 module scalar_types
 
-  ! The different data types used for scalar data
-
-! ===== Preamble =====
-! ====================
-
   use precisions, only: dp
 
   implicit none
 
-! ===== Types =====
-! =================
+  private
+
+  public :: type_regional_scalars, type_scalar_output_buffer
+
+  type type_scalar_output_buffer
+    !< Memory for buffering scalar output (from every model time step) before writing to output every dt_output
+
+    integer :: n_mem         !< Number of timeframes for which memory has been allocated
+    integer :: n             !< Number of timeframes that are currently buffered
+
+    real(dp), dimension(:), allocatable :: time
+
+    real(dp), dimension(:), allocatable :: ice_area
+    real(dp), dimension(:), allocatable :: ice_volume
+    real(dp), dimension(:), allocatable :: ice_volume_af
+    real(dp), dimension(:), allocatable :: ice_area_PD
+    real(dp), dimension(:), allocatable :: ice_volume_PD
+    real(dp), dimension(:), allocatable :: ice_volume_af_PD
+
+    real(dp), dimension(:), allocatable :: SMB_total
+    real(dp), dimension(:), allocatable :: SMB_gr
+    real(dp), dimension(:), allocatable :: SMB_fl
+    real(dp), dimension(:), allocatable :: SMB_land
+    real(dp), dimension(:), allocatable :: SMB_ocean
+
+    real(dp), dimension(:), allocatable :: BMB_total
+    real(dp), dimension(:), allocatable :: BMB_gr
+    real(dp), dimension(:), allocatable :: BMB_fl
+    real(dp), dimension(:), allocatable :: BMB_land
+    real(dp), dimension(:), allocatable :: BMB_ocean
+
+    real(dp), dimension(:), allocatable :: LMB_total
+    real(dp), dimension(:), allocatable :: LMB_gr
+    real(dp), dimension(:), allocatable :: LMB_fl
+
+    real(dp), dimension(:), allocatable :: AMB_total
+    real(dp), dimension(:), allocatable :: AMB_gr
+    real(dp), dimension(:), allocatable :: AMB_fl
+    real(dp), dimension(:), allocatable :: AMB_land
+    real(dp), dimension(:), allocatable :: AMB_ocean
+
+    real(dp), dimension(:), allocatable :: gl_flux
+    real(dp), dimension(:), allocatable :: cf_gr_flux
+    real(dp), dimension(:), allocatable :: cf_fl_flux
+    real(dp), dimension(:), allocatable :: margin_land_flux
+    real(dp), dimension(:), allocatable :: margin_ocean_flux
+
+    real(dp), dimension(:), allocatable :: dt_ice
+    integer,  dimension(:), allocatable :: n_visc_its
+    integer,  dimension(:), allocatable :: n_Axb_its
+
+  end type type_scalar_output_buffer
 
   type type_regional_scalars
     ! Data fields storing the regional scalar data
@@ -56,6 +101,9 @@ module scalar_types
     real(dp)   :: int_melt                 ! [m yr^-1]  Area-integrated melt rates
     real(dp)   :: int_refreezing           ! [m yr^-1]  Area-integrated refreezing rates
     real(dp)   :: int_runoff               ! [m yr^-1]  Area-integrated runoff rates
+
+    ! Memory to buffer data before writing to NetCDF
+    type(type_scalar_output_buffer) :: buffer
 
   end type type_regional_scalars
 
