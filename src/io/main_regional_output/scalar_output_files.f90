@@ -2,7 +2,7 @@ module scalar_output_files
 
   use mpi_basic, only: par
   use precisions, only: dp
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, warning
   use model_configuration, only: C
   use region_types, only: type_model_region
   use netcdf_io_main
@@ -12,7 +12,12 @@ module scalar_output_files
 
   private
 
-  public :: create_scalar_regional_output_file, write_to_scalar_regional_output_file
+  public :: create_scalar_regional_output_file, buffer_scalar_output, write_to_scalar_regional_output_file
+
+  interface write_buffer_to_scalar_file_single_variable
+    procedure :: write_buffer_to_scalar_file_single_variable_int
+    procedure :: write_buffer_to_scalar_file_single_variable_dp
+  end interface write_buffer_to_scalar_file_single_variable
 
 contains
 
@@ -20,11 +25,12 @@ contains
     !< Write to the scalar regional output NetCDF file
 
     ! In/output variables:
-    type(type_model_region), intent(in   ) :: region
+    type(type_model_region), intent(inout) :: region
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'write_to_scalar_regional_output_file'
-    integer                        :: ncid
+    character(len=1024)            :: filename
+    integer                        :: ncid, n, id_dim_time, ti
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -35,52 +41,66 @@ contains
       return
     end if
 
+    ! Print to terminal
+    if (par%master) write(0,'(A)') '   Writing to scalar output file "' // colour_string( trim( region%output_filename_scalar), 'light blue') // '"...'
+
+    ! Shorthand for variable names
+    filename = region%output_filename_scalar
+    n        = region%scalars%buffer%n
+
     ! Open the NetCDF file
-    call open_existing_netcdf_file_for_writing( region%output_filename_scalar, ncid)
+    call open_existing_netcdf_file_for_writing( filename, ncid)
 
-    ! write the time to the file
-    call write_time_to_file( region%output_filename_scalar, ncid, region%time)
+    ! Inquire number of timeframes already present in the file
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
-    ! write the default data fields to the file
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_area',          region%scalars%ice_area)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume',        region%scalars%ice_volume)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_af',     region%scalars%ice_volume_af)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_area_PD',       region%scalars%ice_area_PD)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_PD',     region%scalars%ice_volume_PD)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'ice_volume_af_PD',  region%scalars%ice_volume_af_PD)
+    ! Write the time to the file
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'time',              region%scalars%buffer%time,              n, ti+1)
 
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_total',         region%scalars%SMB_total)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_gr',            region%scalars%SMB_gr)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_fl',            region%scalars%SMB_fl)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_land',          region%scalars%SMB_land)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'SMB_ocean',         region%scalars%SMB_ocean)
+    ! Integrated ice geometry
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'ice_area',          region%scalars%buffer%ice_area,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'ice_volume',        region%scalars%buffer%ice_volume,        n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'ice_volume_af',     region%scalars%buffer%ice_volume_af,     n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'ice_area_PD',       region%scalars%buffer%ice_area_PD,       n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'ice_volume_PD',     region%scalars%buffer%ice_volume_PD,     n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'ice_volume_af_PD',  region%scalars%buffer%ice_volume_af_PD,  n, ti+1)
 
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_total',         region%scalars%BMB_total)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_gr',            region%scalars%BMB_gr)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_fl',            region%scalars%BMB_fl)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_land',          region%scalars%BMB_land)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'BMB_ocean',         region%scalars%BMB_ocean)
+    ! Integrated mass fluxes
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'SMB_total',         region%scalars%buffer%SMB_total,         n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'SMB_gr',            region%scalars%buffer%SMB_gr,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'SMB_fl',            region%scalars%buffer%SMB_fl,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'SMB_land',          region%scalars%buffer%SMB_land,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'SMB_ocean',         region%scalars%buffer%SMB_ocean,         n, ti+1)
 
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_total',         region%scalars%LMB_total)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_gr',            region%scalars%LMB_gr)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'LMB_fl',            region%scalars%LMB_fl)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'BMB_total',         region%scalars%buffer%BMB_total,         n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'BMB_gr',            region%scalars%buffer%BMB_gr,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'BMB_fl',            region%scalars%buffer%BMB_fl,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'BMB_land',          region%scalars%buffer%BMB_land,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'BMB_ocean',         region%scalars%buffer%BMB_ocean,         n, ti+1)
 
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_total',         region%scalars%AMB_total)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_gr',            region%scalars%AMB_gr)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_fl',            region%scalars%AMB_fl)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_land',          region%scalars%AMB_land)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'AMB_ocean',         region%scalars%AMB_ocean)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'LMB_total',         region%scalars%buffer%LMB_total,         n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'LMB_gr',            region%scalars%buffer%LMB_gr,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'LMB_fl',            region%scalars%buffer%LMB_fl,            n, ti+1)
 
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'gl_flux',           region%scalars%gl_flux)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'cf_gr_flux',        region%scalars%cf_gr_flux)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'cf_fl_flux',        region%scalars%cf_fl_flux)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_land_flux',  region%scalars%margin_land_flux)
-    call write_to_field_multopt_dp_0D( region%output_filename_scalar, ncid, 'margin_ocean_flux', region%scalars%margin_ocean_flux)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'AMB_total',         region%scalars%buffer%AMB_total,         n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'AMB_gr',            region%scalars%buffer%AMB_gr,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'AMB_fl',            region%scalars%buffer%AMB_fl,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'AMB_land',          region%scalars%buffer%AMB_land,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'AMB_ocean',         region%scalars%buffer%AMB_ocean,         n, ti+1)
 
-    ! Numerical stability info
-    call write_to_field_multopt_dp_0D(  region%output_filename_scalar, ncid, 'dt_ice',           region%ice%dt_ice)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_visc_its',       region%ice%n_visc_its)
-    call write_to_field_multopt_int_0D( region%output_filename_scalar, ncid, 'n_Axb_its',        region%ice%n_Axb_its)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'gl_flux',           region%scalars%buffer%gl_flux,           n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'cf_gr_flux',        region%scalars%buffer%cf_gr_flux,        n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'cf_fl_flux',        region%scalars%buffer%cf_fl_flux,        n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'margin_land_flux',  region%scalars%buffer%margin_land_flux,  n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'margin_ocean_flux', region%scalars%buffer%margin_ocean_flux, n, ti+1)
+
+    ! ! Numerical stability info
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'dt_ice',            region%scalars%buffer%dt_ice,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'n_visc_its',        region%scalars%buffer%n_visc_its,        n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'n_Axb_its',         region%scalars%buffer%n_Axb_its,         n, ti+1)
+
+    ! Reset buffer
+    region%scalars%buffer%n = 0
 
     ! Close the file
     call close_netcdf_file( ncid)
@@ -123,8 +143,6 @@ contains
 
     ! Add time, zeta, and month dimensions+variables to the file
     call add_time_dimension_to_file( filename, ncid)
-
-    ! Add the default data fields to the file
 
     ! Integrated ice geometry
     call add_field_dp_0D( filename, ncid, 'ice_area',          long_name = 'Total ice area', units = 'm^2')
@@ -192,6 +210,9 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    region%scalars%buffer%n_mem = 0
+    region%scalars%buffer%n     = 0
 
     ! Only allocate memory for this on the master
     if (par%master) then
@@ -382,5 +403,71 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine extend_scalar_output_buffer
+
+  subroutine write_buffer_to_scalar_file_single_variable_int( filename, ncid, var_name, d, n, ti)
+    !< Write buffered scalar data of a single variable to the scalar output file
+
+    ! In/output variables:
+    character(len=*),       intent(in   ) :: filename
+    integer,                intent(in   ) :: ncid
+    character(len=*),       intent(in   ) :: var_name
+    integer,  dimension(:), intent(in   ) :: d
+    integer,                intent(in   ) :: n
+    integer,                intent(in   ) :: ti
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'write_buffer_to_scalar_file_single_variable_int'
+    integer                        :: id_var
+    integer, dimension(1)          :: start, count
+    integer,  dimension(n)         :: d_to_write
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call inquire_var( filename, ncid, var_name, id_var)
+
+    start = ti
+    count = n
+    d_to_write = d(1:n)
+
+    call write_var_master(  filename, ncid, id_var, d_to_write, start = start, count = count)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_buffer_to_scalar_file_single_variable_int
+
+  subroutine write_buffer_to_scalar_file_single_variable_dp( filename, ncid, var_name, d, n, ti)
+    !< Write buffered scalar data of a single variable to the scalar output file
+
+    ! In/output variables:
+    character(len=*),       intent(in   ) :: filename
+    integer,                intent(in   ) :: ncid
+    character(len=*),       intent(in   ) :: var_name
+    real(dp), dimension(:), intent(in   ) :: d
+    integer,                intent(in   ) :: n
+    integer,                intent(in   ) :: ti
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'write_buffer_to_scalar_file_single_variable_dp'
+    integer                        :: id_var
+    integer, dimension(1)          :: start, count
+    real(dp), dimension(n)         :: d_to_write
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call inquire_var( filename, ncid, var_name, id_var)
+
+    start = ti
+    count = n
+    d_to_write = d(1:n)
+
+    call write_var_master(  filename, ncid, id_var, d_to_write, start = start, count = count)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_buffer_to_scalar_file_single_variable_dp
 
 end module scalar_output_files

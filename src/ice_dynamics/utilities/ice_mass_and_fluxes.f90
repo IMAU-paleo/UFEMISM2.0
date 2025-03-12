@@ -34,7 +34,7 @@ contains
     type(type_BMB_model),          intent(in   ) :: BMB
     type(type_LMB_model),          intent(in   ) :: LMB
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
-    type(type_regional_scalars),   intent(  out) :: scalars
+    type(type_regional_scalars),   intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_ice_model_scalars'
@@ -80,7 +80,7 @@ contains
     ! In/output variables:
     type(type_mesh),               intent(in   ) :: mesh
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
-    type(type_regional_scalars),   intent(  out) :: scalars
+    type(type_regional_scalars),   intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area_PD'
@@ -133,9 +133,9 @@ contains
     ! Calculate total regional ice volume and area
 
     ! In/output variables:
-    type(type_mesh),             intent(in)  :: mesh
-    type(type_ice_model),        intent(in)  :: ice
-    type(type_regional_scalars), intent(out) :: scalars
+    type(type_mesh),             intent(in   ) :: mesh
+    type(type_ice_model),        intent(in   ) :: ice
+    type(type_regional_scalars), intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area'
@@ -182,7 +182,7 @@ contains
     type(type_SMB_model),        intent(in   ) :: SMB
     type(type_BMB_model),        intent(in   ) :: BMB
     type(type_LMB_model),        intent(in   ) :: LMB
-    type(type_regional_scalars), intent(  out) :: scalars
+    type(type_regional_scalars), intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_integrated_fluxes'
