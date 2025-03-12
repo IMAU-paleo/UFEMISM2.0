@@ -1730,6 +1730,11 @@ CONTAINS
         CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
     END SELECT
 
+    if (index( filename_pore_water_fraction,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_pore_water_fraction)
+      call find_last_timeframe(   filename_pore_water_fraction, timeframe_pore_water_fraction)
+    end if
+
     ! Print to terminal
     IF (par%master)  WRITE(*,"(A)") '   Initialising pore water fraction from file "' // colour_string( TRIM(filename_pore_water_fraction),'light blue') // '"...'
 
