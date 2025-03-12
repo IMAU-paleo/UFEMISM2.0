@@ -218,8 +218,8 @@ contains
     call open_existing_netcdf_file_for_reading( filename, ncid)
 
     ! Check if the file contains a valid time dimension and variable
-    if (par%master) WRITE(0,*) '     Checking time...'
-    call check_time( filename, ncid)
+    !if (par%master) WRITE(0,*) '     Checking time...'
+    !call check_time( filename, ncid)
 
     ! inquire size of time dimension
     if (par%master) WRITE(0,*) '     Inquiring time dimension...'
