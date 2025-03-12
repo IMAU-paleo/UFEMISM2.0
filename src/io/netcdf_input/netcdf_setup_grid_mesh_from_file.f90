@@ -338,38 +338,40 @@ contains
     integer, parameter                   :: nlon = 360
     real(dp), parameter                  :: dlon = 1.0
     real(dp), allocatable, dimension(:)  :: lon
-    CHARACTER(LEN=256)                                 :: str
-
-    ! Generate the vector of longitudes - hardcoded to be at 1 degree resolution
-    do i=1, nlon
-        !lon(i) = -180 + 360 * (i - 1) / (nlon - 1) ! longitude going from -180 to + 180
-        lon(i) = i*dlon                             ! longitude going from 0 to 360
-    end do
+    CHARACTER(LEN=256)                   :: str
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Give the grid a nice name
+  ! Give the grid a nice name
     grid%name = 'lonlat_grid_from_file_"' // trim( filename) // '"'
+
+    ! Generate the vector of longitudes - hardcoded to be at 1 degree resolution
+    grid%nlon = nlon
+    allocate( grid%lon( grid%nlon))
+    do i=1, nlon
+        !lon(i) = -180 + 360 * (i - 1) / (nlon - 1) ! longitude going from -180 to + 180
+        grid%lon(i) = i*dlon                             ! longitude going from 0 to 360
+    end do
 
     ! Check latitude grid dimension and variables for validity
     call check_lat( filename, ncid)
 
     ! Inquire lat dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat, dim_length = grid%nlat)
-    grid%nlon = nlon
     vec%nlat  = grid%nlat
 
-    ! allocate memory for lon and lat
-    allocate( grid%lon( grid%nlon))
+    ! allocate memory for lat
     allocate( grid%lat( grid%nlat))
     allocate(  vec%lat(  vec%nlat))
 
-    str = ' insolation grid has size ({int_01},{int_02}), and lat-only grid has size ({int_03})'
-    call insert_val_into_string_int( str, '{int_01}', grid%nlon)
-    call insert_val_into_string_int( str, '{int_02}', grid%nlat)
-    call insert_val_into_string_int( str, '{int_03}',  vec%nlat)
-    IF (par%master)  WRITE(0,"(A)") trim(str)
+    if (par%master) then
+      str = ' insolation grid has size ({int_01},{int_02}), and lat-only grid has size ({int_03})'
+      call insert_val_into_string_int( str, '{int_01}', grid%nlon)
+      call insert_val_into_string_int( str, '{int_02}', grid%nlat)
+      call insert_val_into_string_int( str, '{int_03}',  vec%nlat)
+      WRITE(0,"(A)") trim(str)
+    end if
 
     ! Inquire lat variable
     call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
@@ -386,6 +388,7 @@ contains
 
     ! Secondary data
     call calc_lonlat_field_to_vector_form_translation_tables( grid)
+
 
     ! Finalise routine path
     call finalise_routine( routine_name)
