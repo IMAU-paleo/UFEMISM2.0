@@ -41,8 +41,8 @@ MODULE UFEMISM_main_model
   USE grid_basic                                             , ONLY: setup_square_grid
   USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
                                                                      write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
-                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
-                                                                     create_scalar_regional_output_file, write_to_scalar_regional_output_file
+                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
+  use scalar_output, only: create_scalar_regional_output_file, write_to_scalar_regional_output_file
   use mesh_ROI_polygons
   use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
