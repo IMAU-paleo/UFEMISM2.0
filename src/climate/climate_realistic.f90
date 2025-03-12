@@ -174,6 +174,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'initialise_insolation_forcing'
     CHARACTER(LEN=256)                               :: str
     INTEGER                                          :: ncid
+    REAL(dp)                                         :: closest_t0
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -194,66 +195,83 @@ CONTAINS
 
       IF (par%master) THEN
 
-        call open_existing_netcdf_file_for_reading( filename, ncid)
+        !call open_existing_netcdf_file_for_reading(  C%filename_insolation, ncid)
 
         ! get the closest timeframe to the initial time for t0
-        CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run, forcing%ins_ti0)
-        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, forcing%ins_ti0)
+        !CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run, forcing%ins_ti0)
+        !CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, forcing%ins_t0)
 
         ! if the initial time is after the closest timeframe, we read one step later for t1
-        IF (C%start_time_of_run >= closest_t0) THEN
-          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run+1000._dp, forcing%ins_ti1)
-        ELSE
+        !IF (C%start_time_of_run >= forcing%ins_t0) THEN
+        !  CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run+1000._dp, forcing%ins_t1)
+        !ELSE
         ! otherwise we read one step before for t1
-          CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run-1000._dp, forcing%ins_ti1)
-        END IF
-        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, forcing%ins_ti1)
+        !  CALL find_timeframe( C%filename_insolation, ncid, C%start_time_of_run-1000._dp, forcing%ins_t1)
+        !END IF
+        
 
         WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
       END IF ! IF (par%master) THEN
 
-        ! Insolation
-        !ALLOCATE( forcing%ins_nyears)
-        ALLOCATE( forcing%ins_nlat)
-        ALLOCATE( forcing%ins_nlon)
-        !ALLOCATE( forcing%wins_nlat  )
-        !ALLOCATE( forcing%wins_nyears)
-        !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
-        ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
-        ALLOCATE(forcing%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
-        ALLOCATE(forcing%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
-        forcing%ins_nlat   = 181
-        forcing%ins_nlon   = 360
-        forcing%ins_lat    = 0._dp
-        forcing%ins_Q_TOA0 = 0._dp
-        forcing%ins_Q_TOA1 = 0._dp
+      ! Insolation
+      !ALLOCATE( forcing%ins_nyears)
+      ALLOCATE( forcing%ins_nlat)
+      ALLOCATE( forcing%ins_nlon)
+      !ALLOCATE( forcing%wins_nlat  )
+      !ALLOCATE( forcing%wins_nyears)
+      !ALLOCATE(forcing%ins_time           ( forcing%ins_nyears))
+      ALLOCATE(forcing%ins_lat            (   forcing%ins_nlat))
+      ALLOCATE(forcing%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(forcing%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
+      forcing%ins_t0     = C%start_time_of_run
+      forcing%ins_nlat   = 181
+      forcing%ins_nlon   = 360
+      forcing%ins_lat    = 0._dp
+      forcing%ins_Q_TOA0 = 0._dp
+      forcing%ins_Q_TOA1 = 0._dp
       
       ! Read time and latitude data
-      IF (par%master) THEN
+      !IF (par%master) THEN
         ! Read the fields at ins_t0 and ins_t1
-        WRITE(0,*) '     Reading Q_TOA...'
-        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_ti0)
-        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_ti1)
-        WRITE(0,*) '     Q_TOA is read.'
+        
+      if (par%master) WRITE(0,*) '     Reading ins_t0...'
+      call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = forcing%ins_t0)
 
+      if (par%master) WRITE(0,*) '     Reading Q_TOA0...'
+      call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, time_to_read = forcing%ins_t0)
+      
+      ! if the start time is after the closest t0, we read one record after for t1
+      if (C%start_time_of_run >= closest_t0) then
+        if (par%master) WRITE(0,*) '     start time is after closest ins_t0, reading one step further...'
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
+      else
+        ! otherwise we read one record before for t1
+        if (par%master) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier...'
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
+      end if
 
-        str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after initialisation at times {dp_01} and {dp_02}'
-        call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
-        call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
-        call insert_val_into_string_int(  str, '{int_03}', size(forcing%ins_Q_TOA1,1))
-        call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
-        call insert_val_into_string_dp(  str, '{dp_01}', forcing%ins_t0)
-        call insert_val_into_string_dp(  str, '{dp_02}', forcing%ins_t1)
-        WRITE(0,*) trim(str)
+      if (par%master) WRITE(0,*) '     Reading Q_TOA1...'
+      call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
+      if (par%master) WRITE(0,*) '     Q_TOA is read.'
 
-        IF (C%start_time_of_run < forcing%ins_time(1)) THEN
-          CALL warning(' Model time starts before start of insolation record; the model will crash lol')
-        END IF
-        IF (C%end_time_of_run > forcing%ins_time(forcing%ins_nyears)) THEN
-          CALL warning(' Model time will reach beyond end of insolation record; constant extrapolation will be used in that case!')
-          ! will it, though?
-        END IF
+      if (par%master) THEN
+          str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after initialisation at times {dp_01} and {dp_02}'
+          call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
+          call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
+          call insert_val_into_string_int(  str, '{int_03}', size(forcing%ins_Q_TOA1,1))
+          call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
+          call insert_val_into_string_dp(  str, '{dp_01}', forcing%ins_t0)
+          call insert_val_into_string_dp(  str, '{dp_02}', forcing%ins_t1)
+          WRITE(0,*) trim(str)
+      end if
+      IF (C%start_time_of_run < forcing%ins_time(1)) THEN
+        CALL warning(' Model time starts before start of insolation record; the model will crash lol')
       END IF
+      IF (C%end_time_of_run > forcing%ins_time(forcing%ins_nyears)) THEN
+        CALL warning(' Model time will reach beyond end of insolation record; constant extrapolation will be used in that case!')
+        ! will it, though?
+      END IF
+      !END IF
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -354,25 +372,20 @@ CONTAINS
       ! Find time indices to be read
       IF (par%master) THEN
 
-        call open_existing_netcdf_file_for_reading( filename, ncid)
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, time_to_read = time)
+        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, time_to_read = forcing%ins_t0)
+        
+        ! if the desired time is after t0, we read one record after for t1
+        if (time >= forcing%ins_t0) then
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = time+1000._dp)
+        else
+        ! otherwise we read one record before for t1
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = time-1000._dp)
+        end if
 
-        ! get the closest timeframe to the initial time for t0
-        CALL find_timeframe( C%filename_insolation, ncid, time, forcing%ins_ti0)
-        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, forcing%ins_ti0)
-
-        ! if the initial time is after the closest timeframe, we read one step later for t1
-        IF (C%start_time_of_run >= closest_t0) THEN
-          CALL find_timeframe( C%filename_insolation, ncid, time+1000._dp, forcing%ins_ti1)
-        ELSE
-        ! otherwise we read one step before for t1
-          CALL find_timeframe( C%filename_insolation, ncid, time-1000._dp, forcing%ins_ti1)
-        END IF
-        CALL read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, forcing%ins_ti1)
       END IF ! IF (par%master) THEN
 
-      ! Read new insolation fields from the NetCDF file
-      call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, forcing%ins_t0)
-      call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, forcing%ins_t1)
+      call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
 
       str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after update'
       call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
