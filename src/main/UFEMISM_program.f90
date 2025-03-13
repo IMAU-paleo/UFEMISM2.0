@@ -23,11 +23,9 @@ PROGRAM UFEMISM_program
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  use mpi_basic, only: par, sync, initialise_parallelisation
+  use mpi_basic, only: par, initialise_parallelisation
   USE petsc_basic                                            , ONLY: perr
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &
                                                                      initialise_control_and_resource_tracker, reset_resource_tracker, &

@@ -5,8 +5,6 @@ module reference_geometries_main
   ! - refgeo_PD:     present-day, used to calculate sea-level contribution, isotope change, and more
   ! - refgeo_GIA_eq: GIA equilibrium, used for the GIA model
 
-#include <petsc/finclude/petscksp.h>
-  use petscksp
   use precisions, only: dp
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C

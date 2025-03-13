@@ -5,11 +5,7 @@ MODULE sliding_laws
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
@@ -135,7 +131,6 @@ CONTAINS
       ice%basal_friction_coefficient( vi) = ice%bed_roughness( vi) * uabs ** (1._dp / C%slid_Weertman_m - 1._dp)
 
     END DO
-    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -9,7 +9,7 @@ MODULE petsc_basic
   USE mpi
   use assertions_basic
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync
+  USE mpi_basic                                              , ONLY: par
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate

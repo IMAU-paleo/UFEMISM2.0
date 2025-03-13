@@ -5,11 +5,7 @@ MODULE thermodynamics_utilities
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -430,12 +426,7 @@ CONTAINS
         v_times_dTdyp_upwind( vi,k) = v_3D_b_tot( ti_upwind,k) * dTi_dyp_3D_b_tot( ti_upwind,k)
       END DO
 
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-    CALL sync
-
-    ! Clean up after yourself
-    DEALLOCATE( dTi_dxp_3D_b)
-    DEALLOCATE( dTi_dyp_3D_b)
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
