@@ -12,7 +12,7 @@ module reference_geometries_main
   use reference_geometry_types, only: type_reference_geometry
   use mesh_types, only: type_mesh
   use grid_basic, only: type_grid, setup_square_grid
-  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use ice_geometry_basics, only: ice_surface_elevation
   use analytical_solutions, only: Halfar_dome, Bueler_dome
   use netcdf_io_main
@@ -513,10 +513,10 @@ contains
     end if
 
     ! Distribute the data over the processes in vector form
-    call distribute_gridded_data_from_master( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
-    call distribute_gridded_data_from_master( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
-    call distribute_gridded_data_from_master( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
-    call distribute_gridded_data_from_master( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -5,7 +5,7 @@ module netcdf_write_field_grid
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use grid_types, only: type_grid
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary
   use netcdf_basic
 
   implicit none
@@ -58,7 +58,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -113,7 +113,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -166,7 +166,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -219,7 +219,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, 12))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -274,7 +274,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -329,7 +329,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -381,7 +381,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     call write_var_primary( filename, ncid, id_var, d_grid)
@@ -424,7 +424,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     call write_var_primary( filename, ncid, id_var, d_grid)
@@ -465,7 +465,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     call write_var_primary( filename, ncid, id_var, d_grid)
@@ -506,7 +506,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, 12))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     call write_var_primary( filename, ncid, id_var, d_grid)
@@ -549,7 +549,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     call write_var_primary( filename, ncid, id_var, d_grid)
@@ -592,7 +592,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
     call write_var_primary( filename, ncid, id_var, d_grid)

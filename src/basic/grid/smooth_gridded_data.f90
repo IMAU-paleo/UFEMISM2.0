@@ -4,7 +4,7 @@ module smooth_gridded_data
 
   use precisions, only: dp
   use grid_types, only: type_grid
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master, distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
   use mpi_basic, only: par
 
   implicit none
@@ -52,7 +52,7 @@ subroutine smooth_Gaussian_grid_2D( grid, d_grid_vec_partial, r)
   allocate( d_grid_tot_smoothed( grid%nx,grid%ny), source = 0._dp)
 
   ! Gather data to the master in grid form
-  call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid_tot)
+  call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid_tot)
 
   ! Let the master do the actual work
   if (par%primary) then
@@ -84,7 +84,7 @@ subroutine smooth_Gaussian_grid_2D( grid, d_grid_vec_partial, r)
   end if ! if (par%master) then
 
   ! Distributed smoothed data back from the master
-  call distribute_gridded_data_from_master( grid, d_grid_tot, d_grid_vec_partial)
+  call distribute_gridded_data_from_primary( grid, d_grid_tot, d_grid_vec_partial)
 
 end subroutine smooth_Gaussian_grid_2D
 
@@ -120,7 +120,7 @@ subroutine smooth_Gaussian_grid_3D( grid, d_grid_vec_partial, r)
   allocate( d_grid_tot_smoothed( grid%nx,grid%ny,size( d_grid_vec_partial,2)), source = 0._dp)
 
   ! Gather data to the master in grid form
-  call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid_tot)
+  call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid_tot)
 
   ! Let the master do the actual work
   if (par%primary) then
@@ -152,7 +152,7 @@ subroutine smooth_Gaussian_grid_3D( grid, d_grid_vec_partial, r)
   end if ! if (par%master) then
 
   ! Distributed smoothed data back from the master
-  call distribute_gridded_data_from_master( grid, d_grid_tot, d_grid_vec_partial)
+  call distribute_gridded_data_from_primary( grid, d_grid_tot, d_grid_vec_partial)
 
 end subroutine smooth_Gaussian_grid_3D
 

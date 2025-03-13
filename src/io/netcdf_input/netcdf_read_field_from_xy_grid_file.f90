@@ -6,7 +6,7 @@ module netcdf_read_field_from_xy_grid_file
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use grid_types, only: type_grid
-  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use grid_basic, only: deallocate_grid
   use permute_mod
   use flip_mod
@@ -162,7 +162,7 @@ subroutine read_field_from_xy_file_int_2D( filename, field_name_options, &
   ! ==================================================================================
 
   ! Distribute data
-  call distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
+  call distribute_gridded_data_from_primary( grid_loc, d_grid, d_grid_vec_partial)
 
   ! Clean up after yourself
   call deallocate_grid( grid_loc)
@@ -308,7 +308,7 @@ subroutine read_field_from_xy_file_int_3D( filename, field_name_options, &
   ! ==================================================================================
 
   ! Distribute data
-  call distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
+  call distribute_gridded_data_from_primary( grid_loc, d_grid, d_grid_vec_partial)
 
   ! Clean up after yourself
   if (par%primary) deallocate( d_grid)
@@ -457,7 +457,7 @@ end subroutine read_field_from_xy_file_int_3D
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     call deallocate_grid( grid_loc)
@@ -601,7 +601,7 @@ end subroutine read_field_from_xy_file_int_3D
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_grid)
@@ -747,7 +747,7 @@ end subroutine read_field_from_xy_file_int_3D
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_grid)
@@ -893,7 +893,7 @@ end subroutine read_field_from_xy_file_int_3D
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_gridded_data_from_master( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_grid)

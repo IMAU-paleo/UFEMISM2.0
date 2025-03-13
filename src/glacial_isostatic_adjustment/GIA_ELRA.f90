@@ -16,7 +16,7 @@ MODULE GIA_ELRA
   USE region_types                                           , ONLY: type_model_region
   USE grid_basic                                             , ONLY: setup_square_grid
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master, distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
   USE grid_types                                             , ONLY: type_grid
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   use ice_geometry_basics, only: is_floating
@@ -104,7 +104,7 @@ contains
     CALL map_from_mesh_to_xy_grid_2D( mesh, grid, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
 
     !! Gather data to master
-    call gather_gridded_data_to_master( grid, GIA%relative_surface_load_grid, ELRA%relative_surface_load_grid_tot)
+    call gather_gridded_data_to_primary( grid, GIA%relative_surface_load_grid, ELRA%relative_surface_load_grid_tot)
 
     n = ELRA%flex_prof_rad
 
@@ -131,7 +131,7 @@ contains
     call map_from_mesh_to_xy_grid_2D( mesh, grid, ice%dHb, ELRA%dHb_grid_partial)
 
     ! gather data from all processors to master, from partial grid vec to total 2D grid
-    call gather_gridded_data_to_master( grid, ELRA%dHb_grid_partial, ELRA%dHb_grid_tot)
+    call gather_gridded_data_to_primary( grid, ELRA%dHb_grid_partial, ELRA%dHb_grid_tot)
 
 	! Let the master do the actual work
     if (par%primary) then
@@ -146,7 +146,7 @@ contains
     end if ! if (par%master) then
 
     ! distribute from 2D grid data on master to vector grid data on all processors
-    call distribute_gridded_data_from_master( grid, ELRA%dHb_dt_grid, ELRA%dHb_dt_grid_partial)
+    call distribute_gridded_data_from_primary( grid, ELRA%dHb_dt_grid, ELRA%dHb_dt_grid_partial)
 
     ! remap from partial grid vec data to mesh model
     call map_from_xy_grid_to_mesh_2D( grid, mesh, ELRA%dHb_dt_grid_partial, ELRA%dHb_dt_mesh)
