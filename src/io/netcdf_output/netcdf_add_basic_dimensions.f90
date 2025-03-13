@@ -70,7 +70,7 @@ contains
     call add_attribute_char( filename, ncid, id_var_month, 'description', '1 = Jan, 2 = Feb, ..., 12 = Dec')
 
     ! Write month variable
-    call write_var_master( filename, ncid, id_var_month, (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 /) )
+    call write_var_primary( filename, ncid, id_var_month, (/ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -106,7 +106,7 @@ contains
     call add_attribute_char( filename, ncid, id_var_zeta, 'transformation', 'zeta = (h - z) / H; zeta = 0 at the ice surface; zeta = 1 at the ice base')
 
     ! Write month variable
-    call write_var_master( filename, ncid, id_var_zeta, zeta)
+    call write_var_primary( filename, ncid, id_var_zeta, zeta)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -141,7 +141,7 @@ contains
     call add_attribute_char( filename, ncid, id_var_depth, 'units', 'meters')
 
     ! Write month variable
-    call write_var_master( filename, ncid, id_var_depth, depth)
+    call write_var_primary( filename, ncid, id_var_depth, depth)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

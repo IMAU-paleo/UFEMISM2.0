@@ -14,7 +14,7 @@ module netcdf_save_single_variables
   use mpi_distributed_memory, only: gather_to_master
   use netcdf, only: NF90_INT, NF90_DOUBLE
   use netcdf_inquire_grid_mesh
-  use netcdf_write_var_master
+  use netcdf_write_var_primary
   use netcdf_basic_wrappers
 
   implicit none
@@ -89,9 +89,9 @@ contains
     call create_variable( filename_applied, ncid, 'val', NF90_DOUBLE, [id_dim_nnz], id_var_val)
 
     ! Write to NetCDF
-    call write_var_master( filename_applied, ncid, id_var_ptr, AA_tot%ptr               )
-    call write_var_master( filename_applied, ncid, id_var_ind, AA_tot%ind( 1:AA_tot%nnz))
-    call write_var_master(  filename_applied, ncid, id_var_val, AA_tot%val( 1:AA_tot%nnz))
+    call write_var_primary( filename_applied, ncid, id_var_ptr, AA_tot%ptr               )
+    call write_var_primary( filename_applied, ncid, id_var_ind, AA_tot%ind( 1:AA_tot%nnz))
+    call write_var_primary(  filename_applied, ncid, id_var_val, AA_tot%val( 1:AA_tot%nnz))
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -177,7 +177,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_INT, (/ id_dim_n1 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -233,7 +233,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_INT, (/ id_dim_n1, id_dim_n2 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -287,7 +287,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_DOUBLE, (/ id_dim_n1 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -343,7 +343,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_DOUBLE, (/ id_dim_n1, id_dim_n2 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)

@@ -7,7 +7,7 @@ module netcdf_basic
   use netcdf_inquire_grid_mesh
   use netcdf_read_var_primary
   use netcdf_check_dimensions
-  use netcdf_write_var_master
+  use netcdf_write_var_primary
   use netcdf_check_fields
   use netcdf_find_timeframe
   use netcdf_save_single_variables

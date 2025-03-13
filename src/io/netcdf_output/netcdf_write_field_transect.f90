@@ -59,7 +59,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_transect_with_time, start = (/ 1, ti /), count = (/ transect%nV, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_transect_with_time, start = (/ 1, ti /), count = (/ transect%nV, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -106,7 +106,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_transect_with_time, start = (/ 1, 1, ti /), count = (/ transect%nV, size( d_transect_partial,2), 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_transect_with_time, start = (/ 1, 1, ti /), count = (/ transect%nV, size( d_transect_partial,2), 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)

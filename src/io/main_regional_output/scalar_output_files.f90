@@ -430,7 +430,7 @@ contains
     count = n
     d_to_write = d(1:n)
 
-    call write_var_master(  filename, ncid, id_var, d_to_write, start = start, count = count)
+    call write_var_primary(  filename, ncid, id_var, d_to_write, start = start, count = count)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -463,7 +463,7 @@ contains
     count = n
     d_to_write = d(1:n)
 
-    call write_var_master(  filename, ncid, id_var, d_to_write, start = start, count = count)
+    call write_var_primary(  filename, ncid, id_var, d_to_write, start = start, count = count)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

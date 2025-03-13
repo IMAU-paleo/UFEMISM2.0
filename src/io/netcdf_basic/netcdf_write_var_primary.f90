@@ -1,4 +1,4 @@
-module netcdf_write_var_master
+module netcdf_write_var_primary
   !< Write data to variables
   !< NOTE: only the Master actually writes data! Gathering from other processes must be done beforehand
 
@@ -13,25 +13,25 @@ module netcdf_write_var_master
 
   private
 
-  public :: write_var_master
+  public :: write_var_primary
 
-  interface write_var_master
-    procedure write_var_master_int_0D
-    procedure write_var_master_int_1D
-    procedure write_var_master_int_2D
-    procedure write_var_master_int_3D
-    procedure write_var_master_int_4D
-    procedure write_var_master_int8_2D
-    procedure write_var_master_dp_0D
-    procedure write_var_master_dp_1D
-    procedure write_var_master_dp_2D
-    procedure write_var_master_dp_3D
-    procedure write_var_master_dp_4D
-  end interface write_var_master
+  interface write_var_primary
+    procedure write_var_primary_int_0D
+    procedure write_var_primary_int_1D
+    procedure write_var_primary_int_2D
+    procedure write_var_primary_int_3D
+    procedure write_var_primary_int_4D
+    procedure write_var_primary_int8_2D
+    procedure write_var_primary_dp_0D
+    procedure write_var_primary_dp_1D
+    procedure write_var_primary_dp_2D
+    procedure write_var_primary_dp_3D
+    procedure write_var_primary_dp_4D
+  end interface write_var_primary
 
 contains
 
-  subroutine write_var_master_int_0D( filename, ncid, id_var, d)
+  subroutine write_var_primary_int_0D( filename, ncid, id_var, d)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -41,7 +41,7 @@ contains
     integer,          intent(in   ) :: d
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'write_var_master_int_0D'
+    character(len=1024), parameter :: routine_name = 'write_var_primary_int_0D'
     character(len=1024)            :: var_name
     integer                        :: var_type
     integer                        :: ndims_of_var
@@ -70,9 +70,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_int_0D
+  end subroutine write_var_primary_int_0D
 
-  subroutine write_var_master_int_1D(  filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_int_1D(  filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -83,7 +83,7 @@ contains
     integer,  dimension(1    ), optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter                     :: routine_name = 'write_var_master_int_1D'
+    character(len=1024), parameter                     :: routine_name = 'write_var_primary_int_1D'
     character(len=1024)                                :: var_name
     integer                                            :: var_type
     integer                                            :: ndims_of_var
@@ -156,9 +156,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_int_1D
+  end subroutine write_var_primary_int_1D
 
-  subroutine write_var_master_int_2D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_int_2D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -169,7 +169,7 @@ contains
     integer,  dimension(2  ), optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_int_2D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_int_2D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -242,9 +242,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_int_2D
+  end subroutine write_var_primary_int_2D
 
-  subroutine write_var_master_int_3D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_int_3D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -255,7 +255,7 @@ contains
     integer, dimension(3),     optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_int_3D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_int_3D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -328,9 +328,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_int_3D
+  end subroutine write_var_primary_int_3D
 
-  subroutine write_var_master_int_4D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_int_4D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -341,7 +341,7 @@ contains
     integer, dimension(4),       optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_int_4D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_int_4D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -413,9 +413,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_int_4D
+  end subroutine write_var_primary_int_4D
 
-  subroutine write_var_master_int8_2D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_int8_2D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -426,7 +426,7 @@ contains
     integer,       dimension(2),   optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_int8_2D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_int8_2D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -499,9 +499,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_int8_2D
+  end subroutine write_var_primary_int8_2D
 
-  subroutine write_var_master_dp_0D( filename, ncid, id_var, d)
+  subroutine write_var_primary_dp_0D( filename, ncid, id_var, d)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -511,7 +511,7 @@ contains
     real(dp),         intent(in   ) :: d
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'write_var_master_dp_0D'
+    character(len=1024), parameter :: routine_name = 'write_var_primary_dp_0D'
     character(len=1024)            :: var_name
     integer                        :: var_type
     integer                        :: ndims_of_var
@@ -540,9 +540,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_dp_0D
+  end subroutine write_var_primary_dp_0D
 
-  subroutine write_var_master_dp_1D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_dp_1D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -553,7 +553,7 @@ contains
     integer,  dimension(1), optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_1D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_dp_1D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -629,9 +629,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_dp_1D
+  end subroutine write_var_primary_dp_1D
 
-  subroutine write_var_master_dp_2D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_dp_2D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -642,7 +642,7 @@ contains
     integer,  dimension(2),   optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_2D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_dp_2D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -715,9 +715,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_dp_2D
+  end subroutine write_var_primary_dp_2D
 
-  subroutine write_var_master_dp_3D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_dp_3D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -728,7 +728,7 @@ contains
     integer,  dimension(3),     optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_3D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_dp_3D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -801,9 +801,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_dp_3D
+  end subroutine write_var_primary_dp_3D
 
-  subroutine write_var_master_dp_4D( filename, ncid, id_var, d, start, count)
+  subroutine write_var_primary_dp_4D( filename, ncid, id_var, d, start, count)
     ! Write data to a NetCDF file
 
     ! In/output variables:
@@ -814,7 +814,7 @@ contains
     integer,  dimension(4),       optional, intent(in   ) :: start, count
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'write_var_master_dp_4D'
+    character(len=1024), parameter          :: routine_name = 'write_var_primary_dp_4D'
     character(len=1024)                     :: var_name
     integer                                 :: var_type
     integer                                 :: ndims_of_var
@@ -887,6 +887,6 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine write_var_master_dp_4D
+  end subroutine write_var_primary_dp_4D
 
-end module netcdf_write_var_master
+end module netcdf_write_var_primary

@@ -624,13 +624,13 @@ contains
     call create_variable(    filename, ncid, 'V',    NF90_DOUBLE, [n, two], transect%nc%id_var_V)
     call add_attribute_char( filename, ncid, transect%nc%id_var_V, 'long_name', 'Transect vertex coordinates')
     call add_attribute_char( filename, ncid, transect%nc%id_var_V, 'units'    , 'm')
-    call write_var_master( filename, ncid, transect%nc%id_var_V   , transect%V)
+    call write_var_primary( filename, ncid, transect%nc%id_var_V   , transect%V)
 
     call create_variable(    filename, ncid, 'zeta', NF90_DOUBLE, [z], transect%nc%id_var_zeta)
     call add_attribute_char( filename, ncid, transect%nc%id_var_zeta, 'long_name', 'Scaled vertical coordinate')
     call add_attribute_char( filename, ncid, transect%nc%id_var_zeta, 'units', '0-1')
     call add_attribute_char( filename, ncid, transect%nc%id_var_zeta, 'transformation', 'zeta = (h - z) / H; zeta = 0 at the ice surface; zeta = 1 at the ice base')
-    call write_var_master( filename, ncid, transect%nc%id_var_zeta, transect%zeta)
+    call write_var_primary( filename, ncid, transect%nc%id_var_zeta, transect%zeta)
 
     call create_variable(    filename, ncid, 'time', NF90_DOUBLE, [t], transect%nc%id_var_time)
     call add_attribute_char( filename, ncid, transect%nc%id_var_time, 'long_name', 'Time')

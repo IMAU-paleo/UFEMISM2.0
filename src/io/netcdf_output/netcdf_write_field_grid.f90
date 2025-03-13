@@ -70,7 +70,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -125,7 +125,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -178,7 +178,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -231,7 +231,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, 12, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, 12, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -286,7 +286,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -341,7 +341,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -384,7 +384,7 @@ contains
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -427,7 +427,7 @@ contains
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -468,7 +468,7 @@ contains
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -509,7 +509,7 @@ contains
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -552,7 +552,7 @@ contains
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -595,7 +595,7 @@ contains
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

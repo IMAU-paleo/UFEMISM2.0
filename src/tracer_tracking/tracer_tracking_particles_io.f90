@@ -83,11 +83,11 @@ contains
     end if
 
     ! Write data
-    call write_var_master( filename, ncid, particles%nc%id_var_id       , id_tot_with_time      , &
+    call write_var_primary( filename, ncid, particles%nc%id_var_id       , id_tot_with_time      , &
       start = [1,ti], count = [particles%n_max * par%n,1])
-    call write_var_master( filename, ncid, particles%nc%id_var_r        , r_tot_with_time       , &
+    call write_var_primary( filename, ncid, particles%nc%id_var_r        , r_tot_with_time       , &
       start = [1,1,ti], count = [particles%n_max * par%n,3,1])
-    call write_var_master( filename, ncid, particles%nc%id_var_t_origin , t_tot_origin_with_time, &
+    call write_var_primary( filename, ncid, particles%nc%id_var_t_origin , t_tot_origin_with_time, &
       start = [1,ti], count = [particles%n_max * par%n,1])
 
     call close_netcdf_file( ncid)

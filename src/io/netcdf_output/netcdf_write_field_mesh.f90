@@ -72,7 +72,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -126,7 +126,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -180,7 +180,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nTri, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nTri, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -234,7 +234,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, 12, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, 12, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -288,7 +288,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, mesh%nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, mesh%nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -342,7 +342,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nTri, mesh%nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nTri, mesh%nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -396,7 +396,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, C%nz_ocean, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, C%nz_ocean, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -441,7 +441,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -486,7 +486,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -531,7 +531,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -576,7 +576,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -621,7 +621,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -666,7 +666,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -711,7 +711,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -756,7 +756,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -801,7 +801,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -846,7 +846,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -174,7 +174,7 @@ UFEMISM_source = \
   io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
   io/netcdf_basic/netcdf_read_var_primary.f90 \
   io/netcdf_basic/netcdf_check_dimensions.f90 \
-  io/netcdf_basic/netcdf_write_var_master.f90 \
+  io/netcdf_basic/netcdf_write_var_primary.f90 \
   io/netcdf_basic/netcdf_check_fields.f90 \
   io/netcdf_basic/netcdf_find_timeframe.f90 \
   io/netcdf_basic/netcdf_save_single_variables.f90 \
