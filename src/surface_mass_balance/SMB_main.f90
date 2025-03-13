@@ -261,13 +261,14 @@ CONTAINS
     CALL open_existing_netcdf_file_for_writing( SMB%restart_filename, ncid)
 
     ! Write the time to the file
-    CALL write_time_to_file( SMB%restart_filename, ncid, time)
+    !CALL write_time_to_file( SMB%restart_filename, ncid, time)
+    ! month dimension is already written when adding it to file
 
     ! ! Write the SMB fields to the file
-    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'SMB_monthly', SMB%SMB_monthly)
+    !CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'SMB_monthly', SMB%SMB_monthly)
     CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'FirnDepth', SMB%FirnDepth)
     CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'MeltPreviousYear', SMB%MeltPreviousYear)
-    CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'SMB', SMB%SMB)
+    !CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'SMB', SMB%SMB)
 
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -368,11 +369,13 @@ CONTAINS
     CALL setup_mesh_in_netcdf_file( SMB%restart_filename, ncid, mesh)
 
     ! Add a time dimension to the file
+    !CALL add_time_dimension_to_file( SMB%restart_filename, ncid)
     CALL add_month_dimension_to_file( SMB%restart_filename, ncid)
 
     ! Add the data fields to the file
-    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm/yr')
-    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'FirnDepth', long_name = 'Firn Depth', units = 'm')
+    !CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'SMB',              long_name = 'Surface mass balance',            units = 'm/yr')
+    !CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'SMB_monthly',      long_name = 'monthly Surface mass balance',    units = 'm/yr')
+    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'FirnDepth',        long_name = 'Firn Depth',                      units = 'm')
     CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'MeltPreviousYear', long_name = 'Total melt in the previous year', units = 'm w.e.')
 
     ! Close the file
