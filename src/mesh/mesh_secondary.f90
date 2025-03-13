@@ -9,7 +9,7 @@ MODULE mesh_secondary
   use assertions_basic
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE mpi_distributed_memory                                 , ONLY: partition_list
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C

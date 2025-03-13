@@ -7,7 +7,7 @@ module ut_mpi
   use ut_basic
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
   use mpi_distributed_memory, only: gather_to_all, gather_to_master, distribute_from_master

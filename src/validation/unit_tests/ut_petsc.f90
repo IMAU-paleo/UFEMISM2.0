@@ -8,7 +8,7 @@ module ut_petsc
   use petscksp
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine
   use model_configuration, only: C
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist

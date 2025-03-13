@@ -5,7 +5,7 @@ module apply_maps
 
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, sync, ierr
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid, type_grid_lonlat
@@ -396,7 +396,7 @@ contains
     real(dp), dimension(mesh%nV)    :: d_mesh_tot
     type(type_sparse_matrix_CSR_dp) :: M_CSR
     integer                         :: n,k1,k2,k,col,vi
-    real(dp)                        :: d_max, d_min
+    real(dp)                        :: d_min
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -412,15 +412,10 @@ contains
     ! Convert mapping matrix from PETSc format to UFEMISM CSR format
     call mat_petsc2CSR( map%M, M_CSR)
 
-    ! Find global maximum value of d
-    d_max = maxval( d_mesh_partial)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, d_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
     ! Map data
     do n = grid%n1, grid%n2
 
-      ! Initialise minimum as maximum
-      d_min = d_max
+      d_min = huge( d_min)
 
       ! Loop over all mesh vertices that this grid cell overlaps with
       k1 = M_CSR%ptr( n)

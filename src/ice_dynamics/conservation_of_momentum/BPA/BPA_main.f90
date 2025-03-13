@@ -4,7 +4,7 @@ module BPA_main
 
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
@@ -100,6 +100,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'solve_BPA'
+    integer                               :: ierr
     logical                               :: grounded_ice_exists
     integer,  dimension(:,:), allocatable :: BC_prescr_mask_bk_applied
     real(dp), dimension(:,:), allocatable :: BC_prescr_u_bk_applied

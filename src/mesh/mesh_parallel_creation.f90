@@ -7,7 +7,7 @@ MODULE mesh_parallel_creation
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -38,7 +38,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'broadcast_mesh'
-    INTEGER                                       :: nV_mem, nTri_mem, nC_mem
+    INTEGER                                       :: nV_mem, nTri_mem, nC_mem, ierr
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -158,6 +158,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'send_submesh'
+    integer                                       :: ierr
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -204,6 +205,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'receive_submesh'
+    integer                                       :: ierr
+    integer, dimension(MPI_STATUS_SIZE)           :: recv_status
     INTEGER                                       :: nV_mem, nTri_mem, nC_mem, nV, nTri
     CHARACTER(LEN=256)                            :: mesh_name
 
@@ -1046,6 +1049,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'align_submeshes'
+    integer                                       :: ierr
+    integer, dimension(MPI_STATUS_SIZE)           :: recv_status
     REAL(dp)                                      :: xmax_left, xmin_right, ymax_left, ymin_right
     INTEGER                                       :: nV_self, nV_other
     INTEGER                                       :: nvi_border_self, nvi_border_other
