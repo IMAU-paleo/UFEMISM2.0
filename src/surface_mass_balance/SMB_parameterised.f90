@@ -243,6 +243,20 @@ contains
       SMB%C_refr                   = C%SMB_IMAUITM_C_refr_ANT
     END IF
 
+    ! Allocating necessary fields
+    allocate( SMB%AlbedoSurf      (mesh%vi1:mesh%vi2))
+    allocate( SMB%Rainfall        (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB%Snowfall        (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB%AddedFirn       (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB%Melt            (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB%Refreezing      (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB%Refreezing_year (mesh%vi1:mesh%vi2))
+    allocate( SMB%Runoff          (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB%Albedo          (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB%Albedo_year     (mesh%vi1:mesh%vi2))
+    allocate( SMB%SMB_monthly     (mesh%vi1:mesh%vi2,12))
+    allocate( SMB%SMB             (mesh%vi1:mesh%vi2))
+
 
     ! Initialisation choice
     IF     (region_name == 'NAM') THEN
@@ -258,6 +272,9 @@ contains
     ! Initialise the firn layer
     IF     (choice_SMB_IMAUITM_init_firn == 'uniform') THEN
       ! Initialise with a uniform firn layer over the ice sheet
+
+      allocate( SMB%FirnDepth        (mesh%vi1:mesh%vi2, 12))
+      allocate( SMB%MeltPreviousYear (mesh%vi1:mesh%vi2))
 
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%Hi( vi) > 0._dp) THEN

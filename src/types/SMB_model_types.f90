@@ -32,10 +32,10 @@ MODULE SMB_model_types
     REAL(dp), DIMENSION(:  ),     ALLOCATABLE :: SMB                     ! Yearly  SMB (m)
 
     ! Tuning parameters for the IMAU-ITM SMB model (different for each region, set from config)
-    REAL(dp), ALLOCATABLE  :: C_abl_constant
-    REAL(dp), ALLOCATABLE  :: C_abl_Ts
-    REAL(dp), ALLOCATABLE  :: C_abl_Q
-    REAL(dp), ALLOCATABLE  :: C_refr
+    REAL(dp)  :: C_abl_constant
+    REAL(dp)  :: C_abl_Ts
+    REAL(dp)  :: C_abl_Q
+    REAL(dp)  :: C_refr
     INTEGER :: wC_abl_constant, wC_abl_Ts, wC_abl_Q, wC_refr
     
     ! Sub-models
