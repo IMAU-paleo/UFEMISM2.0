@@ -5,7 +5,7 @@ MODULE UFEMISM_main_model
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  USE mpi_f08
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string, str2int, int2str, &

@@ -1,7 +1,6 @@
 module netcdf_read_field_from_mesh_file
   !< Read data fields from a mesh file
 
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash

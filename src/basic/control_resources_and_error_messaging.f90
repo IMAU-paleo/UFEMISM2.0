@@ -8,7 +8,7 @@ MODULE control_resources_and_error_messaging
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  USE mpi_f08
   USE precisions                                             , ONLY: dp
   use mpi_basic, only: par, sync
 

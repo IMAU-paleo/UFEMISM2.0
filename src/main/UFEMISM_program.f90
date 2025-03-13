@@ -23,7 +23,7 @@ PROGRAM UFEMISM_program
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  USE petscksp
   USE precisions                                             , ONLY: dp
   use mpi_basic, only: par, initialise_parallelisation
   USE petsc_basic                                            , ONLY: perr

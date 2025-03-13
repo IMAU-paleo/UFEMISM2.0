@@ -5,7 +5,7 @@ MODULE mesh_parallel_creation
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  USE mpi_f08
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -206,7 +206,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'receive_submesh'
     integer                                       :: ierr
-    integer, dimension(MPI_STATUS_SIZE)           :: recv_status
+    type(MPI_STATUS)                              :: recv_status
     INTEGER                                       :: nV_mem, nTri_mem, nC_mem, nV, nTri
     CHARACTER(LEN=256)                            :: mesh_name
 
@@ -1050,7 +1050,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'align_submeshes'
     integer                                       :: ierr
-    integer, dimension(MPI_STATUS_SIZE)           :: recv_status
+    type(MPI_STATUS)                              :: recv_status
     REAL(dp)                                      :: xmax_left, xmin_right, ymax_left, ymin_right
     INTEGER                                       :: nV_self, nV_other
     INTEGER                                       :: nvi_border_self, nvi_border_other

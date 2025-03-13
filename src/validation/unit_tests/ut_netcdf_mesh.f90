@@ -9,6 +9,7 @@ module ut_netcdf_mesh
   use precisions, only: dp
   use parameters, only: pi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, strrep
+  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5

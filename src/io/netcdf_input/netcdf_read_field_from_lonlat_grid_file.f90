@@ -1,7 +1,6 @@
 module netcdf_read_field_from_lonlat_grid_file
   !< Read data fields from a lon/lat-grid file
 
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash

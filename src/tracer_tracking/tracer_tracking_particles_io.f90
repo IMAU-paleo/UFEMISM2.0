@@ -4,7 +4,6 @@ module tracer_tracking_model_particles_io
   use assertions_basic
   use precisions, only: dp
   use mpi_basic, only: par
-  use mpi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model

@@ -23,7 +23,7 @@ MODULE model_configuration
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  USE mpi_f08
   USE precisions                                             , ONLY: dp
   use mpi_basic, only: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &

@@ -7,7 +7,6 @@ MODULE mesh_secondary
 
   use tests_main
   use assertions_basic
-  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE mpi_distributed_memory                                 , ONLY: partition_list

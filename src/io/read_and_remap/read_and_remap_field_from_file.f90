@@ -5,7 +5,7 @@ module read_and_remap_field_from_file
 ! The routines will automatically detect which one of these it is, and select the
 ! appropriate subroutine. The data will also be automatically mapped to the provided model mesh.
 
-  use mpi
+  use mpi_f08
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C
@@ -24,6 +24,11 @@ module read_and_remap_field_from_file
   use netcdf, only: NF90_MAX_VAR_DIMS
 
   implicit none
+
+  private
+
+  public :: read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
+    read_field_from_file_3D_ocean, read_field_from_file_0D
 
 contains
 

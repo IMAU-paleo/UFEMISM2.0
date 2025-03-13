@@ -2,7 +2,7 @@ module SSA_main
 
   ! Routines for calculating ice velocities using the Shallow Shelf Approximation (SSA)
 
-  use mpi
+  use mpi_f08
   use mpi_basic, only: par
   use precisions, only: dp
   use parameters, only: grav, ice_density
@@ -24,6 +24,7 @@ module SSA_main
   use SSA_DIVA_utilities, only: calc_driving_stress, calc_horizontal_strain_rates, relax_viscosity_iterations, &
     apply_velocity_limits, calc_L2_norm_uv
   use solve_linearised_SSA_DIVA, only: solve_SSA_DIVA_linearised
+  use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D
 
   implicit none
 

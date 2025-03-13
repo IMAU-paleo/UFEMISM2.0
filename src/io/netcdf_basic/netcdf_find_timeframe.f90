@@ -1,6 +1,6 @@
 module netcdf_find_timeframe
 
-  use mpi
+  use mpi_f08
   use mpi_basic, only: par, sync
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning

@@ -1,6 +1,6 @@
 module transects_main
 
-  use mpi
+  use mpi_f08
   use mpi_basic, only: par, sync
   use mpi_distributed_memory, only: partition_list
   use precisions, only: dp
@@ -20,6 +20,7 @@ module transects_main
   use ice_geometry_basics, only: thickness_above_floatation
   use mpi_distributed_memory, only: gather_to_all
   use interpolation, only: linint_points
+  use netcdf, only: NF90_DOUBLE
 
   implicit none
 

@@ -16,6 +16,10 @@ module netcdf_resource_tracking
 
   implicit none
 
+  private
+
+  public :: create_resource_tracking_file, write_to_resource_tracking_file
+
   character(len=256) :: filename_resource_tracker
 
 contains

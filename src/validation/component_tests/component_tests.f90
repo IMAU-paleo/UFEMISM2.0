@@ -2,7 +2,6 @@ module component_tests
 
   ! All the component tests.
 
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string

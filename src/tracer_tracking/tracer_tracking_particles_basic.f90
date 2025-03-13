@@ -4,7 +4,6 @@ module tracer_tracking_model_particles_basic
   use assertions_basic
   use precisions, only: dp
   use mpi_basic, only: par
-  use mpi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use model_configuration, only: C
   use mesh_types, only: type_mesh

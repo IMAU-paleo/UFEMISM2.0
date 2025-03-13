@@ -2,7 +2,7 @@ module mpi_basic
 
   ! Some very basic stuff to support the MPI parallelised architecture.
 
-  use mpi
+  use mpi_f08
 
   implicit none
 

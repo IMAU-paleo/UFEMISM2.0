@@ -2,7 +2,7 @@ module ct_remapping_mesh_to_grid
 
   ! Test everything related to remapping
 
-  use mpi
+  use mpi_f08
   use model_configuration, only: C
   use precisions, only: dp
   use mpi_basic, only: par

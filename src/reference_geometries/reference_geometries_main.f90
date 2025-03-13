@@ -6,6 +6,7 @@ module reference_geometries_main
   ! - refgeo_GIA_eq: GIA equilibrium, used for the GIA model
 
   use precisions, only: dp
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
   use parameters
