@@ -3,7 +3,6 @@ module netcdf_save_single_variables
 
 #include <petsc/finclude/petscksp.h>
   use petscksp
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
@@ -18,6 +17,12 @@ module netcdf_save_single_variables
   use netcdf_basic_wrappers
 
   implicit none
+
+  private
+
+  public :: write_CSR_matrix_to_NetCDF, write_PETSc_matrix_to_NetCDF, &
+    save_variable_as_netcdf_logical_1D, save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
+    save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
 
 contains
 

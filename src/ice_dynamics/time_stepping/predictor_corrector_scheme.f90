@@ -1,9 +1,9 @@
 module predictor_corrector_scheme
 
-  use mpi
+  use mpi_f08
   use mpi_basic, only: par
   use precisions, only: dp
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, crash
   use model_configuration, only: C
   use region_types, only: type_model_region
   use mesh_types, only: type_mesh

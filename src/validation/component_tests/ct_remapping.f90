@@ -2,7 +2,7 @@ module ct_remapping
 
   ! Test everything related to remapping
 
-  use mpi
+  use mpi_f08
   use model_configuration, only: C
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine

@@ -5,6 +5,7 @@ MODULE basal_hydrology
 ! ===== Preamble =====
 ! ====================
 
+  use mpi_basic, only: par
   USE precisions                                             , ONLY: dp
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C

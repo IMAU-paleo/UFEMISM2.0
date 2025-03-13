@@ -2,7 +2,7 @@ module ct_create_test_meshes
 
   ! Create the suite of test meshes for the component tests.
 
-  use mpi
+  use mpi_f08
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string

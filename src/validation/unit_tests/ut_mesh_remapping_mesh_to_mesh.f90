@@ -5,6 +5,7 @@ module ut_mesh_remapping_mesh_to_mesh
   use tests_main
   use assertions_basic
   use ut_basic
+  use mpi_f08
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C
@@ -23,7 +24,6 @@ module ut_mesh_remapping_mesh_to_mesh
     create_map_from_mesh_to_mesh_trilin, create_map_from_mesh_to_mesh_2nd_order_conservative
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, gather_CSR_dist_to_primary
   use petsc_basic, only: mat_petsc2CSR
-  use mpi
 
   implicit none
 

@@ -5,7 +5,6 @@ module ut_mpi
   use tests_main
   use assertions_basic
   use ut_basic
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string

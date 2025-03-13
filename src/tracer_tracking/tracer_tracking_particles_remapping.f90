@@ -4,7 +4,7 @@ module tracer_tracking_model_particles_remapping
   use assertions_basic
   use precisions, only: dp
   use mpi_basic, only: par, sync
-  use mpi
+  use mpi_f08
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
@@ -277,7 +277,8 @@ contains
     integer                                 :: vi1_send, vi2_send, nV_send, nel_send, nel_recv
     integer,  dimension(:,:,:), allocatable :: ip_send, ip_recv
     real(dp), dimension(:,:,:), allocatable :: d_send, d_recv
-    integer                                 :: ierr, req
+    integer                                 :: ierr
+    type(MPI_REQUEST)                       :: req
 
     ! Add routine to path
     call init_routine( routine_name)

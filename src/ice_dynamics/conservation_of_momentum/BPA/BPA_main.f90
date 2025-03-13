@@ -2,7 +2,7 @@ module BPA_main
 
   ! Routines for calculating ice velocities using the Blatter-Pattyn Approximation (BPA)
 
-  use mpi
+  use mpi_f08
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string

@@ -2,7 +2,7 @@ module mpi_distributed_memory
 
   ! Some routine to work with distributed memory in the MPI parallelised architecture.
 
-  use mpi
+  use mpi_f08
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
@@ -127,7 +127,7 @@ contains
     integer                       :: ierr,n1,n2,i,n2_proc
     integer                       :: j
     integer                       :: dummy(1)
-    integer                       :: recv_status( MPI_STATUS_SIZE)
+    type(MPI_STATUS)              :: recv_status
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -222,7 +222,7 @@ contains
     integer                       :: ierr,n1,n2,i,n2_proc
     integer                       :: j
     real(dp)                      :: dummy(1)
-    integer                       :: recv_status( MPI_STATUS_SIZE)
+    type(MPI_STATUS)              :: recv_status
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -357,7 +357,7 @@ contains
     integer , dimension(:      ), allocatable :: d_partial_1D
     integer , dimension(:      ), allocatable :: d_tot_1D
     integer                                   :: n1_tot,j
-    integer                                   :: recv_status( MPI_STATUS_SIZE)
+    type(MPI_STATUS)              :: recv_status
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -446,7 +446,7 @@ contains
     real(dp), dimension(:      ), allocatable :: d_partial_1D
     real(dp), dimension(:      ), allocatable :: d_tot_1D
     integer                                   :: n1_tot,j
-    integer                                   :: recv_status( MPI_STATUS_SIZE)
+    type(MPI_STATUS)              :: recv_status
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -539,7 +539,7 @@ contains
     ! Local variables:
     character(len=256), parameter :: routine_name = 'distribute_from_primary_int_2D'
     integer                       :: ierr,n1,n2,i,n2_proc,j
-    integer                       :: recv_status( MPI_STATUS_SIZE)
+    type(MPI_STATUS)              :: recv_status
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -626,7 +626,7 @@ contains
     ! Local variables:
     character(len=256), parameter :: routine_name = 'distribute_from_primary_dp_2D'
     integer                       :: ierr,n1,n2,i,n2_proc,j
-    integer                       :: recv_status( MPI_STATUS_SIZE)
+    type(MPI_STATUS)              :: recv_status
 
     ! Add routine to path
     call init_routine( routine_name)

@@ -1,7 +1,6 @@
 module netcdf_add_write_scalar_variables
   !< Add and write data to scalar variables
 
-  use mpi
   use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash

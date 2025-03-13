@@ -2,7 +2,7 @@ module ct_discretisation_mapping_derivatives
 
   ! Test the mesh matrix operators for mapping and derivatives
 
-  use mpi
+  use mpi_f08
   use model_configuration, only: C
   use precisions, only: dp
   use parameters

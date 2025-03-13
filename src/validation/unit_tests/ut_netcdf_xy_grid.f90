@@ -8,6 +8,7 @@ module ut_netcdf_xy_grid
   use netcdf_io_main
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, strrep
+  use model_configuration, only: C
   use grid_types, only: type_grid
   use grid_basic, only: setup_square_grid
   use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary

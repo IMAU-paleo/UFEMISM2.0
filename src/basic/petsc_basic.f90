@@ -6,7 +6,6 @@ MODULE petsc_basic
 
 #include <petsc/finclude/petscksp.h>
   USE petscksp
-  USE mpi
   use assertions_basic
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par

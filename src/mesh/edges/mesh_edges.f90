@@ -2,7 +2,6 @@ module mesh_edges
 
   ! Routines used in constructing mesh edges (i.e. the Arakawa C-grid)
 
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, init_routine, finalise_routine

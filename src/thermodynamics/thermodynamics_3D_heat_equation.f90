@@ -5,7 +5,7 @@ MODULE thermodynamics_3D_heat_equation
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  USE mpi_f08
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string

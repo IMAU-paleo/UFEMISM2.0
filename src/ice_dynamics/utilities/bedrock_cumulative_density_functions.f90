@@ -34,7 +34,7 @@ module bedrock_cumulative_density_functions
   ! the numbers; the elevation we're at by that goes into the third bin. Et cetera until
   ! all the bins are filled. Clever, eh?
 
-  use mpi
+  use mpi_f08
   use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string

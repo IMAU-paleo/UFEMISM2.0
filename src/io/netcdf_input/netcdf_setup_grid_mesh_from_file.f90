@@ -1,7 +1,7 @@
 module netcdf_setup_grid_mesh_from_file
   !< Set up grids/mesh from a NetCDF file
 
-  use mpi
+  use mpi_f08
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash

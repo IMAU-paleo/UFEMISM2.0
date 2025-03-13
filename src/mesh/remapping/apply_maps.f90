@@ -3,7 +3,6 @@ module apply_maps
   ! Apply pre-created mapping operators to data fields to remap
   ! data fields between different grids/meshes.
 
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
