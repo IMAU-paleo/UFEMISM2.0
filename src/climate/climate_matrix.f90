@@ -12,14 +12,13 @@ module climate_matrix
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
-  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
+  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic, get_insolation_at_time, update_CO2_at_model_time
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
   use mesh_data_smoothing, only: smooth_Gaussian
   use mesh_operators, only: ddx_a_a_2D ! do I need to add more?
-  
   ! check the previous calleds
-  use forcing_module, only: get_insolation_at_time, update_CO2_at_model_time
+!  use forcing_module, only: get_insolation_at_time, update_CO2_at_model_time
 ! added in climate_realistic the subroutines initialise_global_forcing, get_insolation_at_time, update_insolation_timeframes_from_file
   IMPLICIT NONE
 
@@ -51,8 +50,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Update forcing at model time
-    CALL get_insolation_at_time( grid, time, climate%Q_TOA)
-    CALL update_CO2_at_model_time( time) ! forcing module == NOT YET IN climate_realistic!
+    ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
+    CALL get_insolation_at_time( mesh, time, climate%forcing, climate%forcing%Q_TOA)
+    CALL update_CO2_at_model_time( climate%forcing, time, mesh) 
 
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name)
@@ -60,21 +60,20 @@ CONTAINS
     ! Use the (CO2 + ice-sheet geometry)-based interpolation scheme for precipitation
     CALL run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name)
 
-    ! == Safety checks
+    ! == Safety checks from UFE1.x
     ! ================
 
-! copied and pasted from UFE1.x Check the names of the variables!
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-      IF (climate_matrix%applied%T2m( vi,m) < 150._dp) THEN
+      IF (climate%T2m( vi,m) < 150._dp) THEN
         CALL warning('excessively low temperatures (<150K) detected!')
-      ELSEIF (climate_matrix%applied%T2m( vi,m) < 0._dp) THEN
+      ELSEIF (climate%T2m( vi,m) < 0._dp) THEN
         CALL crash('negative temperatures (<0K) detected!')
-      ELSEIF (climate_matrix%applied%T2m( vi,m) /= climate_matrix%applied%T2m( vi,m)) THEN
+      ELSEIF (climate%T2m( vi,m) /= climate%T2m( vi,m)) THEN
         CALL crash('NaN temperatures  detected!')
-      ELSEIF (climate_matrix%applied%Precip( vi,m) <= 0._dp) THEN
+      ELSEIF (climate%Precip( vi,m) <= 0._dp) THEN
         CALL crash('zero/negative precipitation detected!')
-      ELSEIF (climate_matrix%applied%Precip( vi,m) /= climate_matrix%applied%Precip( vi,m)) THEN
+      ELSEIF (climate%Precip( vi,m) /= climate%Precip( vi,m)) THEN
         CALL crash('NaN precipitation detected!')
       END IF
     END DO
@@ -103,30 +102,23 @@ CONTAINS
     INTEGER                                            :: vi ,m
     REAL(dp)                                           :: CO2, w_CO2
     REAL(dp), DIMENSION(:    ), POINTER                ::  w_ins,  w_ins_smooth,  w_ice,  w_tot
-    INTEGER                                            :: ww_ins, ww_ins_smooth, ww_ice, ww_tot
     REAL(dp)                                           :: w_ins_av
     REAL(dp), DIMENSION(:,:  ), POINTER                :: T_ref_GCM
     REAL(dp), DIMENSION(:    ), POINTER                :: Hs_GCM, lambda_GCM
-    INTEGER                                            :: wT_ref_GCM, wHs_GCM, wlambda_GCM
-
     REAL(dp), PARAMETER                                :: w_cutoff = 0.5_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
     REAL(dp), PARAMETER                                :: P_offset = 0.008_dp       ! Normalisation term in precipitation anomaly to avoid divide-by-nearly-zero
 
     ! Add routine to path
     CALL init_routine( routine_name)
-!!!
-!!! UFEMISM1.x has the same type of mesh so is better to copy and paste from there, it is straightforward
-!!! 
 
-!! FIX THIS ALLOCATE
     ! Allocate shared memory
-    CALL allocate_shared_dp_1D( mesh%nV,     w_ins,        ww_ins        )
-    CALL allocate_shared_dp_1D( mesh%nV,     w_ins_smooth, ww_ins_smooth )
-    CALL allocate_shared_dp_1D( mesh%nV,     w_ice,        ww_ice        )
-    CALL allocate_shared_dp_1D( mesh%nV,     w_tot,        ww_tot        )
-    CALL allocate_shared_dp_2D( mesh%nV, 12, T_ref_GCM,    wT_ref_GCM    )
-    CALL allocate_shared_dp_1D( mesh%nV,     Hs_GCM,       wHs_GCM       )
-    CALL allocate_shared_dp_1D( mesh%nV,     lambda_GCM,   wlambda_GCM   )
+    allocate( w_ins(        mesh%vi1:mesh%vi2))
+    allocate( w_ins_smooth( mesh%vi1:mesh%vi2))
+    allocate( w_ice(        mesh%vi1:mesh%vi2))
+    allocate( w_tot(        mesh%vi1:mesh%vi2))
+    allocate( T_ref_GCM(    mesh%vi1:mesh%vi2, 12))
+    allocate( Hs_GCM(       mesh%vi1:mesh%vi2))
+    allocate( lambda_GCM(   mesh%vi1:mesh%vi2))
     
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
@@ -204,7 +196,7 @@ CONTAINS
     END IF
 
 !! ==============================================================================================================
-!! In UFE1.x here are two more options, already asked Jorge about it, glacial matrix and glacial index
+!! In UFE1.x here are two more options, glacial matrix and glacial index
 !! lines 1050 - 1080 in climate_module.f90
 !! ==============================================================================================================
 
@@ -224,13 +216,10 @@ CONTAINS
       ! Adapt temperature to model orography using matrix-derived lapse-rate
       DO m = 1, 12
       !! check name variable Hs_a in UFE2 should be just Hs !
-        climate%T2m( vi,:) = T_ref_GCM( vi, m) - lambda_GCM( vi) * (ice%Hs_a( vi) - Hs_GCM( vi))  ! Berends et al., 2018 - Eq. 11
+        climate%T2m( vi,:) = T_ref_GCM( vi, m) - lambda_GCM( vi) * (ice%Hs( vi) - Hs_GCM( vi))  ! Berends et al., 2018 - Eq. 11
       END DO
 
     END DO
-
-    ! Safety checks
-    CALL check_safety_temperature( climate%T2m)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -260,14 +249,12 @@ CONTAINS
     REAL(dp)                                           :: w_tot
     REAL(dp), DIMENSION(:,:,:), POINTER                :: T_ref_GCM, P_ref_GCM
     REAL(dp), DIMENSION(:,:  ), POINTER                :: Hs_GCM
-    INTEGER                                            :: wT_ref_GCM, wP_ref_GCM, wHs_GCM
 
     REAL(dp), PARAMETER                                :: w_cutoff = 0.25_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-! FIX THIS ALLOCATE
     ! Allocate shared memory
     allocate( w_warm(    mesh%vi1:mesh%vi2))
     allocate( w_cold(    mesh%vi1:mesh%vi2))
@@ -282,10 +269,10 @@ CONTAINS
 
     ! Calculate interpolation weights based on ice geometry
     ! =====================================================
-!! check ice%Hs_a should be ice%Hs now
+!! changed ice%Hs_a to ice%Hs
     ! First calculate the total ice volume term (second term in the equation)
     w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, &
-      (SUM( ice%Hs_a) - SUM( climate%matrix%GCM_warm%Hs)) / (SUM( climate%matrix%GCM_cold%Hs) - SUM( climate%matrix%GCM_warm%Hs)) ))
+      (SUM( ice%Hs) - SUM( climate%matrix%GCM_warm%Hs)) / (SUM( climate%matrix%GCM_cold%Hs) - SUM( climate%matrix%GCM_warm%Hs)) ))
 
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Combine total + local ice thicness; Berends et al., 2018, Eq. 12
@@ -300,12 +287,12 @@ CONTAINS
             w_warm( vi) = 1._dp - w_cold( vi)
           ELSE
             ! No ice in warm climate, ice in cold climate. Linear inter- / extrapolation.
-            w_cold( vi) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs_a( vi) - climate%matrix%GCM_PI%Hs( vi)) / (climate%matrix%GCM_cold%Hs( vi) - climate%matrix%GCM_PI%Hs( vi))) * w_tot ))
+            w_cold( vi) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs( vi) - climate%matrix%GCM_PI%Hs( vi)) / (climate%matrix%GCM_cold%Hs( vi) - climate%matrix%GCM_PI%Hs( vi))) * w_tot ))
             w_warm( vi)  = 1._dp - w_cold( vi)
           END IF
         ELSE
           ! Ice in both GCM states.  Linear inter- / extrapolation
-          w_cold( vi) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs_a( vi) - climate%matrix%GCM_PI%Hs( vi)) / (climate%matrix%GCM_cold%Hs( vi) - climate%matrix%GCM_PI%Hs( vi))) * w_tot ))
+          w_cold( vi) = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((ice%Hs( vi) - climate%matrix%GCM_PI%Hs( vi)) / (climate%matrix%GCM_cold%Hs( vi) - climate%matrix%GCM_PI%Hs( vi))) * w_tot ))
           w_warm( vi)  = 1._dp - w_cold( vi)
         END IF
 
@@ -357,19 +344,17 @@ CONTAINS
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Use the Roe&Lindzen precipitation model to do this; Berends et al., 2018, Eqs. A3-A7
       CALL adapt_precip_Roe( mesh, Hs_GCM,   T_ref_GCM  , climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, P_ref_GCM, &
-                                   ice%Hs_a, climate%T2m, climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, climate%Precip)
+                                   ice%Hs, climate%T2m, climate%matrix%PD_obs%Wind_LR, climate%matrix%PD_obs%Wind_DU, climate%Precip)
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
       ! Use a simpler temperature-based correction; Berends et al., 2018, Eq. 14
-      CALL adapt_precip_CC( mesh, ice%Hs_a, Hs_GCM, T_ref_GCM, P_ref_GCM, climate%Precip, region_name)
+      CALL adapt_precip_CC( mesh, ice%Hs, Hs_GCM, T_ref_GCM, P_ref_GCM, climate%Precip, region_name)
     END IF
-
-    ! Safety checks
-    CALL check_safety_precipitation( climate%Precip)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix_precipitation
+  !!! CHECK mask_noice, in UFE1.x was on region%mask_noice (:)
   SUBROUTINE initialise_climate_matrix( mesh, grid, climate, region_name, mask_noice)
 
     IMPLICIT NONE
@@ -379,7 +364,7 @@ CONTAINS
     type(type_mesh),                     intent(in)    :: grid !used to smooth later on, check if grid is called during initialise
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    INTEGER,  DIMENSION(:),          INTENT(IN)    :: mask_noice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_matrix'
@@ -546,10 +531,6 @@ CONTAINS
     call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
 
     call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
-    
-    ! option to do safety check here, I moved it after run, so it will check also with the forcings! functions not needed
-    !CALL check_safety_temperature(   snapshot%T2m   )
-    !CALL check_safety_precipitation( snapshot%Precip)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -644,7 +625,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_calc_spatially_variable_lapserate'
-    INTEGER                                             :: i,j,m
+    INTEGER                                             :: vi,m
     INTEGER,  DIMENSION(:    ), POINTER                 ::  mask_calc_lambda
     REAL(dp)                                            :: dT_mean_nonice
     INTEGER                                             :: n_nonice, n_ice
@@ -749,7 +730,7 @@ CONTAINS
     TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     !!! FIX mask_noice is used later on run_SMB_model, this is probably different in UFE2
-    INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
+    INTEGER,  DIMENSION(:  ),           INTENT(IN)    :: mask_noice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_calc_absorbed_insolation'
@@ -763,8 +744,8 @@ CONTAINS
 
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
-
-    CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot%Q_TOA)
+! ADDED snapshot%forcing
+    CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot%forcing, snapshot%Q_TOA)
 
     ! Create temporary "dummy" climate, ice & SMB data structures,
     ! so we can run the SMB model and determine the reference albedo field
@@ -1125,106 +1106,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE rotate_wind_to_model_mesh
-  ! Safety checks
-  SUBROUTINE check_safety_temperature( T2m)
-    ! Safety checks on a monthly temperature field
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: T2m
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_safety_temperature'
-    INTEGER                                            :: n1,n2,n3,i1,i2,i,j,k
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Get field size
-    n1 = SIZE( T2m,1)
-    n2 = SIZE( T2m,2)
-    n3 = SIZE( T2m,3)
-
-    ! Parallelisation
-    CALL partition_list( n3, par%i, par%n, i1, i2)
-
-    ! Perform safety check
-    DO i = i1, i2
-    DO j = 1, n2
-    DO k = 1, n1
-
-      ! Temperature errors
-      IF     (T2m( k,j,i) < 0._dp) THEN
-        CALL crash('negative temperature detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
-      ELSEIF (ISNAN( T2m( k,j,i))) THEN
-        CALL crash('NaN temperature detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
-      END IF
-
-      ! Temperature warnings
-      IF     (T2m( k,j,i) < 150._dp) THEN
-        CALL warning('excessively low temperature (< 150 K) detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
-      ELSEIF (T2m( k,j,i) > 350._dp) THEN
-        CALL warning('excessively high temperature (> 350 K) detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
-      END IF
-
-    END DO
-    END DO
-    END DO
-    CALL sync
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE check_safety_temperature
-  SUBROUTINE check_safety_precipitation( Precip)
-    ! Safety checks on a monthly precipitation field
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: Precip
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_safety_precipitation'
-    INTEGER                                            :: n1,n2,n3,i1,i2,i,j,k
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Get field size
-    n1 = SIZE( Precip,1)
-    n2 = SIZE( Precip,2)
-    n3 = SIZE( Precip,3)
-
-    ! Parallelisation
-    CALL partition_list( n3, par%i, par%n, i1, i2)
-
-    ! Perform safety check
-    DO i = i1, i2
-    DO j = 1, n2
-    DO k = 1, n1
-
-      ! Precipitation errors
-      IF     (Precip( k,j,i) <= 0._dp) THEN
-        CALL crash('zero/negative precipitation detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
-      ELSEIF (ISNAN(Precip( k,j,i))) THEN
-        CALL crash('NaN precipitation detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
-      END IF
-
-      ! Precipitation warnings
-      IF     (Precip( k,j,i) > 10._dp) THEN
-        CALL warning('excessively high precipitation (> 10 m/month) detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
-      END IF
-
-    END DO
-    END DO
-    END DO
-    CALL sync
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE check_safety_precipitation
 
 end module climate_matrix
