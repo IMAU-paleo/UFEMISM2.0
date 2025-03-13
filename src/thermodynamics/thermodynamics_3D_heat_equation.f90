@@ -5,11 +5,9 @@ MODULE thermodynamics_3D_heat_equation
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync
+  USE mpi_basic                                              , ONLY: par
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -251,8 +249,7 @@ CONTAINS
       ! Copy temperature solution
       Ti_tplusdt( vi,:) = icecol_Ti
 
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-    CALL sync
+    END DO
 
     ! Cope with instability
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_unstable, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
@@ -265,7 +262,6 @@ CONTAINS
           CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, Ti_tplusdt, vi)
         END IF
       END DO
-      CALL sync
 
     ELSE
       ! An unacceptably large number of grid cells was unstable; throw an error.

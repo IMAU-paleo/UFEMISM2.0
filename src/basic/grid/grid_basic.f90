@@ -4,10 +4,9 @@ module grid_basic
 
 #include <petsc/finclude/petscksp.h>
   use petscksp
-  use mpi
   use precisions, only: dp
   use grid_types, only: type_grid
-  use mpi_basic, only: par, sync
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
   use parameters
   use petsc_basic, only: mat_CSR2petsc

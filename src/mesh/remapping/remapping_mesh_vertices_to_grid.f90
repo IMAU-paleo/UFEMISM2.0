@@ -4,7 +4,7 @@ module remapping_mesh_vertices_to_grid
 
 #include <petsc/finclude/petscksp.h>
   use petscksp
-  use mpi_basic, only: par, sync
+  use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use grid_types, only: type_grid

@@ -3,7 +3,7 @@ module remapping_mesh_to_mesh
 #include <petsc/finclude/petscksp.h>
   use petscksp
   use precisions, only: dp
-  use mpi_basic, only: par, sync
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map, type_single_row_mapping_matrices
