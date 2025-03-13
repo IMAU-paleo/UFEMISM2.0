@@ -16,6 +16,7 @@ module climate_matrix
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
   use mesh_data_smoothing, only: smooth_Gaussian
+  use mesh_operators, only: ddx_a_a_2D ! do I need to add more?
   
   ! check the previous calleds
   use forcing_module, only: get_insolation_at_time, update_CO2_at_model_time
@@ -116,6 +117,8 @@ CONTAINS
 !!!
 !!! UFEMISM1.x has the same type of mesh so is better to copy and paste from there, it is straightforward
 !!! 
+
+!! FIX THIS ALLOCATE
     ! Allocate shared memory
     CALL allocate_shared_dp_1D( mesh%nV,     w_ins,        ww_ins        )
     CALL allocate_shared_dp_1D( mesh%nV,     w_ins_smooth, ww_ins_smooth )
@@ -226,15 +229,6 @@ CONTAINS
 
     END DO
 
-    ! Clean up after yourself
-    CALL deallocate_shared( ww_ins)
-    CALL deallocate_shared( ww_ins_smooth)
-    CALL deallocate_shared( ww_ice)
-    CALL deallocate_shared( ww_tot)
-    CALL deallocate_shared( wT_ref_GCM)
-    CALL deallocate_shared( wHs_GCM)
-    CALL deallocate_shared( wlambda_GCM)
-
     ! Safety checks
     CALL check_safety_temperature( climate%T2m)
 
@@ -273,6 +267,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+! FIX THIS ALLOCATE
     ! Allocate shared memory
     CALL allocate_shared_dp_1D(     mesh%nV, w_warm,         ww_warm        )
     CALL allocate_shared_dp_1D(     mesh%nV, w_cold,         ww_cold        )
@@ -363,13 +358,6 @@ CONTAINS
       CALL adapt_precip_CC( mesh, ice%Hs_a, Hs_GCM, T_ref_GCM, P_ref_GCM, climate%Precip, region_name)
     END IF
 
-    ! Clean up after yourself
-    CALL deallocate_shared( ww_warm)
-    CALL deallocate_shared( ww_cold)
-    CALL deallocate_shared( wT_ref_GCM)
-    CALL deallocate_shared( wP_ref_GCM)
-    CALL deallocate_shared( wHs_GCM)
-
     ! Safety checks
     CALL check_safety_precipitation( climate%Precip)
 
@@ -443,24 +431,19 @@ CONTAINS
     IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( mesh, climate%matrix%GCM_cold, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
-! working on this now
-!
     ! Get reference absorbed insolation for the GCM snapshots
-    CALL initialise_matrix_calc_absorbed_insolation( grid, climate%matrix%GCM_warm, region_name, mask_noice)
-    CALL initialise_matrix_calc_absorbed_insolation( grid, climate%matrix%GCM_cold, region_name, mask_noice)
+    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, mask_noice)
+    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, mask_noice)
 
     ! Initialise applied climate with present-day observations
-    DO i = grid%i2, grid%i2
-    DO j = 1, grid%ny
+    DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-      climate%T2m(     m,j,i) = climate%matrix%PD_obs%T2m(     m,j,i)
-      climate%Precip(  m,j,i) = climate%matrix%PD_obs%Precip(  m,j,i)
-      climate%Wind_LR( m,j,i) = climate%matrix%PD_obs%Wind_LR( m,j,i)
-      climate%Wind_DU( m,j,i) = climate%matrix%PD_obs%Wind_DU( m,j,i)
+      climate%T2m(     vi,m) = climate%matrix%PD_obs%T2m(     vi,m)
+      climate%Precip(  vi,m) = climate%matrix%PD_obs%Precip(  vi,m)
+      climate%Wind_LR( vi,m) = climate%matrix%PD_obs%Wind_LR( vi,m)
+      climate%Wind_DU( vi,m) = climate%matrix%PD_obs%Wind_DU( vi,m)
     END DO
     END DO
-    END DO
-    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -760,6 +743,7 @@ CONTAINS
     TYPE(type_mesh),                      INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
+    !!! FIX mask_noice is used later on run_SMB_model, this is probably different in UFE2
     INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
 
     ! Local variables:
@@ -916,14 +900,15 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_CC'
     INTEGER                                            :: vi,m
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  T_inv,  T_inv_ref
-    INTEGER                                            :: wT_inv, wT_inv_ref
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv,     wT_inv    )
-    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv_ref, wT_inv_ref)
+    allocate( T_inv(     mesh%vi1:mesh%vi2, 12))
+    allocate( T_inv_ref( mesh%vi1:mesh%vi2, 12))
+!    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv,     wT_inv    )
+!    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv_ref, wT_inv_ref)
 
     ! Calculate inversion layer temperatures
     DO m = 1, 12
@@ -990,25 +975,27 @@ CONTAINS
     INTEGER                                            :: wdHs_dx1, wdHs_dx2
     INTEGER                                            :: wdHs_dy1, wdHs_dy2
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  Precip_RL1,  Precip_RL2,  dPrecip_RL
-    INTEGER                                            :: wPrecip_RL1, wPrecip_RL2, wdPrecip_RL
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx1,     wdHs_dx1   )
-    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx2,     wdHs_dx2   )
-    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy1,     wdHs_dy1   )
-    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy2,     wdHs_dy2   )
-    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL1,  wPrecip_RL1)
-    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL2,  wPrecip_RL2)
-    CALL allocate_shared_dp_2D( mesh%nv, 12, dPrecip_RL,  wdPrecip_RL)
+!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx1,     wdHs_dx1   )
+!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx2,     wdHs_dx2   )
+!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy1,     wdHs_dy1   )
+!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy2,     wdHs_dy2   )
+    allocate( Precip_RL1( mesh%vi1:mesh%vi2, 12))
+    allocate( Precip_RL2( mesh%vi1:mesh%vi2, 12))
+    allocate( dPrecip_RL( mesh%vi1:mesh%vi2, 12))
+!    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL1,  wPrecip_RL1)
+!    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL2,  wPrecip_RL2)
+!    CALL allocate_shared_dp_2D( mesh%nv, 12, dPrecip_RL,  wdPrecip_RL)
 
     ! Calculate surface slopes for both states
-    CALL ddx_a_to_a_2D( mesh, Hs1, dHs_dx1)
-    CALL ddx_a_to_a_2D( mesh, Hs2, dHs_dx2)
-    CALL ddy_a_to_a_2D( mesh, Hs1, dHs_dy1)
-    CALL ddy_a_to_a_2D( mesh, Hs2, dHs_dy2)
+    CALL ddx_a_a_2D( mesh, Hs1, dHs_dx1)
+    CALL ddx_a_a_2D( mesh, Hs2, dHs_dx2)
+    CALL ddy_a_a_2D( mesh, Hs1, dHs_dy1)
+    CALL ddy_a_a_2D( mesh, Hs2, dHs_dy2)
 
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
@@ -1025,16 +1012,6 @@ CONTAINS
 
     END DO
     END DO
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( wdHs_dx1)
-    CALL deallocate_shared( wdHs_dx2)
-    CALL deallocate_shared( wdHs_dy1)
-    CALL deallocate_shared( wdHs_dy2)
-    CALL deallocate_shared( wPrecip_RL1)
-    CALL deallocate_shared( wPrecip_RL2)
-    CALL deallocate_shared( wdPrecip_RL)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
