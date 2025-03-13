@@ -10,7 +10,7 @@ module ut_mpi
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
-  use mpi_distributed_memory, only: gather_to_all, gather_to_master, distribute_from_master
+  use mpi_distributed_memory, only: gather_to_all, gather_to_primary, distribute_from_primary
 
   implicit none
 
@@ -123,7 +123,7 @@ contains
     end if
 
     ! Gather data
-    call gather_to_master( aa, bb)
+    call gather_to_primary( aa, bb)
 
     ! Check results
     if (par%primary) call unit_test( test_eq( bb, cc), test_name)
@@ -174,7 +174,7 @@ contains
     end if
 
     ! Gather data
-    call gather_to_master( aa, bb)
+    call gather_to_primary( aa, bb)
 
     ! Check results
     if (par%primary) call unit_test( test_eq( bb, cc), test_name)
@@ -224,7 +224,7 @@ contains
     end if
 
     ! Gather data
-    call gather_to_master( aa, bb)
+    call gather_to_primary( aa, bb)
 
     ! Check results
     if (par%primary) call unit_test( test_eq( bb, cc), test_name)
@@ -275,7 +275,7 @@ contains
     end if
 
     ! Gather data
-    call gather_to_master( aa, bb)
+    call gather_to_primary( aa, bb)
 
     ! Check results
     if (par%primary) call unit_test( test_eq( bb, cc), test_name)
@@ -589,7 +589,7 @@ contains
     end if
 
     ! Distribute data
-    call distribute_from_master( aa, bb)
+    call distribute_from_primary( aa, bb)
 
     ! Check results
     if (par%primary) then
@@ -642,7 +642,7 @@ contains
     end if
 
     ! Distribute data
-    call distribute_from_master( aa, bb)
+    call distribute_from_primary( aa, bb)
 
     ! Check results
     if (par%primary) then
@@ -694,7 +694,7 @@ contains
     end if
 
     ! Distribute data
-    call distribute_from_master( aa, bb)
+    call distribute_from_primary( aa, bb)
 
     ! Check results
     if (par%primary) then
@@ -747,7 +747,7 @@ contains
     end if
 
     ! Distribute data
-    call distribute_from_master( aa, bb)
+    call distribute_from_primary( aa, bb)
 
     ! Check results
     if (par%primary) then

@@ -5,7 +5,7 @@ module netcdf_write_field_transect
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use transect_types, only: type_transect
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
   use netcdf_basic
 
   implicit none
@@ -47,7 +47,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_transect( transect%nV))
-    call gather_to_master( d_transect_partial, d_transect)
+    call gather_to_primary( d_transect_partial, d_transect)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -94,7 +94,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_transect( transect%nV, size( d_transect_partial,2)))
-    call gather_to_master( d_transect_partial, d_transect)
+    call gather_to_primary( d_transect_partial, d_transect)
 
     ! Add "pretend" time dimension
     if (par%primary) then

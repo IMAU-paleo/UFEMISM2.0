@@ -220,15 +220,15 @@ contains
 
   end subroutine crop_matrix_CSR_dist
 
-  subroutine gather_CSR_dist_to_master( A, A_tot)
-    ! Gather a CSR-format sparse m-by-n matrix A that is distributed over the processes, to the master
+  subroutine gather_CSR_dist_to_primary( A, A_tot)
+    ! Gather a CSR-format sparse m-by-n matrix A that is distributed over the processes, to the primary
 
     ! In- and output variables:
     type(type_sparse_matrix_CSR_dp),     intent(in)    :: A
     type(type_sparse_matrix_CSR_dp),     intent(OUT)   :: A_tot
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'gather_CSR_dist_to_master'
+    character(len=256), parameter                      :: routine_name = 'gather_CSR_dist_to_primary'
     integer                                            :: ierr
     integer, dimension(MPI_STATUS_SIZE)                :: recv_status
     integer,  dimension(par%n)                         :: m_glob_all, n_glob_all, m_loc_all, n_loc_all
@@ -283,7 +283,7 @@ contains
       A_tot%nnz_max = 0
     end if
 
-    ! Start with the master's own data
+    ! Start with the primary's own data
     if (par%primary) then
       do row = A%i1, A%i2
         k1 = A%ptr( row)
@@ -301,7 +301,7 @@ contains
 
       if     (par%i == p) then
 
-        ! Send matrix metadata to master
+        ! Send matrix metadata to primary
         call MPI_Send( A%m      , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%m_loc  , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%i1     , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
@@ -313,7 +313,7 @@ contains
         call MPI_Send( A%nnz    , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%nnz_max, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
 
-        ! Send matrix data to master
+        ! Send matrix data to primary
         call MPI_Send( A%ptr, A%m_loc+1, MPI_integer         , 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%ind, A%nnz_max, MPI_integer         , 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%val, A%nnz_max, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierr)
@@ -366,7 +366,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine gather_CSR_dist_to_master
+  end subroutine gather_CSR_dist_to_primary
 
   subroutine read_single_row_CSR_dist( A, i, ind, val, nnz)
     ! Read the coefficients of a single row of A

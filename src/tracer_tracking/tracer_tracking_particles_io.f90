@@ -15,7 +15,7 @@ module tracer_tracking_model_particles_io
   use reallocate_mod, only: reallocate
   use netcdf, only: NF90_UNLIMITED, NF90_INT, NF90_DOUBLE
   use netcdf_io_main
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
 
   implicit none
 
@@ -65,9 +65,9 @@ contains
       allocate( t_origin_tot( 0   ))
     end if
 
-    call gather_to_master( particles%id      , id_tot)
-    call gather_to_master( particles%r       , r_tot)
-    call gather_to_master( particles%t_origin, t_origin_tot)
+    call gather_to_primary( particles%id      , id_tot)
+    call gather_to_primary( particles%r       , r_tot)
+    call gather_to_primary( particles%t_origin, t_origin_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then

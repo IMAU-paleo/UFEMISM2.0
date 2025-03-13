@@ -6,7 +6,7 @@ module netcdf_write_field_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use model_configuration, only: C
   use mesh_types, only: type_mesh
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
   use netcdf_basic
 
   implicit none
@@ -60,7 +60,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -114,7 +114,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -168,7 +168,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nTri))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -222,7 +222,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV, 12))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -276,7 +276,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -330,7 +330,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -384,7 +384,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
     if (par%primary) then
@@ -435,7 +435,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -480,7 +480,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nTri))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -525,7 +525,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nE))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -570,7 +570,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -615,7 +615,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nTri))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -660,7 +660,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nE))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -705,7 +705,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV, 12))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -750,7 +750,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -795,7 +795,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
@@ -840,7 +840,7 @@ contains
 
     ! Gather data to the master
     if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
-    call gather_to_master( d_partial, d_tot)
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)

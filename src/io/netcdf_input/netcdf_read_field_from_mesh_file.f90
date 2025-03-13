@@ -6,7 +6,7 @@ module netcdf_read_field_from_mesh_file
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use model_configuration, only: C
-  use mpi_distributed_memory, only: distribute_from_master
+  use mpi_distributed_memory, only: distribute_from_primary
   use mesh_types, only: type_mesh
   use mesh_memory, only: deallocate_mesh
   use netcdf_basic
@@ -91,7 +91,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -169,7 +169,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -247,7 +247,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -325,7 +325,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -406,7 +406,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -489,7 +489,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -572,7 +572,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -655,7 +655,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -719,7 +719,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)
@@ -782,7 +782,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_mesh)

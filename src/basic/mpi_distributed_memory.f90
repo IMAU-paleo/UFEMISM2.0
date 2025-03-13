@@ -11,14 +11,14 @@ module mpi_distributed_memory
 
   private
 
-  public :: partition_list, gather_to_master, gather_to_all, distribute_from_master
+  public :: partition_list, gather_to_primary, gather_to_all, distribute_from_primary
 
-  interface gather_to_master
-    procedure gather_to_master_int_1D
-    procedure gather_to_master_int_2D
-    procedure gather_to_master_dp_1D
-    procedure gather_to_master_dp_2D
-  end interface gather_to_master
+  interface gather_to_primary
+    procedure gather_to_primary_int_1D
+    procedure gather_to_primary_int_2D
+    procedure gather_to_primary_dp_1D
+    procedure gather_to_primary_dp_2D
+  end interface gather_to_primary
 
   interface gather_to_all
     procedure gather_to_all_logical_1D
@@ -28,12 +28,12 @@ module mpi_distributed_memory
     procedure gather_to_all_dp_2D
   end interface gather_to_all
 
-  interface distribute_from_master
-    procedure distribute_from_master_int_1D
-    procedure distribute_from_master_int_2D
-    procedure distribute_from_master_dp_1D
-    procedure distribute_from_master_dp_2D
-  end interface distribute_from_master
+  interface distribute_from_primary
+    procedure distribute_from_primary_int_1D
+    procedure distribute_from_primary_int_2D
+    procedure distribute_from_primary_dp_1D
+    procedure distribute_from_primary_dp_2D
+  end interface distribute_from_primary
 
 contains
 
@@ -68,7 +68,7 @@ contains
 ! ===== Gather distributed variables to the Master =====
 ! ======================================================
 
-  subroutine gather_to_master_int_1D( d_partial, d_tot)
+  subroutine gather_to_primary_int_1D( d_partial, d_tot)
     !< Gather a distributed 1-D integer variable to the Master
 
     ! In/output variables:
@@ -113,9 +113,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine gather_to_master_int_1D
+  end subroutine gather_to_primary_int_1D
 
-  subroutine gather_to_master_int_2D( d_partial, d_tot)
+  subroutine gather_to_primary_int_2D( d_partial, d_tot)
     !< Gather a distributed 2-D integer variable to the Master
 
     ! Input variables:
@@ -152,18 +152,18 @@ contains
 
     do j = 1, n2
       if (par%primary) then
-        call gather_to_master_int_1D( d_partial(:,j), d_tot( :, j))
+        call gather_to_primary_int_1D( d_partial(:,j), d_tot( :, j))
       else
-        call gather_to_master_int_1D( d_partial(:,j), dummy)
+        call gather_to_primary_int_1D( d_partial(:,j), dummy)
       end if
     end do
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine gather_to_master_int_2D
+  end subroutine gather_to_primary_int_2D
 
-  subroutine gather_to_master_dp_1D( d_partial, d_tot)
+  subroutine gather_to_primary_dp_1D( d_partial, d_tot)
     !< Gather a distributed 1-D dp variable to the Master
 
     ! Input variables:
@@ -208,9 +208,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine gather_to_master_dp_1D
+  end subroutine gather_to_primary_dp_1D
 
-  subroutine gather_to_master_dp_2D( d_partial, d_tot)
+  subroutine gather_to_primary_dp_2D( d_partial, d_tot)
     !< Gather a distributed 2-D dp variable to the Master
 
     ! Input variables:
@@ -247,9 +247,9 @@ contains
 
     do j = 1, n2
       if (par%primary) then
-        call gather_to_master_dp_1D( d_partial(:,j), d_tot( :, j))
+        call gather_to_primary_dp_1D( d_partial(:,j), d_tot( :, j))
       else
-        call gather_to_master_dp_1D( d_partial(:,j), dummy)
+        call gather_to_primary_dp_1D( d_partial(:,j), dummy)
       end if
     end do
 
@@ -257,7 +257,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine gather_to_master_dp_2D
+  end subroutine gather_to_primary_dp_2D
 
 ! ===== Gather distributed variables to all processes =====
 ! =========================================================
@@ -484,7 +484,7 @@ contains
 ! ===== Distribute variables from the Master =====
 ! ================================================
 
-  subroutine distribute_from_master_int_1D( d_tot, d_partial)
+  subroutine distribute_from_primary_int_1D( d_tot, d_partial)
     !< Distribute a 1-D integer variable from the master
     !< (e.g. after reading from to NetCDF)
 
@@ -526,9 +526,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine distribute_from_master_int_1D
+  end subroutine distribute_from_primary_int_1D
 
-  subroutine distribute_from_master_int_2D( d_tot, d_partial)
+  subroutine distribute_from_primary_int_2D( d_tot, d_partial)
     !< Distribute a 2-D integer variable from the master
     !< (e.g. after reading from to NetCDF)
 
@@ -560,18 +560,18 @@ contains
 
     do j = 1, n2
       if (par%primary) then
-        call distribute_from_master_int_1D( d_tot( :, j), d_partial( : ,j))
+        call distribute_from_primary_int_1D( d_tot( :, j), d_partial( : ,j))
       else
-        call distribute_from_master_int_1D( d_partial=d_partial( : ,j))
+        call distribute_from_primary_int_1D( d_partial=d_partial( : ,j))
       endif
     end do
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine distribute_from_master_int_2D
+  end subroutine distribute_from_primary_int_2D
 
-  subroutine distribute_from_master_dp_1D( d_tot, d_partial)
+  subroutine distribute_from_primary_dp_1D( d_tot, d_partial)
     !< Distribute a 1-D dp variable from the master
     !< (e.g. after reading from to NetCDF)
 
@@ -613,9 +613,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine distribute_from_master_dp_1D
+  end subroutine distribute_from_primary_dp_1D
 
-  subroutine distribute_from_master_dp_2D( d_tot, d_partial)
+  subroutine distribute_from_primary_dp_2D( d_tot, d_partial)
     !< Distribute a 2-D dp variable from the master
     !< (e.g. after reading from to NetCDF)
 
@@ -648,15 +648,15 @@ contains
     ! Distribute 1 column at a time
     do j = 1, n2
       if (par%primary) then
-        call distribute_from_master_dp_1D( d_tot( :, j), d_partial( : ,j))
+        call distribute_from_primary_dp_1D( d_tot( :, j), d_partial( : ,j))
       else
-        call distribute_from_master_dp_1D( d_partial=d_partial( : ,j))
+        call distribute_from_primary_dp_1D( d_partial=d_partial( : ,j))
       endif
     end do
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine distribute_from_master_dp_2D
+  end subroutine distribute_from_primary_dp_2D
 
 end module mpi_distributed_memory

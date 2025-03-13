@@ -10,7 +10,7 @@ MODULE grid_lonlat_basic
   USE reallocate_mod                                         , ONLY: reallocate
   use interpolation, only: linint_points
   use projections, only: inverse_oblique_sg_projection
-  use mpi_distributed_memory, only: partition_list, distribute_from_master, gather_to_master
+  use mpi_distributed_memory, only: partition_list, distribute_from_primary, gather_to_primary
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
 
@@ -225,7 +225,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
 
     ! Distribute vector-form data to the processes
-    CALL distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+    CALL distribute_from_primary( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
     IF (par%primary) DEALLOCATE( d_grid_vec_total)
@@ -307,7 +307,7 @@ CONTAINS
     IF (par%primary) ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
 
     ! Gather data
-    CALL gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+    CALL gather_to_primary( d_grid_vec_partial, d_grid_vec_total)
 
     ! Convert to grid form
     IF (par%primary) THEN

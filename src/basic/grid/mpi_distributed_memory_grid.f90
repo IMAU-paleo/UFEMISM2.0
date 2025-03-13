@@ -7,7 +7,7 @@ module mpi_distributed_memory_grid
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use model_configuration, only: C
-  use mpi_distributed_memory, only: distribute_from_master, gather_to_master, gather_to_all
+  use mpi_distributed_memory, only: distribute_from_primary, gather_to_primary, gather_to_all
 
   implicit none
 
@@ -76,7 +76,7 @@ subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_
   end if ! if (par%master) then
 
   ! Distribute vector-form data to the processes
-  call distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+  call distribute_from_primary( d_grid_vec_total, d_grid_vec_partial)
 
   ! Clean up after yourself
   deallocate( d_grid_vec_total)
@@ -124,7 +124,7 @@ subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_p
   end if ! if (par%master) then
 
   ! Distribute vector-form data to the processes
-  call distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+  call distribute_from_primary( d_grid_vec_total, d_grid_vec_partial)
 
   ! Clean up after yourself
   deallocate( d_grid_vec_total)
@@ -259,7 +259,7 @@ subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_gri
   end if
 
   ! Gather data
-  call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+  call gather_to_primary( d_grid_vec_partial, d_grid_vec_total)
 
   ! Convert to grid form
   if (par%primary) then
@@ -306,7 +306,7 @@ subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid
   end if
 
   ! Gather data
-  call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+  call gather_to_primary( d_grid_vec_partial, d_grid_vec_total)
 
   ! Convert to grid form
   if (par%primary) then

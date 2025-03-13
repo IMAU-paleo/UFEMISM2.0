@@ -28,7 +28,7 @@ module ice_dynamics_main
   use subgrid_ice_margin, only: calc_effective_thickness
   use zeta_gradients, only: calc_zeta_gradients
   use subgrid_grounded_fractions_main, only: calc_grounded_fractions
-  use mpi_distributed_memory, only: gather_to_all, distribute_from_master
+  use mpi_distributed_memory, only: gather_to_all, distribute_from_primary
   use remapping_main, only: map_from_mesh_to_mesh_2D, map_from_mesh_to_mesh_with_reallocation_2D, &
     map_from_mesh_to_mesh_with_reallocation_3D
   use reallocate_mod, only: reallocate_bounds
@@ -1207,9 +1207,9 @@ contains
     end if ! if (par%master) then
 
     ! Distribute BC masks to all processes
-    call distribute_from_master( BC_prescr_mask_tot   , BC_prescr_mask   )
-    call distribute_from_master( BC_prescr_mask_b_tot , BC_prescr_mask_b )
-    call distribute_from_master( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
+    call distribute_from_primary( BC_prescr_mask_tot   , BC_prescr_mask   )
+    call distribute_from_primary( BC_prescr_mask_b_tot , BC_prescr_mask_b )
+    call distribute_from_primary( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
 
     ! == Fill in prescribed velocities and thicknesses away from the front
     ! ====================================================================

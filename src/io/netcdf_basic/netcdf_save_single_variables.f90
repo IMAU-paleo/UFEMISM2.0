@@ -9,9 +9,9 @@ module netcdf_save_single_variables
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use model_configuration, only: C
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist, &
-    gather_CSR_dist_to_master
+    gather_CSR_dist_to_primary
   use petsc_basic, only: mat_petsc2CSR
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
   use netcdf, only: NF90_INT, NF90_DOUBLE
   use netcdf_inquire_grid_mesh
   use netcdf_write_var_primary
@@ -68,7 +68,7 @@ contains
     call init_routine( routine_name)
 
     ! Gather distributed matrix to the master
-    call gather_CSR_dist_to_master( AA, AA_tot)
+    call gather_CSR_dist_to_primary( AA, AA_tot)
 
     ! Append output directory to filename
     filename_applied = trim( C%output_dir) // '/' // trim( filename) // '.nc'
@@ -165,9 +165,9 @@ contains
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
     if (par%primary) then
       allocate( d_tot( n_tot))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions
@@ -220,9 +220,9 @@ contains
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
     if (par%primary) then
       allocate( d_tot( n_tot, n2))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions
@@ -275,9 +275,9 @@ contains
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
     if (par%primary) then
       allocate( d_tot( n_tot))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions
@@ -330,9 +330,9 @@ contains
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
     if (par%primary) then
       allocate( d_tot( n_tot, n2))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions

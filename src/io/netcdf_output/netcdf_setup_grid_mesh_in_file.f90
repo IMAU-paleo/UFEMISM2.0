@@ -5,7 +5,7 @@ module netcdf_setup_grid_mesh_in_file
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_master
+  use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_primary
   use netcdf_basic
   use netcdf_add_field_mesh
   use netcdf, only: NF90_DOUBLE, NF90_INT, NF90_DEF_GRP
@@ -681,7 +681,7 @@ contains
     call init_routine( routine_name)
 
     ! Gather distributed matrix to the master
-    call gather_CSR_dist_to_master( A, A_tot)
+    call gather_CSR_dist_to_primary( A, A_tot)
 
     ! Create a new NetCDF group for this matrix operator
     ierr = NF90_DEF_GRP( ncid, name, grp_ncid)

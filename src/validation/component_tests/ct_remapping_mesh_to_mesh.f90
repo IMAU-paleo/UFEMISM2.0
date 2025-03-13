@@ -14,7 +14,7 @@ module ct_remapping_mesh_to_mesh
   use apply_maps, only: clear_all_maps_involving_this_mesh
   use netcdf_io_main
   use netcdf, only: NF90_DOUBLE, NF90_PUT_VAR
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
 
   implicit none
 
@@ -168,7 +168,7 @@ contains
     call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_cons')
 
     if (par%primary) allocate( d_mesh1_ex_tot( mesh1%nV))
-    call gather_to_master( d_mesh1_ex, d_mesh1_ex_tot)
+    call gather_to_primary( d_mesh1_ex, d_mesh1_ex_tot)
 
     if (par%primary) then
       nerr = NF90_PUT_VAR( ncid, id_var_mesh1_A   , mesh1%A)
