@@ -8,8 +8,8 @@ module netcdf_read_field_from_lonlat_grid_file
   use grid_types, only: type_grid_lonlat
   use permute_mod
   use flip_mod
-  use grid_lonlat_basic, only: distribute_lonlat_gridded_data_from_master_dp_2D, &
-    distribute_lonlat_gridded_data_from_master_dp_3D, deallocate_lonlat_grid
+  use grid_lonlat_basic, only: distribute_lonlat_gridded_data_from_primary_dp_2D, &
+    distribute_lonlat_gridded_data_from_primary_dp_3D, deallocate_lonlat_grid
   use netcdf_basic
   use netcdf_setup_grid_mesh_from_file
   use netcdf_determine_indexing
@@ -153,7 +153,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_lonlat_gridded_data_from_master_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_lonlat_gridded_data_from_primary_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up gridded data on the master
 
@@ -299,7 +299,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_lonlat_gridded_data_from_primary_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_grid)
@@ -445,7 +445,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_lonlat_gridded_data_from_primary_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_grid)
@@ -591,7 +591,7 @@ contains
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_lonlat_gridded_data_from_primary_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_grid)
