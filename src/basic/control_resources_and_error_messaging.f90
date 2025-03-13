@@ -10,7 +10,7 @@ MODULE control_resources_and_error_messaging
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
 
   IMPLICIT NONE
 

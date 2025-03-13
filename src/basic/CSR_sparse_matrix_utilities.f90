@@ -5,7 +5,7 @@ module CSR_sparse_matrix_utilities
   use CSR_sparse_matrix_type                                 , only: type_sparse_matrix_CSR_dp
   use mpi
   use precisions                                             , only: dp
-  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use parameters
   use reallocate_mod                                         , only: reallocate
@@ -27,6 +27,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter                      :: routine_name = 'allocate_matrix_CSR_dist'
+    integer                                            :: ierr
     integer,  dimension(par%n)                         :: m_loc_all, n_loc_all
 
     ! Add routine to call stack
@@ -228,6 +229,8 @@ contains
 
     ! Local variables:
     character(len=256), parameter                      :: routine_name = 'gather_CSR_dist_to_master'
+    integer                                            :: ierr
+    integer, dimension(MPI_STATUS_SIZE)                :: recv_status
     integer,  dimension(par%n)                         :: m_glob_all, n_glob_all, m_loc_all, n_loc_all
     integer                                            :: nnz_tot
     integer                                            :: p

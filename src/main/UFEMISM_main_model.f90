@@ -7,7 +7,7 @@ MODULE UFEMISM_main_model
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync, ierr
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string, str2int, int2str, &
                                                                      insert_val_into_string_dp
   USE model_configuration                                    , ONLY: C
@@ -1254,7 +1254,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'calc_mesh_fitness_coefficient'
-    INTEGER                                                            :: vi
+    INTEGER                                                            :: vi, ierr
     INTEGER                                                            :: nV_grounding_line_tot, nV_calving_front_tot, nV_ice_front_tot, nV_coastline_tot
     INTEGER                                                            :: nV_grounding_line_bad, nV_calving_front_bad, nV_ice_front_bad, nV_coastline_bad
     REAL(dp)                                                           :: f_grounding_line, f_calving_front, f_ice_front, f_coastline

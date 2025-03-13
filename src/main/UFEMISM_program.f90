@@ -27,8 +27,7 @@ PROGRAM UFEMISM_program
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync, initialise_parallelisation, &
-                                                                     finalise_parallelisation
+  use mpi_basic, only: par, sync, initialise_parallelisation
   USE petsc_basic                                            , ONLY: perr
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &
                                                                      initialise_control_and_resource_tracker, reset_resource_tracker, &
@@ -60,6 +59,8 @@ PROGRAM UFEMISM_program
 
   ! Input argument
   character(len=1024)                    :: input_argument
+
+  integer :: ierr
 
 ! ===== START =====
 ! =================
@@ -161,10 +162,8 @@ PROGRAM UFEMISM_program
   CALL print_UFEMISM_end( tcomp)
 
   ! Finalise PETSc and MPI parallelisation
-  CALL sync
-  CALL PetscFinalize( perr)
-  CALL sync
-  CALL finalise_parallelisation
+  call PetscFinalize( perr)
+  call MPI_FINALIZE( ierr)
 
 
 END PROGRAM UFEMISM_program

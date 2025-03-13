@@ -7,7 +7,7 @@ module mesh_data_smoothing
 
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, sync, ierr
+  use mpi_basic, only: par, sync
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash

@@ -4,7 +4,7 @@ module ct_create_test_meshes
 
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
   use tests_main
@@ -67,6 +67,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_component_tests_mesh_output_folder'
+    integer                        :: ierr
     logical                        :: ex
 
     ! Add routine to path

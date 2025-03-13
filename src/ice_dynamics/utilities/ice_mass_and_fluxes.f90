@@ -3,7 +3,7 @@ module ice_mass_and_fluxes
 
   use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, ierr
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use parameters, only: ice_density, seawater_density, ocean_area
   use mesh_types, only: type_mesh
@@ -84,7 +84,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area_PD'
-    integer                        :: vi
+    integer                        :: vi, ierr
     real(dp)                       :: sea_level_PD, thickness_af_PD
 
     ! Add routine to path
@@ -139,7 +139,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area'
-    integer                        :: vi
+    integer                        :: vi, ierr
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -186,7 +186,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_integrated_fluxes'
-    integer                        :: vi
+    integer                        :: vi, ierr
     real(dp)                       :: total_amb
 
     ! Add routine to path
@@ -344,7 +344,7 @@ contains
     logical,  dimension(mesh%nV)           :: mask_floating_ice_tot
     logical,  dimension(mesh%nV)           :: mask_icefree_land_tot
     logical,  dimension(mesh%nV)           :: mask_icefree_ocean_tot
-    integer                                :: vi, ci, ei, vj
+    integer                                :: vi, ci, ei, vj, ierr
     real(dp)                               :: A_i, L_c
     real(dp)                               :: u_perp
 

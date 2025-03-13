@@ -25,7 +25,7 @@ MODULE model_configuration
 
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &
                                                                      capitalise_string, remove_leading_spaces
 
@@ -755,7 +755,7 @@ MODULE model_configuration
     LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
     REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
-    
+
     ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
     REAL(dp)            :: BMB_transition_phase_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB transition phase
@@ -2093,6 +2093,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_model_configuration'
+    integer                                            :: ierr
     CHARACTER(LEN=256)                                 :: config_filename
     CHARACTER(LEN=256)                                 :: output_dir_procedural
     LOGICAL                                            :: ex
@@ -2197,6 +2198,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER :: routine_name = 'initialise_model_configuration_unit_tests'
+    integer                       :: ierr
 
     ! Add routine to path
     CALL init_routine( routine_name)

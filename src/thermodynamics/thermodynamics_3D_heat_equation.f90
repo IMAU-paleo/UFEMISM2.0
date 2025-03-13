@@ -9,7 +9,7 @@ MODULE thermodynamics_3D_heat_equation
   USE petscksp
   USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -53,6 +53,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_3D_heat_equation'
+    integer                                            :: ierr
     INTEGER                                            :: vi, k
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_times_dTdxp_upwind, v_times_dTdyp_upwind
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: T_surf_annual, Q_base_grnd, T_base_float

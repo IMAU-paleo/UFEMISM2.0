@@ -9,7 +9,7 @@ MODULE petsc_basic
   USE mpi
   use assertions_basic
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
@@ -169,6 +169,7 @@ CONTAINS
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'vec_double2petsc'
+    integer                        :: ierr
     integer                        :: nF_loc
     integer, dimension(1:par%n)    :: nF_loc_all
     integer                        :: nF_glob, i1F_glob, i2F_glob, iF_loc
@@ -225,6 +226,7 @@ CONTAINS
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'vec_petsc2double'
+    integer                        :: ierr
     integer                        :: nF_loc
     integer, dimension(1:par%n)    :: nF_loc_all
     integer                        :: nF_glob, i1F_glob, i2F_glob, iF_loc
@@ -439,6 +441,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'multiply_CSR_matrix_with_vector_1D'
+    integer                                            :: ierr
     INTEGER                                            :: nx_local, nx_global, ny_local, ny_global
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: xxv
     INTEGER                                            :: i,k1,k2,k,j
@@ -546,6 +549,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'multiply_PETSc_matrix_with_vector_1D'
+    integer                                            :: ierr
     TYPE(PetscInt)                                     :: nFx_loc
     INTEGER,  DIMENSION(1:par%n)                       :: nFx_loc_all
     TYPE(PetscInt)                                     :: nFx_glob, i1Fx_glob, i2Fx_glob

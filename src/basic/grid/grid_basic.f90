@@ -7,7 +7,7 @@ module grid_basic
   use mpi
   use precisions, only: dp
   use grid_types, only: type_grid
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
   use parameters
   use petsc_basic, only: mat_CSR2petsc
