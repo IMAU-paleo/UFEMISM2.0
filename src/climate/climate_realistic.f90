@@ -115,7 +115,7 @@ CONTAINS
       ! If the simulation is properly set up with times in [ka], we just get the absolute value of the initial time
       ! TODO: what is the standard? time in [ka] or in "[a]"
       IF (C%start_time_of_run < 0._dp) THEN
-        timeframe_init_insolation = ABS(C%start_time_of_run)
+        timeframe_init_insolation = C%start_time_of_run
       ELSE
         timeframe_init_insolation = 0._dp
       END IF
@@ -222,23 +222,7 @@ CONTAINS
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
       end if
 
-      if (par%master) WRITE(0,*) '     Reading Q_TOA1...'
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
-      if (par%master) WRITE(0,*) '     Q_TOA is read.'
-
-      
-        str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02},{int_03}), and ins_Q_TOA1 has size ({int_04},{int_05},{int_06}) after initialisation at times {dp_01} and {dp_02}'
-        call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
-        call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
-        !call insert_val_into_string_int( str, '{int_03}', size(forcing%ins_Q_TOA0,3))
-        call insert_val_into_string_int( str, '{int_04}', size(forcing%ins_Q_TOA1,1))
-        call insert_val_into_string_int( str, '{int_05}', size(forcing%ins_Q_TOA1,2))
-        !call insert_val_into_string_int( str, '{int_06}', size(forcing%ins_Q_TOA1,3))
-        call insert_val_into_string_dp(  str, '{dp_01}',  forcing%ins_t0)
-        call insert_val_into_string_dp(  str, '{dp_02}',  forcing%ins_t1)
-        if (par%master) THEN
-            WRITE(0,*) trim(str)
-        end if
 
       IF (C%start_time_of_run < forcing%ins_t0) THEN
         CALL warning(' Model time starts before start of insolation record; the model will crash (lol) or use the first available record, which might be awfully wrong')
@@ -294,7 +278,7 @@ CONTAINS
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time_applied < forcing%ins_t0 .OR. time_applied > forcing%ins_t1) THEN
-      IF (par%master)  WRITE(0,*) '   Calling update_insolation_timeframes...'
+      IF (par%master)  WRITE(0,*) '   Model time is out of the current insolation timeframes. Updating timeframes...'
       CALL update_insolation_timeframes_from_file( forcing, time_applied, mesh)
     END IF
 
@@ -360,13 +344,6 @@ CONTAINS
       END IF ! IF (par%master) THEN
 
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
-
-      str = ' Variable ins_Q_TOA0 has size ({int_01},{int_02}), and ins_Q_TOA1 has size ({int_03},{int_04}) after update'
-      call insert_val_into_string_int( str, '{int_01}', size(forcing%ins_Q_TOA0,1))
-      call insert_val_into_string_int( str, '{int_02}', size(forcing%ins_Q_TOA0,2))
-      call insert_val_into_string_int(  str, '{int_03}', size(forcing%ins_Q_TOA1,1))
-      call insert_val_into_string_int(  str, '{int_04}', size(forcing%ins_Q_TOA1,2))
-      IF (par%master)  WRITE(0,*) trim(str)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
