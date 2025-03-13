@@ -2,7 +2,8 @@ module hybrid_DIVA_BPA_main
 
   ! Routines for calculating ice velocities using the hybrid DIVA/BPA
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_BCAST, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, &
+    MPI_INTEGER, MPI_LOGICAL, MPI_LOR, MPI_MAX, MPI_MIN, MPI_SUM
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: warning, crash, init_routine, finalise_routine

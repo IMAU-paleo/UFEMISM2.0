@@ -2,7 +2,9 @@ module mpi_distributed_memory
 
   ! Some routine to work with distributed memory in the MPI parallelised architecture.
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLGATHER, MPI_INTEGER, MPI_GATHERV, MPI_BCAST, &
+    MPI_RECV, MPI_ALLGATHERV, MPI_ANY_TAG, MPI_DOUBLE_PRECISION, MPI_SEND, MPI_SCATTERV, &
+    MPI_STATUS, MPI_LOGICAL
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine

@@ -2,7 +2,8 @@ module mpi_basic
 
   ! Some very basic stuff to support the MPI parallelised architecture.
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM, MPI_INIT, MPI_COMM_SIZE, MPI_COMM_RANK, MPI_COMM_WORLD, &
+    MPI_COMM_SPLIT_TYPE, MPI_COMM_TYPE_SHARED, MPI_BARRIER, MPI_INFO_NULL
 
   implicit none
 

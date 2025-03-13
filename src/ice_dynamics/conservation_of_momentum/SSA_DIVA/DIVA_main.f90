@@ -2,7 +2,8 @@ module DIVA_main
 
   ! Routines for calculating ice velocities using the Depth-Integrated Viscosity Approximation (DIVA)
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, &
+    MPI_LOR, MPI_LOGICAL, MPI_MIN, MPI_MAX
   use mpi_basic, only: par
   use precisions, only: dp
   use parameters, only: grav, ice_density

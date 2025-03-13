@@ -5,7 +5,7 @@ module read_and_remap_field_from_file
 ! The routines will automatically detect which one of these it is, and select the
 ! appropriate subroutine. The data will also be automatically mapped to the provided model mesh.
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_DOUBLE_PRECISION
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C

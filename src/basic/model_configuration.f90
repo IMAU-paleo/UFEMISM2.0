@@ -15,15 +15,11 @@ MODULE model_configuration
   ! new config parameters a bit tedious - you have to add the "_config" variable, add it
   ! as a field in the "C" type, add it to the namelist, and let the "C" type field be
   ! overwritten in the end.
-  !
-  ! NOTE: since UFEMISM 2.0, config files should list ALL config variables. This means the
-  !       default values in this module are now only for illustration, and are not used
-  !       anymore, so that the config file completely determines the model behaviour.
 
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi_f08
+  use mpi_f08, only: MPI_BCAST, MPI_COMM_WORLD, MPI_CHAR, MPI_LOGICAL
   USE precisions                                             , ONLY: dp
   use mpi_basic, only: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &

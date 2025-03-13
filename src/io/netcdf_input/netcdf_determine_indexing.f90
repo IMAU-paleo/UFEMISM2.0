@@ -1,7 +1,7 @@
 module netcdf_determine_indexing
   !< Determine dimension indexing and directions in a NetCDF file
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_DOUBLE_PRECISION
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use netcdf_basic

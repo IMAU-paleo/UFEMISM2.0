@@ -1,6 +1,7 @@
 module transects_main
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_DOUBLE_PRECISION, MPI_ALLREDUCE, MPI_IN_PLACE, &
+    MPI_INTEGER, MPI_SUM
   use mpi_basic, only: par, sync
   use mpi_distributed_memory, only: partition_list
   use precisions, only: dp

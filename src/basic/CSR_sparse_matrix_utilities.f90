@@ -3,7 +3,8 @@ module CSR_sparse_matrix_utilities
   ! Subroutines to work with Compressed Sparse Row formatted matrices
 
   use CSR_sparse_matrix_type                                 , only: type_sparse_matrix_CSR_dp
-  use mpi_f08
+  use mpi_f08, only: MPI_ALLGATHER, MPI_INTEGER, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_SEND, MPI_RECV, &
+    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE
   use precisions                                             , only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string

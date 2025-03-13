@@ -1,6 +1,6 @@
 module time_step_criteria
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_MIN
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use model_configuration, only: C
