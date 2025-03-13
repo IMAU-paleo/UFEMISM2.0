@@ -269,11 +269,16 @@ CONTAINS
 
 ! FIX THIS ALLOCATE
     ! Allocate shared memory
-    CALL allocate_shared_dp_1D(     mesh%nV, w_warm,         ww_warm        )
-    CALL allocate_shared_dp_1D(     mesh%nV, w_cold,         ww_cold        )
-    CALL allocate_shared_dp_2D( 12, mesh%nV, T_ref_GCM,      wT_ref_GCM     )
-    CALL allocate_shared_dp_2D( 12, mesh%nV, P_ref_GCM,      wP_ref_GCM     )
-    CALL allocate_shared_dp_1D(     mesh%nV, Hs_GCM,         wHs_GCM        )
+    allocate( w_warm(    mesh%vi1:mesh%vi2))
+    allocate( w_cold(    mesh%vi1:mesh%vi2))
+    allocate( T_ref_GCM( mesh%vi1:mesh%vi2, 12))
+    allocate( P_ref_GCM( mesh%vi1:mesh%vi2, 12))
+    allocate( Hs_GCM(    mesh%vi1:mesh%vi2))
+!    CALL allocate_shared_dp_1D(     mesh%nV, w_warm,         ww_warm        )
+!    CALL allocate_shared_dp_1D(     mesh%nV, w_cold,         ww_cold        )
+!    CALL allocate_shared_dp_2D( 12, mesh%nV, T_ref_GCM,      wT_ref_GCM     )
+!    CALL allocate_shared_dp_2D( 12, mesh%nV, P_ref_GCM,      wP_ref_GCM     )
+!    CALL allocate_shared_dp_1D(     mesh%nV, Hs_GCM,         wHs_GCM        )
 
     ! Calculate interpolation weights based on ice geometry
     ! =====================================================
@@ -972,14 +977,16 @@ CONTAINS
     INTEGER                                            :: vi,m
     REAL(dp), DIMENSION(:    ), POINTER                ::  dHs_dx1,  dHs_dx2
     REAL(dp), DIMENSION(:    ), POINTER                ::  dHs_dy1,  dHs_dy2
-    INTEGER                                            :: wdHs_dx1, wdHs_dx2
-    INTEGER                                            :: wdHs_dy1, wdHs_dy2
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  Precip_RL1,  Precip_RL2,  dPrecip_RL
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
+    allocate( dHs_dx1( mesh%vi1:mesh%vi2))
+    allocate( dHs_dx2( mesh%vi1:mesh%vi2))
+    allocate( dHs_dy1( mesh%vi1:mesh%vi2))
+    allocate( dHs_dy2( mesh%vi1:mesh%vi2))
 !    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx1,     wdHs_dx1   )
 !    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx2,     wdHs_dx2   )
 !    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy1,     wdHs_dy1   )
