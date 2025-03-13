@@ -80,9 +80,9 @@ contains
 
       ! TODO: this is where things are going wrong for now
       ! Set up the grid from the file
-      !call open_existing_netcdf_file_for_reading( filename, ncid)
-      !call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file, grid_lat_from_file)
-      !call close_netcdf_file( ncid)
+      call open_existing_netcdf_file_for_reading( filename, ncid)
+      call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file, grid_lat_from_file)
+      call close_netcdf_file( ncid)
       
       !str = ' Resulting lonlat grid has dimensions ({int_01},{int_02}), lat-only grid has size {int_03}'
       !call insert_val_into_string_int( str, '{int_01}', grid_lonlat_from_file%nlon)
@@ -91,7 +91,7 @@ contains
       !IF (par%master)  WRITE(0,"(A)") trim(str)
 
       ! allocate memory for gridded data
-      !allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))
+      allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))
 
       ! Read gridded data
       call read_field_from_lat_file_1D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)

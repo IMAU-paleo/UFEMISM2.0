@@ -99,7 +99,7 @@ contains
     real(dp), dimension(:,:  ),   allocatable :: d_vec
     real(dp), dimension(:,:,:),   allocatable :: d_vec_with_time
     real(dp), dimension(:,:,:  ), allocatable :: d_grid
-    real(dp), dimension(:,:,:,:), allocatable :: d_grid_with_time
+    !real(dp), dimension(:,:,:,:), allocatable :: d_grid_with_time
     integer                                   :: ti, i, m
 
     ! Add routine to path
@@ -125,12 +125,14 @@ contains
     if (par%master) WRITE(0,*) '    Checking if desired variable has the required dimensions...'
     call check_lat_grid_field_dp_1D_monthly( filename, ncid, var_name, should_have_time = present( time_to_read))
 
-    ! allocate memory
-    allocate( d_vec( vec_loc%nlat, 12))
+    ! Allocate grid memory
     allocate( d_grid( grid_loc%nlon, grid_loc%nlat, 12))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
+
+      ! allocate memory
+      allocate( d_vec( vec_loc%nlat, 12))
       call read_var_master( filename, ncid, id_var, d_vec)
       
       ! copy along the longitudes
@@ -140,6 +142,7 @@ contains
         end do
       end if
     else
+    
       ! allocate memory
       !if (par%master) allocate( d_grid_with_time( grid_loc%nlon, vec_loc%nlat, 12, 1)) ! probably not used
       allocate( d_vec_with_time( 1, 12, vec_loc%nlat))
@@ -161,9 +164,6 @@ contains
         end do
         end do
 
-        ! Copy to output memory = already done in the step above
-        !d_grid = d_grid_with_time( :,:,1)
-
         ! Clean up after yourself
         deallocate( d_vec_with_time)
       end if
@@ -178,20 +178,21 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
+    ! TODO: do we need to check lats?
     ! == Perform necessary corrections to the gridded data
     ! ====================================================
 
     ! Determine indexing and dimension directions
-    call determine_lat_indexing( filename, ncid, var_name, latdir)
+    !call determine_lat_indexing( filename, ncid, var_name, latdir)
 
-    if     (latdir == 'normal') then
+    !if     (latdir == 'normal') then
       ! No need to do anything
-    elseif (latdir == 'reverse') then
-      call flip( grid_loc%lat)
-      if (par%master) call flip( d_grid, 2)
-    else
-      call crash('unknown latdir = "' // trim( latdir) // '"!')
-    end if
+    !elseif (latdir == 'reverse') then
+    !  call flip( grid_loc%lat)
+    !  if (par%master) call flip( d_grid, 2)
+    !else
+    !  call crash('unknown latdir = "' // trim( latdir) // '"!')
+    !end if
 
     ! == Distribute gridded data from the master to all processes in partial vector form
     ! ==================================================================================
