@@ -7,7 +7,7 @@ module netcdf_check_dimensions
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use netcdf, only: NF90_MAX_VAR_DIMS, NF90_DOUBLE, NF90_FLOAT, NF90_UNLIMITED, NF90_INT
   use netcdf_field_name_options
-  use netcdf_read_var_master
+  use netcdf_read_var_primary
 
   implicit none
 
@@ -68,7 +68,7 @@ subroutine check_x( filename, ncid)
   allocate( x( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, x)
+  call read_var_primary( filename, ncid, id_var, x)
 
   if (par%primary) call assert( (.not. any( isnan( x))), 'found NaNs in x')
 
@@ -140,7 +140,7 @@ subroutine check_y( filename, ncid)
   allocate( y( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, y)
+  call read_var_primary( filename, ncid, id_var, y)
 
   if (par%primary) call assert( (.not. any( isnan( y))), 'found NaNs in y')
 
@@ -206,7 +206,7 @@ subroutine check_lon( filename, ncid)
   allocate( lon( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, lon)
+  call read_var_primary( filename, ncid, id_var, lon)
 
   if (par%primary) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
 
@@ -271,7 +271,7 @@ subroutine check_lat( filename, ncid)
   allocate( lat( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, lat)
+  call read_var_primary( filename, ncid, id_var, lat)
 
   if (par%primary) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
 
@@ -556,7 +556,7 @@ subroutine check_zeta( filename, ncid)
   allocate( zeta( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, zeta)
+  call read_var_primary( filename, ncid, id_var, zeta)
 
   ! Check validity
   if (par%primary) then
@@ -652,7 +652,7 @@ subroutine check_time( filename, ncid)
     allocate( time( n))
 
     ! Read variable
-    call read_var_master( filename, ncid, id_var, time)
+    call read_var_primary( filename, ncid, id_var, time)
 
     ! Check validity
     if (par%primary) call assert( (.not. any( isnan( time))), 'found NaN in time')
@@ -710,7 +710,7 @@ subroutine check_depth( filename, ncid)
   allocate( depth( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, depth)
+  call read_var_primary( filename, ncid, id_var, depth)
 
   ! Check validity
   if (par%primary) then

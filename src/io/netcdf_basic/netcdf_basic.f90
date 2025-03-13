@@ -5,7 +5,7 @@ module netcdf_basic
   use netcdf_field_name_options
   use netcdf_inquire_dimensions
   use netcdf_inquire_grid_mesh
-  use netcdf_read_var_master
+  use netcdf_read_var_primary
   use netcdf_check_dimensions
   use netcdf_write_var_master
   use netcdf_check_fields

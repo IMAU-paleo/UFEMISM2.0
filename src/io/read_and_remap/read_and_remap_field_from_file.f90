@@ -619,7 +619,7 @@ contains
       call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
       ! Read the data
-      call read_var_master( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
+      call read_var_primary( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
       if (par%primary) d = d_with_time( 1)
 
       ! Broadcast to all processes
@@ -635,7 +635,7 @@ contains
       if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
       ! Read the data
-      call read_var_master( filename, ncid, id_var, d)
+      call read_var_primary( filename, ncid, id_var, d)
 
       ! Broadcast to all processes
       call MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)

@@ -70,14 +70,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
@@ -148,14 +148,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nTri, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
@@ -226,14 +226,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
@@ -304,14 +304,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nTri, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
@@ -385,14 +385,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, 12, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, 12, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, 12, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -468,14 +468,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, nzeta_loc, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, nzeta_loc, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, nzeta_loc, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -551,14 +551,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nTri, nzeta_loc, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nTri, nzeta_loc, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nTri, nzeta_loc, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -634,14 +634,14 @@ contains
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
       if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, ndepth_loc, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, ndepth_loc, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, ndepth_loc, 1 /) )
       ! Copy to output memory
       if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
@@ -710,7 +710,7 @@ contains
     if (par%primary) allocate( d_mesh( nV_loc, C%subgrid_bedrock_cdf_nbins))
 
     ! Read data from file
-    call read_var_master( filename, ncid, id_var, d_mesh)
+    call read_var_primary( filename, ncid, id_var, d_mesh)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -773,7 +773,7 @@ contains
     if (par%primary) allocate( d_mesh( nTri_loc, C%subgrid_bedrock_cdf_nbins))
 
     ! Read data from file
-    call read_var_master( filename, ncid, id_var, d_mesh)
+    call read_var_primary( filename, ncid, id_var, d_mesh)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)

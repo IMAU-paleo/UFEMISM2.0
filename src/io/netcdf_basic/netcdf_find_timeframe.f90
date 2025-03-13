@@ -6,7 +6,7 @@ module netcdf_find_timeframe
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use netcdf_field_name_options
   use netcdf_check_dimensions
-  use netcdf_read_var_master
+  use netcdf_read_var_primary
   use netcdf_basic_wrappers
 
   implicit none
@@ -51,7 +51,7 @@ contains
     allocate( time_from_file( nt))
 
     ! Read time from file
-    call read_var_master( filename, ncid, id_var_time, time_from_file)
+    call read_var_primary( filename, ncid, id_var_time, time_from_file)
     call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Find timeframe closest to desired time
@@ -183,7 +183,7 @@ contains
     allocate( time_from_file( nt))
 
     ! Read time from file
-    call read_var_master( filename, ncid, id_var_time, time_from_file)
+    call read_var_primary( filename, ncid, id_var_time, time_from_file)
     call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Set the timeframe to the last one in this file

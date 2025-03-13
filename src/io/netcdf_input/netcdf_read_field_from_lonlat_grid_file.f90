@@ -75,14 +75,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -96,14 +96,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
@@ -221,14 +221,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 12, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 12, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 12, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -242,14 +242,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 12, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 12, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 12, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -367,14 +367,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -388,14 +388,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -513,14 +513,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
@@ -534,14 +534,14 @@ contains
 
       ! Read data from file
       if (.not. present( time_to_read)) then
-        call read_var_master( filename, ncid, id_var, d_grid)
+        call read_var_primary( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
         if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
-        call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1 /) )
+        call read_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1 /) )
         ! Copy to output memory
         if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself

@@ -1,4 +1,4 @@
-module netcdf_read_var_master
+module netcdf_read_var_primary
   !< Read data from variables
   !< NOTE: only the Master actually reads data! Distributing to other processes must be done afterward
 
@@ -13,24 +13,24 @@ module netcdf_read_var_master
 
   private
 
-  public :: read_var_master
+  public :: read_var_primary
 
-  interface read_var_master
-    procedure read_var_master_int_0D
-    procedure read_var_master_int_1D
-    procedure read_var_master_int_2D
-    procedure read_var_master_int_3D
-    procedure read_var_master_int_4D
-    procedure read_var_master_dp_0D
-    procedure read_var_master_dp_1D
-    procedure read_var_master_dp_2D
-    procedure read_var_master_dp_3D
-    procedure read_var_master_dp_4D
-  end interface read_var_master
+  interface read_var_primary
+    procedure read_var_primary_int_0D
+    procedure read_var_primary_int_1D
+    procedure read_var_primary_int_2D
+    procedure read_var_primary_int_3D
+    procedure read_var_primary_int_4D
+    procedure read_var_primary_dp_0D
+    procedure read_var_primary_dp_1D
+    procedure read_var_primary_dp_2D
+    procedure read_var_primary_dp_3D
+    procedure read_var_primary_dp_4D
+  end interface read_var_primary
 
 contains
 
-subroutine read_var_master_int_0D(  filename, ncid, id_var, d)
+subroutine read_var_primary_int_0D(  filename, ncid, id_var, d)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -43,7 +43,7 @@ subroutine read_var_master_int_0D(  filename, ncid, id_var, d)
   integer,          intent(  out) :: d
 
   ! Local variables:
-  character(len=1024), parameter :: routine_name = 'read_var_master_int_0D'
+  character(len=1024), parameter :: routine_name = 'read_var_primary_int_0D'
   character(len=1024)            :: var_name
   integer                        :: var_type
   integer                        :: ndims_of_var
@@ -70,9 +70,9 @@ subroutine read_var_master_int_0D(  filename, ncid, id_var, d)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_int_0D
+end subroutine read_var_primary_int_0D
 
-subroutine read_var_master_int_1D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_int_1D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -86,7 +86,7 @@ subroutine read_var_master_int_1D( filename, ncid, id_var, d, start, count)
   integer,  dimension(1), optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_int_1D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_int_1D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -153,9 +153,9 @@ subroutine read_var_master_int_1D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_int_1D
+end subroutine read_var_primary_int_1D
 
-subroutine read_var_master_int_2D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_int_2D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -169,7 +169,7 @@ subroutine read_var_master_int_2D( filename, ncid, id_var, d, start, count)
   integer,  dimension(2),   optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_int_2D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_int_2D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -236,9 +236,9 @@ subroutine read_var_master_int_2D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_int_2D
+end subroutine read_var_primary_int_2D
 
-subroutine read_var_master_int_3D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_int_3D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -252,7 +252,7 @@ subroutine read_var_master_int_3D( filename, ncid, id_var, d, start, count)
   integer, dimension(3),     optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_int_3D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_int_3D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -319,9 +319,9 @@ subroutine read_var_master_int_3D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_int_3D
+end subroutine read_var_primary_int_3D
 
-subroutine read_var_master_int_4D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_int_4D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -335,7 +335,7 @@ subroutine read_var_master_int_4D( filename, ncid, id_var, d, start, count)
   integer, dimension(4),       optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_int_4D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_int_4D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -402,9 +402,9 @@ subroutine read_var_master_int_4D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_int_4D
+end subroutine read_var_primary_int_4D
 
-subroutine read_var_master_dp_0D( filename, ncid, id_var, d)
+subroutine read_var_primary_dp_0D( filename, ncid, id_var, d)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -417,7 +417,7 @@ subroutine read_var_master_dp_0D( filename, ncid, id_var, d)
   real(dp),         intent(  out) :: d
 
   ! Local variables:
-  character(len=1024), parameter :: routine_name = 'read_var_master_dp_0D'
+  character(len=1024), parameter :: routine_name = 'read_var_primary_dp_0D'
   character(len=1024)            :: var_name
   integer                        :: var_type
   integer                        :: ndims_of_var
@@ -444,9 +444,9 @@ subroutine read_var_master_dp_0D( filename, ncid, id_var, d)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_dp_0D
+end subroutine read_var_primary_dp_0D
 
-subroutine read_var_master_dp_1D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_dp_1D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -460,7 +460,7 @@ subroutine read_var_master_dp_1D( filename, ncid, id_var, d, start, count)
   integer,  dimension(1), optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_dp_1D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_dp_1D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -527,9 +527,9 @@ subroutine read_var_master_dp_1D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_dp_1D
+end subroutine read_var_primary_dp_1D
 
-subroutine read_var_master_dp_2D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_dp_2D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -543,7 +543,7 @@ subroutine read_var_master_dp_2D( filename, ncid, id_var, d, start, count)
   integer,  dimension(2),     optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_dp_2D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_dp_2D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -610,9 +610,9 @@ subroutine read_var_master_dp_2D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_dp_2D
+end subroutine read_var_primary_dp_2D
 
-subroutine read_var_master_dp_3D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_dp_3D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -626,7 +626,7 @@ subroutine read_var_master_dp_3D( filename, ncid, id_var, d, start, count)
   integer,  dimension(3),     optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_dp_3D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_dp_3D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -693,9 +693,9 @@ subroutine read_var_master_dp_3D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_dp_3D
+end subroutine read_var_primary_dp_3D
 
-subroutine read_var_master_dp_4D( filename, ncid, id_var, d, start, count)
+subroutine read_var_primary_dp_4D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
   ! NOTE: only the Master actually reads data! Distributing to other processes
@@ -709,7 +709,7 @@ subroutine read_var_master_dp_4D( filename, ncid, id_var, d, start, count)
   integer,  dimension(4),       optional, intent(in   ) :: start, count
 
   ! Local variables:
-  character(len=1024), parameter          :: routine_name = 'read_var_master_dp_4D'
+  character(len=1024), parameter          :: routine_name = 'read_var_primary_dp_4D'
   character(len=1024)                     :: var_name
   integer                                 :: var_type
   integer                                 :: ndims_of_var
@@ -776,6 +776,6 @@ subroutine read_var_master_dp_4D( filename, ncid, id_var, d, start, count)
   ! Finalise routine path
   call finalise_routine( routine_name)
 
-end subroutine read_var_master_dp_4D
+end subroutine read_var_primary_dp_4D
 
-end module netcdf_read_var_master
+end module netcdf_read_var_primary
