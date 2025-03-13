@@ -301,7 +301,7 @@ contains
 
       ! if we've reached the maximum allowed number of iterations without converging, throw a warning
       if (viscosity_iteration_i > C%visc_it_nit) then
-        if (par%master) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        if (par%primary) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
         exit viscosity_iteration
       end if
 

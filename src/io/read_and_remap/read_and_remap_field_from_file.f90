@@ -620,7 +620,7 @@ contains
 
       ! Read the data
       call read_var_master( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
-      if (par%master) d = d_with_time( 1)
+      if (par%primary) d = d_with_time( 1)
 
       ! Broadcast to all processes
       call MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)

@@ -70,10 +70,10 @@ subroutine check_x( filename, ncid)
   ! Read variable
   call read_var_master( filename, ncid, id_var, x)
 
-  if (par%master) call assert( (.not. any( isnan( x))), 'found NaNs in x')
+  if (par%primary) call assert( (.not. any( isnan( x))), 'found NaNs in x')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dx = x( 2) - x( 1)
     do i = 2, n
       dxp = x( i) - x( i-1)
@@ -142,10 +142,10 @@ subroutine check_y( filename, ncid)
   ! Read variable
   call read_var_master( filename, ncid, id_var, y)
 
-  if (par%master) call assert( (.not. any( isnan( y))), 'found NaNs in y')
+  if (par%primary) call assert( (.not. any( isnan( y))), 'found NaNs in y')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dy = y( 2) - y( 1)
     do i = 2, n
       dyp = y( i) - y( i-1)
@@ -208,10 +208,10 @@ subroutine check_lon( filename, ncid)
   ! Read variable
   call read_var_master( filename, ncid, id_var, lon)
 
-  if (par%master) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
+  if (par%primary) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dlon = lon( 2) - lon( 1)
     do i = 2, n
       dlonp = lon( i) - lon( i-1)
@@ -273,10 +273,10 @@ subroutine check_lat( filename, ncid)
   ! Read variable
   call read_var_master( filename, ncid, id_var, lat)
 
-  if (par%master) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
+  if (par%primary) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dlat = lat( 2) - lat( 1)
     do i = 2, n
       dlatp = lat( i) - lat( i-1)
@@ -559,7 +559,7 @@ subroutine check_zeta( filename, ncid)
   call read_var_master( filename, ncid, id_var, zeta)
 
   ! Check validity
-  if (par%master) then
+  if (par%primary) then
     call assert( (.not. any( isnan( zeta))), 'found NaNs in zeta')
 
     if (zeta( 1) /= 0._dp) call crash('zeta in file "' // trim( filename) // '" does not start at zero!')
@@ -655,7 +655,7 @@ subroutine check_time( filename, ncid)
     call read_var_master( filename, ncid, id_var, time)
 
     ! Check validity
-    if (par%master) call assert( (.not. any( isnan( time))), 'found NaN in time')
+    if (par%primary) call assert( (.not. any( isnan( time))), 'found NaN in time')
 
     ! Clean up after yourself
     deallocate( time)
@@ -713,7 +713,7 @@ subroutine check_depth( filename, ncid)
   call read_var_master( filename, ncid, id_var, depth)
 
   ! Check validity
-  if (par%master) then
+  if (par%primary) then
     call assert( (.not. any( isnan( depth))), 'found NaNs in depth')
 
     do k = 2, n

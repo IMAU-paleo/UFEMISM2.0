@@ -46,11 +46,11 @@ contains
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
     ! Gather data to the master
-    if (par%master) allocate( d_transect( transect%nV))
+    if (par%primary) allocate( d_transect( transect%nV))
     call gather_to_master( d_transect_partial, d_transect)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_transect_with_time( transect%nV,1))
       d_transect_with_time( :,1) = d_transect
     end if
@@ -93,11 +93,11 @@ contains
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
     ! Gather data to the master
-    if (par%master) allocate( d_transect( transect%nV, size( d_transect_partial,2)))
+    if (par%primary) allocate( d_transect( transect%nV, size( d_transect_partial,2)))
     call gather_to_master( d_transect_partial, d_transect)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_transect_with_time( transect%nV, size( d_transect_partial,2), 1))
       d_transect_with_time( :,:,1) = d_transect
     end if

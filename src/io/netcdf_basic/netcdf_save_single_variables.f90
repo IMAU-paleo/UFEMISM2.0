@@ -163,7 +163,7 @@ contains
     ! Gather data to the master
     n_partial = size( d_partial,1)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot))
       call gather_to_master( d_partial, d_tot)
     else
@@ -218,7 +218,7 @@ contains
     n_partial = size( d_partial,1)
     n2        = size( d_partial,2)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot, n2))
       call gather_to_master( d_partial, d_tot)
     else
@@ -273,7 +273,7 @@ contains
     ! Gather data to the master
     n_partial = size( d_partial,1)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot))
       call gather_to_master( d_partial, d_tot)
     else
@@ -328,7 +328,7 @@ contains
     n_partial = size( d_partial,1)
     n2        = size( d_partial,2)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot, n2))
       call gather_to_master( d_partial, d_tot)
     else
@@ -361,7 +361,7 @@ contains
     ! Local variables:
     logical :: file_exists
 
-    if (par%master) then
+    if (par%primary) then
       inquire( exist = file_exists, file = trim( filename))
       if (file_exists) then
         call system('rm -f ' // filename)

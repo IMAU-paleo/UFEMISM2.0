@@ -80,7 +80,7 @@ contains
       return
     end if
 
-    if (par%master) then
+    if (par%primary) then
       write(*,"(A)") '     Initialising the sub-grid bedrock cumulative density functions...'
     end if
 
@@ -131,7 +131,7 @@ contains
     end select
 
     ! Write to terminal
-    if (par%master) write(0,*) '      Reading CDF functions from file "' // colour_string( trim( filename),'light blue') // '"...'
+    if (par%primary) write(0,*) '      Reading CDF functions from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     if (.not. check == 'read_from_file') then
       call crash('The initial mesh was not read from a file. Reading a bedrock CDF this way makes no sense!')
@@ -167,7 +167,7 @@ contains
       return
     end if
 
-    if (par%master) write(*,"(A)") '       Calculating bedrock CDFs from initial geometry...'
+    if (par%primary) write(*,"(A)") '       Calculating bedrock CDFs from initial geometry...'
 
     ! Calculate CDFs separately on the a-grid (vertices) and the b-grid (triangles)
     call calc_bedrock_CDFs_a( mesh, refgeo, ice)

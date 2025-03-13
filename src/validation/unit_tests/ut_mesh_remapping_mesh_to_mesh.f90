@@ -185,7 +185,7 @@ contains
     call mat_petsc2CSR( map%M, M_CSR)
     call gather_CSR_dist_to_master( M_CSR, M_CSR_tot)
 
-    if (par%master) then
+    if (par%primary) then
       isso = .true.
       do i = 1, M_CSR_tot%m
         k1 = M_CSR_tot%ptr(i)

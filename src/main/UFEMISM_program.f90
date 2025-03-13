@@ -77,7 +77,7 @@ PROGRAM UFEMISM_program
   CALL initialise_control_and_resource_tracker
 
   ! Check input argument for special cases (unit tests, component tests)
-  if (par%master) then
+  if (par%primary) then
     if (iargc() == 1) then
       call getarg( 1, input_argument)
     else

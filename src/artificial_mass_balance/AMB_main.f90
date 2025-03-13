@@ -37,7 +37,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising artificial mass balance model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising artificial mass balance model...'
 
     ! Allocate memory for main variables
     ALLOCATE( AMB%AMB( mesh%vi1:mesh%vi2))
@@ -65,7 +65,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping artificial mass balance model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping artificial mass balance model data to the new mesh...'
 
     ! Reallocate memory for main variables
     CALL reallocate_bounds( AMB%AMB, mesh_new%vi1, mesh_new%vi2)

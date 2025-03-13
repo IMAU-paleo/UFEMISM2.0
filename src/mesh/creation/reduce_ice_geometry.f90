@@ -72,7 +72,7 @@ contains
     call init_routine( routine_name)
 
     ! allocate memory for gathered ice geometry data
-    if (par%master) then
+    if (par%primary) then
       allocate( Hi_grid( grid%nx, grid%ny))
       allocate( Hb_grid( grid%nx, grid%ny))
       allocate( Hs_grid( grid%nx, grid%ny))
@@ -92,7 +92,7 @@ contains
 
     ! Let the master calculate the polygons and lines
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Allocate memory for thickness above floatation and Hb-SL
       allocate( TAF_grid(         grid%nx, grid%ny))
@@ -206,7 +206,7 @@ contains
     call MPI_BCAST( n_poly_mult_shelf, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for the polygons on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( poly_mult_sheet( n_poly_mult_sheet,2))
       allocate( poly_mult_shelf( n_poly_mult_shelf,2))
     end if
@@ -222,7 +222,7 @@ contains
     call MPI_BCAST( n_line_coastline     , 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory for the lines on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( p_line_grounding_line( n_line_grounding_line,4))
       allocate( p_line_calving_front(  n_line_calving_front ,4))
       allocate( p_line_ice_front(      n_line_ice_front     ,4))
@@ -287,7 +287,7 @@ contains
     call init_routine( routine_name)
 
     ! allocate memory for gathered ice geometry data
-    if (par%master) then
+    if (par%primary) then
       allocate( Hi_tot( mesh%nV))
       allocate( Hb_tot( mesh%nV))
       allocate( Hs_tot( mesh%nV))
@@ -302,7 +302,7 @@ contains
 
     ! Let the master calculate the polygons and lines
 
-    if (par%master) then
+    if (par%primary) then
 
       ! allocate memory for thickness above floatation and Hb-SL
       allocate( TAF_tot(         mesh%nV))
@@ -380,7 +380,7 @@ contains
     call MPI_BCAST( n_poly_mult_shelf, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for the polygons on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( poly_mult_sheet( n_poly_mult_sheet,2))
       allocate( poly_mult_shelf( n_poly_mult_shelf,2))
     end if
@@ -396,7 +396,7 @@ contains
     call MPI_BCAST( n_line_coastline     , 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for the lines on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( p_line_grounding_line( n_line_grounding_line,4))
       allocate( p_line_calving_front(  n_line_calving_front ,4))
       allocate( p_line_ice_front(      n_line_ice_front     ,4))

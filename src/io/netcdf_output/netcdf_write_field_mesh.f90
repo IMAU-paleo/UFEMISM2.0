@@ -59,11 +59,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
+    if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_master( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,1))
       d_tot_with_time( :,1) = d_tot
     end if
@@ -113,11 +113,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
+    if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_master( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,1))
       d_tot_with_time( :,1) = d_tot
     end if
@@ -167,11 +167,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri))
+    if (par%primary) allocate( d_tot( mesh%nTri))
     call gather_to_master( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nTri,1))
       d_tot_with_time( :,1) = d_tot
     end if
@@ -221,11 +221,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, 12))
+    if (par%primary) allocate( d_tot( mesh%nV, 12))
     call gather_to_master( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,12,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -275,11 +275,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, mesh%nz))
+    if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
     call gather_to_master( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,mesh%nz,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -329,11 +329,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri, mesh%nz))
+    if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
     call gather_to_master( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nTri,mesh%nz,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -383,11 +383,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, C%nz_ocean))
+    if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
     call gather_to_master( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,C%nz_ocean,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -434,7 +434,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
+    if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -479,7 +479,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri))
+    if (par%primary) allocate( d_tot( mesh%nTri))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -524,7 +524,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nE))
+    if (par%primary) allocate( d_tot( mesh%nE))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -569,7 +569,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
+    if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -614,7 +614,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri))
+    if (par%primary) allocate( d_tot( mesh%nTri))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -659,7 +659,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nE))
+    if (par%primary) allocate( d_tot( mesh%nE))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -704,7 +704,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, 12))
+    if (par%primary) allocate( d_tot( mesh%nV, 12))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -749,7 +749,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, mesh%nz))
+    if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -794,7 +794,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri, mesh%nz))
+    if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension
@@ -839,7 +839,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, C%nz_ocean))
+    if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
     call gather_to_master( d_partial, d_tot)
 
     ! Inquire length of time dimension

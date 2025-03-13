@@ -224,7 +224,7 @@ contains
 
       ! if we've reached the maximum allowed number of iterations without converging, throw a warning
       if (viscosity_iteration_i > C%visc_it_nit) then
-        if (par%master) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        if (par%primary) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
         exit viscosity_iteration
       end if
 
@@ -472,7 +472,7 @@ contains
     end if
 
     ! write to terminal
-    if (par%master) write(0,*) '   Initialising SSA velocities from file "' // &
+    if (par%primary) write(0,*) '   Initialising SSA velocities from file "' // &
       colour_string( trim( filename),'light blue') // '"...'
 
     ! Read velocities from the file
@@ -552,7 +552,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to SSA restart file "' // &
+    if (par%primary) write(0,'(A)') '   Writing to SSA restart file "' // &
       colour_string( trim( SSA%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -598,7 +598,7 @@ contains
     call generate_filename_XXXXXdotnc( filename_base, SSA%restart_filename)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating SSA restart file "' // &
+    if (par%primary) write(0,'(A)') '   Creating SSA restart file "' // &
       colour_string( trim( SSA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

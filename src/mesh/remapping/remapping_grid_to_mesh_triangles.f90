@@ -569,7 +569,7 @@ contains
     call init_routine( routine_name)
 
     ! Delete grid & mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh, status = 'old')

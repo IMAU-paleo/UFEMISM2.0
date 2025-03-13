@@ -209,7 +209,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Convert gridded data to vector form
-    IF (par%master) THEN
+    IF (par%primary) THEN
       if (.not. present(d_grid)) call crash('d_grid should be present on the master process')
 
       ! Allocate memory
@@ -228,7 +228,7 @@ CONTAINS
     CALL distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_vec_total)
+    IF (par%primary) DEALLOCATE( d_grid_vec_total)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -259,21 +259,21 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    IF (par%primary .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
+    IF (par%primary) ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
     ALLOCATE( d_grid_vec_partial_2D( SIZE( d_grid_vec_partial,1)), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
     DO k = 1, SIZE( d_grid_vec_partial,2)
-      IF (par%master) d_grid_2D = d_grid( :,:,k)
+      IF (par%primary) d_grid_2D = d_grid( :,:,k)
       CALL distribute_lonlat_gridded_data_from_master_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
       d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
     END DO
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_2D)
+    IF (par%primary) DEALLOCATE( d_grid_2D)
     DEALLOCATE( d_grid_vec_partial_2D)
 
     ! Add routine to path
@@ -304,13 +304,13 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
+    IF (par%primary) ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
 
     ! Gather data
     CALL gather_to_master( d_grid_vec_partial, d_grid_vec_total)
 
     ! Convert to grid form
-    IF (par%master) THEN
+    IF (par%primary) THEN
       DO n = 1, grid%n
         i = grid%n2ij( n,1)
         j = grid%n2ij( n,2)
@@ -319,7 +319,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_vec_total)
+    IF (par%primary) DEALLOCATE( d_grid_vec_total)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
@@ -350,21 +350,21 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    IF (par%primary .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_2D( grid%nlon, grid%nlat), source = 0._dp)
+    IF (par%primary) ALLOCATE( d_grid_2D( grid%nlon, grid%nlat), source = 0._dp)
     ALLOCATE( d_grid_vec_partial_2D( grid%n_loc), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
     DO k = 1, SIZE( d_grid_vec_partial,2)
       d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
       CALL gather_lonlat_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-      IF (par%master) d_grid( :,:,k) = d_grid_2D
+      IF (par%primary) d_grid( :,:,k) = d_grid_2D
     END DO
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_2D)
+    IF (par%primary) DEALLOCATE( d_grid_2D)
     DEALLOCATE( d_grid_vec_partial_2D)
 
     ! Add routine to path

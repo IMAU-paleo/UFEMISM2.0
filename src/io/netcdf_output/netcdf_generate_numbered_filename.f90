@@ -33,7 +33,7 @@ contains
     ! the others get a chance to look, so they see _00001 already exists and try
     ! to create _00002 instead.)
 
-    if (par%master) then
+    if (par%primary) then
 
       i = 1
       filename_base_XXXXXdotnc = trim( filename_base) // '_00001.nc'

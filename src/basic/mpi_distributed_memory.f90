@@ -93,7 +93,7 @@ contains
     call MPI_BCAST( n_tot, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Safety
-    if (par%master) then
+    if (par%primary) then
       if (present(d_tot)) then
         if( n_tot /= size( d_tot,1)) call crash('combined sizes of d_partial dont match size of d_tot')
       else
@@ -140,18 +140,18 @@ contains
     do i = 1, par%n-1
       if (par%i == i) then
         call MPI_SEND( n2, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
-      elseif (par%master) then
+      elseif (par%primary) then
         call MPI_RECV( n2_proc, 1, MPI_integer, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         if (n2_proc /= n2) call crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       end if
     end do
 
-    if (par%master) then
+    if (par%primary) then
       if (.not. present(d_tot)) call crash('d_tot must be present on master process')
     endif
 
     do j = 1, n2
-      if (par%master) then
+      if (par%primary) then
         call gather_to_master_int_1D( d_partial(:,j), d_tot( :, j))
       else
         call gather_to_master_int_1D( d_partial(:,j), dummy)
@@ -188,7 +188,7 @@ contains
     call MPI_BCAST( n_tot, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Safety
-    if (par%master) then
+    if (par%primary) then
       if (present(d_tot)) then
         if( n_tot /= size( d_tot,1)) call crash('combined sizes of d_partial dont match size of d_tot')
       else
@@ -235,18 +235,18 @@ contains
     do i = 1, par%n-1
       if (par%i == i) then
         call MPI_SEND( n2, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
-      elseif (par%master) then
+      elseif (par%primary) then
         call MPI_RECV( n2_proc, 1, MPI_integer, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         if (n2_proc /= n2) call crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       end if
     end do
 
-    if (par%master) then
+    if (par%primary) then
       if (.not. present(d_tot)) call crash('d_tot must be present on master process')
     endif
 
     do j = 1, n2
-      if (par%master) then
+      if (par%primary) then
         call gather_to_master_dp_1D( d_partial(:,j), d_tot( :, j))
       else
         call gather_to_master_dp_1D( d_partial(:,j), dummy)
@@ -370,7 +370,7 @@ contains
     do i = 1, par%n-1
       if (par%i == i) then
         call MPI_SEND( n2, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
-      elseif (par%master) then
+      elseif (par%primary) then
         call MPI_RECV( n2_proc, 1, MPI_integer, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         if (n2_proc /= n2) call crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       end if
@@ -459,7 +459,7 @@ contains
     do i = 1, par%n-1
       if (par%i == i) then
         call MPI_SEND( n2, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
-      elseif (par%master) then
+      elseif (par%primary) then
         call MPI_RECV( n2_proc, 1, MPI_integer, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         if (n2_proc /= n2) call crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       end if
@@ -509,7 +509,7 @@ contains
     call MPI_BCAST( n_tot, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Safety
-    if (par%master) then
+    if (par%primary) then
       if( .not. present( d_tot)) call crash('d_tot must be present on master')
       if( n_tot /= size( d_tot,1)) call crash('combined sizes of d_partial dont match size of d_tot')
     end if
@@ -552,14 +552,14 @@ contains
     do i = 1, par%n-1
       if (par%i == i) then
         call MPI_SEND( n2, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
-      elseif (par%master) then
+      elseif (par%primary) then
         call MPI_RECV( n2_proc, 1, MPI_integer, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         if (n2_proc /= n2) call crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       end if
     end do
 
     do j = 1, n2
-      if (par%master) then
+      if (par%primary) then
         call distribute_from_master_int_1D( d_tot( :, j), d_partial( : ,j))
       else
         call distribute_from_master_int_1D( d_partial=d_partial( : ,j))
@@ -596,7 +596,7 @@ contains
     call MPI_BCAST( n_tot, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Safety
-    if (par%master) then
+    if (par%primary) then
       if( .not. present( d_tot)) call crash('d_tot must be present on master')
       if( n_tot /= size( d_tot,1)) call crash('combined sizes of d_partial dont match size of d_tot')
     end if
@@ -639,7 +639,7 @@ contains
     do i = 1, par%n-1
       if (par%i == i) then
         call MPI_SEND( n2, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
-      elseif (par%master) then
+      elseif (par%primary) then
         call MPI_RECV( n2_proc, 1, MPI_integer, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
         if (n2_proc /= n2) call crash('n2 = {int_01} on master, but {int_02} on process {int_03}!', int_01 = n2, int_02 = n2_proc, int_03 = i)
       end if
@@ -647,7 +647,7 @@ contains
 
     ! Distribute 1 column at a time
     do j = 1, n2
-      if (par%master) then
+      if (par%primary) then
         call distribute_from_master_dp_1D( d_tot( :, j), d_partial( : ,j))
       else
         call distribute_from_master_dp_1D( d_partial=d_partial( : ,j))

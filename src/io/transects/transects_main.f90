@@ -96,7 +96,7 @@ contains
     transect%name = name
     transect%dx   = dx
 
-    if (par%master) write(0,*) '  Initialising output transect ', &
+    if (par%primary) write(0,*) '  Initialising output transect ', &
       colour_string( trim( transect%name),'light blue'), '...'
 
     select case (source)
@@ -456,7 +456,7 @@ contains
     ! Let the master read the file, then broadcast the data to the processes
 
     ! Determine number of waypoints
-    if (par%master) then
+    if (par%primary) then
       n_wp = 0
       open( unit = 1337, file = filename, action = 'read')
       do while (.true.)
@@ -474,7 +474,7 @@ contains
     allocate( waypoints( n_wp,2))
 
     ! Read waypoints
-    if (par%master) then
+    if (par%primary) then
       open( unit = 1337, file = filename, action = 'read')
       do i = 1, n_wp
         read( unit = 1337, fmt = *, iostat = ios) waypoints( i,1), waypoints( i,2)
@@ -770,7 +770,7 @@ contains
 
     filename = transect%nc%filename
 
-    if (par%master) write(0,*) '  Writing to transect output file "', &
+    if (par%primary) write(0,*) '  Writing to transect output file "', &
       colour_string( trim( filename), 'light blue'), '"...'
 
     ! Map ice model data to transect

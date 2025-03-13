@@ -62,7 +62,7 @@ subroutine read_var_master_int_0D(  filename, ncid, id_var, d)
   if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
       filename = filename, dimvarname = var_name)
   end if
@@ -115,18 +115,18 @@ subroutine read_var_master_int_1D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -135,17 +135,17 @@ subroutine read_var_master_int_1D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
@@ -198,18 +198,18 @@ subroutine read_var_master_int_2D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1, 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -218,17 +218,17 @@ subroutine read_var_master_int_2D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
@@ -281,18 +281,18 @@ subroutine read_var_master_int_3D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1, 1, 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -301,17 +301,17 @@ subroutine read_var_master_int_3D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
@@ -364,18 +364,18 @@ subroutine read_var_master_int_4D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1, 1, 1, 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -384,17 +384,17 @@ subroutine read_var_master_int_4D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
@@ -436,7 +436,7 @@ subroutine read_var_master_dp_0D( filename, ncid, id_var, d)
   if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d), &
       filename = filename, dimvarname = var_name)
   end if
@@ -489,18 +489,18 @@ subroutine read_var_master_dp_1D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -509,17 +509,17 @@ subroutine read_var_master_dp_1D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
@@ -572,18 +572,18 @@ subroutine read_var_master_dp_2D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1, 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -592,17 +592,17 @@ subroutine read_var_master_dp_2D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
@@ -655,18 +655,18 @@ subroutine read_var_master_dp_3D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1, 1, 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -675,17 +675,17 @@ subroutine read_var_master_dp_3D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if
@@ -738,18 +738,18 @@ subroutine read_var_master_dp_4D( filename, ncid, id_var, d, start, count)
   else
     start_applied = (/ 1, 1, 1, 1 /)
   end if
-  if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+  if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
   if (present( count)) then
     count_applied = count
   else
-    if (par%master) then
+    if (par%primary) then
       count_applied = shape(d)
     else
       count_applied = 1
     end if
   end if
-  if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+  if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
   ! Check sizes of dimensions
   do di = 1, ndims_of_var
@@ -758,17 +758,17 @@ subroutine read_var_master_dp_4D( filename, ncid, id_var, d, start, count)
     call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
     ! Check if the combination of dimension size, start, and count, matches the size of d
-    if (par%master .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
+    if (par%primary .and. count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
       '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
     ! Check if this dimension is large enough to read this amount of data
-    if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+    if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
       trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
 
   end do
 
   ! Read the data
-  if (par%master) then
+  if (par%primary) then
     call handle_netcdf_error( NF90_GET_VAR( ncid, id_var, d, start_applied, count_applied), &
       filename = filename, dimvarname = var_name)
   end if

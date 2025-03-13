@@ -32,8 +32,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '  Running remapping component tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '  Running remapping component tests...'
+    if (par%primary) write(0,*) ''
 
     call create_remapping_component_tests_output_folder( foldername_remapping)
 
@@ -62,7 +62,7 @@ contains
 
     foldername_remapping = trim(C%output_dir) // '/remapping'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_remapping) // '/.', exist = ex)

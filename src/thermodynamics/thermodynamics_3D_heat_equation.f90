@@ -502,7 +502,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to thermodynamics restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to thermodynamics restart file "' // &
       colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -551,7 +551,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, ice%thermo_restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating thermodynamics restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating thermodynamics restart file "' // &
       colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

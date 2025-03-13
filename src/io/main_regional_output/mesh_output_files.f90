@@ -36,7 +36,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to mesh output file "' // colour_string( trim( region%output_filename_mesh), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Writing to mesh output file "' // colour_string( trim( region%output_filename_mesh), 'light blue') // '"...'
 
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_writing( region%output_filename_mesh, ncid)
@@ -644,7 +644,7 @@ contains
     call generate_filename_XXXXXdotnc( filename_base, region%output_filename_mesh)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating mesh output file "' // colour_string( trim( region%output_filename_mesh), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Creating mesh output file "' // colour_string( trim( region%output_filename_mesh), 'light blue') // '"...'
 
     ! Create the NetCDF file
     call create_new_netcdf_file_for_writing( region%output_filename_mesh, ncid)

@@ -91,7 +91,7 @@ contains
     call mat_CSR2petsc( M_CSR, map%M)
 
     ! Delete mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
@@ -194,7 +194,7 @@ contains
     call mat_CSR2petsc( M_CSR, map%M)
 
     ! Delete mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
@@ -248,7 +248,7 @@ contains
     call correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
 
     ! Delete mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')

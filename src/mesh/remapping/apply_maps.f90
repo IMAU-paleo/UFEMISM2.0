@@ -287,7 +287,7 @@ contains
     !     domain boundary, set values in the outermost row of grid cells
     !    equal to those in the second-outermost row
 
-    if (par%master) then
+    if (par%primary) then
       ! allocate memory for complete gridded data
       allocate( d_grid( grid%nx, grid%ny))
       ! Gather complete gridded data
@@ -348,7 +348,7 @@ contains
     !     domain boundary, set values in the outermost row of grid cells
     !    equal to those in the second-outermost row
 
-    if (par%master) then
+    if (par%primary) then
       ! allocate memory for complete gridded data
       allocate( d_grid( grid%nx, grid%ny, size( d_mesh_partial,2)))
       ! Gather complete gridded data

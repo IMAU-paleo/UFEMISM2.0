@@ -71,43 +71,43 @@ contains
     if (indexing == 'lonlat') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlon, grid_loc%nlat))
+      if (par%primary) allocate( d_grid( grid_loc%nlon, grid_loc%nlat))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     elseif (indexing == 'latlon') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlat, grid_loc%nlon))
+      if (par%primary) allocate( d_grid( grid_loc%nlat, grid_loc%nlon))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     else
@@ -124,7 +124,7 @@ contains
     if     (indexing == 'lonlat') then
       ! No need to do anything
     elseif (indexing == 'latlon') then
-      if (par%master) call permute( d_grid, map = [2,1])
+      if (par%primary) call permute( d_grid, map = [2,1])
     else
       call crash('unknown indexing = "' // trim( indexing) // '"!')
     end if
@@ -134,7 +134,7 @@ contains
       ! No need to do anything
     elseif (londir == 'reverse') then
       call flip( grid_loc%lon)
-      if (par%master) call flip( d_grid, 1)
+      if (par%primary) call flip( d_grid, 1)
     else
       call crash('unknown londir = "' // trim( londir) // '"!')
     end if
@@ -144,7 +144,7 @@ contains
       ! No need to do anything
     elseif (latdir == 'reverse') then
       call flip( grid_loc%lat)
-      if (par%master) call flip( d_grid, 2)
+      if (par%primary) call flip( d_grid, 2)
     else
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
@@ -158,7 +158,7 @@ contains
     ! Clean up gridded data on the master
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_grid)
+    if (par%primary) deallocate( d_grid)
     call deallocate_lonlat_grid( grid_loc)
 
     ! Finalise routine path
@@ -217,43 +217,43 @@ contains
     if (indexing == 'lonlat') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlon, grid_loc%nlat, 12))
+      if (par%primary) allocate( d_grid( grid_loc%nlon, grid_loc%nlat, 12))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 12, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, 12, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, 12, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     elseif (indexing == 'latlon') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlat, grid_loc%nlon, 12))
+      if (par%primary) allocate( d_grid( grid_loc%nlat, grid_loc%nlon, 12))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 12, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, 12, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, 12, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     else
@@ -270,7 +270,7 @@ contains
     if     (indexing == 'lonlat') then
       ! No need to do anything
     elseif (indexing == 'latlon') then
-      if (par%master) call permute( d_grid, map = [2,1,3])
+      if (par%primary) call permute( d_grid, map = [2,1,3])
     else
       call crash('unknown indexing = "' // trim( indexing) // '"!')
     end if
@@ -280,7 +280,7 @@ contains
       ! No need to do anything
     elseif (londir == 'reverse') then
       call flip( grid_loc%lon)
-      if (par%master) call flip( d_grid, 1)
+      if (par%primary) call flip( d_grid, 1)
     else
       call crash('unknown londir = "' // trim( londir) // '"!')
     end if
@@ -290,7 +290,7 @@ contains
       ! No need to do anything
     elseif (latdir == 'reverse') then
       call flip( grid_loc%lat)
-      if (par%master) call flip( d_grid, 2)
+      if (par%primary) call flip( d_grid, 2)
     else
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
@@ -302,7 +302,7 @@ contains
     call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_grid)
+    if (par%primary) deallocate( d_grid)
     call deallocate_lonlat_grid( grid_loc)
 
     ! Finalise routine path
@@ -363,43 +363,43 @@ contains
     if (indexing == 'lonlat') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlon, grid_loc%nlat, nzeta_loc))
+      if (par%primary) allocate( d_grid( grid_loc%nlon, grid_loc%nlat, nzeta_loc))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, nzeta_loc, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     elseif (indexing == 'latlon') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlat, grid_loc%nlon, nzeta_loc))
+      if (par%primary) allocate( d_grid( grid_loc%nlat, grid_loc%nlon, nzeta_loc))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, nzeta_loc, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     else
@@ -416,7 +416,7 @@ contains
     if     (indexing == 'lonlat') then
       ! No need to do anything
     elseif (indexing == 'latlon') then
-      if (par%master) call permute( d_grid, map = [2,1,3])
+      if (par%primary) call permute( d_grid, map = [2,1,3])
     else
       call crash('unknown indexing = "' // trim( indexing) // '"!')
     end if
@@ -426,7 +426,7 @@ contains
       ! No need to do anything
     elseif (londir == 'reverse') then
       call flip( grid_loc%lon)
-      if (par%master) call flip( d_grid, 1)
+      if (par%primary) call flip( d_grid, 1)
     else
       call crash('unknown londir = "' // trim( londir) // '"!')
     end if
@@ -436,7 +436,7 @@ contains
       ! No need to do anything
     elseif (latdir == 'reverse') then
       call flip( grid_loc%lat)
-      if (par%master) call flip( d_grid, 2)
+      if (par%primary) call flip( d_grid, 2)
     else
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
@@ -448,7 +448,7 @@ contains
     call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_grid)
+    if (par%primary) deallocate( d_grid)
     call deallocate_lonlat_grid( grid_loc)
 
     ! Finalise routine path
@@ -509,43 +509,43 @@ contains
     if (indexing == 'lonlat') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlon, grid_loc%nlat, ndepth_loc))
+      if (par%primary) allocate( d_grid( grid_loc%nlon, grid_loc%nlat, ndepth_loc))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlon, grid_loc%nlat, ndepth_loc, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     elseif (indexing == 'latlon') then
 
       ! allocate memory
-      if (par%master) allocate( d_grid( grid_loc%nlat, grid_loc%nlon, ndepth_loc))
+      if (par%primary) allocate( d_grid( grid_loc%nlat, grid_loc%nlon, ndepth_loc))
 
       ! Read data from file
       if (.not. present( time_to_read)) then
         call read_var_master( filename, ncid, id_var, d_grid)
       else
         ! allocate memory
-        if (par%master) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1))
+        if (par%primary) allocate( d_grid_with_time( grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1))
         ! Find out which timeframe to read
         call find_timeframe( filename, ncid, time_to_read, ti)
         ! Read data
         call read_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid_loc%nlat, grid_loc%nlon, ndepth_loc, 1 /) )
         ! Copy to output memory
-        if (par%master) d_grid = d_grid_with_time( :,:,:,1)
+        if (par%primary) d_grid = d_grid_with_time( :,:,:,1)
         ! Clean up after yourself
-        if (par%master) deallocate( d_grid_with_time)
+        if (par%primary) deallocate( d_grid_with_time)
       end if
 
     else
@@ -562,7 +562,7 @@ contains
     if     (indexing == 'lonlat') then
       ! No need to do anything
     elseif (indexing == 'latlon') then
-      if (par%master) call permute( d_grid, map = [2,1,3])
+      if (par%primary) call permute( d_grid, map = [2,1,3])
     else
       call crash('unknown indexing = "' // trim( indexing) // '"!')
     end if
@@ -572,7 +572,7 @@ contains
       ! No need to do anything
     elseif (londir == 'reverse') then
       call flip( grid_loc%lon)
-      if (par%master) call flip( d_grid, 1)
+      if (par%primary) call flip( d_grid, 1)
     else
       call crash('unknown londir = "' // trim( londir) // '"!')
     end if
@@ -582,7 +582,7 @@ contains
       ! No need to do anything
     elseif (latdir == 'reverse') then
       call flip( grid_loc%lat)
-      if (par%master) call flip( d_grid, 2)
+      if (par%primary) call flip( d_grid, 2)
     else
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
@@ -594,7 +594,7 @@ contains
     call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_grid)
+    if (par%primary) deallocate( d_grid)
     call deallocate_lonlat_grid( grid_loc)
 
     ! Finalise routine path

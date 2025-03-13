@@ -54,15 +54,15 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_INT)) &
+    if (par%primary .and. .not. (var_type == NF90_INT)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
         filename = filename, dimvarname = var_name)
     end if
@@ -101,11 +101,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_INT)) &
+    if (par%primary .and. .not. (var_type == NF90_INT)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -114,18 +114,18 @@ contains
     else
       start_applied = 1
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -134,7 +134,7 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if ( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
@@ -148,7 +148,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -187,11 +187,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_INT)) &
+    if (par%primary .and. .not. (var_type == NF90_INT)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -200,18 +200,18 @@ contains
     else
       start_applied = (/ 1, 1 /)
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -220,13 +220,13 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
             trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
@@ -234,7 +234,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -273,11 +273,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_INT)) &
+    if (par%primary .and. .not. (var_type == NF90_INT)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -286,18 +286,18 @@ contains
     else
       start_applied = (/ 1, 1, 1 /)
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -306,7 +306,7 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
@@ -320,7 +320,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -359,11 +359,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_INT)) &
+    if (par%primary .and. .not. (var_type == NF90_INT)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -372,18 +372,18 @@ contains
     else
       start_applied = (/ 1, 1, 1, 1 /)
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -392,7 +392,7 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
@@ -405,7 +405,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -444,11 +444,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_INT64)) &
+    if (par%primary .and. .not. (var_type == NF90_INT64)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_INT!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -457,18 +457,18 @@ contains
     else
       start_applied = (/ 1, 1 /)
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -477,13 +477,13 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
         ! Check if this dimension is large enough to read this amount of data
-        if (par%master .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
+        if (par%primary .and. start_applied( di) + count_applied( di) - 1 > dim_length) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // &
             trim( filename) // '"start + count - 1 = {int_01}, but dim_length = {int_02}!', int_01 = start_applied( di) + count_applied( di) - 1, int_02 = dim_length)
       end if
 
@@ -491,7 +491,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -524,15 +524,15 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+    if (par%primary .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d), &
         filename = filename, dimvarname = var_name)
     end if
@@ -571,11 +571,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+    if (par%primary .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -584,18 +584,18 @@ contains
     else
       start_applied =  1
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -604,7 +604,7 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if ( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
@@ -621,7 +621,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -660,11 +660,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+    if (par%primary .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 2) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -673,18 +673,18 @@ contains
     else
       start_applied = (/ 1, 1 /)
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -694,7 +694,7 @@ contains
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
       ! Check if the combination of dimension size, start, and count, matches the size of d
-      if (par%master) then
+      if (par%primary) then
         if( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
 
@@ -707,7 +707,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -746,11 +746,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+    if (par%primary .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 3) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -759,18 +759,18 @@ contains
     else
       start_applied = (/ 1, 1, 1 /)
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -779,7 +779,7 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if( count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
@@ -793,7 +793,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if
@@ -832,11 +832,11 @@ contains
     call inquire_var_info( filename, ncid, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
 
     ! Check variable type
-    if (par%master .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
+    if (par%primary .and. .not. (var_type == NF90_FLOAT .or. var_type == NF90_DOUBLE)) &
       call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" is not of type NF90_FLOAT or NF90_DOUBLE!')
 
     ! Check number of dimensions
-    if (par%master .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (par%primary .and. ndims_of_var /= 4) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 #endif
 
     ! Set start and count
@@ -845,18 +845,18 @@ contains
     else
       start_applied = (/ 1, 1, 1, 1 /)
     end if
-    if (par%master .and. any( start_applied == 0)) call crash('start must be positive!')
+    if (par%primary .and. any( start_applied == 0)) call crash('start must be positive!')
 
     if (present( count)) then
       count_applied = count
     else
-      if (par%master) then
+      if (par%primary) then
         count_applied = shape(d)
       else
         count_applied = 1
       end if
     end if
-    if (par%master .and. any( count_applied == 0)) call crash('count must be positive!')
+    if (par%primary .and. any( count_applied == 0)) call crash('count must be positive!')
 
 #if (DO_ASSERTIONS)
     ! Check sizes of dimensions
@@ -865,7 +865,7 @@ contains
       ! Check size of this dimension in the file
       call inquire_dim_info( filename, ncid, dims_of_var( di), dim_name = dim_name, dim_length = dim_length)
 
-      if (par%master) then
+      if (par%primary) then
         ! Check if the combination of dimension size, start, and count, matches the size of d
         if(count_applied( di) /= SIZE( d,di)) call crash('error for dimension "' // trim( dim_name) // '" of variable "' // trim( var_name) // '" in file "' // trim( filename) // &
         '": count({int_01}) = {int_02}, but SIZE(d,{int_03}) = {int_04}!', int_01 = di, int_02 = count_applied( di), int_03 = di, int_04 = SIZE( d,di))
@@ -879,7 +879,7 @@ contains
 #endif
 
     ! Write the data
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_VAR( ncid, id_var, d, start_applied, count_applied), &
         filename = filename, dimvarname = var_name)
     end if

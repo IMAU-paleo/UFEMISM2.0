@@ -56,7 +56,7 @@ CONTAINS
       filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest_v00.nc'
 
       ! Run LADDIE
-      IF (par%master) THEN
+      IF (par%primary) THEN
         ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
         IF (C%choice_BMB_laddie_system == 'local_mac') THEN
           CALL system('cd ' // TRIM(C%dir_BMB_laddie_model) // ';' // TRIM(C%conda_activate_prompt) // '; python3 runladdie.py ' // TRIM(C%filename_BMB_laddie_configname) // '; conda deactivate')
@@ -72,14 +72,14 @@ CONTAINS
 
       ! Let UFEMISM sleep until LADDIE is finished
       CALL wait_for_laddie_to_finish( filename_laddieready, found_laddie_file)
-    
-      IF (do_hybrid) THEN 
+
+      IF (do_hybrid) THEN
         ! Only apply values to ROI
         CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temporary_BMB)
 
         DO vi = mesh%vi1, mesh%vi2
-          IF (ice%mask_ROI(vi)) THEN 
-            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+          IF (ice%mask_ROI(vi)) THEN
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
               BMB%BMB_shelf( vi) = temporary_BMB(vi)
             END IF
           END IF
@@ -94,13 +94,13 @@ CONTAINS
     ELSE ! (time = C%start_time_of_run)
       ! Read values from laddie initial output
 
-      IF (do_hybrid) THEN 
+      IF (do_hybrid) THEN
         ! Only apply values to ROI
         CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
 
         DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_ROI(vi)) THEN
-            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
               BMB%BMB_shelf( vi) = temporary_BMB(vi)
             END IF
           END IF
@@ -109,7 +109,7 @@ CONTAINS
       ELSE
         ! Apply values to all ice shelf grid cells
         CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
-      
+
       END IF
 
     END IF ! (time > C%start_time_of_run)
@@ -135,7 +135,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
 
       ! Check if LADDIE restartfile exists to copy into laddie_output directory
       INQUIRE( EXIST = file_exists, FILE = TRIM( C%filename_BMB_laddie_initial_restart))
@@ -204,7 +204,7 @@ CONTAINS
 
     ! Start sleep loop
     DO WHILE (.NOT. found_laddie_file)
-      IF (par%master) THEN
+      IF (par%primary) THEN
         print*, 'Looking for LADDIE file...'
       END IF
       CALL sync
@@ -216,7 +216,7 @@ CONTAINS
     END DO ! End sleep loop if laddieready is found
 
     ! Remove laddieready file
-    IF (par%master) THEN
+    IF (par%primary) THEN
       CALL system('rm ' // TRIM(laddieready))
     END IF
     CALL sync

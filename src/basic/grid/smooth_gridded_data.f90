@@ -55,7 +55,7 @@ subroutine smooth_Gaussian_grid_2D( grid, d_grid_vec_partial, r)
   call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid_tot)
 
   ! Let the master do the actual work
-  if (par%master) then
+  if (par%primary) then
 
     ! First smooth in the x-direction
     d_grid_tot_smoothed = 0._dp
@@ -123,7 +123,7 @@ subroutine smooth_Gaussian_grid_3D( grid, d_grid_vec_partial, r)
   call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid_tot)
 
   ! Let the master do the actual work
-  if (par%master) then
+  if (par%primary) then
 
     ! First smooth in the x-direction
     d_grid_tot_smoothed = 0._dp

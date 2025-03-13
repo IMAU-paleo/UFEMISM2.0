@@ -57,11 +57,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,1))
       d_grid_with_time( :,:,1) = d_grid
     end if
@@ -112,11 +112,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,nz,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -165,11 +165,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,1))
       d_grid_with_time( :,:,1) = d_grid
     end if
@@ -218,11 +218,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, 12))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, 12))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,12,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -273,11 +273,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,nz,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -328,11 +328,11 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,nz,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -380,7 +380,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
@@ -423,7 +423,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
@@ -464,7 +464,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
@@ -505,7 +505,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, 12))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, 12))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
@@ -548,7 +548,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
@@ -591,7 +591,7 @@ contains
 #endif
 
     ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
     call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable

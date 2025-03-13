@@ -164,7 +164,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three, dim_length = n_three )
 
     ! allocate memory for the mesh
-    if (par%master) then
+    if (par%primary) then
       call allocate_mesh_primary( mesh, name, nV_mem, nTri_mem, nC_mem)
       mesh%nV   = mesh%nV_mem
       mesh%nTri = mesh%nTri_mem
@@ -223,7 +223,7 @@ contains
     call read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
 
     ! Safety - check if the mesh data read from NetCDF makes sense
-    if (par%master) then
+    if (par%primary) then
       if (.not. test_mesh_is_self_consistent( mesh)) call crash('invalid mesh in file ' // trim( filename))
     end if
 

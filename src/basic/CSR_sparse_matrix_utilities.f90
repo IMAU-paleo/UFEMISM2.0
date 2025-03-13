@@ -256,7 +256,7 @@ contains
     if (sum( n_loc_all) /= A%n ) call crash('local numbers of columns do not add up across the processes!')
 
     ! Allocate memory
-    if (par%master) then
+    if (par%primary) then
       A_tot%m       = A%m
       A_tot%m_loc   = A%m
       A_tot%i1      = 1
@@ -284,7 +284,7 @@ contains
     end if
 
     ! Start with the master's own data
-    if (par%master) then
+    if (par%primary) then
       do row = A%i1, A%i2
         k1 = A%ptr( row)
         k2 = A%ptr( row+1) - 1
@@ -318,7 +318,7 @@ contains
         call MPI_Send( A%ind, A%nnz_max, MPI_integer         , 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%val, A%nnz_max, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierr)
 
-      elseif (par%master) then
+      elseif (par%primary) then
 
         ! Receive matrix metadata from process
         call MPI_RECV( A_proc%m      , 1, MPI_integer, p, MPI_any_TAG, MPI_COMM_WORLD, recv_status, ierr)

@@ -435,7 +435,7 @@ contains
     end if
 
     ! write to terminal
-    if (par%master) write(0,*) '   Initialising ice thickness predictor/corrector scheme from file "' // colour_string( trim( filename),'light blue') // '"...'
+    if (par%primary) write(0,*) '   Initialising ice thickness predictor/corrector scheme from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     ! Read values from the file
     if (timeframe_applied == 1E9_dp) then
@@ -493,7 +493,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to ice dynamics restart file "' // &
+    if (par%primary) write(0,'(A)') '   Writing to ice dynamics restart file "' // &
       colour_string( trim( pc%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -550,7 +550,7 @@ contains
     call generate_filename_XXXXXdotnc( filename_base, pc%restart_filename)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating ice dynamics restart file "' // &
+    if (par%primary) write(0,'(A)') '   Creating ice dynamics restart file "' // &
       colour_string( trim( pc%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

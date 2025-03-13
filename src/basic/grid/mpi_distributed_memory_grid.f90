@@ -57,7 +57,7 @@ subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_
   call init_routine( routine_name)
 
   ! Convert gridded data to vector form
-  if (par%master) then
+  if (par%primary) then
     if (.not. present(d_grid)) call crash('d_grid must be present on master')
 
     ! allocate memory
@@ -105,7 +105,7 @@ subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_p
   call init_routine( routine_name)
 
   ! Convert gridded data to vector form
-  if (par%master) then
+  if (par%primary) then
     if (.not. present(d_grid)) call crash('d_grid must be present on master')
 
     ! allocate memory
@@ -154,12 +154,12 @@ subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
     call crash('vector sizes dont match!')
   end if
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
      allocate( d_grid_2D( size( d_grid,1), size( d_grid,2)), source = 0)
   else
      allocate ( d_grid_2d(0,0))
@@ -169,7 +169,7 @@ subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_
 
   ! Treat each layer as a separate 2-D field
   do k = 1, size( d_grid_vec_partial,2)
-    if (par%master) d_grid_2D = d_grid( :,:,k)
+    if (par%primary) d_grid_2D = d_grid( :,:,k)
     call distribute_gridded_data_from_master_int_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
     d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
   end do
@@ -203,12 +203,12 @@ subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_p
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
     call crash('vector sizes dont match!')
   end if
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
      allocate( d_grid_2D( size( d_grid,1), size( d_grid,2)), source = 0._dp)
   else
      allocate ( d_grid_2d(0,0))
@@ -218,7 +218,7 @@ subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_p
 
   ! Treat each layer as a separate 2-D field
   do k = 1, size( d_grid_vec_partial,2)
-    if (par%master) d_grid_2D = d_grid( :,:,k)
+    if (par%primary) d_grid_2D = d_grid( :,:,k)
     call distribute_gridded_data_from_master_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
     d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
   end do
@@ -251,7 +251,7 @@ subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_gri
   call init_routine( routine_name)
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_vec_total( grid%n), source = 0)
   else
     ! It must be allocated to be used in a function call
@@ -262,7 +262,7 @@ subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_gri
   call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
 
   ! Convert to grid form
-  if (par%master) then
+  if (par%primary) then
     if (.not. present(d_grid)) call crash("d_grid must be present on master")
     do n = 1, grid%n
       i = grid%n2ij( n,1)
@@ -298,7 +298,7 @@ subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid
   call init_routine( routine_name)
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_vec_total( grid%n), source = 0._dp)
   else
     ! It must be allocated to be used in a function call
@@ -309,7 +309,7 @@ subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid
   call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
 
   ! Convert to grid form
-  if (par%master) then
+  if (par%primary) then
     if (.not. present(d_grid)) call crash("d_grid must be present on master")
     do n = 1, grid%n
       i = grid%n2ij( n,1)
@@ -346,10 +346,10 @@ subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_gri
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) call crash('vector sizes dont match!')
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) call crash('vector sizes dont match!')
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_2D( grid%nx, grid%ny), source = 0)
   else
     allocate( d_grid_2d(0,0))
@@ -361,7 +361,7 @@ subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_gri
   do k = 1, size( d_grid_vec_partial,2)
     d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
     call gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-    if (par%master) d_grid( :,:,k) = d_grid_2D
+    if (par%primary) d_grid( :,:,k) = d_grid_2D
   end do
 
   ! Clean up after yourself
@@ -393,12 +393,12 @@ subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
     call crash('vector sizes dont match!')
   end if
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_2D( grid%nx, grid%ny), source = 0._dp)
   else
     allocate( d_grid_2d(0,0))
@@ -410,7 +410,7 @@ subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid
   do k = 1, size( d_grid_vec_partial,2)
     d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
     call gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-    if (par%master) d_grid( :,:,k) = d_grid_2D
+    if (par%primary) d_grid( :,:,k) = d_grid_2D
   end do
 
   ! Clean up after yourself

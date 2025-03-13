@@ -44,14 +44,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Deallocate meshes in other processes just to be sure
-    IF (.NOT. par%master) CALL deallocate_mesh( mesh)
+    IF (.NOT. par%primary) CALL deallocate_mesh( mesh)
 
     ! Crop master mesh just to be sure
-    IF (par%master) CALL crop_mesh_primary( mesh)
+    IF (par%primary) CALL crop_mesh_primary( mesh)
 
     ! Broadcast mesh size
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
       nV_mem    = mesh%nV_mem
       nTri_mem  = mesh%nTri_mem
       nC_mem    = mesh%nC_mem
@@ -63,7 +63,7 @@ CONTAINS
     CALL MPI_BCAST( mesh%name       , 256              , MPI_CHAR            , 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory on non-master processes
-    IF (.NOT. par%master) THEN
+    IF (.NOT. par%primary) THEN
       CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem, nC_mem)
     END IF
 

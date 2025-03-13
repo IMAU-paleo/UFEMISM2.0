@@ -199,7 +199,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (par%master) write(*,"(A)") '   Initialising ice dynamics model...'
+    if (par%primary) write(*,"(A)") '   Initialising ice dynamics model...'
 
     ! === Memory allocation ===
     ! =========================
@@ -472,7 +472,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '    Remapping ice model data to the new mesh...'
+    if (par%primary) write(0,'(A)') '    Remapping ice model data to the new mesh...'
 
     ! Remap conserved ice model quantities
     ! ====================================
@@ -893,12 +893,12 @@ contains
 
     ! Remap bedrock from the original high-resolution grid, and add the (very smooth) modelled deformation to it
     ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
-    if (par%master) call warning('GIA model isnt finished yet - need to include dHb in mesh update!')
+    if (par%primary) call warning('GIA model isnt finished yet - need to include dHb in mesh update!')
     call reallocate_bounds( ice%Hb, mesh_new%vi1, mesh_new%vi2)  ! [m] Bedrock elevation (w.r.t. PD sea level)
     ice%Hb = refgeo_PD%Hb
 
     ! Remap sea level
-    if (par%master) call warning('sea  model isnt finished yet - need to include dSL in mesh update!')
+    if (par%primary) call warning('sea  model isnt finished yet - need to include dSL in mesh update!')
     call reallocate_bounds( ice%SL, mesh_new%vi1, mesh_new%vi2)  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     ice%SL = 0._dp
 
@@ -1121,7 +1121,7 @@ contains
     !       1 = velocities and H are prescribed at remapped values)
 
     ! Let the master do this (difficult to parallelise)
-    if (par%master) then
+    if (par%primary) then
 
       ! Initialise mask
       BC_prescr_mask_tot   = 1
@@ -1325,7 +1325,7 @@ contains
     t_pseudo = 0._dp
 
     ! Print to terminal
-    if (par%master .and. C%do_time_display .and. C%geometry_relaxation_t_years > 0._dp) then
+    if (par%primary .and. C%do_time_display .and. C%geometry_relaxation_t_years > 0._dp) then
 
       if (C%geometry_relaxation_t_years <= 999._dp .and. &
           C%geometry_relaxation_t_years >=   1._dp) then
@@ -1468,7 +1468,7 @@ contains
       t_pseudo = t_pseudo + t_step
 
       ! Time display
-      if (par%master .and. C%do_time_display) then
+      if (par%primary .and. C%do_time_display) then
         ! Carriage return flag
         r_adv = "no"
         if (t_pseudo >= C%geometry_relaxation_t_years) r_adv = "yes"

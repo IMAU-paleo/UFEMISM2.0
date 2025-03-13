@@ -96,7 +96,7 @@ contains
 
     ! Single-core mesh generation: let the master do this,
     ! and then broadcast its result to all the other processes.
-    if (par%master) then
+    if (par%primary) then
 
       ! allocate mesh memory
       call allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)

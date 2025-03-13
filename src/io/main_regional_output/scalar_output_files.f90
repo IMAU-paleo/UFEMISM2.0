@@ -42,7 +42,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to scalar output file "' // colour_string( trim( region%output_filename_scalar), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Writing to scalar output file "' // colour_string( trim( region%output_filename_scalar), 'light blue') // '"...'
 
     ! Shorthand for variable names
     filename = region%output_filename_scalar
@@ -136,7 +136,7 @@ contains
     region%output_filename_scalar = filename
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating scalar output file "' // colour_string( trim( filename), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Creating scalar output file "' // colour_string( trim( filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
@@ -215,7 +215,7 @@ contains
     region%scalars%buffer%n     = 0
 
     ! Only allocate memory for this on the master
-    if (par%master) then
+    if (par%primary) then
 
       n_mem = 1000
       region%scalars%buffer%n_mem = n_mem
@@ -283,7 +283,7 @@ contains
     call init_routine( routine_name)
 
     ! Only the master does this
-    if (par%master) then
+    if (par%primary) then
 
       ! Increase timeframe count
       region%scalars%buffer%n = region%scalars%buffer%n + 1

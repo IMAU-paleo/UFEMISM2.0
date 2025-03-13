@@ -49,7 +49,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '     Mapping reference geometries to model mesh...'
+    if (par%primary) write(0,'(A)') '     Mapping reference geometries to model mesh...'
 
     ! == Initial geometry
     ! ===================
@@ -456,7 +456,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to screen
-    if (par%master) write(0,'(A)') '  Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
+    if (par%primary) write(0,'(A)') '  Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
       colour_string( region_name,'light blue') // ' from idealised case "' // colour_string( trim( choice_refgeo_idealised),'light blue') // '"...'
 
     ! Get domain size for this model region
@@ -496,7 +496,7 @@ contains
     allocate( refgeo%SL_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
 
     ! allocate memory for the full grid data on the master
-    if (par%master) then
+    if (par%primary) then
       allocate( Hi( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
       allocate( Hb( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
       allocate( Hs( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
@@ -504,7 +504,7 @@ contains
     end if
 
     ! Calculate the idealised geometry on the grid (master only)
-    if (par%master) then
+    if (par%primary) then
       do i = 1, refgeo%grid_raw%nx
       do j = 1, refgeo%grid_raw%ny
         call calc_idealised_geometry( refgeo%grid_raw%x( i), refgeo%grid_raw%y( j), Hi( i,j), Hb( i,j), Hs( i,j), SL( i,j), choice_refgeo_idealised)
@@ -551,7 +551,7 @@ contains
     end if
 
     ! Print to screen
-    if (par%master) write(0,'(A)') '   Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
+    if (par%primary) write(0,'(A)') '   Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
       colour_string( region_name,'light blue') // ' from file "' // colour_string( trim( filename_refgeo_applied),'light blue') // '"...'
 
     ! Find out on what kind of grid the file is defined

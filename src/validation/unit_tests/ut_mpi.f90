@@ -126,7 +126,7 @@ contains
     call gather_to_master( aa, bb)
 
     ! Check results
-    if (par%master) call unit_test( test_eq( bb, cc), test_name)
+    if (par%primary) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -177,7 +177,7 @@ contains
     call gather_to_master( aa, bb)
 
     ! Check results
-    if (par%master) call unit_test( test_eq( bb, cc), test_name)
+    if (par%primary) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -227,7 +227,7 @@ contains
     call gather_to_master( aa, bb)
 
     ! Check results
-    if (par%master) call unit_test( test_eq( bb, cc), test_name)
+    if (par%primary) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -278,7 +278,7 @@ contains
     call gather_to_master( aa, bb)
 
     ! Check results
-    if (par%master) call unit_test( test_eq( bb, cc), test_name)
+    if (par%primary) call unit_test( test_eq( bb, cc), test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -584,7 +584,7 @@ contains
     ! Fill test data
     cc = [1, 2, 3, 4, 5, 6, 7]
 
-    if (par%master) then
+    if (par%primary) then
       aa = cc
     end if
 
@@ -592,7 +592,7 @@ contains
     call distribute_from_master( aa, bb)
 
     ! Check results
-    if (par%master) then
+    if (par%primary) then
       call unit_test( test_eq(bb( 1:2), cc( 1:2)), test_name)
     elseif (par%i == 1) then
       call unit_test( test_eq(bb( 1:5), cc( 3:7)), test_name)
@@ -637,7 +637,7 @@ contains
     cc(:,1) = [1, 2, 3 , 4 , 5 , 6 , 7 ]
     cc(:,2) = [8, 9, 10, 11, 12, 13, 14]
 
-    if (par%master) then
+    if (par%primary) then
       aa = cc
     end if
 
@@ -645,7 +645,7 @@ contains
     call distribute_from_master( aa, bb)
 
     ! Check results
-    if (par%master) then
+    if (par%primary) then
       call unit_test( test_eq(bb( 1:2,:), cc( 1:2,:)), test_name)
     elseif (par%i == 1) then
       call unit_test( test_eq(bb( 1:5,:), cc( 3:7,:)), test_name)
@@ -689,7 +689,7 @@ contains
     ! Fill test data
     cc = [1._dp, 2._dp, 3._dp, 4._dp, 5._dp, 6._dp, 7._dp]
 
-    if (par%master) then
+    if (par%primary) then
       aa = cc
     end if
 
@@ -697,7 +697,7 @@ contains
     call distribute_from_master( aa, bb)
 
     ! Check results
-    if (par%master) then
+    if (par%primary) then
       call unit_test( test_eq(bb( 1:2), cc( 1:2)), test_name)
     elseif (par%i == 1) then
       call unit_test( test_eq(bb( 1:5), cc( 3:7)), test_name)
@@ -742,7 +742,7 @@ contains
     cc(:,1) = [1._dp, 2._dp,  3._dp,  4._dp,  5._dp,  6._dp,  7._dp]
     cc(:,2) = [8._dp, 9._dp, 10._dp, 11._dp, 12._dp, 13._dp, 14._dp]
 
-    if (par%master) then
+    if (par%primary) then
       aa = cc
     end if
 
@@ -750,7 +750,7 @@ contains
     call distribute_from_master( aa, bb)
 
     ! Check results
-    if (par%master) then
+    if (par%primary) then
       call unit_test( test_eq(bb( 1:2,:), cc( 1:2,:)), test_name)
     elseif (par%i == 1) then
       call unit_test( test_eq(bb( 1:5,:), cc( 3:7,:)), test_name)

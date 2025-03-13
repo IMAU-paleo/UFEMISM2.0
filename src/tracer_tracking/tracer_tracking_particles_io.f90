@@ -55,7 +55,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Gather all particles to the master
-    if (par%master) then
+    if (par%primary) then
       allocate( id_tot      ( particles%n_max * par%n   ))
       allocate( r_tot       ( particles%n_max * par%n, 3))
       allocate( t_origin_tot( particles%n_max * par%n   ))
@@ -70,7 +70,7 @@ contains
     call gather_to_master( particles%t_origin, t_origin_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
 
       allocate( id_tot_with_time      ( particles%n_max * par%n,    1))
       allocate( r_tot_with_time       ( particles%n_max * par%n, 3, 1))
