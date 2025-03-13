@@ -41,27 +41,27 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Run all unit tests for the MPI distributed memory subroutines
-    call test_gather_to_master( test_name)
+    call test_gather_to_primary( test_name)
     call test_gather_to_all( test_name)
-    call test_distribute_from_master( test_name)
+    call test_distribute_from_primary( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
   end subroutine unit_tests_mpi_distributed_memory_main
 
-  ! ===== Gather to master =====
+  ! ===== Gather to primary =====
   ! ============================
 
-  subroutine test_gather_to_master( test_name_parent)
-    ! Test the gather_to_master_TYPE_DIM subroutines
+  subroutine test_gather_to_primary( test_name_parent)
+    ! Test the gather_to_primary_TYPE_DIM subroutines
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024), parameter  :: routine_name = 'test_gather_to_master'
-    character(len=1024), parameter :: test_name_local = 'gather_to_master'
+    character(len=1024), parameter  :: routine_name = 'test_gather_to_primary'
+    character(len=1024), parameter :: test_name_local = 'gather_to_primary'
     character(len=1024)            :: test_name
 
     ! Add routine to call stack
@@ -73,23 +73,23 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    call test_gather_to_master_int_1D( test_name)
-    call test_gather_to_master_int_2D( test_name)
-    call test_gather_to_master_dp_1D(  test_name)
-    call test_gather_to_master_dp_2D(  test_name)
+    call test_gather_to_primary_int_1D( test_name)
+    call test_gather_to_primary_int_2D( test_name)
+    call test_gather_to_primary_dp_1D(  test_name)
+    call test_gather_to_primary_dp_2D(  test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_gather_to_master
+  end subroutine test_gather_to_primary
 
-  subroutine test_gather_to_master_int_1D( test_name_parent)
+  subroutine test_gather_to_primary_int_1D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024),parameter       :: routine_name = 'test_gather_to_master_int_1D'
+    character(len=1024),parameter       :: routine_name = 'test_gather_to_primary_int_1D'
     character(len=1024), parameter      :: test_name_local = 'int_1D'
     character(len=1024)                 :: test_name
     integer,  dimension(:), allocatable :: aa, bb, cc
@@ -131,15 +131,15 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_gather_to_master_int_1D
+  end subroutine test_gather_to_primary_int_1D
 
-  subroutine test_gather_to_master_int_2D( test_name_parent)
+  subroutine test_gather_to_primary_int_2D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024),parameter        :: routine_name = 'test_gather_to_master_int_2D'
+    character(len=1024),parameter        :: routine_name = 'test_gather_to_primary_int_2D'
     character(len=1024), parameter       :: test_name_local = 'int_2D'
     character(len=1024)                  :: test_name
     integer, dimension(:,:), allocatable :: aa, bb, cc
@@ -182,15 +182,15 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_gather_to_master_int_2D
+  end subroutine test_gather_to_primary_int_2D
 
-  subroutine test_gather_to_master_dp_1D( test_name_parent)
+  subroutine test_gather_to_primary_dp_1D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024),parameter       :: routine_name = 'test_gather_to_master_dp_1D'
+    character(len=1024),parameter       :: routine_name = 'test_gather_to_primary_dp_1D'
     character(len=1024), parameter      :: test_name_local = 'dp_1D'
     character(len=1024)                 :: test_name
     real(dp), dimension(:), allocatable :: aa, bb, cc
@@ -232,15 +232,15 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_gather_to_master_dp_1D
+  end subroutine test_gather_to_primary_dp_1D
 
-  subroutine test_gather_to_master_dp_2D( test_name_parent)
+  subroutine test_gather_to_primary_dp_2D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024),parameter          :: routine_name = 'test_gather_to_master_dp_2D'
+    character(len=1024),parameter          :: routine_name = 'test_gather_to_primary_dp_2D'
     character(len=1024), parameter         :: test_name_local = 'dp_2D'
     character(len=1024)                    :: test_name
     real(dp),  dimension(:,:), allocatable :: aa, bb, cc
@@ -283,7 +283,7 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_gather_to_master_dp_2D
+  end subroutine test_gather_to_primary_dp_2D
 
   ! ===== Gather to all =====
   ! =========================
@@ -521,18 +521,18 @@ contains
 
   end subroutine test_gather_to_all_dp_2D
 
-  ! ===== Distribute from master =====
+  ! ===== Distribute from primary =====
   ! ==================================
 
-  subroutine test_distribute_from_master( test_name_parent)
-    ! Test the distribute_from_master_TYPE_DIM subroutines
+  subroutine test_distribute_from_primary( test_name_parent)
+    ! Test the distribute_from_primary_TYPE_DIM subroutines
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024), parameter  :: routine_name = 'test_distribute_from_master'
-    character(len=1024), parameter :: test_name_local = 'distribute_from_master'
+    character(len=1024), parameter  :: routine_name = 'test_distribute_from_primary'
+    character(len=1024), parameter :: test_name_local = 'distribute_from_primary'
     character(len=1024)            :: test_name
 
     ! Add routine to call stack
@@ -541,23 +541,23 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    call test_distribute_from_master_int_1D( test_name)
-    call test_distribute_from_master_int_2D( test_name)
-    call test_distribute_from_master_dp_1D( test_name)
-    call test_distribute_from_master_dp_2D( test_name)
+    call test_distribute_from_primary_int_1D( test_name)
+    call test_distribute_from_primary_int_2D( test_name)
+    call test_distribute_from_primary_dp_1D( test_name)
+    call test_distribute_from_primary_dp_2D( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_distribute_from_master
+  end subroutine test_distribute_from_primary
 
-  subroutine test_distribute_from_master_int_1D( test_name_parent)
+  subroutine test_distribute_from_primary_int_1D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024), parameter     :: routine_name = 'test_distribute_from_master_int_1D'
+    character(len=1024), parameter     :: routine_name = 'test_distribute_from_primary_int_1D'
     character(len=1024), parameter     :: test_name_local = 'int_1D'
     character(len=1024)                :: test_name
     integer, dimension(:), allocatable :: aa, bb, cc
@@ -601,15 +601,15 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_distribute_from_master_int_1D
+  end subroutine test_distribute_from_primary_int_1D
 
-  subroutine test_distribute_from_master_int_2D( test_name_parent)
+  subroutine test_distribute_from_primary_int_2D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024), parameter       :: routine_name = 'test_distribute_from_master_int_2D'
+    character(len=1024), parameter       :: routine_name = 'test_distribute_from_primary_int_2D'
     character(len=1024), parameter       :: test_name_local = 'int_2D'
     character(len=1024)                  :: test_name
     integer, dimension(:,:), allocatable :: aa, bb, cc
@@ -654,15 +654,15 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_distribute_from_master_int_2D
+  end subroutine test_distribute_from_primary_int_2D
 
-  subroutine test_distribute_from_master_dp_1D( test_name_parent)
+  subroutine test_distribute_from_primary_dp_1D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'test_distribute_from_master_dp_1D'
+    character(len=1024), parameter      :: routine_name = 'test_distribute_from_primary_dp_1D'
     character(len=1024), parameter      :: test_name_local = 'dp_1D'
     character(len=1024)                 :: test_name
     real(dp), dimension(:), allocatable :: aa, bb, cc
@@ -706,15 +706,15 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_distribute_from_master_dp_1D
+  end subroutine test_distribute_from_primary_dp_1D
 
-  subroutine test_distribute_from_master_dp_2D( test_name_parent)
+  subroutine test_distribute_from_primary_dp_2D( test_name_parent)
 
     ! In/output variables:
     character(len=*), intent(in) :: test_name_parent
 
     ! Local variables:
-    character(len=1024), parameter        :: routine_name = 'test_distribute_from_master_dp_2D'
+    character(len=1024), parameter        :: routine_name = 'test_distribute_from_primary_dp_2D'
     character(len=1024), parameter        :: test_name_local = 'dp_2D'
     character(len=1024)                   :: test_name
     real(dp), dimension(:,:), allocatable :: aa, bb, cc
@@ -759,6 +759,6 @@ contains
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_distribute_from_master_dp_2D
+  end subroutine test_distribute_from_primary_dp_2D
 
 end module ut_mpi

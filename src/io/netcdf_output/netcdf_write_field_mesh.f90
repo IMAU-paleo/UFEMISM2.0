@@ -58,7 +58,7 @@ contains
     call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_primary( d_partial, d_tot)
 
@@ -112,7 +112,7 @@ contains
     call check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_primary( d_partial, d_tot)
 
@@ -166,7 +166,7 @@ contains
     call check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nTri))
     call gather_to_primary( d_partial, d_tot)
 
@@ -220,7 +220,7 @@ contains
     call check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV, 12))
     call gather_to_primary( d_partial, d_tot)
 
@@ -274,7 +274,7 @@ contains
     call check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
     call gather_to_primary( d_partial, d_tot)
 
@@ -328,7 +328,7 @@ contains
     call check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
     call gather_to_primary( d_partial, d_tot)
 
@@ -382,7 +382,7 @@ contains
     call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
     call gather_to_primary( d_partial, d_tot)
 
@@ -433,7 +433,7 @@ contains
     call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_primary( d_partial, d_tot)
 
@@ -478,7 +478,7 @@ contains
     call check_mesh_field_int_2D_b( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nTri))
     call gather_to_primary( d_partial, d_tot)
 
@@ -523,7 +523,7 @@ contains
     call check_mesh_field_int_2D_c( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nE))
     call gather_to_primary( d_partial, d_tot)
 
@@ -568,7 +568,7 @@ contains
     call check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV))
     call gather_to_primary( d_partial, d_tot)
 
@@ -613,7 +613,7 @@ contains
     call check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nTri))
     call gather_to_primary( d_partial, d_tot)
 
@@ -658,7 +658,7 @@ contains
     call check_mesh_field_dp_2D_c( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nE))
     call gather_to_primary( d_partial, d_tot)
 
@@ -703,7 +703,7 @@ contains
     call check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV, 12))
     call gather_to_primary( d_partial, d_tot)
 
@@ -748,7 +748,7 @@ contains
     call check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
     call gather_to_primary( d_partial, d_tot)
 
@@ -793,7 +793,7 @@ contains
     call check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
     call gather_to_primary( d_partial, d_tot)
 
@@ -838,7 +838,7 @@ contains
     call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
     call gather_to_primary( d_partial, d_tot)
 

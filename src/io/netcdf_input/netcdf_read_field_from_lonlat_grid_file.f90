@@ -149,13 +149,13 @@ contains
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
     call distribute_lonlat_gridded_data_from_primary_dp_2D( grid_loc, d_grid, d_grid_vec_partial)
 
-    ! Clean up gridded data on the master
+    ! Clean up gridded data on the primary
 
     ! Clean up after yourself
     if (par%primary) deallocate( d_grid)
@@ -295,7 +295,7 @@ contains
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -441,7 +441,7 @@ contains
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -587,7 +587,7 @@ contains
       call crash('unknown latdir = "' // trim( latdir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data

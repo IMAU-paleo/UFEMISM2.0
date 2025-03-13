@@ -495,7 +495,7 @@ contains
     allocate( refgeo%Hs_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
     allocate( refgeo%SL_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
 
-    ! allocate memory for the full grid data on the master
+    ! allocate memory for the full grid data on the primary
     if (par%primary) then
       allocate( Hi( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
       allocate( Hb( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
@@ -503,7 +503,7 @@ contains
       allocate( SL( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
     end if
 
-    ! Calculate the idealised geometry on the grid (master only)
+    ! Calculate the idealised geometry on the grid (primary only)
     if (par%primary) then
       do i = 1, refgeo%grid_raw%nx
       do j = 1, refgeo%grid_raw%ny

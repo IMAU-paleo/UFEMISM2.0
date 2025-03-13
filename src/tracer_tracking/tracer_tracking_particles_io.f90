@@ -54,7 +54,7 @@ contains
     call write_time_to_file( filename, ncid, time)
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
-    ! Gather all particles to the master
+    ! Gather all particles to the primary
     if (par%primary) then
       allocate( id_tot      ( particles%n_max * par%n   ))
       allocate( r_tot       ( particles%n_max * par%n, 3))

@@ -1,6 +1,6 @@
 module netcdf_write_var_primary
   !< Write data to variables
-  !< NOTE: only the Master actually writes data! Gathering from other processes must be done beforehand
+  !< NOTE: only the primary actually writes data! Gathering from other processes must be done beforehand
 
   use precisions, only: dp, int8
   use mpi_basic, only: par

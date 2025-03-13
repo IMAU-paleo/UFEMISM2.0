@@ -103,12 +103,12 @@ contains
     ! Map relative surface load to the GIA grid
     CALL map_from_mesh_to_xy_grid_2D( mesh, grid, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
 
-    !! Gather data to master
+    !! Gather data to primary
     call gather_gridded_data_to_primary( grid, GIA%relative_surface_load_grid, ELRA%relative_surface_load_grid_tot)
 
     n = ELRA%flex_prof_rad
 
-    ! Let the master do the actual work
+    ! Let the primary do the actual work
     if (par%primary) then
 
       do i = 1, grid%nx
@@ -125,15 +125,15 @@ contains
       end do
       end do
 
-    end if ! if (par%master) then
+    end if
 
     ! Map the actual bedrock deformation from the mesh to the grid
     call map_from_mesh_to_xy_grid_2D( mesh, grid, ice%dHb, ELRA%dHb_grid_partial)
 
-    ! gather data from all processors to master, from partial grid vec to total 2D grid
+    ! gather data from all processors to primary, from partial grid vec to total 2D grid
     call gather_gridded_data_to_primary( grid, ELRA%dHb_grid_partial, ELRA%dHb_grid_tot)
 
-	! Let the master do the actual work
+	  ! Let the primary do the actual work
     if (par%primary) then
 
       ! Calculate the bedrock deformation rate from the difference between the current and the equilibrium deformation
@@ -143,9 +143,9 @@ contains
       END DO
       END DO
 
-    end if ! if (par%master) then
+    end if
 
-    ! distribute from 2D grid data on master to vector grid data on all processors
+    ! distribute from 2D grid data on primary to vector grid data on all processors
     call distribute_gridded_data_from_primary( grid, ELRA%dHb_dt_grid, ELRA%dHb_dt_grid_partial)
 
     ! remap from partial grid vec data to mesh model
@@ -212,7 +212,7 @@ contains
         ELRA%flex_prof_grid( l,k) = kelvin(r / Lr)
       END DO
       END DO
-    END IF ! IF (par%master) THEN
+    END IF
 
     ! Calculate the reference load
     ! ===============================

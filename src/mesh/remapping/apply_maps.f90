@@ -302,8 +302,8 @@ contains
       call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    else ! if (par%master) then
-      ! allocate zero memory for complete gridded data (only the master needs this)
+    else ! if (par%primary) then
+      ! allocate zero memory for complete gridded data (only the primary needs this)
       allocate( d_grid( 0,0))
       ! Gather complete gridded data
       call gather_gridded_data_to_primary( grid, d_grid_vec_partial)
@@ -311,7 +311,7 @@ contains
       call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    end if ! if (par%master) then
+    end if ! if (par%primary) then
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -363,8 +363,8 @@ contains
       call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    else ! if (par%master) then
-      ! allocate zero memory for complete gridded data (only the master needs this)
+    else ! if (par%primary) then
+      ! allocate zero memory for complete gridded data (only the primary needs this)
       allocate( d_grid( 0,0,0))
       ! Gather complete gridded data
       call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
@@ -372,7 +372,7 @@ contains
       call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    end if ! if (par%master) then
+    end if ! if (par%primary) then
 
     ! Finalise routine path
     call finalise_routine( routine_name)

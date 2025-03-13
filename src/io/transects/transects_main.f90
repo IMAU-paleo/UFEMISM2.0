@@ -453,7 +453,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Let the master read the file, then broadcast the data to the processes
+    ! Let the primary read the file, then broadcast the data to the processes
 
     ! Determine number of waypoints
     if (par%primary) then

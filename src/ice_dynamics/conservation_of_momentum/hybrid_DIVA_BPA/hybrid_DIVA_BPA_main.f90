@@ -291,7 +291,7 @@ contains
      uv_max = MAXVAL( hybrid%u_bk)
      call MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
      call MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    !  if (par%master) WRITE(0,*) '    hybrid DIVA/BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+    !  if (par%primary) WRITE(0,*) '    hybrid DIVA/BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
       ! if the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .false.
@@ -611,7 +611,7 @@ contains
     allocate( mask_int_grid_vec_partial( grid%n1: grid%n2))
     call read_field_from_xy_file_int_2D( filename_hybrid_DIVA_BPA_mask, 'mask_BPA', mask_int_grid_vec_partial)
 
-    ! Gather partial gridded data to the Master and broadcast the total field to all processes
+    ! Gather partial gridded data to the primary and broadcast the total field to all processes
     allocate( mask_int_grid( grid%nx, grid%ny))
     call gather_gridded_data_to_primary( grid, mask_int_grid_vec_partial, mask_int_grid)
     call MPI_BCAST( mask_int_grid, grid%nx * grid%ny, MPI_integer, 0, MPI_COMM_WORLD, ierr)

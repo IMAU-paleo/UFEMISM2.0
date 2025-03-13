@@ -45,7 +45,7 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_transect( transect%nV))
     call gather_to_primary( d_transect_partial, d_transect)
 
@@ -92,7 +92,7 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
-    ! Gather data to the master
+    ! Gather data to the primary
     if (par%primary) allocate( d_transect( transect%nV, size( d_transect_partial,2)))
     call gather_to_primary( d_transect_partial, d_transect)
 

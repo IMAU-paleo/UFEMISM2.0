@@ -243,7 +243,7 @@ contains
     ! =======================
 
     ! ! DENK DROM
-    ! if (par%master) call warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
+    ! if (par%primary) call warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
 
     ! Basic geometry
     do vi = mesh%vi1, mesh%vi2
@@ -1120,7 +1120,7 @@ contains
     ! NOTE: 0 = velocities and dH/dt are solved
     !       1 = velocities and H are prescribed at remapped values)
 
-    ! Let the master do this (difficult to parallelise)
+    ! Let the primary do this (difficult to parallelise)
     if (par%primary) then
 
       ! Initialise mask
@@ -1204,7 +1204,7 @@ contains
 
       end do ! do ti = 1, mesh%nTri
 
-    end if ! if (par%master) then
+    end if
 
     ! Distribute BC masks to all processes
     call distribute_from_primary( BC_prescr_mask_tot   , BC_prescr_mask   )

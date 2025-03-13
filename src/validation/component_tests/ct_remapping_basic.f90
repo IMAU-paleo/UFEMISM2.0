@@ -63,7 +63,7 @@ contains
     real(dp), dimension(:,:), allocatable :: d_grid_ex
     integer                               :: i,j
 
-    ! Let the Master calculate the test function on the entire grid
+    ! Let the primary calculate the test function on the entire grid
     if (par%primary) then
       allocate( d_grid_ex( grid%nx, grid%ny))
       do i = 1, grid%nx

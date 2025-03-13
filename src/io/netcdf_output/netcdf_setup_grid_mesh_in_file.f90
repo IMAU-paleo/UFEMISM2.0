@@ -680,7 +680,7 @@ contains
 
     call init_routine( routine_name)
 
-    ! Gather distributed matrix to the master
+    ! Gather distributed matrix to the primary
     call gather_CSR_dist_to_primary( A, A_tot)
 
     ! Create a new NetCDF group for this matrix operator

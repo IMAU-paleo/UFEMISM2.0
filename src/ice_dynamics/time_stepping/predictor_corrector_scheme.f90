@@ -263,13 +263,13 @@ contains
       ! if not, check whether that occurs in a significant amount of vertices; if not,
       ! set the truncation error to almost the tolerance (to allow for growth) and move on
       elseif (100._dp * real( n_guilty,dp) / real(n_tot,dp) < C%pc_guilty_max) then
-        ! if (par%master) call warning('{dp_01}% of vertices are changing rapidly, ignoring for now', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp))
+        ! if (par%primary) call warning('{dp_01}% of vertices are changing rapidly, ignoring for now', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp))
         region%ice%pc%eta_np1 = .95_dp * C%pc_epsilon
         exit iterate_pc_timestep
 
       ! if not, re-do the PC timestep
       else
-        !if (par%master) call warning('{dp_01}% of vertices ({int_01}) are changing rapidly (eta = {dp_02}), reducing dt and redoing PC timestep', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp), int_01 = n_guilty, dp_02 = region%ice%pc%eta_np1)
+        !if (par%primary) call warning('{dp_01}% of vertices ({int_01}) are changing rapidly (eta = {dp_02}), reducing dt and redoing PC timestep', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp), int_01 = n_guilty, dp_02 = region%ice%pc%eta_np1)
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! if the timestep has reached the specified lower limit, stop iterating
         if (region%ice%pc%dt_np1 <= C%dt_ice_min) then

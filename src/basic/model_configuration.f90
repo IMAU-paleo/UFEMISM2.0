@@ -2121,7 +2121,7 @@ CONTAINS
   ! ====================================
 
     ! The name of the config file is provided as an input argument when calling the UFEMISM_program
-    ! executable. After calling MPI_INIT, only the master process "sees" this argument, so is must be
+    ! executable. After calling MPI_INIT, only the primary process "sees" this argument, so is must be
     ! broadcast to the other processes.
 
     IF (par%primary) THEN
@@ -2130,7 +2130,7 @@ CONTAINS
       ELSE
         CALL crash('run UFEMISM with the path the config file as an argument, e.g. "mpi_exec  -n 2  UFEMISM_program  config-files/config_test"')
       END IF
-    END IF ! IF (master) THEN
+    END IF
     CALL MPI_BCAST( config_filename,    256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
     IF (par%primary) WRITE(0,'(A)') ''
@@ -2177,13 +2177,13 @@ CONTAINS
       WRITE(0,'(A)') ''
       WRITE(0,'(A)') ' Output directory: ' // colour_string( TRIM( C%output_dir), 'light blue')
 
-    END IF ! IF (par%master) THEN
+    END IF
     CALL sync
 
     ! Copy the config file to the output directory
     IF (par%primary) THEN
       CALL system('cp ' // config_filename    // ' ' // TRIM( C%output_dir))
-    END IF ! IF (master) THEN
+    END IF
     CALL sync
 
     ! Finalise routine path

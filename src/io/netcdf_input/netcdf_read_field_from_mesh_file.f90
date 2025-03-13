@@ -87,7 +87,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -165,7 +165,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -243,7 +243,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -321,7 +321,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -402,7 +402,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -485,7 +485,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -568,7 +568,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -651,7 +651,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -715,7 +715,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -778,7 +778,7 @@ contains
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data

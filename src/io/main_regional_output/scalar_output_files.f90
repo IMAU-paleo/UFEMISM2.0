@@ -214,7 +214,7 @@ contains
     region%scalars%buffer%n_mem = 0
     region%scalars%buffer%n     = 0
 
-    ! Only allocate memory for this on the master
+    ! Only allocate memory for this on the primary
     if (par%primary) then
 
       n_mem = 1000
@@ -282,7 +282,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Only the master does this
+    ! Only the primary does this
     if (par%primary) then
 
       ! Increase timeframe count
@@ -343,7 +343,7 @@ contains
   subroutine extend_scalar_output_buffer( region)
     !< Extend memory to buffer the scalar output data between output writing intervals
     !
-    ! NOTE: should only be called by the master!
+    ! NOTE: should only be called by the primary!
 
     ! In/output variables:
     type(type_model_region), intent(inout) :: region

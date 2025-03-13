@@ -29,7 +29,7 @@ CONTAINS
 ! =======================
 
   SUBROUTINE broadcast_mesh( mesh)
-    ! Broadcast the merged mesh from the master to all other processes
+    ! Broadcast the merged mesh from the primary to all other processes
 
     IMPLICIT NONE
 
@@ -46,7 +46,7 @@ CONTAINS
     ! Deallocate meshes in other processes just to be sure
     IF (.NOT. par%primary) CALL deallocate_mesh( mesh)
 
-    ! Crop master mesh just to be sure
+    ! Crop primary mesh just to be sure
     IF (par%primary) CALL crop_mesh_primary( mesh)
 
     ! Broadcast mesh size
@@ -62,7 +62,7 @@ CONTAINS
     CALL MPI_BCAST( nC_mem          , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( mesh%name       , 256              , MPI_CHAR            , 0, MPI_COMM_WORLD, ierr)
 
-    ! Allocate memory on non-master processes
+    ! Allocate memory on non-primary processes
     IF (.NOT. par%primary) THEN
       CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem, nC_mem)
     END IF

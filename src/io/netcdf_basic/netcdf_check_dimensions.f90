@@ -79,7 +79,7 @@ subroutine check_x( filename, ncid)
       dxp = x( i) - x( i-1)
       if (abs( 1._dp - dxp / dx) > 1E-5_dp) call crash('x coordinate in file "' // trim( filename) // '" is irregular!')
     end do
-  end if ! if (par%master) then
+  end if
   call sync
 
   ! Clean up after yourself
@@ -217,7 +217,7 @@ subroutine check_lon( filename, ncid)
       dlonp = lon( i) - lon( i-1)
       if (abs( 1._dp - dlonp / dlon) > 1E-5_dp) call crash('longitude coordinate in file "' // trim( filename) // '" is irregular!')
     end do
-  end if ! if (par%master) then
+  end if
   call sync
 
   ! Clean up after yourself
@@ -282,7 +282,7 @@ subroutine check_lat( filename, ncid)
       dlatp = lat( i) - lat( i-1)
       if (abs( 1._dp - dlatp / dlat) > 1E-5_dp) call crash('latitude coordinate in file "' // trim( filename) // '" is irregular!')
     end do
-  end if ! if (par%master) then
+  end if
   call sync
 
   ! Clean up after yourself

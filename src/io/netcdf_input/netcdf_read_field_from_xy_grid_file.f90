@@ -158,7 +158,7 @@ subroutine read_field_from_xy_file_int_2D( filename, field_name_options, &
     call crash('unknown ydir = "' // trim( ydir) // '"!')
   end if
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
+  ! == Distribute gridded data from the primary to all processes in partial vector form
   ! ==================================================================================
 
   ! Distribute data
@@ -304,7 +304,7 @@ subroutine read_field_from_xy_file_int_3D( filename, field_name_options, &
     call crash('unknown ydir = "' // trim( ydir) // '"!')
   end if
 
-  ! == Distribute gridded data from the master to all processes in partial vector form
+  ! == Distribute gridded data from the primary to all processes in partial vector form
   ! ==================================================================================
 
   ! Distribute data
@@ -453,7 +453,7 @@ end subroutine read_field_from_xy_file_int_3D
       call crash('unknown ydir = "' // trim( ydir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -597,7 +597,7 @@ end subroutine read_field_from_xy_file_int_3D
       call crash('unknown ydir = "' // trim( ydir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -743,7 +743,7 @@ end subroutine read_field_from_xy_file_int_3D
       call crash('unknown ydir = "' // trim( ydir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
@@ -889,7 +889,7 @@ end subroutine read_field_from_xy_file_int_3D
       call crash('unknown ydir = "' // trim( ydir) // '"!')
     end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data

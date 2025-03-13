@@ -375,7 +375,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' ERROR: ' // TRIM( err_msg_loc),'red') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Stop the program
     error stop
@@ -444,7 +444,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' WARNING: ' // TRIM( err_msg_loc),'yellow') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Clean up after yourself
     DEALLOCATE( process_str)
@@ -514,7 +514,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' SUCCESS: ' // TRIM( err_msg_loc),'green') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Clean up after yourself
     DEALLOCATE( process_str)

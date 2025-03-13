@@ -67,7 +67,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Gather distributed matrix to the master
+    ! Gather distributed matrix to the primary
     call gather_CSR_dist_to_primary( AA, AA_tot)
 
     ! Append output directory to filename
@@ -160,7 +160,7 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
     if (par%primary) then
@@ -214,7 +214,7 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     n2        = size( d_partial,2)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
@@ -270,7 +270,7 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
     if (par%primary) then
@@ -324,7 +324,7 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     n2        = size( d_partial,2)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)

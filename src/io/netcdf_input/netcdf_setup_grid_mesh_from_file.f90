@@ -66,7 +66,7 @@ contains
     call read_var_primary(  filename, ncid, id_var_x, grid%x)
     call read_var_primary(  filename, ncid, id_var_y, grid%y)
 
-    ! Broadcast x and y from the master to the other processes
+    ! Broadcast x and y from the primary to the other processes
     call MPI_BCAST( grid%x, grid%nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( grid%y, grid%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
@@ -118,7 +118,7 @@ contains
     call read_var_primary( filename, ncid, id_var_lon, grid%lon)
     call read_var_primary( filename, ncid, id_var_lat, grid%lat)
 
-    ! Broadcast x and y from the master to the other processes
+    ! Broadcast x and y from the primary to the other processes
     call MPI_BCAST( grid%lon, grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( grid%lat, grid%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
@@ -227,7 +227,7 @@ contains
       if (.not. test_mesh_is_self_consistent( mesh)) call crash('invalid mesh in file ' // trim( filename))
     end if
 
-    ! Broadcast read mesh from the master to the other processes
+    ! Broadcast read mesh from the primary to the other processes
     call broadcast_mesh( mesh)
 
     ! Calculate secondary mesh data
@@ -273,7 +273,7 @@ contains
     ! Read zeta from file
     call read_var_primary( filename, ncid, id_var_zeta, zeta)
 
-    ! Broadcast zeta from master to all other processes
+    ! Broadcast zeta from primary to all other processes
     call MPI_BCAST( zeta, nzeta, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
@@ -313,7 +313,7 @@ contains
     ! Read depth from file
     call read_var_primary( filename, ncid, id_var_depth, depth)
 
-    ! Broadcast depth from master to all other processes
+    ! Broadcast depth from primary to all other processes
     call MPI_BCAST( depth, ndepth, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path

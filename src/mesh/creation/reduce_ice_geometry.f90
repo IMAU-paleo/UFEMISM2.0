@@ -84,13 +84,13 @@ contains
       allocate( SL_grid( 0, 0))
     end if
 
-    ! Gather ice geometry data in grid form to the master
+    ! Gather ice geometry data in grid form to the primary
     call gather_gridded_data_to_primary( grid, Hi, Hi_grid)
     call gather_gridded_data_to_primary( grid, Hb, Hb_grid)
     call gather_gridded_data_to_primary( grid, Hs, Hs_grid)
     call gather_gridded_data_to_primary( grid, SL, SL_grid)
 
-    ! Let the master calculate the polygons and lines
+    ! Let the primary calculate the polygons and lines
 
     if (par%primary) then
 
@@ -198,8 +198,7 @@ contains
       n_line_ice_front      = size( p_line_ice_front     ,1)
       n_line_coastline      = size( p_line_coastline     ,1)
 
-    end if ! if (par%master) then
-    call sync
+    end if
 
     ! Broadcast polygon sizes to all processes
     call MPI_BCAST( n_poly_mult_sheet, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
@@ -294,13 +293,13 @@ contains
       allocate( SL_tot( mesh%nV))
     end if
 
-    ! Gather ice geometry data in grid form to the master
+    ! Gather ice geometry data in grid form to the primary
     call gather_to_primary( Hi, Hi_tot)
     call gather_to_primary( Hb, Hb_tot)
     call gather_to_primary( Hs, Hs_tot)
     call gather_to_primary( SL, SL_tot)
 
-    ! Let the master calculate the polygons and lines
+    ! Let the primary calculate the polygons and lines
 
     if (par%primary) then
 
@@ -372,8 +371,7 @@ contains
       n_line_ice_front      = size( p_line_ice_front     ,1)
       n_line_coastline      = size( p_line_coastline     ,1)
 
-    end if ! if (par%master) then
-    call sync
+    end if
 
     ! Broadcast polygon sizes to all processes
     call MPI_BCAST( n_poly_mult_sheet, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)

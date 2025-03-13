@@ -1,6 +1,6 @@
 module netcdf_read_var_primary
   !< Read data from variables
-  !< NOTE: only the Master actually reads data! Distributing to other processes must be done afterward
+  !< NOTE: only the primary actually reads data! Distributing to other processes must be done afterward
 
   use precisions, only: dp
   use mpi_basic, only: par
@@ -33,7 +33,7 @@ contains
 subroutine read_var_primary_int_0D(  filename, ncid, id_var, d)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -75,7 +75,7 @@ end subroutine read_var_primary_int_0D
 subroutine read_var_primary_int_1D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -158,7 +158,7 @@ end subroutine read_var_primary_int_1D
 subroutine read_var_primary_int_2D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -241,7 +241,7 @@ end subroutine read_var_primary_int_2D
 subroutine read_var_primary_int_3D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -324,7 +324,7 @@ end subroutine read_var_primary_int_3D
 subroutine read_var_primary_int_4D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -407,7 +407,7 @@ end subroutine read_var_primary_int_4D
 subroutine read_var_primary_dp_0D( filename, ncid, id_var, d)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -449,7 +449,7 @@ end subroutine read_var_primary_dp_0D
 subroutine read_var_primary_dp_1D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -532,7 +532,7 @@ end subroutine read_var_primary_dp_1D
 subroutine read_var_primary_dp_2D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -615,7 +615,7 @@ end subroutine read_var_primary_dp_2D
 subroutine read_var_primary_dp_3D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:
@@ -698,7 +698,7 @@ end subroutine read_var_primary_dp_3D
 subroutine read_var_primary_dp_4D( filename, ncid, id_var, d, start, count)
   ! Read data from a NetCDF file
   !
-  ! NOTE: only the Master actually reads data! Distributing to other processes
+  ! NOTE: only the primary actually reads data! Distributing to other processes
   !       must be done afterward
 
   ! In/output variables:

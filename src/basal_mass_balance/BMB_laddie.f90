@@ -67,7 +67,7 @@ CONTAINS
         END IF
       END IF
 
-      ! Other cores wait for master core to finish
+      ! Other processes wait for primary process to finish
       CALL sync
 
       ! Let UFEMISM sleep until LADDIE is finished
