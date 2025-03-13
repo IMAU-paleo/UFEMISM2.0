@@ -118,7 +118,7 @@ CONTAINS
       END SELECT
 
       ! Display or save fields
-      ! CALL print_diagnostics( laddie, tl)
+      CALL print_diagnostics( laddie, tl)
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
