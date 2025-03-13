@@ -135,7 +135,6 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_Tri       , id_var_Tri  )
     call inquire_var_multopt( filename, ncid, field_name_options_Tricc     , id_var_Tricc)
     call inquire_var_multopt( filename, ncid, field_name_options_TriC      , id_var_TriC )
-    call inquire_var_multopt( filename, ncid, field_name_options_TriBI     , id_var_TriBI)
 
     ! Check if everything is there
     has_mesh = (&
@@ -152,8 +151,7 @@ contains
       id_var_VBI        /= -1 .and. &
       id_var_Tri        /= -1 .and. &
       id_var_Tricc      /= -1 .and. &
-      id_var_TriC       /= -1 .and. &
-      id_var_TriBI      /= -1)
+      id_var_TriC       /= -1)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
