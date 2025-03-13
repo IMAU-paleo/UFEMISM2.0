@@ -10,13 +10,13 @@ MODULE region_types
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE climate_model_types                                    , ONLY: type_climate_model
+  USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE SMB_model_types                                        , ONLY: type_SMB_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE AMB_model_types                                        , ONLY: type_AMB_model
-  USE GIA_model_types                                        , ONLY: type_GIA_model
+  USE GIA_model_types                                        , ONLY: type_GIA_model, type_ELRA_model
   USE basal_inversion_types                                  , ONLY: type_basal_inversion, type_hydrology_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
   use tracer_tracking_model_types, only: type_tracer_tracking_model
@@ -53,6 +53,7 @@ MODULE region_types
 
     ! The climate model
     TYPE(type_climate_model)                :: climate
+    TYPE(type_global_forcing)               :: forcing
 
     ! The ocean model
     TYPE(type_ocean_model)                  :: ocean
@@ -71,6 +72,9 @@ MODULE region_types
 
     ! The glacial isostatic adjustment model
     TYPE(type_GIA_model)                    :: GIA
+    
+    ! The elastic lithosphere relaxed asthenosphere model
+    TYPE(type_ELRA_model)                   :: ELRA
 
     ! The basal roughness inversion model
     TYPE(type_basal_inversion)              :: BIV

@@ -181,6 +181,7 @@ UFEMISM_source = \
   io/netcdf_input/netcdf_determine_indexing.f90 \
   io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
   io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_series_file.f90 \
   io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
   io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
   io/netcdf_input/netcdf_input.f90 \
@@ -222,6 +223,7 @@ UFEMISM_source = \
   basal_conditions/bed_roughness.f90 \
   basal_conditions/sliding_laws.f90 \
   \
+  surface_mass_balance/SMB_parameterised.f90 \
   surface_mass_balance/SMB_idealised.f90 \
   surface_mass_balance/SMB_prescribed.f90 \
   surface_mass_balance/SMB_main.f90 \
@@ -231,6 +233,7 @@ UFEMISM_source = \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
   \
+  laddie/laddie_operators.f90 \
   laddie/laddie_utilities.f90 \
   laddie/laddie_physics.f90 \
   laddie/laddie_thickness.f90 \
@@ -284,9 +287,14 @@ UFEMISM_source = \
   climate/climate_realistic.f90 \
   climate/climate_main.f90 \
   \
+  glacial_isostatic_adjustment/kelvin_function.f90 \
+  glacial_isostatic_adjustment/GIA_ELRA.f90 \
   glacial_isostatic_adjustment/GIA_main.f90 \
   \
-  tracer_tracking/tracer_tracking_particles.f90 \
+  tracer_tracking/tracer_tracking_particles_basic.f90 \
+  tracer_tracking/tracer_tracking_particles_remapping.f90 \
+  tracer_tracking/tracer_tracking_particles_io.f90 \
+  tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
   main/main_regional_output.f90 \
@@ -320,7 +328,6 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf_xy_grid.f90 \
   validation/unit_tests/ut_netcdf_mesh.f90 \
   validation/unit_tests/ut_netcdf.f90 \
-  validation/unit_tests/ut_tracer_tracking.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
   \

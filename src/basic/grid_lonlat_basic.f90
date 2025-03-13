@@ -2,7 +2,7 @@ MODULE grid_lonlat_basic
 
   ! Functions for working with simple lon/lat-grids
   USE precisions                                             , ONLY: dp
-  use grid_types                                             , only: type_grid_lonlat
+  use grid_types                                             , only: type_grid_lonlat, type_grid_lat
   USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
@@ -96,6 +96,29 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE deallocate_lonlat_grid
+
+  SUBROUTINE deallocate_lat_grid( vec)
+    ! Deallocate memory for a lat-only grid object
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid_lat),              INTENT(INOUT) :: vec
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_lat_grid'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (ALLOCATED( vec%lat )) DEALLOCATE( vec%lat )
+    IF (ALLOCATED( vec%ij2n)) DEALLOCATE( vec%ij2n)
+    IF (ALLOCATED( vec%n2ij)) DEALLOCATE( vec%n2ij)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE deallocate_lat_grid
 
   SUBROUTINE check_if_lonlat_grids_are_identical( grid1, grid2, isso)
     ! Check if two grids are identical

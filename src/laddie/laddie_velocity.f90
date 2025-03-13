@@ -19,6 +19,7 @@ MODULE laddie_velocity
   USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D, map_b_c_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
+  use petsc_basic                                            , only: multiply_CSR_matrix_with_vector_1D
 
   IMPLICIT NONE
     
@@ -174,7 +175,7 @@ CONTAINS
     END DO !ti = mesh%ti1, mesh%ti2
 
     ! Map velocities to a and c grid
-    CALL map_laddie_velocities_from_b_to_c_2D( mesh, npx%U, npx%V, npx%U_c, npx%V_c)
+    CALL map_UV_b_c( mesh, laddie, npx%U, npx%V, npx%U_c, npx%V_c)
     CALL map_b_a_2D( mesh, npx%U, npx%U_a)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a)
 
@@ -345,64 +346,32 @@ CONTAINS
 
   END SUBROUTINE compute_divQUV_upstream
 
-  SUBROUTINE map_laddie_velocities_from_b_to_c_2D( mesh, u_b_partial, v_b_partial, u_c, v_c)
+  subroutine map_UV_b_c( mesh, laddie, U, V, U_c, V_c)
     ! Calculate velocities on the c-grid for solving the layer thickness equation
     ! 
     ! Uses a different scheme then the standard mapping operator, as that one is too diffusive
         
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: u_b_partial
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: v_b_partial
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(OUT)   :: u_c
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2), INTENT(OUT)   :: v_c
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_model),                intent(in)    :: laddie
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in)    :: U
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in)    :: V
+    real(dp), dimension(mesh%ei1:mesh%ei2), intent(out)   :: U_c
+    real(dp), dimension(mesh%ei1:mesh%ei2), intent(out)   :: V_c
       
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'map_laddie_velocities_from_b_to_c_2D'
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE               :: u_b_tot, v_b_tot
-    INTEGER                                               :: ei, til, tir
+    character(len=256), parameter                         :: routine_name = 'map_UV_b_c'
       
     ! Add routine to path
-    CALL init_routine( routine_name)
-        
-    ! Allocate memory
-    ALLOCATE( u_b_tot( mesh%nTri))
-    ALLOCATE( v_b_tot( mesh%nTri))
-        
-    ! Gather the full b-grid velocity fields to all processes
-    CALL gather_to_all( u_b_partial, u_b_tot)
-    CALL gather_to_all( v_b_partial, v_b_tot)
+    call init_routine( routine_name)
 
-    ! Map velocities from the b-grid (triangles) to the c-grid (edges)
-    DO ei = mesh%ei1, mesh%ei2
-
-      til = mesh%ETri( ei,1)
-      tir = mesh%ETri( ei,2)
-
-      IF     (til == 0 .AND. tir > 0) THEN
-        u_c( ei) = u_b_tot( tir)
-        v_c( ei) = v_b_tot( tir)
-      ELSEIF (tir == 0 .AND. til > 0) THEN
-        u_c( ei) = u_b_tot( til)
-        v_c( ei) = v_b_tot( til)
-      ELSEIF (til >  0 .AND. tir > 0) THEN
-        u_c( ei) = (u_b_tot( til) + u_b_tot( tir)) / 2._dp
-        v_c( ei) = (v_b_tot( til) + v_b_tot( tir)) / 2._dp
-      ELSE
-        CALL crash('something is seriously wrong with the ETri array of this mesh!')
-      END IF
-
-    END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( u_b_tot)
-    DEALLOCATE( v_b_tot)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, U, U_c)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, V, V_c)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE map_laddie_velocities_from_b_to_c_2D
-
+  end subroutine map_UV_b_c
 
 END MODULE laddie_velocity
 
