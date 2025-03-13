@@ -118,11 +118,9 @@ contains
     if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
 
     ! Check if the file has a valid month dimension
-    if (par%master) WRITE(0,*) '    Checking if file has a valid month dimension...'
     call check_month( filename, ncid)
 
     ! Check if the variable has the required dimensions
-    if (par%master) WRITE(0,*) '    Checking if desired variable has the required dimensions...'
     call check_lat_grid_field_dp_1D_monthly( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! Allocate grid memory
@@ -148,15 +146,12 @@ contains
       allocate( d_vec_with_time( 1, 12, vec_loc%nlat))
 
       ! Find out which timeframe to read
-      if (par%master) WRITE(0,*) '    Finding timeframe to read...'
       call find_timeframe( filename, ncid, time_to_read, ti)
 
       ! Read data
-      if (par%master) WRITE(0,*) '    Actually reading the data...'
       call read_var_master( filename, ncid, id_var, d_vec_with_time, start = (/ ti, 1, 1 /), count = (/ 1, 12, vec_loc%nlat /) )
       
       ! Copy to output memory, replicating along the longitudes and into the proper dimensions
-      if (par%master) WRITE(0,*) '    Copying lat-only vector to latlon grid...'
       if (par%master) then
         do i = 1, grid_loc%nlon
         do m = 1, 12
@@ -167,11 +162,6 @@ contains
         ! Clean up after yourself
         deallocate( d_vec_with_time)
       end if
-      str = ' Raw grid has dimensions ({int_01},{int_02},{int_03})'
-      call insert_val_into_string_int( str, '{int_01}', size(d_grid,1))
-      call insert_val_into_string_int( str, '{int_02}', size(d_grid,2))
-      call insert_val_into_string_int( str, '{int_03}', size(d_grid,3))
-      IF (par%master)  WRITE(0,"(A)") trim(str)
 
     end if
 
@@ -232,19 +222,16 @@ contains
     call open_existing_netcdf_file_for_reading( filename, ncid)
 
     ! Check if the file contains a valid time dimension and variable
-    !if (par%master) WRITE(0,*) '     Checking time...'
     !call check_time( filename, ncid)
 
     ! inquire size of time dimension
-    if (par%master) WRITE(0,*) '     Inquiring time dimension...'
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
 
     ! inquire time variable ID
-    if (par%master) WRITE(0,*) '     Inquiring time as variable...'
     call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
     ! allocate memory
-    allocate( time_from_file( nt)) ! TODO: do we need to allocate time?
+    allocate( time_from_file( nt))
 
     ! Read time from file
     if (par%master) WRITE(0,*) '     Reading variable...'
