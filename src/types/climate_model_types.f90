@@ -16,11 +16,21 @@ MODULE climate_model_types
     ! The climate model data structure.
 
     ! Main data fields
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: T2m                         ! [K]      Monthly 2-m air temperature
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Precip                      ! [m.w.e.] Monthly precipitation
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: T2m                     ! [K]      Monthly 2-m air temperature
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Precip                  ! [m.w.e.] Monthly precipitation
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs                      ! [m] orography
+    
+    ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
+    REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: lambda
+    INTEGER :: wlambda
+
+    ! Reference absorbed insolation (for GCM snapshots), or insolation at model time for the applied climate
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Q_TOA                   ! [W/m2] Monthly mean insolation at the top of the atmosphere (taken from the prescribed insolation solution at orbit_time)
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Albedo                  ! Monthly mean surface albedo (calculated using our own SMB scheme for consistency)
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: I_abs                   ! Total yearly absorbed insolation, used in the climate matrix for interpolation
 
     ! Metadata
-    CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file
+    CHARACTER(LEN=256)                      :: restart_filename        ! Name for generated restart file
 
     ! Timestepping
     REAL(dp)                                :: t_next
@@ -29,6 +39,37 @@ MODULE climate_model_types
     TYPE(type_climate_model_matrix)         :: matrix             ! The "matrix"          climate model option: three GCM snapshots (warm, cold, and PI), and a PD reanalysis snapshot to use for bias correction
 
   END TYPE type_climate_model
+  
+  TYPE type_global_forcing
+    ! Data structure containing model forcing data - CO2 record, d18O record, (global) insolation record
+
+      ! CO2 record
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_time
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_record
+      REAL(dp),                   ALLOCATABLE     :: CO2_obs
+      INTEGER :: wCO2_time, wCO2_record, wCO2_obs
+
+      ! d18O record
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_time
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_record
+      REAL(dp),                   ALLOCATABLE     :: d18O_obs
+      REAL(dp),                   ALLOCATABLE     :: d18O_obs_PD
+      INTEGER :: wd18O_time, wd18O_record, wd18O_obs, wd18O_obs_PD
+
+      ! Insolation reconstruction
+      !TYPE(type_netcdf_insolation)                :: netcdf_ins
+      INTEGER,                    ALLOCATABLE     :: ins_nyears
+      INTEGER,                    ALLOCATABLE     :: ins_nlat,ins_nlon
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_time
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_lat
+      REAL(dp),                   ALLOCATABLE     :: ins_t0, ins_t1
+      INTEGER,                    ALLOCATABLE     :: ins_ti0,ins_ti1
+      REAL(dp), DIMENSION(:,:  ), ALLOCATABLE     :: ins_Q_TOA0, ins_Q_TOA1
+      
+      INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
+      
+
+  END TYPE type_global_forcing
 
   TYPE type_climate_model_matrix
     ! The "matrix" climate model option: three GCM snapshots (warm, cold, and PI), and a PD reanalysis snapshot to use for bias correction

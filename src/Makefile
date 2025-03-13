@@ -181,6 +181,7 @@ UFEMISM_source = \
   io/netcdf_input/netcdf_determine_indexing.f90 \
   io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
   io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_series_file.f90 \
   io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
   io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
   io/netcdf_input/netcdf_input.f90 \
@@ -222,6 +223,7 @@ UFEMISM_source = \
   basal_conditions/bed_roughness.f90 \
   basal_conditions/sliding_laws.f90 \
   \
+  surface_mass_balance/SMB_parameterised.f90 \
   surface_mass_balance/SMB_idealised.f90 \
   surface_mass_balance/SMB_prescribed.f90 \
   surface_mass_balance/SMB_main.f90 \
@@ -291,6 +293,7 @@ UFEMISM_source = \
   \
   tracer_tracking/tracer_tracking_particles_basic.f90 \
   tracer_tracking/tracer_tracking_particles_remapping.f90 \
+  tracer_tracking/tracer_tracking_particles_io.f90 \
   tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \

@@ -668,6 +668,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL_config         = ''
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
+    ! == Climate - Insolation
+    CHARACTER(LEN=256)  :: choice_insolation_forcing_config             = 'none'                           ! 'none', 'static' or 'realistic'
+    CHARACTER(LEN=256)  :: filename_insolation_config                   = ''                               ! File with the insolation solution (Laskar 2004)
+    REAL(dp)            :: static_insolation_time_config                = 0._dp                            ! [ka?] time to use for a static insolation
+
   ! == Ocean
   ! ========
 
@@ -744,6 +749,51 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_GRL_config          = 1E9_dp
     REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
 
+    ! Parameterised SMB forcing
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_config              = 'IMAU-ITM'
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM_config          = ''
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS_config          = ''
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL_config          = ''
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT_config          = 'IMAU-ITM'
+
+    ! IMAU-ITM SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS_config     = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL_config     = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT_config     = 'uniform'
+
+  ! Files containing the firn model (yearly firn depth and melt)
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_NAM_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_EAS_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_GRL_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT_config            = ''
+
+    ! timeframe for restarting from the firn model
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_NAM_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_EAS_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_GRL_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_ANT_config           = 1E9_dp
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness_config   = 1._dp                            ! Initial firn thickness of the IMAU-ITEM SMB model [m] (used when SMB_IMAUITM_choice_init_firn = "uniform")
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config       = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config       = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config       = -49._dp                          !            they used to in ANICE.)
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT_config       = -49._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM_config             = 10._dp                           ! 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM_config              = 0.0227_dp                        ! 0.513_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config               = 0.051_dp                         ! 0.012_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
+
+
   ! == Basal mass balance
   ! =====================
 
@@ -755,6 +805,11 @@ MODULE model_configuration
     LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
     REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
+    
+    ! BMB transition phase
+    LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
+    REAL(dp)            :: BMB_transition_phase_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB transition phase
+    REAL(dp)            :: BMB_transition_phase_t_end_config            = +9.9E9_dp                        ! [yr] End   time for BMB transition phase
 
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line_config      = .FALSE.                          ! Whether or not to apply basal melt rates under a partially floating grounding line; if so, use choice_BMB_subgrid; if not, apply "NMP"
@@ -897,8 +952,8 @@ MODULE model_configuration
     REAL(dp)            :: dt_GIA_config                                = 100._dp                         ! [yr] GIA model time step
     REAL(dp)            :: dx_GIA_config                                = 50E3_dp                         ! [m]  GIA model square grid resolution
     REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config        = 1.0E+25                         ! [kg m^2 s^-2] Lithospheric flexural rigidity
-    REAL(dp)            :: ELRA_bedrock_relaxation_time_config          = 3000.0                          ! [yr] Relaxation time for bedrock adjustment 
-    REAL(dp)            :: ELRA_mantle_density_config                   = 3300.0                          ! [kg m^-3] Mantle density 
+    REAL(dp)            :: ELRA_bedrock_relaxation_time_config          = 3000.0                          ! [yr] Relaxation time for bedrock adjustment
+    REAL(dp)            :: ELRA_mantle_density_config                   = 3300.0                          ! [kg m^-3] Mantle density
 
   ! == Sea level
   ! ============
@@ -937,6 +992,23 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_TLOVE_config                     = 1                               !     Tidal love numbers yes/no
     INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               !     Tidal love numbers degree
     REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! [m] Radius of CMB
+
+  ! == Tracer tracking
+  ! ==================
+
+    CHARACTER(LEN=256)  :: choice_tracer_tracking_model_config          = 'none'                          ! Which tracer-tracking model to use (current options: 'none', 'particles')
+
+    ! Settings for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dt_coupling_config             = 10._dp                          ! [yr] Coupling interval for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dx_particle_config             = 1e3_dp                          ! [m]  Distance that tracer-tracking particles should move in a single particle time step
+    REAL(dp)            :: tractrackpart_dt_particle_min_config         = 1._dp                           ! [yr] Minimum allowed time step for tracer-tracking particles
+    REAL(dp)            :: tractrackpart_dt_particle_max_config         = 1000._dp                        ! [yr] Maximum allowed time step for tracer-tracking particles
+    INTEGER             :: tractrackpart_n_max_particles_config         = 1000000                         !      Maximum number of particles (i.e. for how many particles is memory allocated)
+    REAL(dp)            :: tractrackpart_dt_new_particles_config        = 100._dp                         ! [yr] How often new batches of particles should be added
+    REAL(dp)            :: tractrackpart_dx_new_particles_config        = 50e3_dp                         ! [m]  How far new particles should be spaced apart (square grid)
+    INTEGER             :: tractrackpart_remap_n_nearest_config         = 4                               !      Between how many nearest particles should be interpolated when mapping tracers to the mesh
+    LOGICAL             :: tractrackpart_write_raw_output_config        = .FALSE.                         !      Whether or not to write the raw particle data to a NetCDF output file
+    REAL(dp)            :: tractrackpart_dt_raw_output_config           = 100._dp                         !      Time step for writing raw particle data to NetCDF
 
   ! == Output
   ! =========
@@ -1656,6 +1728,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT
 
+    ! == Climate - Insolation
+    CHARACTER(LEN=256)  :: choice_insolation_forcing
+    CHARACTER(LEN=256)  :: filename_insolation
+    REAL(dp)            :: static_insolation_time
+
   ! == Ocean
   ! ========
 
@@ -1732,6 +1809,52 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_GRL
     REAL(dp)            :: timeframe_SMB_prescribed_ANT
 
+    ! Parameterised SMB forcing
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT
+
+    ! IMAU-ITM SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT
+
+    ! Files containing the firn model (yearly firn depth and melt)
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_NAM
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_EAS
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_GRL
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT
+
+    ! timeframe for restarting from the firn model
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_NAM
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_EAS
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_GRL
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_ANT
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_refr_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_refr_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_refr_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_refr_ANT
+
+
+
   ! == Basal mass balance
   ! =====================
 
@@ -1744,6 +1867,11 @@ MODULE model_configuration
     REAL(dp)            :: BMB_inversion_t_start
     REAL(dp)            :: BMB_inversion_t_end
 
+    ! BMB transition phase
+    LOGICAL             :: do_BMB_transition_phase
+    REAL(dp)            :: BMB_transition_phase_t_start
+    REAL(dp)            :: BMB_transition_phase_t_end
+
     ! Grounding line treatment
     LOGICAL             :: do_subgrid_BMB_at_grounding_line
     CHARACTER(LEN=256)  :: choice_BMB_subgrid
@@ -1755,10 +1883,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT
 
     ! Choice of BMB model in ROI
-    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI 
-    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI 
+    CHARACTER(LEN=256)  :: choice_BMB_model_NAM_ROI
+    CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI
+
 
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM
@@ -1886,7 +2015,6 @@ MODULE model_configuration
     REAL(dp)            :: ELRA_lithosphere_flex_rigidity
     REAL(dp)            :: ELRA_bedrock_relaxation_time
     REAL(dp)            :: ELRA_mantle_density
-    
 
   ! == Sea level
   ! ============
@@ -1921,6 +2049,23 @@ MODULE model_configuration
     INTEGER             :: SELEN_TABOO_TLOVE
     INTEGER             :: SELEN_TABOO_DEG1
     REAL(dp)            :: SELEN_TABOO_RCMB
+
+  ! == Tracer tracking
+  ! ==================
+
+    CHARACTER(LEN=256)  :: choice_tracer_tracking_model
+
+    ! Settings for the particle-based tracer-tracking model
+    REAL(dp)            :: tractrackpart_dt_coupling
+    REAL(dp)            :: tractrackpart_dx_particle
+    REAL(dp)            :: tractrackpart_dt_particle_min
+    REAL(dp)            :: tractrackpart_dt_particle_max
+    INTEGER             :: tractrackpart_n_max_particles
+    REAL(dp)            :: tractrackpart_dt_new_particles
+    REAL(dp)            :: tractrackpart_dx_new_particles
+    INTEGER             :: tractrackpart_remap_n_nearest
+    LOGICAL             :: tractrackpart_write_raw_output
+    REAL(dp)            :: tractrackpart_dt_raw_output
 
   ! == Output
   ! =========
@@ -2636,6 +2781,9 @@ CONTAINS
       filename_climate_snapshot_EAS_config                        , &
       filename_climate_snapshot_GRL_config                        , &
       filename_climate_snapshot_ANT_config                        , &
+      choice_insolation_forcing_config                            , &
+      filename_insolation_config                                  , &
+      static_insolation_time_config                               , &
       do_asynchronous_ocean_config                                , &
       dt_ocean_config                                             , &
       ocean_vertical_grid_max_depth_config                        , &
@@ -2677,11 +2825,48 @@ CONTAINS
       timeframe_SMB_prescribed_EAS_config                         , &
       timeframe_SMB_prescribed_GRL_config                         , &
       timeframe_SMB_prescribed_ANT_config                         , &
+      choice_SMB_parameterised_config                             , &
+      choice_SMB_parameterised_NAM_config                         , &
+      choice_SMB_parameterised_EAS_config                         , &
+      choice_SMB_parameterised_GRL_config                         , &
+      choice_SMB_parameterised_ANT_config                         , &
+      choice_SMB_IMAUITM_init_firn_NAM_config                     , &
+      choice_SMB_IMAUITM_init_firn_EAS_config                     , &
+      choice_SMB_IMAUITM_init_firn_GRL_config                     , &
+      choice_SMB_IMAUITM_init_firn_ANT_config                     , &
+      filename_firn_IMAUITM_NAM_config                            , &
+      filename_firn_IMAUITM_EAS_config                            , &
+      filename_firn_IMAUITM_GRL_config                            , &
+      filename_firn_IMAUITM_ANT_config                            , &
+      timeframe_restart_firn_IMAUITM_NAM_config                   , &
+      timeframe_restart_firn_IMAUITM_EAS_config                   , &
+      timeframe_restart_firn_IMAUITM_GRL_config                   , &
+      timeframe_restart_firn_IMAUITM_ANT_config                   , &
+      SMB_IMAUITM_initial_firn_thickness_config                   , &
+      SMB_IMAUITM_C_abl_constant_NAM_config                       , &
+      SMB_IMAUITM_C_abl_constant_EAS_config                       , &
+      SMB_IMAUITM_C_abl_constant_GRL_config                       , &
+      SMB_IMAUITM_C_abl_constant_ANT_config                       , &
+      SMB_IMAUITM_C_abl_Ts_NAM_config                             , &
+      SMB_IMAUITM_C_abl_Ts_EAS_config                             , &
+      SMB_IMAUITM_C_abl_Ts_GRL_config                             , &
+      SMB_IMAUITM_C_abl_Ts_ANT_config                             , &
+      SMB_IMAUITM_C_abl_Q_NAM_config                              , &
+      SMB_IMAUITM_C_abl_Q_EAS_config                              , &
+      SMB_IMAUITM_C_abl_Q_GRL_config                              , &
+      SMB_IMAUITM_C_abl_Q_ANT_config                              , &
+      SMB_IMAUITM_C_refr_NAM_config                               , &
+      SMB_IMAUITM_C_refr_EAS_config                               , &
+      SMB_IMAUITM_C_refr_GRL_config                               , &
+      SMB_IMAUITM_C_refr_ANT_config                               , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
       do_BMB_inversion_config                                     , &
       BMB_inversion_t_start_config                                , &
       BMB_inversion_t_end_config                                  , &
+      do_BMB_transition_phase_config                              , &
+      BMB_transition_phase_t_start_config                         , &
+      BMB_transition_phase_t_end_config                           , &
       do_subgrid_BMB_at_grounding_line_config                     , &
       choice_BMB_subgrid_config                                   , &
       choice_BMB_model_NAM_config                                 , &
@@ -2781,6 +2966,17 @@ CONTAINS
       SELEN_TABOO_TLOVE_config                                    , &
       SELEN_TABOO_DEG1_config                                     , &
       SELEN_TABOO_RCMB_config                                     , &
+      choice_tracer_tracking_model_config                         , &
+      tractrackpart_dt_coupling_config                            , &
+      tractrackpart_dx_particle_config                            , &
+      tractrackpart_dt_particle_min_config                        , &
+      tractrackpart_dt_particle_max_config                        , &
+      tractrackpart_n_max_particles_config                        , &
+      tractrackpart_dt_new_particles_config                       , &
+      tractrackpart_dx_new_particles_config                       , &
+      tractrackpart_remap_n_nearest_config                        , &
+      tractrackpart_write_raw_output_config                       , &
+      tractrackpart_dt_raw_output_config                          , &
       do_create_netcdf_output_config                              , &
       dt_output_config                                            , &
       dt_output_restart_config                                    , &
@@ -3532,6 +3728,10 @@ CONTAINS
     C%filename_climate_snapshot_GRL                          = filename_climate_snapshot_GRL_config
     C%filename_climate_snapshot_ANT                          = filename_climate_snapshot_ANT_config
 
+    C%choice_insolation_forcing                              = choice_insolation_forcing_config
+    C%filename_insolation                                    = filename_insolation_config
+    C%static_insolation_time                                 = static_insolation_time_config
+
   ! == Ocean
   ! ========
 
@@ -3608,6 +3808,51 @@ CONTAINS
     C%timeframe_SMB_prescribed_GRL                           = timeframe_SMB_prescribed_GRL_config
     C%timeframe_SMB_prescribed_ANT                           = timeframe_SMB_prescribed_ANT_config
 
+    ! Parameterised SMB forcing
+    C%choice_SMB_parameterised                               = choice_SMB_parameterised_config
+    C%choice_SMB_parameterised_NAM                           = choice_SMB_parameterised_NAM_config
+    C%choice_SMB_parameterised_EAS                           = choice_SMB_parameterised_EAS_config
+    C%choice_SMB_parameterised_GRL                           = choice_SMB_parameterised_GRL_config
+    C%choice_SMB_parameterised_ANT                           = choice_SMB_parameterised_ANT_config
+
+    ! IMAU-ITM SMB model
+    C%choice_SMB_IMAUITM_init_firn_NAM                       = choice_SMB_IMAUITM_init_firn_NAM_config
+    C%choice_SMB_IMAUITM_init_firn_EAS                       = choice_SMB_IMAUITM_init_firn_EAS_config
+    C%choice_SMB_IMAUITM_init_firn_GRL                       = choice_SMB_IMAUITM_init_firn_GRL_config
+    C%choice_SMB_IMAUITM_init_firn_ANT                       = choice_SMB_IMAUITM_init_firn_ANT_config
+
+    ! Files containing the firn model (yearly firn depth and melt)
+    C%filename_firn_IMAUITM_NAM                              = filename_firn_IMAUITM_NAM_config
+    C%filename_firn_IMAUITM_EAS                              = filename_firn_IMAUITM_EAS_config
+    C%filename_firn_IMAUITM_GRL                              = filename_firn_IMAUITM_GRL_config
+    C%filename_firn_IMAUITM_ANT                              = filename_firn_IMAUITM_ANT_config
+
+    ! timeframe for restarting from the firn model
+    C%timeframe_restart_firn_IMAUITM_NAM                    = timeframe_restart_firn_IMAUITM_NAM_config
+    C%timeframe_restart_firn_IMAUITM_EAS                    = timeframe_restart_firn_IMAUITM_EAS_config
+    C%timeframe_restart_firn_IMAUITM_GRL                    = timeframe_restart_firn_IMAUITM_GRL_config
+    C%timeframe_restart_firn_IMAUITM_ANT                    = timeframe_restart_firn_IMAUITM_ANT_config
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    C%SMB_IMAUITM_initial_firn_thickness                     = SMB_IMAUITM_initial_firn_thickness_config
+    C%SMB_IMAUITM_C_abl_constant_NAM                         = SMB_IMAUITM_C_abl_constant_NAM_config
+    C%SMB_IMAUITM_C_abl_constant_EAS                         = SMB_IMAUITM_C_abl_constant_EAS_config
+    C%SMB_IMAUITM_C_abl_constant_GRL                         = SMB_IMAUITM_C_abl_constant_GRL_config
+    C%SMB_IMAUITM_C_abl_constant_ANT                         = SMB_IMAUITM_C_abl_constant_ANT_config
+    C%SMB_IMAUITM_C_abl_Ts_NAM                               = SMB_IMAUITM_C_abl_Ts_NAM_config
+    C%SMB_IMAUITM_C_abl_Ts_EAS                               = SMB_IMAUITM_C_abl_Ts_EAS_config
+    C%SMB_IMAUITM_C_abl_Ts_GRL                               = SMB_IMAUITM_C_abl_Ts_GRL_config
+    C%SMB_IMAUITM_C_abl_Ts_ANT                               = SMB_IMAUITM_C_abl_Ts_ANT_config
+    C%SMB_IMAUITM_C_abl_Q_NAM                                = SMB_IMAUITM_C_abl_Q_NAM_config
+    C%SMB_IMAUITM_C_abl_Q_EAS                                = SMB_IMAUITM_C_abl_Q_EAS_config
+    C%SMB_IMAUITM_C_abl_Q_GRL                                = SMB_IMAUITM_C_abl_Q_GRL_config
+    C%SMB_IMAUITM_C_abl_Q_ANT                                = SMB_IMAUITM_C_abl_Q_ANT_config
+    C%SMB_IMAUITM_C_refr_NAM                                 = SMB_IMAUITM_C_refr_NAM_config
+    C%SMB_IMAUITM_C_refr_EAS                                 = SMB_IMAUITM_C_refr_EAS_config
+    C%SMB_IMAUITM_C_refr_GRL                                 = SMB_IMAUITM_C_refr_GRL_config
+    C%SMB_IMAUITM_C_refr_ANT                                 = SMB_IMAUITM_C_refr_ANT_config
+
+
   ! == Basal mass balance
   ! =====================
 
@@ -3619,6 +3864,11 @@ CONTAINS
     C%do_BMB_inversion                                       = do_BMB_inversion_config
     C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
     C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
+
+    ! BMB transition phase
+    C%do_BMB_transition_phase                                = do_BMB_transition_phase_config
+    C%BMB_transition_phase_t_start                           = BMB_transition_phase_t_start_config
+    C%BMB_transition_phase_t_end                             = BMB_transition_phase_t_end_config
 
     ! Grounding line treatment
     C%do_subgrid_BMB_at_grounding_line                       = do_subgrid_BMB_at_grounding_line_config
@@ -3635,6 +3885,7 @@ CONTAINS
     C%choice_BMB_model_EAS_ROI                               = choice_BMB_model_EAS_ROI_config
     C%choice_BMB_model_GRL_ROI                               = choice_BMB_model_GRL_ROI_config
     C%choice_BMB_model_ANT_ROI                               = choice_BMB_model_ANT_ROI_config
+
 
     ! Prescribed BMB forcing
     C%choice_BMB_prescribed_NAM                              = choice_BMB_prescribed_NAM_config
@@ -3761,7 +4012,7 @@ CONTAINS
     C%dx_GIA                                                 = dx_GIA_config
     C%ELRA_lithosphere_flex_rigidity                         = ELRA_lithosphere_flex_rigidity_config
     C%ELRA_bedrock_relaxation_time                           = ELRA_bedrock_relaxation_time_config
-    C%ELRA_mantle_density                                    = ELRA_mantle_density_config 
+    C%ELRA_mantle_density                                    = ELRA_mantle_density_config
 
   ! == Sea level
   ! ============
@@ -3796,6 +4047,23 @@ CONTAINS
     C%SELEN_TABOO_TLOVE                                      = SELEN_TABOO_TLOVE_config
     C%SELEN_TABOO_DEG1                                       = SELEN_TABOO_DEG1_config
     C%SELEN_TABOO_RCMB                                       = SELEN_TABOO_RCMB_config
+
+  ! == Tracer tracking
+  ! ==================
+
+    C%choice_tracer_tracking_model                           = choice_tracer_tracking_model_config
+
+    ! Settings for the particle-based tracer-tracking model
+    C%tractrackpart_dt_coupling                              = tractrackpart_dt_coupling_config
+    C%tractrackpart_dx_particle                              = tractrackpart_dx_particle_config
+    C%tractrackpart_dt_particle_min                          = tractrackpart_dt_particle_min_config
+    C%tractrackpart_dt_particle_max                          = tractrackpart_dt_particle_max_config
+    C%tractrackpart_n_max_particles                          = tractrackpart_n_max_particles_config
+    C%tractrackpart_dt_new_particles                         = tractrackpart_dt_new_particles_config
+    C%tractrackpart_dx_new_particles                         = tractrackpart_dx_new_particles_config
+    C%tractrackpart_remap_n_nearest                          = tractrackpart_remap_n_nearest_config
+    C%tractrackpart_write_raw_output                         = tractrackpart_write_raw_output_config
+    C%tractrackpart_dt_raw_output                            = tractrackpart_dt_raw_output_config
 
   ! == Output
   ! =========

@@ -716,6 +716,8 @@ CONTAINS
         CALL write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'T2m', region%climate%T2m)
       CASE ('Precip')
         CALL write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Precip', region%climate%Precip)
+      CASE ('Q_TOA')
+        CALL write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%Q_TOA)
 
     ! == Ocean ==
     ! ===========
@@ -739,6 +741,12 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB', region%BMB%BMB)
+      CASE ('BMB_inv')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB_inv', region%BMB%BMB_inv)      
+      CASE ('BMB_transition_phase')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB_transition_phase', region%BMB%BMB_transition_phase)
+      CASE ('BMB_modelled')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'BMB_modelled', region%BMB%BMB_modelled)
 
     ! == LADDIE ==
     ! ============
@@ -808,14 +816,20 @@ CONTAINS
       ! Main AMB variables
       CASE ('AMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'AMB', region%AMB%AMB)
-        
+
     ! == Glacial isostatic adjustment ==
     ! ==================================
 
       ! Main GIA variables
       CASE ('dHb_next')
-        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHb_next', region%GIA%dHb_next) 
-                
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHb_next', region%GIA%dHb_next)
+
+    ! == Tracer tracking ==
+    ! =====================
+
+      case ('age')
+        call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'age', region%tracer_tracking%age)
+
     ! ===== End of user-defined output fields =====
     ! =============================================
 
@@ -1277,6 +1291,15 @@ CONTAINS
       CASE ('BMB')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
+      CASE ('BMB_inv')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_inv, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_inv', d_grid_vec_partial_2D)      
+      CASE ('BMB_transition_phase')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_transition_phase, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_transition_phase', d_grid_vec_partial_2D)
+      CASE ('BMB_modelled')
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_modelled, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_modelled', d_grid_vec_partial_2D)
 
     ! == LADDIE ==
     ! ============
@@ -1366,14 +1389,21 @@ CONTAINS
       CASE ('AMB')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%AMB%AMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'AMB', d_grid_vec_partial_2D)
-        
+
     ! == Glacial isostatic adjustment ==
     ! ==================================
 
       ! Main GIA variables
       CASE ('dHb_next')
-      	CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
-        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_next', d_grid_vec_partial_2D) 
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_next', d_grid_vec_partial_2D)
+
+    ! == Tracer tracking ==
+    ! =====================
+
+      case ('age')
+        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%tracer_tracking%age, d_grid_vec_partial_3D)
+        call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'age', d_grid_vec_partial_3D)
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -2164,6 +2194,12 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
+      CASE ('BMB_inv')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'BMB_inv', long_name = 'Basal mass balance - inverted', units = 'm yr^-1')
+      CASE ('BMB_transition_phase')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'BMB_transition_phase', long_name = 'Basal mass balance - transition phase', units = 'm yr^-1')
+      CASE ('BMB_modelled')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'BMB_modelled', long_name = 'Basal mass balance - modelled', units = 'm yr^-1')
 
     ! == LADDIE ==
     ! ============
@@ -2233,13 +2269,19 @@ CONTAINS
       ! Main AMB variables
       CASE ('AMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
-        
+
     ! == Glacial isostatic adjustment ==
     ! ==================================
 
       ! Main GIA variables
       CASE ('dHb_next')
         CALL add_field_mesh_dp_2D( filename, ncid, 'dHb_next', long_name = 'Bedrock elevation difference from ELRA', units = 'm')
+
+    ! == Tracer tracking ==
+    ! =====================
+
+      case ('age')
+        call add_field_mesh_dp_3D( filename, ncid, 'age', long_name = 'Age of ice', units = 'yr')
 
     ! ===== End of user-defined output fields =====
     ! =============================================
@@ -2601,6 +2643,12 @@ CONTAINS
       ! Main BMB variables
       CASE ('BMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'BMB', long_name = 'Basal mass balance', units = 'm yr^-1')
+      CASE ('BMB_inv')
+        CALL add_field_grid_dp_2D( filename, ncid, 'BMB_inv', long_name = 'Basal mass balance - inverted', units = 'm yr^-1')
+      CASE ('BMB_transition_phase')
+        CALL add_field_grid_dp_2D( filename, ncid, 'BMB_transition_phase', long_name = 'Basal mass balance - transition phase', units = 'm yr^-1')
+      CASE ('BMB_modelled')
+        CALL add_field_grid_dp_2D( filename, ncid, 'BMB_modelled', long_name = 'Basal mass balance - modelled', units = 'm yr^-1')
 
     ! == LADDIE ==
     ! ============
@@ -2671,13 +2719,19 @@ CONTAINS
       ! Main AMB variables
       CASE ('AMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'AMB', long_name = 'Artificial mass balance', units = 'm yr^-1')
-        
+
     ! == Glacial isostatic adjustment ==
     ! ==================================
 
       ! Main GIA variables
       CASE ('dHb_next')
         CALL add_field_grid_dp_2D( filename, ncid, 'dHb_next', long_name = 'Bedrock elevation difference from ELRA', units = 'm')
+
+    ! == Tracer tracking ==
+    ! =====================
+
+      case ('age')
+        call add_field_grid_dp_3D( filename, ncid, 'age', long_name = 'Age of ice', units = 'yr')
 
     ! ===== End of user-defined output fields =====
     ! =============================================
