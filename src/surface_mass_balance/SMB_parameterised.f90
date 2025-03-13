@@ -100,7 +100,7 @@ contains
         IF (mprev==0) mprev = 12
 
         SMB%Albedo( vi,m) = MIN(albedo_snow, MAX( SMB%AlbedoSurf( vi), albedo_snow - (albedo_snow - SMB%AlbedoSurf( vi))  * &
-                             EXP(-15._dp * SMB%FirnDepth( mprev,vi)) - 0.015_dp * SMB%MeltPreviousYear( vi)))
+                             EXP(-15._dp * SMB%FirnDepth( vi,mprev)) - 0.015_dp * SMB%MeltPreviousYear( vi)))
         IF ((ice%mask_icefree_ocean( vi) .eqv. .TRUE. .AND. ice%mask_floating_ice( vi) .eqv. .FALSE.) .OR. ice%mask_noice( vi) .eqv. .TRUE.) SMB%Albedo( vi,m) = albedo_water
 
         ! Determine ablation as a function of surface temperature and albedo/insolation according to Bintanja et al. (2002)
@@ -138,7 +138,7 @@ contains
 
       ! Note: Refreezing is limited by the ability of the firn layer to store melt water. currently a ten meter firn layer can store
       ! 2.5 m of water. However, this is based on expert judgement, NOT empirical evidence.
-      SMB%Refreezing_year( vi) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,vi))), 0.25_dp * SUM(SMB%FirnDepth( :,vi)/12._dp)) ! version from IMAU-ICE dev branch
+      SMB%Refreezing_year( vi) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))), 0.25_dp * SUM(SMB%FirnDepth( vi,:)/12._dp)) ! version from IMAU-ICE dev branch
       !SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))) ! outdated version on main branch
       
       IF (ice%mask_grounded_ice( vi) .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
@@ -255,7 +255,6 @@ contains
     allocate( SMB%Albedo          (mesh%vi1:mesh%vi2, 12))
     allocate( SMB%Albedo_year     (mesh%vi1:mesh%vi2))
     allocate( SMB%SMB_monthly     (mesh%vi1:mesh%vi2,12))
-    allocate( SMB%SMB             (mesh%vi1:mesh%vi2))
 
 
     ! Initialisation choice
