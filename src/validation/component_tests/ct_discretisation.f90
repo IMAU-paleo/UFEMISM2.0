@@ -30,8 +30,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '  Running discretisation component tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '  Running discretisation component tests...'
+    if (par%primary) write(0,*) ''
 
     call create_discretisation_component_tests_output_folder( foldername_discretisation)
 
@@ -58,7 +58,7 @@ contains
 
     foldername_discretisation = trim(C%output_dir) // '/discretisation'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_discretisation) // '/.', exist = ex)

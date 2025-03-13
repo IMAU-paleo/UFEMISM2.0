@@ -12,9 +12,9 @@ module mpi_basic
 
   type parallel_info
 
-    integer :: n        ! Total number of processes (0 = single-core, >0 = master+slaves)
-    integer :: i        ! Global ID of this process (0 = master, >0 = slave)
-    logical :: master   ! Whether or not the current process is the master process
+    integer :: n        ! Global number of processes
+    integer :: i        ! Global ID of this process
+    logical :: primary  ! Whether or not the current process is the primary process (shorthand for par%i == 0)
 
   end type parallel_info
 
@@ -33,7 +33,7 @@ contains
     ! Get rank of current process and total number of processes
     call MPI_COMM_RANK( MPI_COMM_WORLD, par%i, ierr)
     call MPI_COMM_SIZE( MPI_COMM_WORLD, par%n, ierr)
-    par%master = (par%i == 0)
+    par%primary = (par%i == 0)
 
   end subroutine initialise_parallelisation
 

@@ -42,7 +42,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to scalar output file "' // colour_string( trim( region%output_filename_scalar), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Writing to scalar output file "' // colour_string( trim( region%output_filename_scalar), 'light blue') // '"...'
 
     ! Shorthand for variable names
     filename = region%output_filename_scalar
@@ -136,7 +136,7 @@ contains
     region%output_filename_scalar = filename
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating scalar output file "' // colour_string( trim( filename), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Creating scalar output file "' // colour_string( trim( filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
@@ -214,8 +214,8 @@ contains
     region%scalars%buffer%n_mem = 0
     region%scalars%buffer%n     = 0
 
-    ! Only allocate memory for this on the master
-    if (par%master) then
+    ! Only allocate memory for this on the primary
+    if (par%primary) then
 
       n_mem = 1000
       region%scalars%buffer%n_mem = n_mem
@@ -282,8 +282,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Only the master does this
-    if (par%master) then
+    ! Only the primary does this
+    if (par%primary) then
 
       ! Increase timeframe count
       region%scalars%buffer%n = region%scalars%buffer%n + 1
@@ -343,7 +343,7 @@ contains
   subroutine extend_scalar_output_buffer( region)
     !< Extend memory to buffer the scalar output data between output writing intervals
     !
-    ! NOTE: should only be called by the master!
+    ! NOTE: should only be called by the primary!
 
     ! In/output variables:
     type(type_model_region), intent(inout) :: region
@@ -430,7 +430,7 @@ contains
     count = n
     d_to_write = d(1:n)
 
-    call write_var_master(  filename, ncid, id_var, d_to_write, start = start, count = count)
+    call write_var_primary(  filename, ncid, id_var, d_to_write, start = start, count = count)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -463,7 +463,7 @@ contains
     count = n
     d_to_write = d(1:n)
 
-    call write_var_master(  filename, ncid, id_var, d_to_write, start = start, count = count)
+    call write_var_primary(  filename, ncid, id_var, d_to_write, start = start, count = count)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

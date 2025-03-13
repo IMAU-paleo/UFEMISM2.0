@@ -47,7 +47,7 @@ module bedrock_cumulative_density_functions
   use remapping_grid_to_mesh_vertices, only: create_map_from_xy_grid_to_mesh_vertices
   use remapping_grid_to_mesh_triangles, only: create_map_from_xy_grid_to_mesh_triangles
   use petsc_basic, only: mat_petsc2CSR
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary
   use netcdf_io_main
 
   implicit none
@@ -80,7 +80,7 @@ contains
       return
     end if
 
-    if (par%master) then
+    if (par%primary) then
       write(*,"(A)") '     Initialising the sub-grid bedrock cumulative density functions...'
     end if
 
@@ -131,7 +131,7 @@ contains
     end select
 
     ! Write to terminal
-    if (par%master) write(0,*) '      Reading CDF functions from file "' // colour_string( trim( filename),'light blue') // '"...'
+    if (par%primary) write(0,*) '      Reading CDF functions from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     if (.not. check == 'read_from_file') then
       call crash('The initial mesh was not read from a file. Reading a bedrock CDF this way makes no sense!')
@@ -167,7 +167,7 @@ contains
       return
     end if
 
-    if (par%master) write(*,"(A)") '       Calculating bedrock CDFs from initial geometry...'
+    if (par%primary) write(*,"(A)") '       Calculating bedrock CDFs from initial geometry...'
 
     ! Calculate CDFs separately on the a-grid (vertices) and the b-grid (triangles)
     call calc_bedrock_CDFs_a( mesh, refgeo, ice)
@@ -230,7 +230,7 @@ contains
 
     ! Get complete gridded bedrock elevation on all processes
     allocate( Hb_grid_tot( refgeo%grid_raw%nx, refgeo%grid_raw%ny))
-    call gather_gridded_data_to_master( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
+    call gather_gridded_data_to_primary( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
     call MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_doUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for list of bedrock elevations
@@ -349,7 +349,7 @@ contains
 
     ! Get complete gridded bedrock elevation on all processes
     allocate( Hb_grid_tot( refgeo%grid_raw%nx, refgeo%grid_raw%ny))
-    call gather_gridded_data_to_master( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
+    call gather_gridded_data_to_primary( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
     call MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_doUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for list of bedrock elevations

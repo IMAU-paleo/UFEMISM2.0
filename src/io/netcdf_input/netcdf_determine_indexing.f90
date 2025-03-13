@@ -55,8 +55,8 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_y, id_var_y)
 
     ! Read x and y
-    call read_var_master(  filename, ncid, id_var_x, x)
-    call read_var_master(  filename, ncid, id_var_y, y)
+    call read_var_primary(  filename, ncid, id_var_x, x)
+    call read_var_primary(  filename, ncid, id_var_y, y)
     call MPI_BCAST( x, nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( y, ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
@@ -133,8 +133,8 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read lon and lat
-    call read_var_master(  filename, ncid, id_var_lon, lon)
-    call read_var_master(  filename, ncid, id_var_lat, lat)
+    call read_var_primary(  filename, ncid, id_var_lon, lon)
+    call read_var_primary(  filename, ncid, id_var_lat, lat)
     call MPI_BCAST( lon, nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( lat, nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 

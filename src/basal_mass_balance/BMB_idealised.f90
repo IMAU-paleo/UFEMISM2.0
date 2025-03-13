@@ -106,7 +106,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising idealised BMB model "' // &
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising idealised BMB model "' // &
       colour_string( TRIM( C%choice_BMB_model_idealised),'light blue') // '"...'
 
     ! Initialise the chosen idealised BMB model

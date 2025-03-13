@@ -41,8 +41,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '    Running mesh-to-grid remapping component tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '    Running mesh-to-grid remapping component tests...'
+    if (par%primary) write(0,*) ''
 
     call create_mesh_to_grid_remapping_output_folder( foldername_remapping, foldername_mesh_to_grid)
 
@@ -54,7 +54,7 @@ contains
       end do
     end do
 
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) ''
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -78,7 +78,7 @@ contains
 
     foldername_mesh_to_grid = trim(foldername_remapping) // '/mesh_to_grid'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_mesh_to_grid) // '/.', exist = ex)
@@ -122,9 +122,9 @@ contains
     filename = trim( foldername_mesh_to_grid) // '/res_' // &
       mesh_name( 1:len_trim(mesh_name)) // '_TO_' // grid_name( 1:len_trim(grid_name)) // '.nc'
 
-    if (par%master) write(0,*) '      Running mesh-to-grid remapping tests on mesh-grid combination:'
-    if (par%master) write(0,*) '        mesh: ', colour_string( trim( mesh_name),'light blue')
-    if (par%master) write(0,*) '        grid: ', colour_string( trim( grid_name),'light blue')
+    if (par%primary) write(0,*) '      Running mesh-to-grid remapping tests on mesh-grid combination:'
+    if (par%primary) write(0,*) '        mesh: ', colour_string( trim( mesh_name),'light blue')
+    if (par%primary) write(0,*) '        grid: ', colour_string( trim( grid_name),'light blue')
 
     ! Set up the mesh and the grid from the provided files
     call open_existing_netcdf_file_for_reading( filename_mesh, ncid)

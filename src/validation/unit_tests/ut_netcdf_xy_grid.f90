@@ -10,7 +10,7 @@ module ut_netcdf_xy_grid
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, strrep
   use grid_types, only: type_grid
   use grid_basic, only: setup_square_grid
-  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
 
   implicit none
 
@@ -94,7 +94,7 @@ contains
 
     ! Distribute data over the processes
     allocate( d_grid_vec_partial( grid%n_loc))
-    call distribute_gridded_data_from_master( grid, d, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
     filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
@@ -166,7 +166,7 @@ contains
 
     ! Distribute data over the processes
     allocate( d_grid_vec_partial( grid%n_loc, nz))
-    call distribute_gridded_data_from_master( grid, d, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
     filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
@@ -228,7 +228,7 @@ contains
 
     ! Distribute data over the processes
     allocate( d_grid_vec_partial( grid%n_loc))
-    call distribute_gridded_data_from_master( grid, d, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
     filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
@@ -291,7 +291,7 @@ contains
 
     ! Distribute data over the processes
     allocate( d_grid_vec_partial( grid%n_loc, 12))
-    call distribute_gridded_data_from_master( grid, d, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
     filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
@@ -364,7 +364,7 @@ contains
 
     ! Distribute data over the processes
     allocate( d_grid_vec_partial( grid%n_loc, nz))
-    call distribute_gridded_data_from_master( grid, d, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
     filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
@@ -436,7 +436,7 @@ contains
 
     ! Distribute data over the processes
     allocate( d_grid_vec_partial( grid%n_loc, C%nz_ocean))
-    call distribute_gridded_data_from_master( grid, d, d_grid_vec_partial)
+    call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
     filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'

@@ -41,13 +41,13 @@ contains
     call create_variable( filename, ncid, 'bedrock_cdf', NF90_DOUBLE, (/ id_dim_vi, id_dim_bin /), id_var_cdf)
     call add_attribute_char( filename, ncid, id_var_cdf, 'long_name', 'Bedrock CDF of vertices')
     call add_attribute_char( filename, ncid, id_var_cdf, 'units'    , '%'                 )
-    call write_var_master( filename, ncid, id_var_cdf, ice%bedrock_cdf)
+    call write_var_primary( filename, ncid, id_var_cdf, ice%bedrock_cdf)
 
     ! Triangle data
     call create_variable( filename, ncid, 'bedrock_cdf_b', NF90_DOUBLE, (/ id_dim_ti, id_dim_bin /), id_var_cdf_b)
     call add_attribute_char( filename, ncid, id_var_cdf_b, 'long_name', 'Bedrock CDF of triangles')
     call add_attribute_char( filename, ncid, id_var_cdf_b, 'units', '%')
-    call write_var_master( filename, ncid, id_var_cdf_b, ice%bedrock_cdf_b)
+    call write_var_primary( filename, ncid, id_var_cdf_b, ice%bedrock_cdf_b)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -96,7 +96,7 @@ contains
     transect%name = name
     transect%dx   = dx
 
-    if (par%master) write(0,*) '  Initialising output transect ', &
+    if (par%primary) write(0,*) '  Initialising output transect ', &
       colour_string( trim( transect%name),'light blue'), '...'
 
     select case (source)
@@ -453,10 +453,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Let the master read the file, then broadcast the data to the processes
+    ! Let the primary read the file, then broadcast the data to the processes
 
     ! Determine number of waypoints
-    if (par%master) then
+    if (par%primary) then
       n_wp = 0
       open( unit = 1337, file = filename, action = 'read')
       do while (.true.)
@@ -474,7 +474,7 @@ contains
     allocate( waypoints( n_wp,2))
 
     ! Read waypoints
-    if (par%master) then
+    if (par%primary) then
       open( unit = 1337, file = filename, action = 'read')
       do i = 1, n_wp
         read( unit = 1337, fmt = *, iostat = ios) waypoints( i,1), waypoints( i,2)
@@ -624,13 +624,13 @@ contains
     call create_variable(    filename, ncid, 'V',    NF90_DOUBLE, [n, two], transect%nc%id_var_V)
     call add_attribute_char( filename, ncid, transect%nc%id_var_V, 'long_name', 'Transect vertex coordinates')
     call add_attribute_char( filename, ncid, transect%nc%id_var_V, 'units'    , 'm')
-    call write_var_master( filename, ncid, transect%nc%id_var_V   , transect%V)
+    call write_var_primary( filename, ncid, transect%nc%id_var_V   , transect%V)
 
     call create_variable(    filename, ncid, 'zeta', NF90_DOUBLE, [z], transect%nc%id_var_zeta)
     call add_attribute_char( filename, ncid, transect%nc%id_var_zeta, 'long_name', 'Scaled vertical coordinate')
     call add_attribute_char( filename, ncid, transect%nc%id_var_zeta, 'units', '0-1')
     call add_attribute_char( filename, ncid, transect%nc%id_var_zeta, 'transformation', 'zeta = (h - z) / H; zeta = 0 at the ice surface; zeta = 1 at the ice base')
-    call write_var_master( filename, ncid, transect%nc%id_var_zeta, transect%zeta)
+    call write_var_primary( filename, ncid, transect%nc%id_var_zeta, transect%zeta)
 
     call create_variable(    filename, ncid, 'time', NF90_DOUBLE, [t], transect%nc%id_var_time)
     call add_attribute_char( filename, ncid, transect%nc%id_var_time, 'long_name', 'Time')
@@ -770,7 +770,7 @@ contains
 
     filename = transect%nc%filename
 
-    if (par%master) write(0,*) '  Writing to transect output file "', &
+    if (par%primary) write(0,*) '  Writing to transect output file "', &
       colour_string( trim( filename), 'light blue'), '"...'
 
     ! Map ice model data to transect

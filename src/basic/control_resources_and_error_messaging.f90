@@ -87,7 +87,7 @@ CONTAINS
 
     ! If so specified, print the current routine path to the terminal (useful for debugging)
     IF (do_display_path) THEN
-      IF (par%master) WRITE(0,'(A)') '   Initialising ' // TRIM( routine_path)
+      IF (par%primary) WRITE(0,'(A)') '   Initialising ' // TRIM( routine_path)
     END IF
 
     ! Check if resource use for this subroutine should be tracked
@@ -131,7 +131,7 @@ CONTAINS
 
     ! If so specified, print the current routine path to the terminal (useful for debugging)
     IF (do_display_path) THEN
-      IF (par%master) WRITE(0,'(A)') '   Finalising   ' // TRIM( routine_path)
+      IF (par%primary) WRITE(0,'(A)') '   Finalising   ' // TRIM( routine_path)
     END IF
 
     ! Check if resource use should be tracked for this subroutine
@@ -252,10 +252,10 @@ CONTAINS
       str2( i:i) = '='
     END DO
 
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
     CALL sync
 
   END SUBROUTINE print_UFEMISM_start
@@ -303,11 +303,11 @@ CONTAINS
       str2( i:i) = '='
     END DO
 
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    IF (par%master) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') ''
     CALL sync
 
   END SUBROUTINE print_UFEMISM_end
@@ -375,7 +375,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' ERROR: ' // TRIM( err_msg_loc),'red') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Stop the program
     error stop
@@ -444,7 +444,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' WARNING: ' // TRIM( err_msg_loc),'yellow') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Clean up after yourself
     DEALLOCATE( process_str)
@@ -514,7 +514,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' SUCCESS: ' // TRIM( err_msg_loc),'green') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Clean up after yourself
     DEALLOCATE( process_str)

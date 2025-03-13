@@ -374,7 +374,7 @@ contains
     end select
 
     ! Print to terminal
-    if (par%master)  write(*,"(A)") '     Initialising target ice rates of change from file "' // colour_string( trim( filename_dHi_dt_target),'light blue') // '"...'
+    if (par%primary)  write(*,"(A)") '     Initialising target ice rates of change from file "' // colour_string( trim( filename_dHi_dt_target),'light blue') // '"...'
 
     ! Read dHi_dt from file
     if (timeframe_dHi_dt_target == 1E9_dp) then
@@ -425,7 +425,7 @@ contains
     end select
 
     ! Print to terminal
-    if (par%master)  write(*,"(A)") '     Initialising target surface ice speed from file "' // colour_string( trim( filename_uabs_surf_target),'light blue') // '"...'
+    if (par%primary)  write(*,"(A)") '     Initialising target surface ice speed from file "' // colour_string( trim( filename_uabs_surf_target),'light blue') // '"...'
 
     if (timeframe_uabs_surf_target == 1E9_dp) then
       call read_field_from_file_2D( filename_uabs_surf_target, 'uabs_surf', mesh, ice%uabs_surf_target)
@@ -481,7 +481,7 @@ contains
     f = 2._dp ** ((x_GL - 450E3_dp) / 80000._dp)
     C%uniform_Glens_flow_factor = C%uniform_Glens_flow_factor * f
 
-    if (par%master) write(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor to ', C%uniform_Glens_flow_factor
+    if (par%primary) write(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor to ', C%uniform_Glens_flow_factor
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -641,8 +641,8 @@ contains
     if (C%do_BMB_transition_phase) then
 
       ! Safety
-      if (C%BMB_transition_phase_t_start < C%BMB_inversion_t_start .or. C%BMB_transition_phase_t_end > C%BMB_inversion_t_end ) then 
-        ! If the window of smoothing falls outside window of BMB inversion, crash. 
+      if (C%BMB_transition_phase_t_start < C%BMB_inversion_t_start .or. C%BMB_transition_phase_t_end > C%BMB_inversion_t_end ) then
+        ! If the window of smoothing falls outside window of BMB inversion, crash.
         call crash(' The time window for BMB smoothing does not fall within the time window for BMB inversion. Make sure that "BMB_transition_phase_t_start" >= "BMB_inversion_t_start", and "BMB_transition_phase_t_end" <= "BMB_inversion_t_end".')
 
       elseif (C%BMB_transition_phase_t_start >= C%BMB_transition_phase_t_end) then
@@ -652,14 +652,14 @@ contains
       end if
 
       ! Compute smoothing weights for BMB inversion smoothing
-      if (region%time < C%BMB_transition_phase_t_start) then 
+      if (region%time < C%BMB_transition_phase_t_start) then
         w = 1.0_dp
 
       elseif (region%time >= C%BMB_transition_phase_t_start .and. &
         region%time <= C%BMB_transition_phase_t_end) then
         w = 1.0_dp - ((region%time - C%BMB_transition_phase_t_start)/(C%BMB_transition_phase_t_end - C%BMB_transition_phase_t_start))
 
-      elseif (region%time > C%BMB_transition_phase_t_end) then 
+      elseif (region%time > C%BMB_transition_phase_t_end) then
         w = 0.0_dp
 
       end if
@@ -674,14 +674,14 @@ contains
           .not. region%ice%mask_floating_ice( vi) .and. &
           .not. region%ice%mask_cf_fl( vi)) cycle
 
-      if (C%do_BMB_transition_phase) then 
+      if (C%do_BMB_transition_phase) then
         ! If BMB_transition_phase is turned ON, use weight 'w' to compute BMB field
         region%BMB%BMB( vi) = w * region%BMB%BMB_inv( vi) + (1.0_dp - w) * region%BMB%BMB_modelled( vi)
-        
-        ! Save smoothed BMB field for diagnostic output
-        region%BMB%BMB_transition_phase( vi) = region%BMB%BMB( vi) 
 
-      else 
+        ! Save smoothed BMB field for diagnostic output
+        region%BMB%BMB_transition_phase( vi) = region%BMB%BMB( vi)
+
+      else
         ! If BMB_transition_phase is turned OFF, just apply inverted melt rates
         region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
 

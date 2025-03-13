@@ -12,7 +12,7 @@ module reference_geometries_main
   use reference_geometry_types, only: type_reference_geometry
   use mesh_types, only: type_mesh
   use grid_basic, only: type_grid, setup_square_grid
-  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use ice_geometry_basics, only: ice_surface_elevation
   use analytical_solutions, only: Halfar_dome, Bueler_dome
   use netcdf_io_main
@@ -49,7 +49,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '     Mapping reference geometries to model mesh...'
+    if (par%primary) write(0,'(A)') '     Mapping reference geometries to model mesh...'
 
     ! == Initial geometry
     ! ===================
@@ -456,7 +456,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to screen
-    if (par%master) write(0,'(A)') '  Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
+    if (par%primary) write(0,'(A)') '  Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
       colour_string( region_name,'light blue') // ' from idealised case "' // colour_string( trim( choice_refgeo_idealised),'light blue') // '"...'
 
     ! Get domain size for this model region
@@ -495,16 +495,16 @@ contains
     allocate( refgeo%Hs_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
     allocate( refgeo%SL_grid_raw( refgeo%grid_raw%n1: refgeo%grid_raw%n2), source = 0._dp)
 
-    ! allocate memory for the full grid data on the master
-    if (par%master) then
+    ! allocate memory for the full grid data on the primary
+    if (par%primary) then
       allocate( Hi( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
       allocate( Hb( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
       allocate( Hs( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
       allocate( SL( refgeo%grid_raw%nx, refgeo%grid_raw%ny), source = 0._dp)
     end if
 
-    ! Calculate the idealised geometry on the grid (master only)
-    if (par%master) then
+    ! Calculate the idealised geometry on the grid (primary only)
+    if (par%primary) then
       do i = 1, refgeo%grid_raw%nx
       do j = 1, refgeo%grid_raw%ny
         call calc_idealised_geometry( refgeo%grid_raw%x( i), refgeo%grid_raw%y( j), Hi( i,j), Hb( i,j), Hs( i,j), SL( i,j), choice_refgeo_idealised)
@@ -513,10 +513,10 @@ contains
     end if
 
     ! Distribute the data over the processes in vector form
-    call distribute_gridded_data_from_master( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
-    call distribute_gridded_data_from_master( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
-    call distribute_gridded_data_from_master( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
-    call distribute_gridded_data_from_master( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, Hi, refgeo%Hi_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, Hb, refgeo%Hb_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, Hs, refgeo%Hs_grid_raw)
+    call distribute_gridded_data_from_primary( refgeo%grid_raw, SL, refgeo%SL_grid_raw)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -551,7 +551,7 @@ contains
     end if
 
     ! Print to screen
-    if (par%master) write(0,'(A)') '   Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
+    if (par%primary) write(0,'(A)') '   Initialising ' // trim( refgeo_name) // ' geometry for model region ' // &
       colour_string( region_name,'light blue') // ' from file "' // colour_string( trim( filename_refgeo_applied),'light blue') // '"...'
 
     ! Find out on what kind of grid the file is defined

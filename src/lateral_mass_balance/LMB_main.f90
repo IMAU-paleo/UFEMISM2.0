@@ -99,7 +99,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising lateral mass balance model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising lateral mass balance model...'
 
     ! Determine which LMB model to initialise for this region
     SELECT CASE (region_name)
@@ -160,7 +160,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping lateral mass balance model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping lateral mass balance model data to the new mesh...'
 
     ! Determine which LMB model to initialise for this region
     SELECT CASE (region_name)

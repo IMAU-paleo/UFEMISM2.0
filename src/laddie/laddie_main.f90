@@ -4,7 +4,7 @@ MODULE laddie_main
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -28,9 +28,9 @@ MODULE laddie_main
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -54,7 +54,7 @@ CONTAINS
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
     REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
 
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -112,9 +112,9 @@ CONTAINS
         CASE DEFAULT
           CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
         CASE ('euler')
-          CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)  
+          CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
         CASE ('fbrk3')
-          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)  
+          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
       END SELECT
 
       ! Display or save fields
@@ -140,12 +140,12 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
     INTEGER                                               :: vi
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
- 
+
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising LADDIE model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising LADDIE model...'
 
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
@@ -191,14 +191,14 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model_timestep'
     INTEGER                                               :: vi
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
- 
+
     ! Allocate timestep
     CALL allocate_laddie_timestep( mesh, npx)
 
-    ! Layer thickness 
+    ! Layer thickness
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          npx%H( vi)      = C%laddie_initial_thickness
@@ -215,7 +215,7 @@ CONTAINS
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         npx%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset 
+         npx%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset
          npx%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
        END IF
     END DO
@@ -226,7 +226,7 @@ CONTAINS
   END SUBROUTINE initialise_laddie_model_timestep
 
   SUBROUTINE integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
-    ! Integrate 1 timestep Euler scheme 
+    ! Integrate 1 timestep Euler scheme
 
     ! In- and output variables
 
@@ -240,7 +240,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_euler'
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -265,7 +265,7 @@ CONTAINS
   END SUBROUTINE integrate_euler
 
   SUBROUTINE integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
-    ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme 
+    ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme
 
     ! Based on Lilly et al (2023, MWR) doi:10.1175/MWR-D-23-0113.1
 
@@ -282,14 +282,14 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! == Stage 1: explicit 1/3 timestep ==
     ! == RHS terms defined at n ==========
     ! ====================================
- 
+
     ! Integrate H 1/3 time step
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, time, dt/3)
 
@@ -343,7 +343,7 @@ CONTAINS
     ! Integrate T and S 1 time step
     CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
 
-    ! =============== 
+    ! ===============
     ! == Move time ==
     CALL move_laddie_timestep( laddie, tl, dt)
 
@@ -453,7 +453,7 @@ CONTAINS
         laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
       END IF
     END DO
-      
+
     ! Mask on b grid
     CALL gather_to_all( laddie%mask_a, mask_a_tot)
     CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
@@ -475,7 +475,7 @@ CONTAINS
         END IF
       END DO
 
-      ! Define grounding line triangles 
+      ! Define grounding line triangles
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
         ! Check if any connected vertex is grounded
@@ -500,7 +500,7 @@ CONTAINS
         ! Define calving front triangles
         DO i = 1, 3
           vi = mesh%Tri( ti, i)
-          ! Check if any vertex is icefree ocean 
+          ! Check if any vertex is icefree ocean
           IF (mask_oc_a_tot( vi)) THEN
             ! Define as calving front triangle
             laddie%mask_cf_b( ti) = .true.
@@ -573,7 +573,7 @@ CONTAINS
       END IF
     END DO
 
-    ! Apply extrapolation to H, T and S 
+    ! Apply extrapolation to H, T and S
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%H, sigma)
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%T, sigma)
     CALL extrapolate_Gaussian( mesh, mask, laddie%now%S, sigma)
@@ -594,7 +594,7 @@ CONTAINS
       IF (ice%mask_floating_ice( vi)) THEN
         IF (laddie%now%H( vi) == 0.0_dp) THEN
           laddie%now%H( vi) = C%laddie_thickness_minimum
-          laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset 
+          laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
           laddie%now%S( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
         END IF
       END IF
