@@ -2,7 +2,7 @@ module netcdf_basic_wrappers
   !< UFEMISM wrappers for the most basic NetCDF functionality
   !< (needed to deal with parallelisation and extended error messaging)
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR, MPI_INTEGER
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mpi_basic, only: par

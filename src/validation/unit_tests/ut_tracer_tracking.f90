@@ -5,7 +5,7 @@ module ut_tracer_tracking
   use tests_main
   use assertions_basic
   use ut_basic
-  use mpi_f08
+  use mpi_f08, only:
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use model_configuration, only: C

@@ -5,7 +5,8 @@ MODULE mesh_parallel_creation
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_INTEGER, MPI_SEND, MPI_RECV, MPI_STATUS, &
+    MPI_DOUBLE_PRECISION, MPI_CHAR, MPI_ANY_TAG
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string

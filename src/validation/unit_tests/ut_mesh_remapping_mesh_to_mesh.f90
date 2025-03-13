@@ -5,7 +5,7 @@ module ut_mesh_remapping_mesh_to_mesh
   use tests_main
   use assertions_basic
   use ut_basic
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_LOGICAL
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C

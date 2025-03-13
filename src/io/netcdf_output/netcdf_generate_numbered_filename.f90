@@ -1,6 +1,6 @@
 module netcdf_generate_numbered_filename
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHARACTER
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
 

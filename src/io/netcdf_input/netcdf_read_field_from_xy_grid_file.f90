@@ -1,7 +1,7 @@
 module netcdf_read_field_from_xy_grid_file
   !< Read data fields from a x/y-grid file
 
-  use mpi_f08
+  use mpi_f08, only:
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash

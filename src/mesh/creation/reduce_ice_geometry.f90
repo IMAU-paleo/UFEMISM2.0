@@ -4,7 +4,7 @@ module reduce_ice_geometry
   ! ice front, ice-sheet polygon and ice-shelf polygon from an ice geometry
   ! defined on either a grid or a mesh; these can then be used to create a new mesh.
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_INTEGER, MPI_DOUBLE_PRECISION
   use mpi_basic, only: par, sync
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine

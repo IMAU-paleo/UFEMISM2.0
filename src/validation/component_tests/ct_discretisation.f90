@@ -2,7 +2,7 @@ module ct_discretisation
 
   ! Test everything related to discretisation
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
   use model_configuration, only: C
   use precisions, only: dp
   use mpi_basic, only: par

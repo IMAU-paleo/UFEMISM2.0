@@ -2,7 +2,7 @@ module ut_bedrock_CDFs
 
   ! Unit tests for the subgrid bedrock cumulative density functions
 
-  use mpi_f08
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_LAND, MPI_LOGICAL
   use tests_main
   use assertions_basic
   use ut_basic
