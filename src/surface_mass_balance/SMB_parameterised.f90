@@ -141,7 +141,10 @@ contains
       SMB%Refreezing_year( vi) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))), 0.25_dp * SUM(SMB%FirnDepth( vi,:)/12._dp)) ! version from IMAU-ICE dev branch
       !SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))) ! outdated version on main branch
       
-      IF (ice%mask_grounded_ice( vi) .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
+      IF (ice%mask_grounded_ice( vi)  .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
+      IF (ice%mask_icefree_ocean( vi) .eqv. .TRUE.)                                                SMB%AddedFirn( vi,:)     = 0._dp ! Does it make sense to add firn over the ocean?!
+      
+
 
       DO m = 1, 12
         SMB%Refreezing(  vi,m) = SMB%Refreezing_year( vi) / 12._dp
