@@ -392,6 +392,11 @@ CONTAINS
     call read_climate_snapshot( C%filename_climate_snapshot_PI  , mesh, climate%matrix%GCM_PI  )
     call read_climate_snapshot( C%filename_climate_snapshot_warm, mesh, climate%matrix%GCM_warm)
     call read_climate_snapshot( C%filename_climate_snapshot_cold, mesh, climate%matrix%GCM_cold)
+    
+    ! Get the orbit time
+    climate%matrix%GCM_PI%orbit_time   = 0._dp
+    climate%matrix%GCM_warm%orbit_time = C%matrix_warm_orbit_time
+    climate%matrix%GCM_cold%orbit_time = C%matrix_cold_orbit_time
 
 ! here appear some checks if wind is included or not in the data
 ! after that cames the snapshot ocean and ice mask in dev branch, not in UFE1.x
