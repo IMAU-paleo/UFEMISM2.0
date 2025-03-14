@@ -278,9 +278,6 @@ contains
     IF     (choice_SMB_IMAUITM_init_firn == 'uniform') THEN
       ! Initialise with a uniform firn layer over the ice sheet
 
-      allocate( SMB%FirnDepth        (mesh%vi1:mesh%vi2, 12))
-      allocate( SMB%MeltPreviousYear (mesh%vi1:mesh%vi2))
-
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%Hi( vi) > 0._dp) THEN
           SMB%FirnDepth(        vi,:) = C%SMB_IMAUITM_initial_firn_thickness
