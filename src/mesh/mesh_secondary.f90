@@ -7,7 +7,6 @@ MODULE mesh_secondary
 
   use tests_main
   use assertions_basic
-  USE mpi
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE mpi_distributed_memory                                 , ONLY: partition_list
@@ -176,7 +175,7 @@ CONTAINS
     A_tot_Vor = SUM( mesh%A)
     A_tot_ex  = (mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin)
     Aerr = ABS( 1._dp - A_tot_vor / A_tot_ex) / 100._dp
-    IF (Aerr > 0.0001_dp .AND. par%master) CALL warning('sum of Voronoi cell areas doesnt match square area of mesh! (error of {dp_01} %)', dp_01 = Aerr)
+    IF (Aerr > 0.0001_dp .AND. par%primary) CALL warning('sum of Voronoi cell areas doesnt match square area of mesh! (error of {dp_01} %)', dp_01 = Aerr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

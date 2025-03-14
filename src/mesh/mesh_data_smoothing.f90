@@ -5,7 +5,6 @@ module mesh_data_smoothing
   !> it back to the mesh. The numerical diffusion arising from the two mapping
   !> operations is not a problem since we're smoothing the data anyway.
 
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use mesh_types, only: type_mesh

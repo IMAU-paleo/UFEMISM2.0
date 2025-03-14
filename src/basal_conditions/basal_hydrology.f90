@@ -5,6 +5,7 @@ MODULE basal_hydrology
 ! ===== Preamble =====
 ! ====================
 
+  use mpi_basic, only: par
   USE precisions                                             , ONLY: dp
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
@@ -345,7 +346,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,*) '  Initialising basal hydrology inversion model...'
+    IF (par%primary) WRITE(0,*) '  Initialising basal hydrology inversion model...'
 
     ! Allocate memory for main variables
     ! ==================================
@@ -1732,7 +1733,7 @@ CONTAINS
     end if
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising pore water fraction from file "' // colour_string( TRIM(filename_pore_water_fraction),'light blue') // '"...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising pore water fraction from file "' // colour_string( TRIM(filename_pore_water_fraction),'light blue') // '"...'
 
     ! Read pore water fraction from file
     IF (timeframe_pore_water_fraction == 1E9_dp) THEN

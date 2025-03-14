@@ -5,7 +5,7 @@ module read_and_remap_field_from_file
 ! The routines will automatically detect which one of these it is, and select the
 ! appropriate subroutine. The data will also be automatically mapped to the provided model mesh.
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_DOUBLE_PRECISION
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C
@@ -24,6 +24,11 @@ module read_and_remap_field_from_file
   use netcdf, only: NF90_MAX_VAR_DIMS
 
   implicit none
+
+  private
+
+  public :: read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
+    read_field_from_file_3D_ocean, read_field_from_file_0D
 
 contains
 
@@ -619,8 +624,8 @@ contains
       call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
       ! Read the data
-      call read_var_master( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
-      if (par%master) d = d_with_time( 1)
+      call read_var_primary( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
+      if (par%primary) d = d_with_time( 1)
 
       ! Broadcast to all processes
       call MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
@@ -635,7 +640,7 @@ contains
       if (ndims_of_var /= 0) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
 
       ! Read the data
-      call read_var_master( filename, ncid, id_var, d)
+      call read_var_primary( filename, ncid, id_var, d)
 
       ! Broadcast to all processes
       call MPI_BCAST( d, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)

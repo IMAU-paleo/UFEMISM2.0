@@ -262,7 +262,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a uniform value...'
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures with a uniform value...'
 
     ! Determine choice of initial uniform ice temperatures for this model region
     IF     (region_name == 'NAM') THEN
@@ -313,7 +313,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a linear profile...'
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures with a linear profile...'
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -362,7 +362,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with the Robin solution...'
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures with the Robin solution...'
 
     ! Calculate Ti_pmp
     CALL calc_pressure_melting_point( mesh, ice)
@@ -428,7 +428,7 @@ CONTAINS
     end if
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures from file "' // &
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures from file "' // &
       colour_string( TRIM( filename_initial_ice_temperature), 'light blue') // '"...'
 
     ! Allocate

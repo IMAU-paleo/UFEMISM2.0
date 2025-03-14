@@ -5,7 +5,7 @@ MODULE thermodynamics_3D_heat_equation
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_INTEGER, MPI_SUM
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -502,7 +502,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to thermodynamics restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to thermodynamics restart file "' // &
       colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -551,7 +551,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, ice%thermo_restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating thermodynamics restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating thermodynamics restart file "' // &
       colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

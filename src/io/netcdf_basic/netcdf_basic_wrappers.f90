@@ -2,7 +2,7 @@ module netcdf_basic_wrappers
   !< UFEMISM wrappers for the most basic NetCDF functionality
   !< (needed to deal with parallelisation and extended error messaging)
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR, MPI_INTEGER
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mpi_basic, only: par
@@ -43,7 +43,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Check if a dimension of this name exists in the file
       nerr = NF90_INQ_DIMID( ncid, dim_name, id_dim)
@@ -85,7 +85,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_INQUIRE_DIMENSION( ncid, id_dim, name = dim_name, len = dim_length), &
         filename = filename)
     end if
@@ -119,7 +119,7 @@ contains
     ! To prevent "unused variable" compiler warnings
     dummy1 = filename( 1:1)
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Check if a variable of this name exists in the file
       nerr = NF90_INQ_VARID( ncid, var_name, id_var)
@@ -157,7 +157,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .false.)
 
-    if (par%master) then
+    if (par%primary) then
       ! Inquire some info on this variable
       call handle_netcdf_error( NF90_INQUIRE_VARIABLE( ncid, id_var, name = var_name, &
         xtype = var_type, ndims = ndims_of_var, dimids = dims_of_var), &
@@ -191,13 +191,13 @@ contains
     call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Check if this file already exists
-    if (par%master) then
+    if (par%primary) then
       inquire( exist = file_exists, file = trim( filename))
       if (file_exists) call crash('file "' // trim( filename) // '" already exists!')
     end if
 
     ! Create the NetCDF file
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_CREATE( filename, ior( NF90_NOCLOBBER, NF90_NETCDF4), ncid), &
         filename = filename)
     end if
@@ -238,7 +238,7 @@ contains
     end if
 
     ! Add the dimension
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_DEF_DIM( ncid, dim_name, dim_length, id_dim), &
         filename = filename, dimvarname = dim_name)
     end if
@@ -277,7 +277,7 @@ contains
     end if
 
     ! Add the variable
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_DEF_VAR( ncid, name = var_name, xtype = var_type, &
         dimids = dim_ids, varid = id_var), filename = filename, dimvarname = var_name)
     end if
@@ -311,7 +311,7 @@ contains
     if (id_var /= -1) call crash('file "' // trim( filename) // '" already contains variable "' // trim( var_name) // '"!')
 
     ! Add the variable
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_DEF_VAR( ncid, name = var_name, xtype = var_type, varid = id_var), &
         filename = filename, dimvarname = var_name)
     end if
@@ -340,7 +340,7 @@ contains
     call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Add the attribute
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_ATT( ncid, id_var, att_name, att_val), &
         filename = filename)
     end if
@@ -367,7 +367,7 @@ contains
     call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Add the attribute
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_ATT( ncid, id_var, att_name, att_val), &
         filename = filename)
     end if
@@ -394,7 +394,7 @@ contains
     call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Add the attribute
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_PUT_ATT( ncid, id_var, att_name, att_val), &
         filename = filename)
     end if
@@ -425,7 +425,7 @@ contains
     if (.not. file_exists) call crash('file "' // trim( filename) // '" not found!')
 
     ! Open the NetCDF file with read-only access
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_OPEN( trim( filename), NF90_NOWRITE, ncid), &
         filename = filename)
     end if
@@ -460,7 +460,7 @@ contains
     if (.not. file_exists) call crash('file "' // trim( filename) // '" not found!')
 
     ! Open the NetCDF file with read+write access
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_OPEN( trim( filename), ior( NF90_WRITE, NF90_SHARE), ncid), &
         filename = filename)
     end if
@@ -485,7 +485,7 @@ contains
     call init_routine( routine_name, do_track_resource_use = .false.)
 
     ! Close netCDF file:
-    if (par%master) then
+    if (par%primary) then
       call handle_netcdf_error( NF90_CLOSE( ncid))
     end if
 

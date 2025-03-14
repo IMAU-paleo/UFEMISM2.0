@@ -7,27 +7,27 @@ module mpi_distributed_memory_grid
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use model_configuration, only: C
-  use mpi_distributed_memory, only: distribute_from_master, gather_to_master, gather_to_all
+  use mpi_distributed_memory, only: distribute_from_primary, gather_to_primary, gather_to_all
 
   implicit none
 
   private
 
-  public :: distribute_gridded_data_from_master, gather_gridded_data_to_master, gather_gridded_data_to_all
+  public :: distribute_gridded_data_from_primary, gather_gridded_data_to_primary, gather_gridded_data_to_all
 
-  interface distribute_gridded_data_from_master
-    procedure distribute_gridded_data_from_master_int_2D
-    procedure distribute_gridded_data_from_master_int_3D
-    procedure distribute_gridded_data_from_master_dp_2D
-    procedure distribute_gridded_data_from_master_dp_3D
-  end interface distribute_gridded_data_from_master
+  interface distribute_gridded_data_from_primary
+    procedure distribute_gridded_data_from_primary_int_2D
+    procedure distribute_gridded_data_from_primary_int_3D
+    procedure distribute_gridded_data_from_primary_dp_2D
+    procedure distribute_gridded_data_from_primary_dp_3D
+  end interface distribute_gridded_data_from_primary
 
-  interface gather_gridded_data_to_master
-    procedure gather_gridded_data_to_master_int_2D
-    procedure gather_gridded_data_to_master_int_3D
-    procedure gather_gridded_data_to_master_dp_2D
-    procedure gather_gridded_data_to_master_dp_3D
-  end interface gather_gridded_data_to_master
+  interface gather_gridded_data_to_primary
+    procedure gather_gridded_data_to_primary_int_2D
+    procedure gather_gridded_data_to_primary_int_3D
+    procedure gather_gridded_data_to_primary_dp_2D
+    procedure gather_gridded_data_to_primary_dp_3D
+  end interface gather_gridded_data_to_primary
 
   interface gather_gridded_data_to_all
     procedure gather_gridded_data_to_all_int_2D
@@ -38,9 +38,9 @@ module mpi_distributed_memory_grid
 
 contains
 
-subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_partial)
-  !< Distribute a 2-D gridded data field from the Master.
-  !< Input from Master: total data field in field form
+subroutine distribute_gridded_data_from_primary_int_2D( grid, d_grid, d_grid_vec_partial)
+  !< Distribute a 2-D gridded data field from the primary.
+  !< Input from primary: total data field in field form
   !< Output to all: partial data in vector form
 
   ! In/output variables:
@@ -49,7 +49,7 @@ subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_
   integer, dimension(:  ),           intent(  out) :: d_grid_vec_partial
 
   ! Local variables:
-  character(len=256), parameter      :: routine_name = 'distribute_gridded_data_from_master_int_2D'
+  character(len=256), parameter      :: routine_name = 'distribute_gridded_data_from_primary_int_2D'
   integer                            :: n,i,j
   integer, dimension(:), allocatable :: d_grid_vec_total
 
@@ -57,8 +57,8 @@ subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_
   call init_routine( routine_name)
 
   ! Convert gridded data to vector form
-  if (par%master) then
-    if (.not. present(d_grid)) call crash('d_grid must be present on master')
+  if (par%primary) then
+    if (.not. present(d_grid)) call crash('d_grid must be present on primary')
 
     ! allocate memory
     allocate( d_grid_vec_total( grid%n), source = 0)
@@ -73,10 +73,10 @@ subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_
   ! When passing arrays, it is required they exist
   else
     allocate( d_grid_vec_total(0) )
-  end if ! if (par%master) then
+  end if ! if (par%primary) then
 
   ! Distribute vector-form data to the processes
-  call distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+  call distribute_from_primary( d_grid_vec_total, d_grid_vec_partial)
 
   ! Clean up after yourself
   deallocate( d_grid_vec_total)
@@ -84,11 +84,11 @@ subroutine distribute_gridded_data_from_master_int_2D( grid, d_grid, d_grid_vec_
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine distribute_gridded_data_from_master_int_2D
+end subroutine distribute_gridded_data_from_primary_int_2D
 
-subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
-  !< Distribute a 2-D gridded data field from the Master.
-  !< Input from Master: total data field in field form
+subroutine distribute_gridded_data_from_primary_dp_2D( grid, d_grid, d_grid_vec_partial)
+  !< Distribute a 2-D gridded data field from the primary.
+  !< Input from primary: total data field in field form
   !< Output to all: partial data in vector form
 
   ! In/output variables:
@@ -97,7 +97,7 @@ subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_p
   real(dp), dimension(:  ),           intent(out)   :: d_grid_vec_partial
 
   ! Local variables:
-  character(len=256), parameter       :: routine_name = 'distribute_gridded_data_from_master_dp_2D'
+  character(len=256), parameter       :: routine_name = 'distribute_gridded_data_from_primary_dp_2D'
   integer                             :: n,i,j
   real(dp), dimension(:), allocatable :: d_grid_vec_total
 
@@ -105,8 +105,8 @@ subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_p
   call init_routine( routine_name)
 
   ! Convert gridded data to vector form
-  if (par%master) then
-    if (.not. present(d_grid)) call crash('d_grid must be present on master')
+  if (par%primary) then
+    if (.not. present(d_grid)) call crash('d_grid must be present on primary')
 
     ! allocate memory
     allocate( d_grid_vec_total( grid%n), source = 0._dp)
@@ -121,10 +121,10 @@ subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_p
   ! When passing arrays, it is required they exist
   else
     allocate( d_grid_vec_total(0) )
-  end if ! if (par%master) then
+  end if ! if (par%primary) then
 
   ! Distribute vector-form data to the processes
-  call distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+  call distribute_from_primary( d_grid_vec_total, d_grid_vec_partial)
 
   ! Clean up after yourself
   deallocate( d_grid_vec_total)
@@ -132,11 +132,11 @@ subroutine distribute_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_p
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine distribute_gridded_data_from_master_dp_2D
+end subroutine distribute_gridded_data_from_primary_dp_2D
 
-subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_partial)
-  !< Distribute a 3-D gridded data field from the Master.
-  !< Input from Master: total data field in field form
+subroutine distribute_gridded_data_from_primary_int_3D( grid, d_grid, d_grid_vec_partial)
+  !< Distribute a 3-D gridded data field from the primary.
+  !< Input from primary: total data field in field form
   !< Output to all: partial data in vector form
 
   ! In/output variables:
@@ -145,7 +145,7 @@ subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_
   integer, dimension(:,:  ), intent(  out) :: d_grid_vec_partial
 
   ! Local variables:
-  character(len=256), parameter        :: routine_name = 'distribute_gridded_data_from_master_int_3D'
+  character(len=256), parameter        :: routine_name = 'distribute_gridded_data_from_primary_int_3D'
   integer                              :: k
   integer, dimension(:,:), allocatable :: d_grid_2D
   integer, dimension(:  ), allocatable :: d_grid_vec_partial_2D
@@ -154,12 +154,12 @@ subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
     call crash('vector sizes dont match!')
   end if
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
      allocate( d_grid_2D( size( d_grid,1), size( d_grid,2)), source = 0)
   else
      allocate ( d_grid_2d(0,0))
@@ -169,8 +169,8 @@ subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_
 
   ! Treat each layer as a separate 2-D field
   do k = 1, size( d_grid_vec_partial,2)
-    if (par%master) d_grid_2D = d_grid( :,:,k)
-    call distribute_gridded_data_from_master_int_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
+    if (par%primary) d_grid_2D = d_grid( :,:,k)
+    call distribute_gridded_data_from_primary_int_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
     d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
   end do
 
@@ -181,11 +181,11 @@ subroutine distribute_gridded_data_from_master_int_3D( grid, d_grid, d_grid_vec_
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine distribute_gridded_data_from_master_int_3D
+end subroutine distribute_gridded_data_from_primary_int_3D
 
-subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
-  ! Distribute a 3-D gridded data field from the Master.
-  ! Input from Master: total data field in field form
+subroutine distribute_gridded_data_from_primary_dp_3D( grid, d_grid, d_grid_vec_partial)
+  ! Distribute a 3-D gridded data field from the primary.
+  ! Input from primary: total data field in field form
   ! Output to all: partial data in vector form
 
   ! In/output variables:
@@ -194,7 +194,7 @@ subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_p
   real(dp), dimension(:,:  ), intent(  out) :: d_grid_vec_partial
 
   ! Local variables:
-  character(len=256), parameter         :: routine_name = 'distribute_gridded_data_from_master_dp_3D'
+  character(len=256), parameter         :: routine_name = 'distribute_gridded_data_from_primary_dp_3D'
   integer                               :: k
   real(dp), dimension(:,:), allocatable :: d_grid_2D
   real(dp), dimension(:  ), allocatable :: d_grid_vec_partial_2D
@@ -203,12 +203,12 @@ subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_p
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
     call crash('vector sizes dont match!')
   end if
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
      allocate( d_grid_2D( size( d_grid,1), size( d_grid,2)), source = 0._dp)
   else
      allocate ( d_grid_2d(0,0))
@@ -218,8 +218,8 @@ subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_p
 
   ! Treat each layer as a separate 2-D field
   do k = 1, size( d_grid_vec_partial,2)
-    if (par%master) d_grid_2D = d_grid( :,:,k)
-    call distribute_gridded_data_from_master_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
+    if (par%primary) d_grid_2D = d_grid( :,:,k)
+    call distribute_gridded_data_from_primary_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
     d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
   end do
 
@@ -230,12 +230,12 @@ subroutine distribute_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_p
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine distribute_gridded_data_from_master_dp_3D
+end subroutine distribute_gridded_data_from_primary_dp_3D
 
-subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_grid)
-  !< Gather a 2-D gridded data field to the Master.
+subroutine gather_gridded_data_to_primary_int_2D( grid, d_grid_vec_partial, d_grid)
+  !< Gather a 2-D gridded data field to the primary.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),                   intent(in   ) :: grid
@@ -243,7 +243,7 @@ subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_gri
   integer, dimension(:,:), optional, intent(  out) :: d_grid
 
   ! Local variables:
-  character(len=256), parameter      :: routine_name = 'gather_gridded_data_to_master_int_2D'
+  character(len=256), parameter      :: routine_name = 'gather_gridded_data_to_primary_int_2D'
   integer                            :: n,i,j
   integer, dimension(:), allocatable :: d_grid_vec_total
 
@@ -251,7 +251,7 @@ subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_gri
   call init_routine( routine_name)
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_vec_total( grid%n), source = 0)
   else
     ! It must be allocated to be used in a function call
@@ -259,17 +259,17 @@ subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_gri
   end if
 
   ! Gather data
-  call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+  call gather_to_primary( d_grid_vec_partial, d_grid_vec_total)
 
   ! Convert to grid form
-  if (par%master) then
-    if (.not. present(d_grid)) call crash("d_grid must be present on master")
+  if (par%primary) then
+    if (.not. present(d_grid)) call crash("d_grid must be present on primary")
     do n = 1, grid%n
       i = grid%n2ij( n,1)
       j = grid%n2ij( n,2)
       d_grid( i,j) = d_grid_vec_total( n)
     end do
-  end if ! if (par%master) then
+  end if ! if (par%primary) then
 
   ! Clean up after yourself
   deallocate( d_grid_vec_total)
@@ -277,12 +277,12 @@ subroutine gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial, d_gri
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine gather_gridded_data_to_master_int_2D
+end subroutine gather_gridded_data_to_primary_int_2D
 
-subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
-  !< Gather a 2-D gridded data field to the Master.
+subroutine gather_gridded_data_to_primary_dp_2D( grid, d_grid_vec_partial, d_grid)
+  !< Gather a 2-D gridded data field to the primary.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),                    intent(in   ) :: grid
@@ -290,7 +290,7 @@ subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid
   real(dp), dimension(:,:), optional, intent(  out) :: d_grid
 
   ! Local variables:
-  character(len=256), parameter       :: routine_name = 'gather_gridded_data_to_master_dp_2D'
+  character(len=256), parameter       :: routine_name = 'gather_gridded_data_to_primary_dp_2D'
   integer                             :: n,i,j
   real(dp), dimension(:), allocatable :: d_grid_vec_total
 
@@ -298,7 +298,7 @@ subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid
   call init_routine( routine_name)
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_vec_total( grid%n), source = 0._dp)
   else
     ! It must be allocated to be used in a function call
@@ -306,17 +306,17 @@ subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid
   end if
 
   ! Gather data
-  call gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+  call gather_to_primary( d_grid_vec_partial, d_grid_vec_total)
 
   ! Convert to grid form
-  if (par%master) then
-    if (.not. present(d_grid)) call crash("d_grid must be present on master")
+  if (par%primary) then
+    if (.not. present(d_grid)) call crash("d_grid must be present on primary")
     do n = 1, grid%n
       i = grid%n2ij( n,1)
       j = grid%n2ij( n,2)
       d_grid( i,j) = d_grid_vec_total( n)
     end do
-  end if ! if (par%master) then
+  end if ! if (par%primary) then
 
   ! Clean up after yourself
   deallocate( d_grid_vec_total)
@@ -324,12 +324,12 @@ subroutine gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine gather_gridded_data_to_master_dp_2D
+end subroutine gather_gridded_data_to_primary_dp_2D
 
-subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_grid)
-  !< Gather a 3-D gridded data field to the Master.
+subroutine gather_gridded_data_to_primary_int_3D( grid, d_grid_vec_partial, d_grid)
+  !< Gather a 3-D gridded data field to the primary.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),           intent(in   ) :: grid
@@ -337,7 +337,7 @@ subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_gri
   integer, dimension(:,:,:), intent(  out) :: d_grid
 
   ! Local variables:
-  character(len=256), parameter        :: routine_name = 'gather_gridded_data_to_master_int_3D'
+  character(len=256), parameter        :: routine_name = 'gather_gridded_data_to_primary_int_3D'
   integer                              :: k
   integer, dimension(:,:), allocatable :: d_grid_2D
   integer, dimension(:  ), allocatable :: d_grid_vec_partial_2D
@@ -346,10 +346,10 @@ subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_gri
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) call crash('vector sizes dont match!')
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) call crash('vector sizes dont match!')
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_2D( grid%nx, grid%ny), source = 0)
   else
     allocate( d_grid_2d(0,0))
@@ -360,8 +360,8 @@ subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_gri
   ! Treat each layer as a separate 2-D field
   do k = 1, size( d_grid_vec_partial,2)
     d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
-    call gather_gridded_data_to_master_int_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-    if (par%master) d_grid( :,:,k) = d_grid_2D
+    call gather_gridded_data_to_primary_int_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
+    if (par%primary) d_grid( :,:,k) = d_grid_2D
   end do
 
   ! Clean up after yourself
@@ -371,12 +371,12 @@ subroutine gather_gridded_data_to_master_int_3D( grid, d_grid_vec_partial, d_gri
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine gather_gridded_data_to_master_int_3D
+end subroutine gather_gridded_data_to_primary_int_3D
 
-subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
-  !< Gather a 3-D gridded data field to the Master.
+subroutine gather_gridded_data_to_primary_dp_3D( grid, d_grid_vec_partial, d_grid)
+  !< Gather a 3-D gridded data field to the primary.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),            intent(in   ) :: grid
@@ -384,7 +384,7 @@ subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid
   real(dp), dimension(:,:,:), intent(  out) :: d_grid
 
   ! Local variables:
-  character(len=256), parameter         :: routine_name = 'gather_gridded_data_to_master_dp_3D'
+  character(len=256), parameter         :: routine_name = 'gather_gridded_data_to_primary_dp_3D'
   integer                               :: k
   real(dp), dimension(:,:), allocatable :: d_grid_2D
   real(dp), dimension(:  ), allocatable :: d_grid_vec_partial_2D
@@ -393,12 +393,12 @@ subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid
   call init_routine( routine_name)
 
   ! Safety
-  if (par%master .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
+  if (par%primary .and. size( d_grid,3) /= size( d_grid_vec_partial,2)) then
     call crash('vector sizes dont match!')
   end if
 
   ! allocate memory
-  if (par%master) then
+  if (par%primary) then
     allocate( d_grid_2D( grid%nx, grid%ny), source = 0._dp)
   else
     allocate( d_grid_2d(0,0))
@@ -409,8 +409,8 @@ subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid
   ! Treat each layer as a separate 2-D field
   do k = 1, size( d_grid_vec_partial,2)
     d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
-    call gather_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-    if (par%master) d_grid( :,:,k) = d_grid_2D
+    call gather_gridded_data_to_primary_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
+    if (par%primary) d_grid( :,:,k) = d_grid_2D
   end do
 
   ! Clean up after yourself
@@ -420,12 +420,12 @@ subroutine gather_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid
   ! Add routine to path
   call finalise_routine( routine_name)
 
-end subroutine gather_gridded_data_to_master_dp_3D
+end subroutine gather_gridded_data_to_primary_dp_3D
 
 subroutine gather_gridded_data_to_all_int_2D( grid, d_grid_vec_partial, d_grid)
   !< Gather a 2-D gridded data field to all the processes.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),                     intent(in   ) :: grid
@@ -458,7 +458,7 @@ end subroutine gather_gridded_data_to_all_int_2D
 subroutine gather_gridded_data_to_all_dp_2D( grid, d_grid_vec_partial, d_grid)
   !< Gather a 2-D gridded data field to all the processes.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),                      intent(in   ) :: grid
@@ -491,7 +491,7 @@ end subroutine gather_gridded_data_to_all_dp_2D
 subroutine gather_gridded_data_to_all_int_3D( grid, d_grid_vec_partial, d_grid)
   !< Gather a 3-D gridded data field to all the processes.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),                          intent(in   ) :: grid
@@ -522,7 +522,7 @@ end subroutine gather_gridded_data_to_all_int_3D
 subroutine gather_gridded_data_to_all_dp_3D( grid, d_grid_vec_partial, d_grid)
   !< Gather a 3-D gridded data field to all the processes.
   !< Input from all: partial data in vector form
-  !< Output to Master: total data field in field form
+  !< Output to primary: total data field in field form
 
   ! In/output variables:
   type(type_grid),                           intent(in   ) :: grid

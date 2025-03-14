@@ -8,7 +8,7 @@ MODULE control_resources_and_error_messaging
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  use mpi_f08, only: MPI_WTIME
   USE precisions                                             , ONLY: dp
   use mpi_basic, only: par, sync
 
@@ -87,7 +87,7 @@ CONTAINS
 
     ! If so specified, print the current routine path to the terminal (useful for debugging)
     IF (do_display_path) THEN
-      IF (par%master) WRITE(0,'(A)') '   Initialising ' // TRIM( routine_path)
+      IF (par%primary) WRITE(0,'(A)') '   Initialising ' // TRIM( routine_path)
     END IF
 
     ! Check if resource use for this subroutine should be tracked
@@ -131,7 +131,7 @@ CONTAINS
 
     ! If so specified, print the current routine path to the terminal (useful for debugging)
     IF (do_display_path) THEN
-      IF (par%master) WRITE(0,'(A)') '   Finalising   ' // TRIM( routine_path)
+      IF (par%primary) WRITE(0,'(A)') '   Finalising   ' // TRIM( routine_path)
     END IF
 
     ! Check if resource use should be tracked for this subroutine
@@ -230,35 +230,36 @@ CONTAINS
 ! ===== Error messaging =====
 ! ===========================
 
-  SUBROUTINE print_UFEMISM_start
-    ! Print the UFEMISM start message to the screen
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+  subroutine print_UFEMISM_start
 
     ! Local variables:
-    CHARACTER(LEN=128)                                                 :: str1, str2
-    INTEGER                                                            :: n,i
+    character(len=1024) :: str1, str2
+    integer             :: i
 
     str1 = ' '
-    str1 = '===== Running UFEMISM on {int_01} cores ====='
-    CALL insert_val_into_string_int( str1, '{int_01}', par%n)
+    if (par%n_nodes == 1) then
+      str1 = '===== Running UFEMISM on {int_01} cores ====='
+      call insert_val_into_string_int( str1, '{int_01}', par%n)
+    else
+      str1 = '===== Running UFEMISM on {int_01} cores ({int_02} nodes) ====='
+      call insert_val_into_string_int( str1, '{int_01}', par%n)
+      call insert_val_into_string_int( str1, '{int_02}', par%n_nodes)
+    end if
 
-    n = LEN_TRIM( str1)
     str2 = ' '
-    DO i = 1, n
+    do i = 1, len_trim( str1)
       str2( i:i) = '='
-    END DO
+    end do
 
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    CALL sync
+    if (par%primary) then
+      write(0,'(A)') ''
+      write(0,'(A)') trim( colour_string( trim( str2),'green'))
+      write(0,'(A)') trim( colour_string( trim( str1),'green'))
+      write(0,'(A)') trim( colour_string( trim( str2),'green'))
+    end if
+    call sync
 
-  END SUBROUTINE print_UFEMISM_start
+  end subroutine print_UFEMISM_start
 
   SUBROUTINE print_UFEMISM_end( tcomp)
     ! Print the UFEMISM end message to the screen
@@ -303,11 +304,11 @@ CONTAINS
       str2( i:i) = '='
     END DO
 
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
-    IF (par%master) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    IF (par%master) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') ''
     CALL sync
 
   END SUBROUTINE print_UFEMISM_end
@@ -375,7 +376,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' ERROR: ' // TRIM( err_msg_loc),'red') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Stop the program
     error stop
@@ -444,7 +445,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' WARNING: ' // TRIM( err_msg_loc),'yellow') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Clean up after yourself
     DEALLOCATE( process_str)
@@ -514,7 +515,7 @@ CONTAINS
 
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string(' SUCCESS: ' // TRIM( err_msg_loc),'green') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
-      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = primary)'
 
     ! Clean up after yourself
     DEALLOCATE( process_str)

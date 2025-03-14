@@ -2,7 +2,7 @@ module ct_create_test_meshes
 
   ! Create the suite of test meshes for the component tests.
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -42,8 +42,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '  Creating suite of test meshes and grids for component tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '  Creating suite of test meshes and grids for component tests...'
+    if (par%primary) write(0,*) ''
 
     ! Create output folder within the component tests folder to store the meshes
     call create_component_tests_mesh_output_folder( foldername_test_meshes)
@@ -52,7 +52,7 @@ contains
     call create_all_test_meshes_and_grids_Antarctica( foldername_test_meshes, &
       test_mesh_filenames, test_grid_filenames)
 
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) ''
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -75,7 +75,7 @@ contains
 
     foldername_test_meshes = trim(C%output_dir) // '/test_meshes_and_grids'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_test_meshes) // '/.', exist = ex)
@@ -232,7 +232,7 @@ contains
       ! Add it to the list of test grids
       call add_filename_to_list_of_filenames( test_grid_filenames, filename)
 
-      if (par%master) write(0,*) '    Created test grid ', colour_string( trim( grid_name), 'light blue')
+      if (par%primary) write(0,*) '    Created test grid ', colour_string( trim( grid_name), 'light blue')
 
     end do
 
@@ -302,7 +302,7 @@ contains
     ! Add it to the list of test meshes
     call add_filename_to_list_of_filenames( test_mesh_filenames, filename)
 
-    if (par%master) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
+    if (par%primary) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -407,7 +407,7 @@ contains
     ! Add it to the list of test meshes
     call add_filename_to_list_of_filenames( test_mesh_filenames, filename)
 
-    if (par%master) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
+    if (par%primary) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -479,7 +479,7 @@ contains
     ! Add it to the list of test meshes
     call add_filename_to_list_of_filenames( test_mesh_filenames, filename)
 
-    if (par%master) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
+    if (par%primary) write(0,*) '    Created test mesh ', colour_string( trim( mesh_name), 'light blue')
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

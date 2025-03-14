@@ -5,7 +5,7 @@ MODULE UFEMISM_main_model
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_INTEGER, MPI_SUM, MPI_WTIME
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string, str2int, int2str, &
@@ -78,8 +78,8 @@ CONTAINS
     routine_name = 'run_model('  //  region%name  //  ')'
     CALL init_routine( routine_name)
 
-    IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE (0,'(A,A,A,A,A,F9.3,A,F9.3,A)') &
+    IF (par%primary) WRITE(0,*) ''
+    IF (par%primary) WRITE (0,'(A,A,A,A,A,F9.3,A,F9.3,A)') &
       ' Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
       ') from t = ', region%time/1000._dp, ' to t = ', t_end/1000._dp, ' kyr'
 
@@ -164,7 +164,7 @@ CONTAINS
       ! Keep track of the average ice-dynamical time step and print it to the terminal
       ndt_av = ndt_av + 1
       dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
-      IF (par%master .AND. C%do_time_display) THEN
+      IF (par%primary .AND. C%do_time_display) THEN
         CALL time_display( region, t_end, dt_av, ndt_av)
       END IF
 
@@ -178,7 +178,7 @@ CONTAINS
       ! Give all processes time to catch up
       CALL sync
       ! Congrats, you've made it
-      IF (par%master) WRITE(0,'(A)') ' Finalising regional simulation...'
+      IF (par%primary) WRITE(0,'(A)') ' Finalising regional simulation...'
       ! Write the final model state to output
       CALL write_to_regional_output_files( region)
     END IF
@@ -441,8 +441,8 @@ CONTAINS
     END IF
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') ' Initialising model region ' // colour_string( region%name,'light blue') // ' (' // &
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') ' Initialising model region ' // colour_string( region%name,'light blue') // ' (' // &
       colour_string( TRIM( region%long_name),'light blue') // ')...'
 
     ! ===== Reference geometries =====
@@ -640,7 +640,7 @@ CONTAINS
     ! ========================
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') ' Finished initialising model region ' // colour_string( TRIM( region%long_name),'light blue')
+    IF (par%primary) WRITE(0,'(A)') ' Finished initialising model region ' // colour_string( TRIM( region%long_name),'light blue')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -664,7 +664,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
+    IF (par%primary) WRITE(0,'(A)') '   Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
 
     ! Get settings from config
     IF     (region%name == 'NAM') THEN
@@ -719,7 +719,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '     Creating mesh from initial geometry...'
+    IF (par%primary) WRITE(0,'(A)') '     Creating mesh from initial geometry...'
 
     ! Determine model domain
     IF     (region%name == 'NAM') THEN
@@ -875,7 +875,7 @@ CONTAINS
     end if
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
+    IF (par%primary) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
 
     ! Read the mesh from the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename_initial_mesh, ncid)
@@ -1130,8 +1130,8 @@ CONTAINS
     tstart = MPI_WTIME()
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') '   Creating a new mesh for model region ' // colour_string( region%name,'light blue') // '...'
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') '   Creating a new mesh for model region ' // colour_string( region%name,'light blue') // '...'
 
     ! Determine model domain
     IF     (region%name == 'NAM') THEN
@@ -1234,7 +1234,7 @@ CONTAINS
     ! Print to screen
     str = '   Finished the mesh update in {dp_01} seconds'
     CALL insert_val_into_string_dp( str, '{dp_01}', tstop-tstart)
-    IF (par%master) WRITE(0,'(A)') str
+    IF (par%primary) WRITE(0,'(A)') str
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1417,7 +1417,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%master) WRITE(0,'(A)') '   Implementing regional corrections...'
+    IF (par%primary) WRITE(0,'(A)') '   Implementing regional corrections...'
 
     ! === SMB over ice-free land ===
     ! ==============================

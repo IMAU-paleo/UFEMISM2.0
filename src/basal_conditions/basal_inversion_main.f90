@@ -158,7 +158,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,*) ' Initialising basal inversion model "' // colour_string( TRIM( C%choice_bed_roughness_nudging_method),'light blue') // '"...'
+    IF (par%primary) WRITE(0,*) ' Initialising basal inversion model "' // colour_string( TRIM( C%choice_bed_roughness_nudging_method),'light blue') // '"...'
 
     ! Allocate memory for main variables
     ! ==================================

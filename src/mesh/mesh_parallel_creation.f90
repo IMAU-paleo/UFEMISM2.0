@@ -5,7 +5,8 @@ MODULE mesh_parallel_creation
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_INTEGER, MPI_SEND, MPI_RECV, MPI_STATUS, &
+    MPI_DOUBLE_PRECISION, MPI_CHAR, MPI_ANY_TAG
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -29,7 +30,7 @@ CONTAINS
 ! =======================
 
   SUBROUTINE broadcast_mesh( mesh)
-    ! Broadcast the merged mesh from the master to all other processes
+    ! Broadcast the merged mesh from the primary to all other processes
 
     IMPLICIT NONE
 
@@ -44,14 +45,14 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Deallocate meshes in other processes just to be sure
-    IF (.NOT. par%master) CALL deallocate_mesh( mesh)
+    IF (.NOT. par%primary) CALL deallocate_mesh( mesh)
 
-    ! Crop master mesh just to be sure
-    IF (par%master) CALL crop_mesh_primary( mesh)
+    ! Crop primary mesh just to be sure
+    IF (par%primary) CALL crop_mesh_primary( mesh)
 
     ! Broadcast mesh size
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
       nV_mem    = mesh%nV_mem
       nTri_mem  = mesh%nTri_mem
       nC_mem    = mesh%nC_mem
@@ -62,8 +63,8 @@ CONTAINS
     CALL MPI_BCAST( nC_mem          , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( mesh%name       , 256              , MPI_CHAR            , 0, MPI_COMM_WORLD, ierr)
 
-    ! Allocate memory on non-master processes
-    IF (.NOT. par%master) THEN
+    ! Allocate memory on non-primary processes
+    IF (.NOT. par%primary) THEN
       CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem, nC_mem)
     END IF
 
@@ -206,7 +207,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'receive_submesh'
     integer                                       :: ierr
-    integer, dimension(MPI_STATUS_SIZE)           :: recv_status
+    type(MPI_STATUS)                              :: recv_status
     INTEGER                                       :: nV_mem, nTri_mem, nC_mem, nV, nTri
     CHARACTER(LEN=256)                            :: mesh_name
 
@@ -1050,7 +1051,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'align_submeshes'
     integer                                       :: ierr
-    integer, dimension(MPI_STATUS_SIZE)           :: recv_status
+    type(MPI_STATUS)                              :: recv_status
     REAL(dp)                                      :: xmax_left, xmin_right, ymax_left, ymin_right
     INTEGER                                       :: nV_self, nV_other
     INTEGER                                       :: nvi_border_self, nvi_border_other

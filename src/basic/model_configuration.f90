@@ -15,15 +15,11 @@ MODULE model_configuration
   ! new config parameters a bit tedious - you have to add the "_config" variable, add it
   ! as a field in the "C" type, add it to the namelist, and let the "C" type field be
   ! overwritten in the end.
-  !
-  ! NOTE: since UFEMISM 2.0, config files should list ALL config variables. This means the
-  !       default values in this module are now only for illustration, and are not used
-  !       anymore, so that the config file completely determines the model behaviour.
 
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  use mpi_f08, only: MPI_BCAST, MPI_COMM_WORLD, MPI_CHAR, MPI_LOGICAL
   USE precisions                                             , ONLY: dp
   use mpi_basic, only: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &
@@ -2104,16 +2100,16 @@ CONTAINS
   ! == Figure out which git commit of the model we're running
   ! =========================================================
 
-    if (par%master) call get_git_commit_hash( git_commit_hash)
+    if (par%primary) call get_git_commit_hash( git_commit_hash)
     call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master) write(0,'(A)') ''
-    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+    if (par%primary) write(0,'(A)') ''
+    if (par%primary) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
 
-    if (par%master) call check_for_uncommitted_changes
+    if (par%primary) call check_for_uncommitted_changes
     call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master .and. has_uncommitted_changes) then
+    if (par%primary .and. has_uncommitted_changes) then
       write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
     end if
 
@@ -2121,20 +2117,20 @@ CONTAINS
   ! ====================================
 
     ! The name of the config file is provided as an input argument when calling the UFEMISM_program
-    ! executable. After calling MPI_INIT, only the master process "sees" this argument, so is must be
+    ! executable. After calling MPI_INIT, only the primary process "sees" this argument, so is must be
     ! broadcast to the other processes.
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
       IF     (iargc() == 1) THEN
         CALL getarg( 1, config_filename)
       ELSE
         CALL crash('run UFEMISM with the path the config file as an argument, e.g. "mpi_exec  -n 2  UFEMISM_program  config-files/config_test"')
       END IF
-    END IF ! IF (master) THEN
+    END IF
     CALL MPI_BCAST( config_filename,    256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') ' Running UFEMISM with settings from configuration file: ' // colour_string( TRIM( config_filename), 'light blue')
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') ' Running UFEMISM with settings from configuration file: ' // colour_string( TRIM( config_filename), 'light blue')
 
     ! Initialise the main config structure from the config file
     CALL initialise_config_from_file( config_filename)
@@ -2148,7 +2144,7 @@ CONTAINS
     IF (C%create_procedural_output_dir) THEN
       ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
 
-      IF (par%master) THEN
+      IF (par%primary) THEN
         CALL generate_procedural_output_dir_name( output_dir_procedural)
         C%output_dir( 1:LEN_TRIM( output_dir_procedural)+1) = TRIM( output_dir_procedural) // '/'
       END IF
@@ -2162,7 +2158,7 @@ CONTAINS
     END IF
 
     ! Create the directory
-    IF (par%master) THEN
+    IF (par%primary) THEN
 
       ! Safety
       INQUIRE( FILE = TRIM( C%output_dir) // '/.', EXIST = ex)
@@ -2177,13 +2173,13 @@ CONTAINS
       WRITE(0,'(A)') ''
       WRITE(0,'(A)') ' Output directory: ' // colour_string( TRIM( C%output_dir), 'light blue')
 
-    END IF ! IF (par%master) THEN
+    END IF
     CALL sync
 
     ! Copy the config file to the output directory
-    IF (par%master) THEN
+    IF (par%primary) THEN
       CALL system('cp ' // config_filename    // ' ' // TRIM( C%output_dir))
-    END IF ! IF (master) THEN
+    END IF
     CALL sync
 
     ! Finalise routine path
@@ -2204,16 +2200,16 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Figure out which git commit of the model we're running
-    if (par%master) call get_git_commit_hash( git_commit_hash)
+    if (par%primary) call get_git_commit_hash( git_commit_hash)
     call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master) write(0,'(A)') ''
-    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+    if (par%primary) write(0,'(A)') ''
+    if (par%primary) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
 
-    if (par%master) call check_for_uncommitted_changes
+    if (par%primary) call check_for_uncommitted_changes
     call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master .and. has_uncommitted_changes) then
+    if (par%primary .and. has_uncommitted_changes) then
       write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
     end if
 

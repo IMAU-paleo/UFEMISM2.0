@@ -5,6 +5,7 @@ module remapping_grid_to_mesh_vertices
   use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use model_configuration, only: C
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
@@ -568,7 +569,7 @@ contains
     call init_routine( routine_name)
 
     ! Delete grid & mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_grid, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh, status = 'old')

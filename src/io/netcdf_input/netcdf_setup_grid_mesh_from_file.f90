@@ -1,7 +1,7 @@
 module netcdf_setup_grid_mesh_from_file
   !< Set up grids/mesh from a NetCDF file
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_DOUBLE_PRECISION
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
@@ -63,10 +63,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_y, id_var_y)
 
     ! Read x and y
-    call read_var_master(  filename, ncid, id_var_x, grid%x)
-    call read_var_master(  filename, ncid, id_var_y, grid%y)
+    call read_var_primary(  filename, ncid, id_var_x, grid%x)
+    call read_var_primary(  filename, ncid, id_var_y, grid%y)
 
-    ! Broadcast x and y from the master to the other processes
+    ! Broadcast x and y from the primary to the other processes
     call MPI_BCAST( grid%x, grid%nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( grid%y, grid%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
@@ -115,10 +115,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read x and y
-    call read_var_master( filename, ncid, id_var_lon, grid%lon)
-    call read_var_master( filename, ncid, id_var_lat, grid%lat)
+    call read_var_primary( filename, ncid, id_var_lon, grid%lon)
+    call read_var_primary( filename, ncid, id_var_lat, grid%lat)
 
-    ! Broadcast x and y from the master to the other processes
+    ! Broadcast x and y from the primary to the other processes
     call MPI_BCAST( grid%lon, grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( grid%lat, grid%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
@@ -164,7 +164,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_dim_three , id_dim_three, dim_length = n_three )
 
     ! allocate memory for the mesh
-    if (par%master) then
+    if (par%primary) then
       call allocate_mesh_primary( mesh, name, nV_mem, nTri_mem, nC_mem)
       mesh%nV   = mesh%nV_mem
       mesh%nTri = mesh%nTri_mem
@@ -200,34 +200,34 @@ contains
     ! =================
 
     ! Metadata
-    call read_var_master(  filename, ncid, id_var_xmin          , mesh%xmin          )
-    call read_var_master(  filename, ncid, id_var_xmax          , mesh%xmax          )
-    call read_var_master(  filename, ncid, id_var_ymin          , mesh%ymin          )
-    call read_var_master(  filename, ncid, id_var_ymax          , mesh%ymax          )
-    call read_var_master(  filename, ncid, id_var_tol_dist      , mesh%tol_dist      )
-    call read_var_master(  filename, ncid, id_var_lambda_M      , mesh%lambda_M      )
-    call read_var_master(  filename, ncid, id_var_phi_M         , mesh%phi_M         )
-    call read_var_master(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
+    call read_var_primary(  filename, ncid, id_var_xmin          , mesh%xmin          )
+    call read_var_primary(  filename, ncid, id_var_xmax          , mesh%xmax          )
+    call read_var_primary(  filename, ncid, id_var_ymin          , mesh%ymin          )
+    call read_var_primary(  filename, ncid, id_var_ymax          , mesh%ymax          )
+    call read_var_primary(  filename, ncid, id_var_tol_dist      , mesh%tol_dist      )
+    call read_var_primary(  filename, ncid, id_var_lambda_M      , mesh%lambda_M      )
+    call read_var_primary(  filename, ncid, id_var_phi_M         , mesh%phi_M         )
+    call read_var_primary(  filename, ncid, id_var_beta_stereo   , mesh%beta_stereo   )
 
     ! Vertex data
-    call read_var_master( filename, ncid, id_var_V             , mesh%V             )
-    call read_var_master( filename, ncid, id_var_nC            , mesh%nC            )
-    call read_var_master( filename, ncid, id_var_C             , mesh%C             )
-    call read_var_master( filename, ncid, id_var_niTri         , mesh%niTri         )
-    call read_var_master( filename, ncid, id_var_iTri          , mesh%iTri          )
-    call read_var_master( filename, ncid, id_var_VBI           , mesh%VBI           )
+    call read_var_primary( filename, ncid, id_var_V             , mesh%V             )
+    call read_var_primary( filename, ncid, id_var_nC            , mesh%nC            )
+    call read_var_primary( filename, ncid, id_var_C             , mesh%C             )
+    call read_var_primary( filename, ncid, id_var_niTri         , mesh%niTri         )
+    call read_var_primary( filename, ncid, id_var_iTri          , mesh%iTri          )
+    call read_var_primary( filename, ncid, id_var_VBI           , mesh%VBI           )
 
     ! Triangle data
-    call read_var_master( filename, ncid, id_var_Tri           , mesh%Tri           )
-    call read_var_master( filename, ncid, id_var_Tricc         , mesh%Tricc         )
-    call read_var_master( filename, ncid, id_var_TriC          , mesh%TriC          )
+    call read_var_primary( filename, ncid, id_var_Tri           , mesh%Tri           )
+    call read_var_primary( filename, ncid, id_var_Tricc         , mesh%Tricc         )
+    call read_var_primary( filename, ncid, id_var_TriC          , mesh%TriC          )
 
     ! Safety - check if the mesh data read from NetCDF makes sense
-    if (par%master) then
+    if (par%primary) then
       if (.not. test_mesh_is_self_consistent( mesh)) call crash('invalid mesh in file ' // trim( filename))
     end if
 
-    ! Broadcast read mesh from the master to the other processes
+    ! Broadcast read mesh from the primary to the other processes
     call broadcast_mesh( mesh)
 
     ! Calculate secondary mesh data
@@ -271,9 +271,9 @@ contains
     allocate( zeta( nzeta))
 
     ! Read zeta from file
-    call read_var_master( filename, ncid, id_var_zeta, zeta)
+    call read_var_primary( filename, ncid, id_var_zeta, zeta)
 
-    ! Broadcast zeta from master to all other processes
+    ! Broadcast zeta from primary to all other processes
     call MPI_BCAST( zeta, nzeta, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
@@ -311,9 +311,9 @@ contains
     allocate( depth( ndepth))
 
     ! Read depth from file
-    call read_var_master( filename, ncid, id_var_depth, depth)
+    call read_var_primary( filename, ncid, id_var_depth, depth)
 
-    ! Broadcast depth from master to all other processes
+    ! Broadcast depth from primary to all other processes
     call MPI_BCAST( depth, ndepth, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path

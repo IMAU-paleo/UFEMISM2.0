@@ -1,9 +1,11 @@
 module grid_output_files
 
   use precisions, only: dp
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, warning
+  use mpi_basic, only: par
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, warning, crash
   use model_configuration, only: C
   use region_types, only: type_model_region
+  use grid_types, only: type_grid
   use netcdf_io_main
   use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
 
@@ -36,7 +38,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to grid output file "' // colour_string( trim( region%output_filename_grid), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Writing to grid output file "' // colour_string( trim( region%output_filename_grid), 'light blue') // '"...'
 
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_writing( region%output_filename_grid, ncid)
@@ -135,7 +137,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to grid output file "' // colour_string( trim( filename), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Writing to grid output file "' // colour_string( trim( filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_writing( filename, ncid)
@@ -799,7 +801,7 @@ contains
     region%output_filename_grid = trim( C%output_dir) // 'main_output_' // region%name // '_grid.nc'
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating grid output file "' // colour_string( trim( region%output_filename_grid), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Creating grid output file "' // colour_string( trim( region%output_filename_grid), 'light blue') // '"...'
 
     ! Create the NetCDF file
     call create_new_netcdf_file_for_writing( region%output_filename_grid, ncid)
@@ -903,7 +905,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating ROI output file "' // colour_string( trim( filename), 'light blue') // '"...'
+    if (par%primary) write(0,'(A)') '   Creating ROI output file "' // colour_string( trim( filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)

@@ -202,7 +202,7 @@ CONTAINS
     END SELECT
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising SMB from file "' // colour_string( TRIM( filename_SMB_prescribed),'light blue') // '"...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising SMB from file "' // colour_string( TRIM( filename_SMB_prescribed),'light blue') // '"...'
 
     ! Read SMB from file
     IF (timeframe_SMB_prescribed == 1E9_dp) THEN

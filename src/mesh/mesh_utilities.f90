@@ -7,7 +7,8 @@ MODULE mesh_utilities
 
   use tests_main
   use assertions_basic
-  USE mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, &
+    MPI_SUM, MPI_MAX, MPI_MIN, MPI_INTEGER
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string

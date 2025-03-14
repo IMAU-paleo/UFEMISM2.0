@@ -205,7 +205,7 @@ CONTAINS
     end if
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising BMB from file "' // colour_string( TRIM( filename_BMB_prescribed),'light blue') // '"...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising BMB from file "' // colour_string( TRIM( filename_BMB_prescribed),'light blue') // '"...'
 
     ! Read BMB from file
     IF (timeframe_BMB_prescribed == 1E9_dp) THEN

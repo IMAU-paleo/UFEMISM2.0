@@ -2,7 +2,8 @@ module BPA_main
 
   ! Routines for calculating ice velocities using the Blatter-Pattyn Approximation (BPA)
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, &
+    MPI_LOR, MPI_LOGICAL, MPI_MIN, MPI_MAX, MPI_SUM
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -220,7 +221,7 @@ contains
       uv_max = maxval( BPA%u_bk)
       call MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_doUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
       call MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_doUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      ! if (par%master) WRITE(0,*) '    BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
+      ! if (par%primary) WRITE(0,*) '    BPA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], resid = ', resid_UV
 
       ! if the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .false.
@@ -230,7 +231,7 @@ contains
 
       ! if we've reached the maximum allowed number of iterations without converging, throw a warning
       if (viscosity_iteration_i > C%visc_it_nit) then
-        if (par%master) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        if (par%primary) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
         exit viscosity_iteration
       end if
 
@@ -2120,7 +2121,7 @@ contains
     end if
 
     ! Write to terminal
-    if (par%master) write(0,*) '   Initialising BPA velocities from file "' // colour_string( trim( filename),'light blue') // '"...'
+    if (par%primary) write(0,*) '   Initialising BPA velocities from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     ! Read velocities from the file
     if (timeframe == 1E9_dp) then
@@ -2211,7 +2212,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) WRITE(0,'(A)') '   Writing to BPA restart file "' // &
+    if (par%primary) WRITE(0,'(A)') '   Writing to BPA restart file "' // &
       colour_string( trim( BPA%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -2257,7 +2258,7 @@ contains
     call generate_filename_XXXXXdotnc( filename_base, BPA%restart_filename)
 
     ! Print to terminal
-    if (par%master) WRITE(0,'(A)') '   Creating BPA restart file "' // &
+    if (par%primary) WRITE(0,'(A)') '   Creating BPA restart file "' // &
       colour_string( trim( BPA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
