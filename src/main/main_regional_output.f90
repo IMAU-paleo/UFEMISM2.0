@@ -734,6 +734,10 @@ CONTAINS
       ! Main SMB variables
       CASE ('SMB')
         CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SMB', region%SMB%SMB)
+      CASE ('MeltPreviousYear')
+        CALL write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'MeltPreviousYear', region%SMB%MeltPreviousYear)
+      CASE ('FirnDepth')
+        CALL write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'FirnDepth', region%SMB%FirnDepth)
 
     ! == Basal mass balance ==
     ! ========================
@@ -1286,6 +1290,12 @@ CONTAINS
       CASE ('SMB')
         CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%SMB%SMB, d_grid_vec_partial_2D)
         CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SMB', d_grid_vec_partial_2D)
+      CASE ('FirnDepth')
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%SMB%FirnDepth, d_grid_vec_partial_2D_monthly)
+        CALL write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'FirnDepth', d_grid_vec_partial_2D_monthly)    
+      CASE ('MeltPreviousYear')  
+        CALL map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%SMB%MeltPreviousYear, d_grid_vec_partial_2D)
+        CALL write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'MeltPreviousYear', d_grid_vec_partial_2D)  
 
     ! == Basal mass balance ==
     ! ========================
@@ -2192,6 +2202,10 @@ CONTAINS
       ! Main SMB variables
       CASE ('SMB')
         CALL add_field_mesh_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
+      CASE ('FirnDepth')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Monthly firn layer depth', units = 'm')
+      CASE ('MeltPreviousYear')  
+        CALL add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================
@@ -2643,6 +2657,10 @@ CONTAINS
       ! Main SMB variables
       CASE ('SMB')
         CALL add_field_grid_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
+      CASE ('FirnDepth')
+        CALL add_field_grid_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Depth of firn layer', units = 'm')  
+      CASE ('MeltPreviousYear')
+        CALL add_field_grid_dp_2D( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt in previous year', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================

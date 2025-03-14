@@ -148,8 +148,8 @@ CONTAINS
 
     ! TODO: checks with what exactly we need to load here to know which global forcings need to be read
     ! e.g., insolation, CO2, d18O, etc...
-    ! read and load the insolation data
-    CALL initialise_insolation_forcing( forcing, mesh)
+    ! read and load the insolation data only if needed (i.e., we are using IMAU-ITM)
+    IF (C%choice_SMB_parameterised == 'IMAU-ITM') CALL initialise_insolation_forcing( forcing, mesh)
 
     ! CO2 record - not yet implemented
     
@@ -200,6 +200,7 @@ CONTAINS
       ALLOCATE(forcing%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
       ALLOCATE(forcing%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
       forcing%ins_t0     = C%start_time_of_run
+      forcing%ins_t1     = C%start_time_of_run
       forcing%ins_nlat   = 181
       forcing%ins_nlon   = 360
       forcing%ins_lat    = 0._dp
@@ -207,12 +208,12 @@ CONTAINS
       forcing%ins_Q_TOA1 = 0._dp
       
       ! Read the fields at ins_t0
-      call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = forcing%ins_t0)
-
       if (par%master) WRITE(0,*) '     Reading Q_TOA0...'
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, time_to_read = forcing%ins_t0)
       
       ! if the start time is after the closest t0, we read one record after for t1
+      call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = forcing%ins_t0)
+
       if (C%start_time_of_run >= closest_t0) then
         if (par%master) WRITE(0,*) '     start time is after closest ins_t0, reading one step further...'
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
@@ -222,14 +223,17 @@ CONTAINS
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
       end if
 
-      call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
+      if (forcing%ins_t1 == closest_t0) then
+        if (par%master) WRITE(0,*) '     Closest insolation time frames are the same, insolation will be constant from now on...'
+        forcing%ins_Q_TOA1 = forcing%ins_Q_TOA0
+      else
+        if (par%master) WRITE(0,*) '     Reading Q_TOA1...'
+        call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
+      end if
 
-      IF (C%start_time_of_run < forcing%ins_t0) THEN
-        CALL warning(' Model time starts before start of insolation record; the model will crash (lol) or use the first available record, which might be awfully wrong')
-      END IF
-      IF (C%end_time_of_run > forcing%ins_t1) THEN
-        CALL warning(' Model time will reach beyond end of insolation record; constant extrapolation will be used in that case!')
-      END IF
+      
+
+      
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -282,12 +286,22 @@ CONTAINS
       CALL update_insolation_timeframes_from_file( forcing, time_applied, mesh)
     END IF
 
-    ! TODO: Is it necessary to allocate shared memory for timeframe-interpolated lat-month-only insolation?
     ALLOCATE(Q_TOA             (mesh%vi1:mesh%vi2,12))
 
-    ! Calculate timeframe interpolation weights
-    wt0 = (forcing%ins_t1 - time_applied) / (forcing%ins_t1 - forcing%ins_t0)
-    wt1 = 1._dp - wt0
+    ! Calculate timeframe interpolation weights (plus safety checks for when the extend beyond the record)
+    if (forcing%ins_t1 == forcing%ins_t0) then
+      wt0 = 0._dp
+      wt1 = 1._dp
+    else
+      if (time_applied > forcing%ins_t1) then
+        wt0 = 0._dp
+      elseif (time_applied < forcing%ins_t0) then
+        wt0 = 1._dp
+      else
+        wt0 = (forcing%ins_t1 - time_applied) / (forcing%ins_t1 - forcing%ins_t0)
+      end if
+      wt1 = 1._dp - wt0
+    end if
 
     ! Interpolate the two timeframes
     do vi = mesh%vi1, mesh%vi2
@@ -328,7 +342,7 @@ CONTAINS
 
       ! Update insolation
       ! Find time indices to be read
-      IF (par%master) THEN
+      !IF (par%master) THEN
 
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t0, time_to_read = time)
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, time_to_read = forcing%ins_t0)
@@ -341,7 +355,7 @@ CONTAINS
           call read_field_from_file_0D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = time-1000._dp)
         end if
 
-      END IF ! IF (par%master) THEN
+      !END IF ! IF (par%master) THEN
 
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
 
