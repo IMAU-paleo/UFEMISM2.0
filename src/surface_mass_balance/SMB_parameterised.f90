@@ -78,7 +78,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(*,"(a)") '   Initialising parameterised SMB model "' // &
+    if (par%master) write(*,"(a)") '   Running parameterised SMB model "' // &
       colour_string( trim( C%choice_SMB_parameterised),'light blue') // '"...'
 
     ! Run the chosen parameterised SMB model
@@ -258,6 +258,9 @@ contains
     allocate( SMB%Albedo          (mesh%vi1:mesh%vi2, 12))
     allocate( SMB%Albedo_year     (mesh%vi1:mesh%vi2))
     allocate( SMB%SMB_monthly     (mesh%vi1:mesh%vi2,12))
+
+    allocate( SMB%FirnDepth        (mesh%vi1:mesh%vi2,12))
+    allocate( SMB%MeltPreviousYear (mesh%vi1:mesh%vi2))
 
 
     ! Initialisation choice
