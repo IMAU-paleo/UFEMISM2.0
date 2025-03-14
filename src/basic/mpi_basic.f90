@@ -3,7 +3,9 @@ module mpi_basic
   ! Some very basic stuff to support the MPI parallelised architecture.
 
   use mpi_f08, only: MPI_COMM, MPI_INIT, MPI_COMM_SIZE, MPI_COMM_RANK, MPI_COMM_WORLD, &
-    MPI_COMM_SPLIT_TYPE, MPI_COMM_TYPE_SHARED, MPI_BARRIER, MPI_INFO_NULL
+    MPI_COMM_SPLIT_TYPE, MPI_COMM_TYPE_SHARED, MPI_BARRIER, MPI_INFO_NULL, MPI_COMM_SPLIT, &
+    MPI_ALLREDUCE, MPI_IN_PLACE, MPI_INTEGER, MPI_SUM, MPI_SEND, MPI_RECV, MPI_STATUS, &
+    MPI_ANY_TAG
 
   implicit none
 
@@ -13,9 +15,18 @@ module mpi_basic
 
   type parallel_info
 
-    integer :: n        ! Global number of processes
-    integer :: i        ! Global ID of this process
-    logical :: primary  ! Whether or not the current process is the primary process (shorthand for par%i == 0)
+    integer        :: n                       ! Global number of processes
+    integer        :: i                       ! Global ID of this process
+    logical        :: primary                 ! Whether or not the current process is the primary process (shorthand for par%i == 0)
+
+    integer        :: n_nodes                 ! Total number of shared-memory nodes
+    integer        :: node_ID                 ! ID of the node this process is part of
+    type(MPI_COMM) :: mpi_comm_node           ! MPI communicator for all processes within this node
+    integer        :: n_node                  ! Number of processes in the node that this process is part of
+    integer        :: i_node                  ! ID of this process within mpi_comm_node
+    logical        :: node_primary            ! Whether or not the current process is the master of this node (shorthand for par%i_node == 0)
+    type(MPI_COMM) :: mpi_comm_node_primaries ! MPI communicator for all node master processes
+    type(MPI_COMM) :: mpi_comm_secondaries    ! MPI communicator for all non-node-master processes (unused, but needed to complete the MPI_SPLIT_COMM call)
 
   end type parallel_info
 
@@ -26,17 +37,97 @@ contains
   subroutine initialise_parallelisation
 
     ! Local variables:
-    integer :: ierr
+    integer :: ierr, i, n
 
     ! Use MPI to create copies of the program on all the processors, so the model can run in parallel.
     call MPI_INIT( ierr)
 
-    ! Get rank of current process and total number of processes
-    call MPI_COMM_RANK( MPI_COMM_WORLD, par%i, ierr)
+    ! Get global number of processes and global ID of current process
     call MPI_COMM_SIZE( MPI_COMM_WORLD, par%n, ierr)
+    call MPI_COMM_RANK( MPI_COMM_WORLD, par%i, ierr)
     par%primary = (par%i == 0)
 
+    ! Split global communicator into communicators per shared-memory node
+    call MPI_COMM_SPLIT_TYPE( MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, par%i, MPI_INFO_NULL, par%mpi_comm_node, ierr)
+    call MPI_COMM_SIZE( par%mpi_comm_node, par%n_node, ierr)
+    call MPI_COMM_RANK( par%mpi_comm_node, par%i_node, ierr)
+    par%node_primary = (par%i_node == 0)
+
+    ! Determine number of nodes
+    call determine_number_of_nodes_and_node_IDs
+
+    ! Create communicator for primaries only
+    if (par%node_primary) then
+      call MPI_COMM_SPLIT( MPI_COMM_WORLD, 0, par%i, par%mpi_comm_node_primaries, ierr)
+
+      ! Safety
+      call MPI_COMM_SIZE( par%mpi_comm_node_primaries, n, ierr)
+      if (n /= par%n_nodes) stop 'number of node primaries should be equal to n_nodes!'
+      call MPI_COMM_RANK( par%mpi_comm_node_primaries, i, ierr)
+      if (i /= par%node_ID) stop 'rank in mpi_comm_node_primaries should be equal to node_ID!'
+    else
+      call MPI_COMM_SPLIT( MPI_COMM_WORLD, 1, par%i, par%mpi_comm_secondaries, ierr)
+    end if
+
   end subroutine initialise_parallelisation
+
+  subroutine determine_number_of_nodes_and_node_IDs
+
+    ! Let each process, in order, tell the primary what their rank within
+    ! their node communicator is. Since they were split using their global rank as the ley,
+    ! they are in the same order, so the primary will receive numbers like 0-1-2-3-0-1-2-3-0-1-2-3.
+    ! So, the number of nodes is equal to the number of 0's (or more simply, the number of node primaries),
+    ! and the node ID's can be determined by increasing the count every time a process reports
+    ! a rank of 0 within their node communicator
+
+    ! Local variables:
+    integer                       :: ierr, i
+    integer, dimension(0:par%n-1) :: i_node, node_ID
+    type(MPI_STATUS)              :: recv_status
+
+    ! Number of nodes = number of processes that are a node primary
+    if (par%node_primary) then
+      par%n_nodes = 1
+    else
+      par%n_nodes = 0
+    end if
+    call MPI_ALLREDUCE( MPI_IN_PLACE, par%n_nodes, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD)
+
+    if (par%primary) then
+
+      ! Receive rank within node from all global processes
+      i_node( 0) = par%i_node
+      do i = 1, par%n-1
+        call MPI_RECV( i_node( i), 1, MPI_INTEGER, i, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+      end do
+
+      ! Determine ID of each process' node
+      node_ID(0) = 0
+      do i = 1, par%n-1
+        if (i_node( i) == 0) then
+          node_ID( i) = node_ID( i-1) + 1
+        else
+          node_ID( i) = node_ID( i-1)
+        end if
+      end do
+      par%node_ID = node_ID(0)
+
+      ! Send IDs of each process' nodes to them
+      do i = 1, par%n-1
+        call MPI_SEND( node_ID( i), 1, MPI_INTEGER, i, 0, MPI_COMM_WORLD, ierr)
+      end do
+
+    else
+
+      ! Send this process' rank within node to the global primary
+      call MPI_SEND( par%i_node, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, ierr)
+
+      ! Receive this process' node ID from the global primary
+      call MPI_RECV( par%node_ID, 1, MPI_INTEGER, 0, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
+
+    end if
+
+  end subroutine determine_number_of_nodes_and_node_IDs
 
   subroutine sync
 
