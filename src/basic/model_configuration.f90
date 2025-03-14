@@ -673,6 +673,44 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_insolation_config                   = ''                               ! File with the insolation solution (Laskar 2004)
     REAL(dp)            :: static_insolation_time_config                = 0._dp                            ! [ka?] time to use for a static insolation
 
+    ! Climate matrix forcing
+    CHARACTER(LEN=256)  :: choice_matrix_forcing_config                 = 'none'                           ! 'none', 'CO2_direct' or 'd18O_inverse_CO2'
+    ! CO2 record (ASCII text file, so the number of rows needs to be specified)
+    CHARACTER(LEN=256)  :: filename_CO2_record_config                   = ''
+    INTEGER             :: CO2_record_length_config                     = 8001    
+    ! d18O record (ASCII text file, so the number of rows needs to be specified)
+    CHARACTER(LEN=256)  :: filename_d18O_record_config                  = ''
+    INTEGER             :: d18O_record_length_config                    = 2051
+
+    ! NetCDF file containing the present-day observed climate (e.g. ERA40)
+    CHARACTER(LEN=256)  :: filename_PD_obs_climate_config              = ''
+
+    ! GCM snapshots in the matrix_warm_cold option
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_PI_config         = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_warm_config       = ''
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_cold_config       = ''
+
+    REAL(dp)            :: constant_lapserate_config                   = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
+
+    ! Scaling factor for CO2 vs ice weights
+    REAL(dp)            :: climate_matrix_CO2vsice_NAM_config          = 0.5_dp                           ! Weight factor for the influence of CO2 vs ice cover on temperature
+    REAL(dp)            :: climate_matrix_CO2vsice_EAS_config          = 0.5_dp                           ! Can be set separately for different regions
+    REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp                          ! Default values are from Berends et al, 2018
+    REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                          ! 1.0_dp equals glacial index method
+
+    ! Orbit time and CO2 concentration of the warm and cold snapshots
+    REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                          ! CO2 level  pertaining to the warm climate (PI  level default)
+    REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                          ! CO2 level  pertaining to the cold climate (LGM level default)
+    REAL(dp)            :: matrix_warm_orbit_time_config               = 0._dp                            ! Orbit time pertaining to the warm climate (PI default)
+    REAL(dp)            :: matrix_cold_orbit_time_config               = -21000._dp                       ! Orbit time pertaining to the cold climate (LGM default)
+
+    ! Whether or not to apply a bias correction to the GCM snapshots
+    LOGICAL             :: climate_matrix_biascorrect_warm_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "warm" GCM snapshot
+    LOGICAL             :: climate_matrix_biascorrect_cold_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
+
+    LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.                          ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
+
+
   ! == Ocean
   ! ========
 
@@ -1733,6 +1771,43 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_insolation
     REAL(dp)            :: static_insolation_time
 
+    ! Climate matrix forcing
+    CHARACTER(LEN=256)  :: choice_matrix_forcing
+    ! CO2 record (ASCII text file, so the number of rows needs to be specified)
+    CHARACTER(LEN=256)  :: filename_CO2_record
+    INTEGER             :: CO2_record_length    
+    ! d18O record (ASCII text file, so the number of rows needs to be specified)
+    CHARACTER(LEN=256)  :: filename_d18O_record
+    INTEGER             :: d18O_record_length
+
+    ! NetCDF file containing the present-day observed climate (e.g. ERA40)
+    CHARACTER(LEN=256)  :: filename_PD_obs_climate
+
+    ! GCM snapshots in the matrix_warm_cold option
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_PI
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_warm
+    CHARACTER(LEN=256)  :: filename_climate_snapshot_cold
+
+    REAL(dp)            :: constant_lapserate
+
+    ! Scaling factor for CO2 vs ice weights
+    REAL(dp)            :: climate_matrix_CO2vsice_NAM
+    REAL(dp)            :: climate_matrix_CO2vsice_EAS
+    REAL(dp)            :: climate_matrix_CO2vsice_GRL
+    REAL(dp)            :: climate_matrix_CO2vsice_ANT
+
+    ! Orbit time and CO2 concentration of the warm and cold snapshots
+    REAL(dp)            :: matrix_high_CO2_level
+    REAL(dp)            :: matrix_low_CO2_level
+    REAL(dp)            :: matrix_warm_orbit_time
+    REAL(dp)            :: matrix_cold_orbit_time
+
+    ! Whether or not to apply a bias correction to the GCM snapshots
+    LOGICAL             :: climate_matrix_biascorrect_warm
+    LOGICAL             :: climate_matrix_biascorrect_cold
+
+    LOGICAL             :: switch_glacial_index_precip
+
   ! == Ocean
   ! ========
 
@@ -2784,6 +2859,27 @@ CONTAINS
       choice_insolation_forcing_config                            , &
       filename_insolation_config                                  , &
       static_insolation_time_config                               , &
+      choice_matrix_forcing_config                                , &
+      filename_CO2_record_config                                  , &
+      CO2_record_length_config                                    , &
+      filename_d18O_record_config                                 , &
+      d18O_record_length_config                                   , &
+      filename_PD_obs_climate_config                              , &
+      filename_climate_snapshot_PI_config                         , &
+      filename_climate_snapshot_warm_config                       , &
+      filename_climate_snapshot_cold_config                       , &
+      constant_lapserate_config                                   , &
+      climate_matrix_CO2vsice_NAM_config                          , &
+      climate_matrix_CO2vsice_EAS_config                          , &
+      climate_matrix_CO2vsice_GRL_config                          , &
+      climate_matrix_CO2vsice_ANT_config                          , &
+      matrix_high_CO2_level_config                                , &
+      matrix_low_CO2_level_config                                 , &
+      matrix_warm_orbit_time_config                               , &
+      matrix_cold_orbit_time_config                               , &
+      climate_matrix_biascorrect_warm_config                      , &
+      climate_matrix_biascorrect_cold_config                      , &
+      switch_glacial_index_precip_config                          , &
       do_asynchronous_ocean_config                                , &
       dt_ocean_config                                             , &
       ocean_vertical_grid_max_depth_config                        , &
@@ -3731,6 +3827,42 @@ CONTAINS
     C%choice_insolation_forcing                              = choice_insolation_forcing_config
     C%filename_insolation                                    = filename_insolation_config
     C%static_insolation_time                                 = static_insolation_time_config
+    
+    ! Climate matrix forcing
+    C%choice_matrix_forcing                                  = choice_matrix_forcing_config
+    C%filename_CO2_record                                    = filename_CO2_record_config
+    C%CO2_record_length                                        = CO2_record_length_config   
+    ! d18O record (ASCII text file, so the number of rows needs to be specified)
+    C%filename_d18O_record                                     = filename_d18O_record_config
+    C%d18O_record_length                                       = d18O_record_length_config
+
+    ! NetCDF file containing the present-day observed climate (e.g. ERA40)
+    C%filename_PD_obs_climate                                  = filename_PD_obs_climate_config
+
+    ! GCM snapshots in the matrix_warm_cold option
+    C%filename_climate_snapshot_PI                             = filename_climate_snapshot_PI_config
+    C%filename_climate_snapshot_warm                           = filename_climate_snapshot_warm_config
+    C%filename_climate_snapshot_cold                           = filename_climate_snapshot_cold_config
+
+    C%constant_lapserate                                       = constant_lapserate_config 
+
+    ! Scaling factor for CO2 vs ice weights
+    C%climate_matrix_CO2vsice_NAM                                = climate_matrix_CO2vsice_NAM_config
+    C%climate_matrix_CO2vsice_EAS                                = climate_matrix_CO2vsice_EAS_config
+    C%climate_matrix_CO2vsice_GRL                                = climate_matrix_CO2vsice_GRL_config
+    C%climate_matrix_CO2vsice_ANT                                = climate_matrix_CO2vsice_ANT_config
+
+    ! Orbit time and CO2 concentration of the warm and cold snapshots
+    C%matrix_high_CO2_level                                      = matrix_high_CO2_level_config
+    C%matrix_low_CO2_level                                       = matrix_low_CO2_level_config
+    C%matrix_warm_orbit_time                                     = matrix_warm_orbit_time_config
+    C%matrix_cold_orbit_time                                     = matrix_cold_orbit_time_config
+
+    ! Whether or not to apply a bias correction to the GCM snapshots
+    C%climate_matrix_biascorrect_warm                            = climate_matrix_biascorrect_warm_config
+    C%climate_matrix_biascorrect_cold                            = climate_matrix_biascorrect_cold_config
+    C%switch_glacial_index_precip                                = switch_glacial_index_precip_config
+    
 
   ! == Ocean
   ! ========
