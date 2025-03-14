@@ -230,35 +230,36 @@ CONTAINS
 ! ===== Error messaging =====
 ! ===========================
 
-  SUBROUTINE print_UFEMISM_start
-    ! Print the UFEMISM start message to the screen
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+  subroutine print_UFEMISM_start
 
     ! Local variables:
-    CHARACTER(LEN=128)                                                 :: str1, str2
-    INTEGER                                                            :: n,i
+    character(len=1024) :: str1, str2
+    integer             :: i
 
     str1 = ' '
-    str1 = '===== Running UFEMISM on {int_01} cores ====='
-    CALL insert_val_into_string_int( str1, '{int_01}', par%n)
+    if (par%n_nodes == 1) then
+      str1 = '===== Running UFEMISM on {int_01} cores ====='
+      call insert_val_into_string_int( str1, '{int_01}', par%n)
+    else
+      str1 = '===== Running UFEMISM on {int_01} cores ({int_02} nodes) ====='
+      call insert_val_into_string_int( str1, '{int_01}', par%n)
+      call insert_val_into_string_int( str1, '{int_02}', par%n_nodes)
+    end if
 
-    n = LEN_TRIM( str1)
     str2 = ' '
-    DO i = 1, n
+    do i = 1, len_trim( str1)
       str2( i:i) = '='
-    END DO
+    end do
 
-    IF (par%primary) WRITE(0,'(A)') ''
-    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
-    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
-    CALL sync
+    if (par%primary) then
+      write(0,'(A)') ''
+      write(0,'(A)') trim( colour_string( trim( str2),'green'))
+      write(0,'(A)') trim( colour_string( trim( str1),'green'))
+      write(0,'(A)') trim( colour_string( trim( str2),'green'))
+    end if
+    call sync
 
-  END SUBROUTINE print_UFEMISM_start
+  end subroutine print_UFEMISM_start
 
   SUBROUTINE print_UFEMISM_end( tcomp)
     ! Print the UFEMISM end message to the screen
