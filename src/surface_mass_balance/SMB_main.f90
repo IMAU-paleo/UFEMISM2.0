@@ -96,10 +96,12 @@ CONTAINS
       CASE ('idealised')
         CALL run_SMB_model_idealised( mesh, ice, SMB, time)
       CASE ('prescribed')
+        IF (par%master)  WRITE(*,"(A)") '   Running prescribed SMB...'
         CALL run_SMB_model_prescribed( mesh, ice, SMB, region_name, time)
       CASE ('reconstructed')
         CALL run_SMB_model_reconstructed( mesh, grid_smooth, ice, SMB, region_name, time)
       CASE ('parameterised')  
+        IF (par%master)  WRITE(*,"(A)") '   Running parameterised SMB...'
         CALL run_SMB_model_parameterised( mesh, ice, SMB, climate, time)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -160,10 +162,12 @@ CONTAINS
       CASE ('idealised')
         CALL initialise_SMB_model_idealised( mesh, SMB)
       CASE ('prescribed')
+        IF (par%master)  WRITE(*,"(A)") '   Initialising prescribed SMB...'
         CALL initialise_SMB_model_prescribed( mesh, SMB, region_name)
       CASE ('reconstructed')
         CALL initialise_SMB_model_reconstructed( mesh, SMB, region_name)
       CASE ('parameterised')  
+        IF (par%master)  WRITE(*,"(A)") '   Initialising parameterised SMB...'
         CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -258,6 +262,7 @@ CONTAINS
 
     ! Write the time to the file
     CALL write_time_to_file( SMB%restart_filename, ncid, time)
+    ! month dimension is already written when adding it to file
 
     ! ! Write the SMB fields to the file
     CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'SMB_monthly', SMB%SMB_monthly)
@@ -365,11 +370,14 @@ CONTAINS
 
     ! Add a time dimension to the file
     CALL add_month_dimension_to_file( SMB%restart_filename, ncid)
+    CALL add_time_dimension_to_file( SMB%restart_filename, ncid)
+
 
     ! Add the data fields to the file
-    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm/yr')
-    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'FirnDepth', long_name = 'Firn Depth', units = 'm')
-    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'MeltPreviousYear', long_name = 'Total melt in the previous year', units = 'm w.e.')
+    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'SMB',                 long_name = 'Surface mass balance',            units = 'm/yr')
+    CALL add_field_mesh_dp_2D_monthly( SMB%restart_filename, ncid, 'SMB_monthly', long_name = 'monthly Surface mass balance',    units = 'm/yr')
+    CALL add_field_mesh_dp_2D_monthly( SMB%restart_filename, ncid, 'FirnDepth',   long_name = 'Firn Depth',                      units = 'm')
+    CALL add_field_mesh_dp_2D( SMB%restart_filename, ncid, 'MeltPreviousYear',    long_name = 'Total melt in the previous year', units = 'm w.e.')
 
     ! Close the file
     CALL close_netcdf_file( ncid)

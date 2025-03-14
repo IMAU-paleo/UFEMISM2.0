@@ -365,30 +365,19 @@ contains
     allocate( grid%lat( grid%nlat))
     allocate(  vec%lat(  vec%nlat))
 
-    if (par%master) then
-      str = ' insolation grid has size ({int_01},{int_02}), and lat-only grid has size ({int_03})'
-      call insert_val_into_string_int( str, '{int_01}', grid%nlon)
-      call insert_val_into_string_int( str, '{int_02}', grid%nlat)
-      call insert_val_into_string_int( str, '{int_03}',  vec%nlat)
-      WRITE(0,"(A)") trim(str)
-    end if
-
     ! Inquire lat variable
     call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read and assign y
-    if (par%master) WRITE(0,*) '    Reading latitude variable...'
     call read_var_master( filename, ncid, id_var_lat, vec%lat)
     grid%lat  = vec%lat
 
     ! Broadcast x and y from the master to the other processes
-    if (par%master) WRITE(0,*) '    Broadcasting grid...'
     call MPI_BCAST( grid%lon, grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( grid%lat, grid%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(  vec%lat,  vec%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Secondary data
-    if (par%master) WRITE(0,*) '    Splitting grid to different processes...'
     call calc_lonlat_field_to_vector_form_translation_tables( grid)
 
 
