@@ -123,16 +123,16 @@ CONTAINS
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
 
-    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
       CO2 = forcing%CO2_obs
-    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+    ELSEIF (choice_matrix_forcing == 'd18O_inverse_CO2') THEN
       CO2 = forcing%CO2_mod
-    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+    ELSEIF (choice_matrix_forcing == 'd18O_inverse_dT_glob') THEN
       CO2 = 0._dp
       CALL crash('must only be called with the correct forcing method, check your code!')
     ELSE
       CO2 = 0._dp
-      CALL crash('unknown choice_forcing_method"' // TRIM(C%choice_forcing_method) // '"!')
+      CALL crash('unknown choice_forcing_method"' // TRIM(choice_matrix_forcing) // '"!')
     END IF
 
     ! If CO2 ~= warm snap -> weight is 1. If ~= cold snap -> weight is 0.
