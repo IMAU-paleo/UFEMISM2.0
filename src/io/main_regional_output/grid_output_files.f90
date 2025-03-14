@@ -725,6 +725,9 @@ contains
       case ('T_base')
         call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_base', d_grid_vec_partial_2D)
+      case ('T_amb')
+        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_amb, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_amb', d_grid_vec_partial_2D)
       case ('u_star')
         call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%u_star, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_star', d_grid_vec_partial_2D)
@@ -1381,6 +1384,8 @@ contains
         ! not implemented
       case ('T_base')
         call add_field_grid_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
+      case ('T_amb')
+        call add_field_grid_dp_2D( filename, ncid, 'T_amb', long_name = 'Temperature at interface with ambient ocean', units = 'deg C')
       case ('u_star')
         call add_field_grid_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
       case ('gamma_T')
