@@ -1266,6 +1266,9 @@ CONTAINS
       CASE ('Precip')
         CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%climate%Precip, d_grid_vec_partial_2D_monthly)
         CALL write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Precip', d_grid_vec_partial_2D_monthly)
+      CASE ('Q_TOA')
+        CALL map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%climate%Q_TOA, d_grid_vec_partial_2D_monthly)
+        CALL write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Q_TOA', d_grid_vec_partial_2D_monthly)  
 
     ! == Ocean ==
     ! ==========================
@@ -2171,6 +2174,8 @@ CONTAINS
         CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'T2m', long_name = 'Monthly mean 2-m air temperature', units = 'K')
       CASE ('Precip')
         CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
+      CASE ('Q_TOA')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')  
 
     ! == Ocean ==
     ! ===========
@@ -2620,6 +2625,8 @@ CONTAINS
         CALL add_field_grid_dp_2D_monthly( filename, ncid, 'T2m', long_name = 'Monthly mean 2-m air temperature', units = 'K')
       CASE ('Precip')
         CALL add_field_grid_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
+      CASE ('Q_TOA')
+        CALL add_field_grid_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly Insolation at the top of the atmosphere', units = 'W m^-2')
 
     ! == Ocean ==
     ! ==========================
