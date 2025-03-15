@@ -35,8 +35,9 @@ PROGRAM UFEMISM_program
   USE region_types                                           , ONLY: type_model_region
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
   use inversion_utilities, only: MISMIPplus_adapt_flow_factor
-  USE unit_tests                                             , ONLY: run_all_unit_tests
-  USE component_tests                                        , ONLY: run_all_component_tests
+  use unit_tests, only: run_all_unit_tests
+  use component_tests, only: run_all_component_tests
+  use unit_tests_multinode, only: run_all_multinode_unit_tests
 
   IMPLICIT NONE
 
@@ -63,9 +64,21 @@ PROGRAM UFEMISM_program
 ! ===== START =====
 ! =================
 
-  ! Initialise MPI parallelisation
-  CALL initialise_parallelisation
+  ! Get the input argument (either the path to the config file,
+  ! or an instruction to run unit/component tests)
+  if (iargc() == 1) then
+    call getarg( 1, input_argument)
+  else
+    stop 'UFEMISM requires a single argument, being the path to the config file, e.g. "mpi_exec  -n 2  UFEMISM_program  config-files/config_test"'
+  end if
+
+  ! Initialise MPI parallelisation and PETSc
+  call initialise_parallelisation( input_argument)
   CALL PetscInitialize( PETSC_NULL_CHARACTER, perr)
+
+  ! Only the primary process "sees" the input argument; all the others are
+  ! initialised by MPI without it. Broadcast it so they know what to do.
+  call MPI_BCAST( input_argument, len(input_argument), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
   ! Start the clock
   tstart = MPI_WTIME()
@@ -76,20 +89,13 @@ PROGRAM UFEMISM_program
   ! Initialise the control and resource tracker
   CALL initialise_control_and_resource_tracker
 
-  ! Check input argument for special cases (unit tests, component tests)
-  if (par%primary) then
-    if (iargc() == 1) then
-      call getarg( 1, input_argument)
-    else
-      call crash('UFEMISM requires a single argument, being the path to the config file, e.g. "mpi_exec  -n 2  UFEMISM_program  config-files/config_test"')
-    end if
-  end if
-  call MPI_BCAST( input_argument, len(input_argument), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
-
   ! Special cases
   if (input_argument == 'unit_tests') then
     call initialise_model_configuration_unit_tests
     call run_all_unit_tests
+  elseif (input_argument == 'unit_tests_multinode') then
+    call initialise_model_configuration_unit_tests
+    call run_all_multinode_unit_tests
   elseif (input_argument == 'component_tests') then
     call initialise_model_configuration_unit_tests
     call run_all_component_tests

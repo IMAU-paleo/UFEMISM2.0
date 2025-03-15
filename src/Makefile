@@ -343,6 +343,8 @@ UFEMISM_source = \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
+  validation/unit_tests/unit_tests_multinode.f90 \
+  \
   validation/component_tests/ct_create_test_meshes.f90 \
   validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
   validation/component_tests/ct_discretisation.f90 \
