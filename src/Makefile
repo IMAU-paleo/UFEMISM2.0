@@ -118,6 +118,7 @@ UFEMISM_source = \
   validation/basic_tests/assertions_basic.f90 \
   \
   basic/mpi_parallelisation/mpi_distributed_memory.f90 \
+  basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
   basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
   \
   basic/math_utilities/flip_mod.f90 \
