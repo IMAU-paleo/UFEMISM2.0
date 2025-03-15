@@ -1,7 +1,7 @@
 module mpi_distributed_shared_memory
 
   use precisions, only: dp
-  use mpi_basic, only: par
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
   use mpi_f08, only: MPI_WIN, MPI_ADDRESS_KIND, MPI_WIN_ALLOCATE_SHARED, MPI_INFO_NULL,&
@@ -71,7 +71,7 @@ subroutine allocate_dist_shared_logical_1D( p, win, n1)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*4_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -89,6 +89,10 @@ subroutine allocate_dist_shared_logical_1D( p, win, n1)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1])
+
+  ! Initialise
+  if (par%node_primary) p = .false.
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -119,7 +123,7 @@ subroutine allocate_dist_shared_logical_2D( p, win, n1, n2)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*n2*4_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -137,6 +141,10 @@ subroutine allocate_dist_shared_logical_2D( p, win, n1, n2)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2])
+
+  ! Initialise
+  if (par%node_primary) p = .false.
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -167,7 +175,7 @@ subroutine allocate_dist_shared_logical_3D( p, win, n1, n2, n3)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*n2*n3*4_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -185,6 +193,10 @@ subroutine allocate_dist_shared_logical_3D( p, win, n1, n2, n3)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2, n3])
+
+  ! Initialise
+  if (par%node_primary) p = .false.
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -215,7 +227,7 @@ subroutine allocate_dist_shared_int_1D( p, win, n1)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*4_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -233,6 +245,10 @@ subroutine allocate_dist_shared_int_1D( p, win, n1)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1])
+
+  ! Initialise
+  if (par%node_primary) p = 0
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -263,7 +279,7 @@ subroutine allocate_dist_shared_int_2D( p, win, n1, n2)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*n2*4_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -281,6 +297,10 @@ subroutine allocate_dist_shared_int_2D( p, win, n1, n2)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2])
+
+  ! Initialise
+  if (par%node_primary) p = 0
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -311,7 +331,7 @@ subroutine allocate_dist_shared_int_3D( p, win, n1, n2, n3)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*n2*n3*4_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -329,6 +349,10 @@ subroutine allocate_dist_shared_int_3D( p, win, n1, n2, n3)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2, n3])
+
+  ! Initialise
+  if (par%node_primary) p = 0
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -359,7 +383,7 @@ subroutine allocate_dist_shared_dp_1D( p, win, n1)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*8_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -377,6 +401,10 @@ subroutine allocate_dist_shared_dp_1D( p, win, n1)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1])
+
+  ! Initialise
+  if (par%node_primary) p = 0._dp
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -407,7 +435,7 @@ subroutine allocate_dist_shared_dp_2D( p, win, n1, n2)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*n2*8_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -425,6 +453,10 @@ subroutine allocate_dist_shared_dp_2D( p, win, n1, n2)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2])
+
+  ! Initialise
+  if (par%node_primary) p = 0._dp
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -455,7 +487,7 @@ subroutine allocate_dist_shared_dp_3D( p, win, n1, n2, n3)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
+  if (par%node_primary) then
     windowsize = n1*n2*n3*8_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
@@ -473,6 +505,10 @@ subroutine allocate_dist_shared_dp_3D( p, win, n1, n2, n3)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2, n3])
+
+  ! Initialise
+  if (par%node_primary) p = 0._dp
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -503,8 +539,8 @@ subroutine allocate_dist_shared_complex_1D( p, win, n1)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
-    windowsize = n1*8_MPI_ADDRESS_KIND
+  if (par%node_primary) then
+    windowsize = n1*16_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
     windowsize = 0_MPI_ADDRESS_KIND
@@ -521,6 +557,10 @@ subroutine allocate_dist_shared_complex_1D( p, win, n1)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1])
+
+  ! Initialise
+  if (par%node_primary) p = 0._dp
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -551,8 +591,8 @@ subroutine allocate_dist_shared_complex_2D( p, win, n1, n2)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
-    windowsize = n1*n2*8_MPI_ADDRESS_KIND
+  if (par%node_primary) then
+    windowsize = n1*n2*16_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
     windowsize = 0_MPI_ADDRESS_KIND
@@ -569,6 +609,10 @@ subroutine allocate_dist_shared_complex_2D( p, win, n1, n2)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2])
+
+  ! Initialise
+  if (par%node_primary) p = 0._dp
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
@@ -599,8 +643,8 @@ subroutine allocate_dist_shared_complex_3D( p, win, n1, n2, n3)
   ! Safety
   if (associated(p)) call crash('pointer is already/still associated with memory')
 
-  if (par%primary) then
-    windowsize = n1*n2*n3*8_MPI_ADDRESS_KIND
+  if (par%node_primary) then
+    windowsize = n1*n2*n3*16_MPI_ADDRESS_KIND
     disp_unit  = 4
   else
     windowsize = 0_MPI_ADDRESS_KIND
@@ -617,6 +661,10 @@ subroutine allocate_dist_shared_complex_3D( p, win, n1, n2, n3)
 
   ! Associate a pointer with this memory space.
   call c_f_pointer( baseptr, p, [n1, n2, n3])
+
+  ! Initialise
+  if (par%node_primary) p = 0._dp
+  call sync
 
   ! ! Update the n_MPI_windows memory leak tracker
   ! n_MPI_windows = n_MPI_windows + 1
