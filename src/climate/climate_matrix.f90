@@ -52,7 +52,7 @@ CONTAINS
     ! Update forcing at model time
     ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
     CALL get_insolation_at_time( mesh, time, climate%forcing, climate%forcing%Q_TOA)
-    CALL update_CO2_at_model_time( climate%forcing, time, mesh) 
+    CALL update_CO2_at_model_time( time, climate%forcing) 
 
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name)
@@ -126,6 +126,7 @@ CONTAINS
     IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
       CO2 = forcing%CO2_obs
     ELSEIF (choice_matrix_forcing == 'd18O_inverse_CO2') THEN
+      CALL crash('not implemented yet!')
       CO2 = forcing%CO2_mod
     ELSEIF (choice_matrix_forcing == 'd18O_inverse_dT_glob') THEN
       CO2 = 0._dp

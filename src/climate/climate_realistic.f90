@@ -49,6 +49,7 @@ CONTAINS
       ! This is probably where we will update insolation, CO2, etc...
       CALL crash('choice_climate_model_realistic climate_matrix not implemented yet!"')
       CALL get_insolation_at_time( mesh, time, forcing, climate%Q_TOA)
+      ! the update of CO2 at time is done in climate_matrix now
       !CALL get_climate_at_time( mesh, time, forcing, climate)
     ELSE
       CALL crash('unknown choice_climate_model_realistic "' // TRIM( C%choice_climate_model_realistic) // '"')
@@ -151,7 +152,8 @@ CONTAINS
     ! read and load the insolation data
     CALL initialise_insolation_forcing( forcing, mesh)
 
-    ! CO2 record - not yet implemented
+    ! CO2 record
+    call initialise_CO2_record( forcing)
     
     ! d18O record - not yet implemented
 
@@ -355,7 +357,7 @@ CONTAINS
   END SUBROUTINE update_insolation_timeframes_from_file
   
 ! == Prescribed CO2 record
-  SUBROUTINE update_CO2_at_model_time( time)
+  SUBROUTINE update_CO2_at_model_time( time, forcing)
     ! Interpolate the data in forcing%CO2 to find the value at the queried time.
     ! If time lies outside the range of forcing%CO2_time, return the first/last value
     !
@@ -368,6 +370,7 @@ CONTAINS
 
     ! In/output variables:
     REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
@@ -433,13 +436,17 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_CO2_at_model_time
-  SUBROUTINE initialise_CO2_record
+  SUBROUTINE initialise_CO2_record( forcing)
     ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is an ASCII text file with at least two columns (time in kyr and CO2 in ppmv)
     ! and the number of rows being equal to C%CO2_record_length
 
     ! NOTE: assumes time is listed in kyr BP (so LGM would be -21.0); converts to yr after reading!
 
     IMPLICIT NONE
+    
+    ! In/output variables:
+!    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_CO2_record'
@@ -458,9 +465,9 @@ CONTAINS
     ! Allocate shared memory to take the data
     allocate( forcing%CO2_time(   C%CO2_record_length))
     allocate( forcing%CO2_record( C%CO2_record_length))
-    CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_time,   forcing%wCO2_time  )
-    CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_record, forcing%wCO2_record)
-    CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )
+    !CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_time,   forcing%wCO2_time  )
+    !CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_record, forcing%wCO2_record)
+    !CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )
 
     ! Read CO2 record (time and values) from specified text file
     IF (par%master) THEN
@@ -489,10 +496,9 @@ CONTAINS
       forcing%CO2_time = forcing%CO2_time * 1000._dp
 
     END IF ! IF (par%master)
-    CALL sync
 
     ! Set the value for the current (starting) model time
-    CALL update_CO2_at_model_time( C%start_time_of_run)
+    CALL update_CO2_at_model_time( C%start_time_of_run, forcing)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
