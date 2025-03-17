@@ -11,7 +11,66 @@ MODULE climate_model_types
 
 ! ===== Types =====
 ! =================
+  TYPE type_climate_snapshot
+    ! A single climate snapshot
 
+    CHARACTER(LEN=256)                      :: name                          ! 'ERA40', 'HadCM3_PI', etc.
+
+    ! Metadata
+    REAL(dp),                   POINTER     :: CO2
+    REAL(dp),                   POINTER     :: orbit_time                    ! The time (in ky ago) for the orbital forcing (Q_TOA can then be read from Laskar data)
+    REAL(dp),                   POINTER     :: orbit_ecc                     ! Orbital parameters
+    REAL(dp),                   POINTER     :: orbit_obl
+    REAL(dp),                   POINTER     :: orbit_pre
+    REAL(dp),                   POINTER     :: sealevel
+    INTEGER :: wCO2, worbit_time, worbit_ecc, worbit_obl, worbit_pre, wsealevel
+
+    ! Climate data
+    REAL(dp), DIMENSION(:  ), POINTER     :: Hs                            ! Orography (m w.r.t. PD sea level)
+    INTEGER, DIMENSION(:   ), POINTER     :: mask_ice                      ! Climate snapshot ice (1) no_ice (1) mask
+    INTEGER, DIMENSION(:   ), POINTER     :: mask_ocean                    ! Climate snapshot ocean (1) land (0) mask
+    INTEGER, DIMENSION(:   ), POINTER     :: mask_shelf                    ! Climate snapshot shelf (1) no shelf (0) mask
+    REAL(dp), DIMENSION(:,:), POINTER     :: T2m                           ! Monthly mean 2m air temperature (K)
+    REAL(dp), DIMENSION(:,:), POINTER     :: Precip                        ! Monthly mean precipitation (m)
+    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_WE                       ! Monthly mean west-east   wind speed (m/s)
+    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_SN                       ! Monthly mean south-north wind speed (m/s)
+    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_LR                       ! Monthly mean wind speed in the x-direction (m/s)
+    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_DU                       ! Monthly mean wind speed in the y-direction (m/s)
+    !INTEGER :: wHs, wmask_ice, wmask_ocean, wmask_shelf, wT2m, wPrecip, wHs_ref, wWind_WE, wWind_SN, wWind_LR, wWind_DU
+
+    ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
+    REAL(dp), DIMENSION(:  ), POINTER     :: lambda
+    INTEGER :: wlambda
+
+    ! Reference absorbed insolation (for GCM snapshots), or insolation at model time for the applied climate
+    REAL(dp), DIMENSION(:,:), POINTER     :: Q_TOA                         ! Monthly mean insolation at the top of the atmosphere (W/m2) (taken from the prescribed insolation solution at orbit_time)
+    REAL(dp), DIMENSION(:,:), POINTER     :: Albedo                        ! Monthly mean surface albedo (calculated using our own SMB scheme for consistency)
+    REAL(dp), DIMENSION(:  ), POINTER     :: I_abs                         ! Total yearly absorbed insolation, used in the climate matrix for interpolation
+    !INTEGER :: wQ_TOA, wAlbedo, wI_abs
+
+  END TYPE type_climate_snapshot
+  
+   TYPE type_climate_model_matrix
+    ! The "matrix" climate model option: three GCM snapshots (warm, cold, and PI), and a PD reanalysis snapshot to use for bias correction
+
+    ! The three GCM snapshots
+    TYPE(type_climate_snapshot)             :: GCM_PI
+    TYPE(type_climate_snapshot)             :: GCM_warm
+    TYPE(type_climate_snapshot)             :: GCM_cold
+
+    ! The present-day climate
+    TYPE(type_climate_snapshot)             :: PD_obs
+
+    ! GCM bias
+    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_T2m
+    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_Precip
+    REAL(dp), DIMENSION(:  ), POINTER     :: GCM_bias_Hs
+    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_Wind_LR
+    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_Wind_DU
+!    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip, wGCM_bias_Hs, wGCM_bias_Wind_LR, wGCM_bias_Wind_DU
+
+  END TYPE type_climate_model_matrix
+  
   TYPE type_climate_model
     ! The climate model data structure.
 
@@ -70,66 +129,6 @@ MODULE climate_model_types
       
 
   END TYPE type_global_forcing
-
-  TYPE type_climate_model_matrix
-    ! The "matrix" climate model option: three GCM snapshots (warm, cold, and PI), and a PD reanalysis snapshot to use for bias correction
-
-    ! The three GCM snapshots
-    TYPE(type_climate_snapshot)             :: GCM_PI
-    TYPE(type_climate_snapshot)             :: GCM_warm
-    TYPE(type_climate_snapshot)             :: GCM_cold
-
-    ! The present-day climate
-    TYPE(type_climate_snapshot)             :: PD_obs
-
-    ! GCM bias
-    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_T2m
-    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_Precip
-    REAL(dp), DIMENSION(:  ), POINTER     :: GCM_bias_Hs
-    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_Wind_LR
-    REAL(dp), DIMENSION(:,:), POINTER     :: GCM_bias_Wind_DU
-!    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip, wGCM_bias_Hs, wGCM_bias_Wind_LR, wGCM_bias_Wind_DU
-
-  END TYPE type_climate_model_matrix
-  
-  TYPE type_climate_snapshot
-    ! A single climate snapshot
-
-    CHARACTER(LEN=256)                      :: name                          ! 'ERA40', 'HadCM3_PI', etc.
-
-    ! Metadata
-    REAL(dp),                   POINTER     :: CO2
-    REAL(dp),                   POINTER     :: orbit_time                    ! The time (in ky ago) for the orbital forcing (Q_TOA can then be read from Laskar data)
-    REAL(dp),                   POINTER     :: orbit_ecc                     ! Orbital parameters
-    REAL(dp),                   POINTER     :: orbit_obl
-    REAL(dp),                   POINTER     :: orbit_pre
-    REAL(dp),                   POINTER     :: sealevel
-    INTEGER :: wCO2, worbit_time, worbit_ecc, worbit_obl, worbit_pre, wsealevel
-
-    ! Climate data
-    REAL(dp), DIMENSION(:  ), POINTER     :: Hs                            ! Orography (m w.r.t. PD sea level)
-    INTEGER, DIMENSION(:   ), POINTER     :: mask_ice                      ! Climate snapshot ice (1) no_ice (1) mask
-    INTEGER, DIMENSION(:   ), POINTER     :: mask_ocean                    ! Climate snapshot ocean (1) land (0) mask
-    INTEGER, DIMENSION(:   ), POINTER     :: mask_shelf                    ! Climate snapshot shelf (1) no shelf (0) mask
-    REAL(dp), DIMENSION(:,:), POINTER     :: T2m                           ! Monthly mean 2m air temperature (K)
-    REAL(dp), DIMENSION(:,:), POINTER     :: Precip                        ! Monthly mean precipitation (m)
-    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_WE                       ! Monthly mean west-east   wind speed (m/s)
-    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_SN                       ! Monthly mean south-north wind speed (m/s)
-    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_LR                       ! Monthly mean wind speed in the x-direction (m/s)
-    REAL(dp), DIMENSION(:,:), POINTER     :: Wind_DU                       ! Monthly mean wind speed in the y-direction (m/s)
-    !INTEGER :: wHs, wmask_ice, wmask_ocean, wmask_shelf, wT2m, wPrecip, wHs_ref, wWind_WE, wWind_SN, wWind_LR, wWind_DU
-
-    ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
-    REAL(dp), DIMENSION(:  ), POINTER     :: lambda
-    INTEGER :: wlambda
-
-    ! Reference absorbed insolation (for GCM snapshots), or insolation at model time for the applied climate
-    REAL(dp), DIMENSION(:,:), POINTER     :: Q_TOA                         ! Monthly mean insolation at the top of the atmosphere (W/m2) (taken from the prescribed insolation solution at orbit_time)
-    REAL(dp), DIMENSION(:,:), POINTER     :: Albedo                        ! Monthly mean surface albedo (calculated using our own SMB scheme for consistency)
-    REAL(dp), DIMENSION(:, ), POINTER     :: I_abs                         ! Total yearly absorbed insolation, used in the climate matrix for interpolation
-    !INTEGER :: wQ_TOA, wAlbedo, wI_abs
-
-  END TYPE type_climate_snapshot
 
 CONTAINS
 
