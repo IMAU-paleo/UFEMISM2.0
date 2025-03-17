@@ -99,7 +99,9 @@ UFEMISM_source = \
   types/region_types.f90 \
   \
   basic/parameters.f90 \
-  basic/mpi_basic.f90 \
+  \
+  basic/mpi_parallelisation/mpi_basic.f90 \
+  \
   basic/reallocate_mod.f90 \
   basic/string_module.f90 \
   basic/control_resources_and_error_messaging.f90 \
@@ -115,7 +117,9 @@ UFEMISM_source = \
   validation/basic_tests/tests_main.f90 \
   validation/basic_tests/assertions_basic.f90 \
   \
-  basic/mpi_distributed_memory.f90 \
+  basic/mpi_parallelisation/mpi_distributed_memory.f90 \
+  basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
+  basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
   \
   basic/math_utilities/flip_mod.f90 \
   basic/math_utilities/permute_mod.f90 \
@@ -134,7 +138,6 @@ UFEMISM_source = \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \
   \
-  basic/grid/mpi_distributed_memory_grid.f90 \
   basic/grid/grid_basic.f90 \
   basic/grid/smooth_gridded_data.f90 \
   basic/grid_lonlat_basic.f90 \
@@ -339,6 +342,8 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
+  \
+  validation/unit_tests/unit_tests_multinode.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \
   validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
