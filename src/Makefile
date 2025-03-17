@@ -122,6 +122,7 @@ UFEMISM_source = \
   basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
+  basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
   basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
   basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
   \
