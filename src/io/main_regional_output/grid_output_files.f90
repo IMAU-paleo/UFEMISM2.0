@@ -230,6 +230,7 @@ contains
     real(dp), dimension(:),   allocatable :: d_grid_vec_partial_2D
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_2D_monthly
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_3D
+    real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_3D_ocean
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -245,6 +246,7 @@ contains
     allocate( d_grid_vec_partial_2D(         grid%n_loc                ))
     allocate( d_grid_vec_partial_2D_monthly( grid%n_loc, 12            ))
     allocate( d_grid_vec_partial_3D(         grid%n_loc, region%mesh%nz))
+    allocate( d_grid_vec_partial_3D_ocean(   grid%n_loc, C%nz_ocean    ))
 
     ! Add the specified data field to the file
     select case (choice_output_field)
@@ -638,9 +640,11 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call warning('ocean temperature not implemented yet!')
+        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ocean%T, d_grid_vec_partial_3D_ocean)
+        call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'T_ocean', d_grid_vec_partial_3D_ocean)
       case ('S_ocean')
-        call warning('ocean salinity not implemented yet!')
+        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ocean%S, d_grid_vec_partial_3D_ocean)
+        call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'S_ocean', d_grid_vec_partial_3D_ocean)
 
     ! == Surface mass balance ==
     ! ==========================
@@ -816,6 +820,7 @@ contains
     call add_time_dimension_to_file(  region%output_filename_grid, ncid)
     call add_zeta_dimension_to_file(  region%output_filename_grid, ncid, region%mesh%zeta)
     call add_month_dimension_to_file( region%output_filename_grid, ncid)
+    call add_depth_dimension_to_file( region%output_filename_grid, ncid, C%z_ocean)
 
     ! Add the default data fields to the file
     call create_main_regional_output_file_grid_field( region%output_filename_grid, ncid, 'Hi')
@@ -920,6 +925,7 @@ contains
     call add_time_dimension_to_file(  filename, ncid)
     call add_zeta_dimension_to_file(  filename, ncid, region%mesh%zeta)
     call add_month_dimension_to_file( filename, ncid)
+    call add_depth_dimension_to_file( filename, ncid, C%z_ocean)
 
     ! Add the default data fields to the file
     call create_main_regional_output_file_grid_field( filename, ncid, 'Hi')
@@ -1318,9 +1324,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call warning('ocean temperature not implemented yet!')
+        call add_field_grid_dp_3D_ocean_notime( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
       case ('S_ocean')
-        call warning('ocean salinity not implemented yet!')
+        call add_field_grid_dp_3D_ocean_notime( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'psu')
 
     ! == Surface mass balance ==
     ! ==========================

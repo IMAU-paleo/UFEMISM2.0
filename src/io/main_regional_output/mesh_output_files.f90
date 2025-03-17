@@ -506,9 +506,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call warning('ocean temperature not implemented yet!')
+        call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'T_ocean', region%ocean%T)
       case ('S_ocean')
-        call warning('ocean salinity not implemented yet!')
+        call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'S_ocean', region%ocean%S)
 
     ! == Surface mass balance ==
     ! ==========================
@@ -663,6 +663,7 @@ contains
     call add_time_dimension_to_file(  region%output_filename_mesh, ncid)
     call add_zeta_dimension_to_file(  region%output_filename_mesh, ncid, region%mesh%zeta)
     call add_month_dimension_to_file( region%output_filename_mesh, ncid)
+    call add_depth_dimension_to_file( region%output_filename_mesh, ncid, C%z_ocean)
 
     ! Operator matrices
     if (C%do_write_matrix_operators) then
@@ -1080,9 +1081,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call warning('ocean temperature not implemented yet!')
+        call add_field_mesh_dp_3D_ocean_notime( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
       case ('S_ocean')
-        call warning('ocean salinity not implemented yet!')
+        call add_field_mesh_dp_3D_ocean_notime( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'PSU')
 
     ! == Surface mass balance ==
     ! ==========================
