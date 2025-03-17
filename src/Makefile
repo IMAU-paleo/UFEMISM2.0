@@ -348,6 +348,11 @@ UFEMISM_source = \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
+  validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \
+  validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
+  validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
+  validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
+  validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
   validation/unit_tests/unit_tests_multinode.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \

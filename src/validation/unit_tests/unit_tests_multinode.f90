@@ -8,7 +8,7 @@ module unit_tests_multinode
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
   use mpi_basic, only: par, sync
   use model_configuration, only: C
-  use ut_mpi, only: unit_tests_mpi_hybrid_distributed_shared_memory_main
+  use ut_mpi_dist_shared_memory, only: unit_tests_mpi_hybrid_distributed_shared_memory_main
 
   implicit none
 
@@ -52,9 +52,6 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'check_for_unit_tests_output_file'
     logical                        :: ex
-    integer                        :: io_unit_test_file
-    integer                        :: stat
-    character(len=512)             :: msg
 
     ! Add routine to path
     call init_routine( routine_name)
