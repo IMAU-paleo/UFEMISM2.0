@@ -119,7 +119,7 @@ CONTAINS
       CALL run_thermodynamics_model( region)
 
       ! Calculate the climate
-      CALL run_climate_model( region%mesh, region%ice, region%climate, region%forcing, region%name, region%time)
+      CALL run_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%forcing, region%name, region%time, region%SMB)
 
       ! Calculate the ocean
       CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, region%time)
@@ -481,7 +481,7 @@ CONTAINS
     ! ===== Climate =====
     ! ===================
 
-    CALL initialise_climate_model( region%mesh, region%climate, region%forcing, region%name)
+    CALL initialise_climate_model( region%mesh, region%grid, region%climate, region%forcing, region%name, region%ice)
 
     ! ===== Ocean =====
     ! =================

@@ -17,6 +17,7 @@ MODULE climate_main
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
+  use climate_matrix                                         , only: run_climate_model_matrix, initialise_climate_matrix
 
   IMPLICIT NONE
 
@@ -25,18 +26,20 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_climate_model( mesh, ice, climate, forcing, region_name, time)
+  SUBROUTINE run_climate_model( mesh, grid, ice, climate, forcing, region_name, time, SMB)
     ! Calculate the climate
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_grid),                        INTENT(IN)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
-    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing)               INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
+    TYPE(type_SMB_model), optional,         INTENT(IN)    :: SMB
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_climate_model'
@@ -88,6 +91,8 @@ CONTAINS
       CALL run_climate_model_idealised( mesh, ice, climate, time)
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL run_climate_model_realistic( mesh, ice, climate, forcing, time)
+    ELSEIF (choice_climate_model == 'matrix') THEN
+      call run_climate_model_matrix( mesh, grid, ice, SMB, climate, region_name, time)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -97,16 +102,18 @@ CONTAINS
 
   END SUBROUTINE run_climate_model
 
-  SUBROUTINE initialise_climate_model( mesh, climate, forcing, region_name)
+  SUBROUTINE initialise_climate_model( mesh, grid, climate, forcing, region_name, ice)
     ! Initialise the climate model
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    type(type_grid),                        intent(in)    :: grid
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    type(type_ice_model), optional,         intent(in)    :: ice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_climate_model'
@@ -149,6 +156,8 @@ CONTAINS
       CALL initialise_climate_model_idealised( mesh, climate)
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL initialise_climate_model_realistic( mesh, climate, forcing, region_name)
+    ELSEIF (choice_climate_model == 'matrix') THEN
+      call initialise_climate_matrix( mesh, grid, climate, region_name, ice%mask_noice, forcing)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

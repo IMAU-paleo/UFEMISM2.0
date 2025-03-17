@@ -29,7 +29,7 @@ CONTAINS
 
   ! Climate matrix with warm + cold snapshots, forced with CO2 (from record or from inverse routine) from Berends et al., 2018
   ! Generalised for different timeframes, L.B. Stap (2021)
-  SUBROUTINE run_climate_model_matrix( mesh, grid, ice, SMB, climate, region_name, time)
+  SUBROUTINE run_climate_model_matrix( mesh, grid, ice, SMB, climate, region_name, time, forcing)
     ! Use CO2 (either prescribed or inversely modelled) to force the 2-snapshot (PI-LGM) climate matrix (Berends et al., 2018)
 
     IMPLICIT NONE
@@ -42,6 +42,7 @@ CONTAINS
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_global_forcing),           INTENT(INOUT) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix'
@@ -51,8 +52,8 @@ CONTAINS
 
     ! Update forcing at model time
     ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
-    CALL get_insolation_at_time( mesh, time, climate%forcing, climate%forcing%Q_TOA)
-    CALL update_CO2_at_model_time( time, climate%forcing) 
+    CALL get_insolation_at_time( mesh, time, forcing, climate%Q_TOA)
+    CALL update_CO2_at_model_time( time, forcing) 
 
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name)
@@ -356,16 +357,17 @@ CONTAINS
 
   END SUBROUTINE run_climate_model_matrix_precipitation
   !!! CHECK mask_noice, in UFE1.x was on region%mask_noice (:)
-  SUBROUTINE initialise_climate_matrix( mesh, grid, climate, region_name, mask_noice)
+  SUBROUTINE initialise_climate_matrix( mesh, grid, climate, region_name, mask_noice, forcing)
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    type(type_mesh),                     intent(in)    :: grid !used to smooth later on, check if grid is called during initialise
+    type(type_grid),                     intent(in)    :: grid !used to smooth later on, check if grid is called during initialise
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     INTEGER,  DIMENSION(:),          INTENT(IN)    :: mask_noice
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing    
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_matrix'
@@ -428,10 +430,14 @@ CONTAINS
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
     ! Get reference absorbed insolation for the GCM snapshots
-    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, mask_noice)
-    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, mask_noice)
+    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, mask_noice, forcing)
+    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, mask_noice, forcing)
 
     ! Initialise applied climate with present-day observations
+! initialise climate model for realistic climate, just for now, so I will have all allocate from the realistic climate
+   call initialise_climate_model_realistic( mesh, climate, forcing, region_name)
+   ! this will also initialise the insolation and CO2 routine
+
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
       climate%T2m(     vi,m) = climate%matrix%PD_obs%T2m(     vi,m)
@@ -726,7 +732,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_matrix_calc_spatially_variable_lapserate
-  SUBROUTINE initialise_matrix_calc_absorbed_insolation( mesh, snapshot, region_name, mask_noice)
+  SUBROUTINE initialise_matrix_calc_absorbed_insolation( mesh, snapshot, region_name, mask_noice, forcing)
     ! Calculate the yearly absorbed insolation for this (regional) GCM snapshot, to be used in the matrix interpolation
 
     IMPLICIT NONE
@@ -737,6 +743,7 @@ CONTAINS
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     !!! FIX mask_noice is used later on run_SMB_model, this is probably different in UFE2
     INTEGER,  DIMENSION(:  ),           INTENT(IN)    :: mask_noice
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_calc_absorbed_insolation'
@@ -751,7 +758,8 @@ CONTAINS
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
 ! ADDED snapshot%forcing
-    CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot%forcing, snapshot%Q_TOA)
+! CHANGED TO forcing, I am not sure if it should be this way tho
+    CALL get_insolation_at_time( mesh, snapshot%orbit_time, forcing, snapshot%Q_TOA)
 
     ! Create temporary "dummy" climate, ice & SMB data structures,
     ! so we can run the SMB model and determine the reference albedo field
