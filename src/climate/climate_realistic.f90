@@ -456,6 +456,8 @@ CONTAINS
     END IF
 
     ! Allocate shared memory to take the data
+    allocate( forcing%CO2_time(   C%CO2_record_length))
+    allocate( forcing%CO2_record( C%CO2_record_length))
     CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_time,   forcing%wCO2_time  )
     CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_record, forcing%wCO2_record)
     CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )

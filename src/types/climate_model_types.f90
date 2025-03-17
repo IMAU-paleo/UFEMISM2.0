@@ -47,8 +47,8 @@ MODULE climate_model_types
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_time
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_record
       REAL(dp),                   ALLOCATABLE     :: CO2_obs
-      INTEGER :: wCO2_time, wCO2_record, wCO2_obs
 
+! not implemented yet, commented for now
       ! d18O record
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_time
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_record
