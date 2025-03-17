@@ -3,14 +3,14 @@ MODULE grid_lonlat_basic
   ! Functions for working with simple lon/lat-grids
   USE precisions                                             , ONLY: dp
   use grid_types                                             , only: type_grid_lonlat, type_grid_lat
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE petsc_basic                                            , ONLY: perr, mat_CSR2petsc
   USE reallocate_mod                                         , ONLY: reallocate
   use interpolation, only: linint_points
   use projections, only: inverse_oblique_sg_projection
-  use mpi_distributed_memory, only: partition_list, distribute_from_master, gather_to_master
+  use mpi_distributed_memory, only: partition_list, distribute_from_primary, gather_to_primary
   USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, &
                                                                      deallocate_matrix_CSR_dist
 
@@ -209,9 +209,9 @@ CONTAINS
 
 ! == Subroutines for manipulating gridded data in distributed memory
 
-  SUBROUTINE distribute_lonlat_gridded_data_from_master_dp_2D( grid, d_grid, d_grid_vec_partial)
-    ! Distribute a 2-D gridded data field from the Master.
-    ! Input from Master: total data field in field form
+  SUBROUTINE distribute_lonlat_gridded_data_from_primary_dp_2D( grid, d_grid, d_grid_vec_partial)
+    ! Distribute a 2-D gridded data field from the primary.
+    ! Input from primary: total data field in field form
     ! Output to all: partial data in vector form
 
     IMPLICIT NONE
@@ -224,7 +224,7 @@ CONTAINS
     REAL(dp), DIMENSION(:      ),                        INTENT(OUT)   :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_lonlat_gridded_data_from_master_dp_2D'
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_lonlat_gridded_data_from_primary_dp_2D'
     INTEGER                                                            :: n,i,j
     REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_total
 
@@ -232,8 +232,8 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Convert gridded data to vector form
-    IF (par%master) THEN
-      if (.not. present(d_grid)) call crash('d_grid should be present on the master process')
+    IF (par%primary) THEN
+      if (.not. present(d_grid)) call crash('d_grid should be present on the primary process')
 
       ! Allocate memory
       ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
@@ -245,22 +245,22 @@ CONTAINS
         d_grid_vec_total( n) = d_grid( i,j)
       END DO
 
-    END IF ! IF (par%master) THEN
+    END IF
 
     ! Distribute vector-form data to the processes
-    CALL distribute_from_master( d_grid_vec_total, d_grid_vec_partial)
+    CALL distribute_from_primary( d_grid_vec_total, d_grid_vec_partial)
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_vec_total)
+    IF (par%primary) DEALLOCATE( d_grid_vec_total)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE distribute_lonlat_gridded_data_from_master_dp_2D
+  END SUBROUTINE distribute_lonlat_gridded_data_from_primary_dp_2D
 
-  SUBROUTINE distribute_lonlat_gridded_data_from_master_dp_3D( grid, d_grid, d_grid_vec_partial)
-    ! Distribute a 3-D gridded data field from the Master.
-    ! Input from Master: total data field in field form
+  SUBROUTINE distribute_lonlat_gridded_data_from_primary_dp_3D( grid, d_grid, d_grid_vec_partial)
+    ! Distribute a 3-D gridded data field from the primary.
+    ! Input from primary: total data field in field form
     ! Output to all: partial data in vector form
 
     IMPLICIT NONE
@@ -273,7 +273,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:    ),                        INTENT(OUT)   :: d_grid_vec_partial
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_lonlat_gridded_data_from_master_dp_3D'
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'distribute_lonlat_gridded_data_from_primary_dp_3D'
     INTEGER                                                            :: k
     REAL(dp), DIMENSION(:,:    ), ALLOCATABLE                          :: d_grid_2D
     REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_partial_2D
@@ -282,32 +282,32 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    IF (par%primary .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
+    IF (par%primary) ALLOCATE( d_grid_2D( SIZE( d_grid,1), SIZE( d_grid,2)), source = 0._dp)
     ALLOCATE( d_grid_vec_partial_2D( SIZE( d_grid_vec_partial,1)), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
     DO k = 1, SIZE( d_grid_vec_partial,2)
-      IF (par%master) d_grid_2D = d_grid( :,:,k)
-      CALL distribute_lonlat_gridded_data_from_master_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
+      IF (par%primary) d_grid_2D = d_grid( :,:,k)
+      CALL distribute_lonlat_gridded_data_from_primary_dp_2D( grid, d_grid_2D, d_grid_vec_partial_2D)
       d_grid_vec_partial( :,k) = d_grid_vec_partial_2D
     END DO
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_2D)
+    IF (par%primary) DEALLOCATE( d_grid_2D)
     DEALLOCATE( d_grid_vec_partial_2D)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE distribute_lonlat_gridded_data_from_master_dp_3D
+  END SUBROUTINE distribute_lonlat_gridded_data_from_primary_dp_3D
 
-  SUBROUTINE gather_lonlat_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial, d_grid)
-    ! Gather a 2-D gridded data field to the Master.
+  SUBROUTINE gather_lonlat_gridded_data_to_primary_dp_2D( grid, d_grid_vec_partial, d_grid)
+    ! Gather a 2-D gridded data field to the primary.
     ! Input from all: partial data in vector form
-    ! Output to Master: total data field in field form
+    ! Output to primary: total data field in field form
 
     IMPLICIT NONE
 
@@ -319,7 +319,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:    ),                        INTENT(OUT)   :: d_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_lonlat_gridded_data_to_master_dp_2D'
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_lonlat_gridded_data_to_primary_dp_2D'
     INTEGER                                                            :: n,i,j
     REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_total
 
@@ -327,32 +327,32 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
+    IF (par%primary) ALLOCATE( d_grid_vec_total( grid%n), source = 0._dp)
 
     ! Gather data
-    CALL gather_to_master( d_grid_vec_partial, d_grid_vec_total)
+    CALL gather_to_primary( d_grid_vec_partial, d_grid_vec_total)
 
     ! Convert to grid form
-    IF (par%master) THEN
+    IF (par%primary) THEN
       DO n = 1, grid%n
         i = grid%n2ij( n,1)
         j = grid%n2ij( n,2)
         d_grid( i,j) = d_grid_vec_total( n)
       END DO
-    END IF ! IF (par%master) THEN
+    END IF
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_vec_total)
+    IF (par%primary) DEALLOCATE( d_grid_vec_total)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE gather_lonlat_gridded_data_to_master_dp_2D
+  END SUBROUTINE gather_lonlat_gridded_data_to_primary_dp_2D
 
-  SUBROUTINE gather_lonlat_gridded_data_to_master_dp_3D( grid, d_grid_vec_partial, d_grid)
-    ! Gather a 3-D gridded data field to the Master.
+  SUBROUTINE gather_lonlat_gridded_data_to_primary_dp_3D( grid, d_grid_vec_partial, d_grid)
+    ! Gather a 3-D gridded data field to the primary.
     ! Input from all: partial data in vector form
-    ! Output to Master: total data field in field form
+    ! Output to primary: total data field in field form
 
     IMPLICIT NONE
 
@@ -364,7 +364,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:  ),                        INTENT(OUT)   :: d_grid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_lonlat_gridded_data_to_master_dp_3D'
+    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'gather_lonlat_gridded_data_to_primary_dp_3D'
     INTEGER                                                            :: k
     REAL(dp), DIMENSION(:,:    ), ALLOCATABLE                          :: d_grid_2D
     REAL(dp), DIMENSION(:      ), ALLOCATABLE                          :: d_grid_vec_partial_2D
@@ -373,26 +373,26 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (par%master .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
+    IF (par%primary .AND. SIZE( d_grid,3) /= SIZE( d_grid_vec_partial,2)) CALL crash('vector sizes dont match!')
 
     ! Allocate memory
-    IF (par%master) ALLOCATE( d_grid_2D( grid%nlon, grid%nlat), source = 0._dp)
+    IF (par%primary) ALLOCATE( d_grid_2D( grid%nlon, grid%nlat), source = 0._dp)
     ALLOCATE( d_grid_vec_partial_2D( grid%n_loc), source = 0._dp)
 
     ! Treat each layer as a separate 2-D field
     DO k = 1, SIZE( d_grid_vec_partial,2)
       d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
-      CALL gather_lonlat_gridded_data_to_master_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
-      IF (par%master) d_grid( :,:,k) = d_grid_2D
+      CALL gather_lonlat_gridded_data_to_primary_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
+      IF (par%primary) d_grid( :,:,k) = d_grid_2D
     END DO
 
     ! Clean up after yourself
-    IF (par%master) DEALLOCATE( d_grid_2D)
+    IF (par%primary) DEALLOCATE( d_grid_2D)
     DEALLOCATE( d_grid_vec_partial_2D)
 
     ! Add routine to path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE gather_lonlat_gridded_data_to_master_dp_3D
+  END SUBROUTINE gather_lonlat_gridded_data_to_primary_dp_3D
 
 END MODULE grid_lonlat_basic

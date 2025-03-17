@@ -116,7 +116,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising climate model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising climate model...'
 
     ! Determine which climate model to initialise for this region
     IF     (region_name == 'NAM') THEN
@@ -230,7 +230,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to climate restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to climate restart file "' // &
       colour_string( TRIM( climate%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -327,7 +327,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, climate%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating climate model restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating climate model restart file "' // &
       colour_string( TRIM( climate%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
@@ -374,7 +374,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping climate model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping climate model data to the new mesh...'
 
     ! Determine which climate model to initialise for this region
     IF     (region_name == 'NAM') THEN

@@ -94,9 +94,9 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Single-core mesh generation: let the master do this,
+    ! Single-core mesh generation: let the primary do this,
     ! and then broadcast its result to all the other processes.
-    if (par%master) then
+    if (par%primary) then
 
       ! allocate mesh memory
       call allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)
@@ -215,9 +215,9 @@ contains
 
       call enforce_contiguous_process_domains( mesh)
 
-    end if ! if (par%master) then
+    end if ! if (par%primary) then
 
-    ! Broadcast the Master's mesh
+    ! Broadcast the primary's mesh
     call broadcast_mesh( mesh)
 
     ! == Calculate secondary geometry data

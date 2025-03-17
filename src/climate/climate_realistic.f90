@@ -81,7 +81,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '     Initialising realistic climate model "' // &
+    IF (par%primary)  WRITE(*,"(A)") '     Initialising realistic climate model "' // &
       colour_string( TRIM( C%choice_climate_model_realistic),'light blue') // '"...'
 
     ! Run the chosen realistic climate model

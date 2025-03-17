@@ -16,6 +16,10 @@ module netcdf_resource_tracking
 
   implicit none
 
+  private
+
+  public :: create_resource_tracking_file, write_to_resource_tracking_file
+
   character(len=256) :: filename_resource_tracker
 
 contains
@@ -68,10 +72,10 @@ contains
     call inquire_var_multopt( filename_resource_tracker, ncid, 'tcomp'                , id_var_tcomp)
 
     ! Write data
-    call write_var_master( filename_resource_tracker, ncid, id_var_names, routine_names_encoded)
+    call write_var_primary( filename_resource_tracker, ncid, id_var_names, routine_names_encoded)
 
     ! Computation time
-    call write_var_master(  filename_resource_tracker, ncid, id_var_tcomp, tcomp, start = [1,ti], count = [n_routines,1])
+    call write_var_primary(  filename_resource_tracker, ncid, id_var_tcomp, tcomp, start = [1,ti], count = [n_routines,1])
 
     ! Close the file
     call close_netcdf_file( ncid)

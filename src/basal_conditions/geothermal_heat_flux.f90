@@ -46,7 +46,7 @@ CONTAINS
         ! Spatially variable field
 
         ! Print to terminal
-        IF (par%master) WRITE(0,*) '  Initialising geothermal heat flux from file "' // &
+        IF (par%primary) WRITE(0,*) '  Initialising geothermal heat flux from file "' // &
           colour_string( TRIM( C%filename_geothermal_heat_flux),'light blue') // '"...'
 
         ! Read the data from the provided NetCDF file [W m^-2]

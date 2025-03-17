@@ -5,7 +5,7 @@ module netcdf_write_field_grid
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use grid_types, only: type_grid
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary
   use netcdf_basic
 
   implicit none
@@ -56,12 +56,12 @@ contains
     call check_xy_grid_field_int_2D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,1))
       d_grid_with_time( :,:,1) = d_grid
     end if
@@ -70,7 +70,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -111,12 +111,12 @@ contains
     call check_xy_grid_field_int_3D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,nz,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -125,7 +125,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -164,12 +164,12 @@ contains
     call check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,1))
       d_grid_with_time( :,:,1) = d_grid
     end if
@@ -178,7 +178,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -217,12 +217,12 @@ contains
     call check_xy_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, 12))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, 12))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,12,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -231,7 +231,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, 12, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, 12, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -272,12 +272,12 @@ contains
     call check_xy_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,nz,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -286,7 +286,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -327,12 +327,12 @@ contains
     call check_xy_grid_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_grid_with_time( grid%nx, grid%ny,nz,1))
       d_grid_with_time( :,:,:,1) = d_grid
     end if
@@ -341,7 +341,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -379,12 +379,12 @@ contains
     call check_xy_grid_field_int_2D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -422,12 +422,12 @@ contains
     call check_xy_grid_field_int_3D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -463,12 +463,12 @@ contains
     call check_xy_grid_field_dp_2D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -504,12 +504,12 @@ contains
     call check_xy_grid_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, 12))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, 12))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -547,12 +547,12 @@ contains
     call check_xy_grid_field_dp_3D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -590,12 +590,12 @@ contains
     call check_xy_grid_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_grid( grid%nx, grid%ny, nz))
-    call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_grid( grid%nx, grid%ny, nz))
+    call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_grid)
+    call write_var_primary( filename, ncid, id_var, d_grid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

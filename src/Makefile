@@ -95,11 +95,15 @@ UFEMISM_source = \
   types/GIA_model_types.f90 \
   types/basal_inversion_types.f90 \
   types/tracer_tracking_model_types.f90 \
+  types/transect_types.f90 \
   types/region_types.f90 \
   \
   basic/parameters.f90 \
-  basic/mpi_basic.f90 \
+  \
+  basic/mpi_parallelisation/mpi_basic.f90 \
+  \
   basic/reallocate_mod.f90 \
+  basic/string_module.f90 \
   basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
   \
@@ -113,7 +117,9 @@ UFEMISM_source = \
   validation/basic_tests/tests_main.f90 \
   validation/basic_tests/assertions_basic.f90 \
   \
-  basic/mpi_distributed_memory.f90 \
+  basic/mpi_parallelisation/mpi_distributed_memory.f90 \
+  basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
+  basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
   \
   basic/math_utilities/flip_mod.f90 \
   basic/math_utilities/permute_mod.f90 \
@@ -132,7 +138,6 @@ UFEMISM_source = \
   basic/CSR_sparse_matrix_utilities.f90 \
   basic/petsc_basic.f90 \
   \
-  basic/grid/mpi_distributed_memory_grid.f90 \
   basic/grid/grid_basic.f90 \
   basic/grid/smooth_gridded_data.f90 \
   basic/grid_lonlat_basic.f90 \
@@ -147,7 +152,7 @@ UFEMISM_source = \
   mesh/Delaunay/split_border_edges.f90 \
   mesh/Delaunay/split_edges.f90 \
   mesh/Delaunay/split_triangles.f90 \
-  mesh/mesh_edges.f90 \
+  mesh/edges/mesh_edges.f90 \
   mesh/Voronoi_mesh/mesh_Voronoi.f90 \
   mesh/mesh_refinement_basic.f90 \
   mesh/mesh_refinement_basic_ROI.f90 \
@@ -170,9 +175,9 @@ UFEMISM_source = \
   io/netcdf_basic/netcdf_field_name_options.f90 \
   io/netcdf_basic/netcdf_inquire_dimensions.f90 \
   io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
-  io/netcdf_basic/netcdf_read_var_master.f90 \
+  io/netcdf_basic/netcdf_read_var_primary.f90 \
   io/netcdf_basic/netcdf_check_dimensions.f90 \
-  io/netcdf_basic/netcdf_write_var_master.f90 \
+  io/netcdf_basic/netcdf_write_var_primary.f90 \
   io/netcdf_basic/netcdf_check_fields.f90 \
   io/netcdf_basic/netcdf_find_timeframe.f90 \
   io/netcdf_basic/netcdf_save_single_variables.f90 \
@@ -195,6 +200,7 @@ UFEMISM_source = \
   io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
   io/netcdf_output/netcdf_write_field_grid.f90 \
   io/netcdf_output/netcdf_write_field_mesh.f90 \
+  io/netcdf_output/netcdf_write_field_transect.f90 \
   io/netcdf_output/netcdf_resource_tracking.f90 \
   io/netcdf_output/netcdf_output.f90 \
   \
@@ -207,6 +213,7 @@ UFEMISM_source = \
   mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
   mesh/remapping/create_maps_gridlonlat_mesh.f90 \
   mesh/remapping/remapping_mesh_to_mesh.f90 \
+  mesh/remapping/remapping_transects.f90 \
   mesh/remapping/apply_maps.f90 \
   mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
@@ -214,7 +221,11 @@ UFEMISM_source = \
   io/read_and_remap/read_and_remap_field_from_file.f90 \
   io/netcdf_io_main.f90 \
   \
-  reference_states/reference_geometries.f90 \
+  io/transects/transects_main.f90 \
+  \
+  reference_geometries/idealised_geometries.f90 \
+  reference_geometries/preprocess_geometry.f90 \
+  reference_geometries/reference_geometries_main.f90 \
   \
   basal_conditions/geothermal_heat_flux.f90 \
   basal_conditions/basal_hydrology.f90 \
@@ -297,7 +308,10 @@ UFEMISM_source = \
   tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
-  main/main_regional_output.f90 \
+  io/main_regional_output/scalar_output_files.f90 \
+  io/main_regional_output/grid_output_files.f90 \
+  io/main_regional_output/mesh_output_files.f90 \
+  \
   main/UFEMISM_main_model.f90 \
   \
   validation/unit_tests/ut_basic.f90 \
@@ -330,6 +344,8 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/unit_tests.f90 \
+  \
+  validation/unit_tests/unit_tests_multinode.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \
   validation/component_tests/ct_discretisation_mapping_derivatives.f90 \

@@ -132,7 +132,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising surface mass balance model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising surface mass balance model...'
 
     ! Determine which SMB model to initialise for this region
     SELECT CASE (region_name)
@@ -406,7 +406,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping surface mass balance model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping surface mass balance model data to the new mesh...'
 
     ! Determine which SMB model to initialise for this region
     SELECT CASE (region_name)
@@ -583,7 +583,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '     Initialising reconstructed SMB model...'
+    IF (par%primary)  WRITE(*,"(A)") '     Initialising reconstructed SMB model...'
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

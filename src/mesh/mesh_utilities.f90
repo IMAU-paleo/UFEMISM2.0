@@ -7,9 +7,10 @@ MODULE mesh_utilities
 
   use tests_main
   use assertions_basic
-  USE mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, &
+    MPI_SUM, MPI_MAX, MPI_MIN, MPI_INTEGER
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE reallocate_mod
@@ -1537,7 +1538,7 @@ CONTAINS
     REAL(dp),                                INTENT(OUT  ) :: d_int
 
     ! Local variables:
-    INTEGER                :: via, vib, vic
+    INTEGER                :: via, vib, vic, ierr
     REAL(dp)               :: da, db, dc
     REAL(dp), DIMENSION(2) :: pa, pb, pc
 
@@ -1593,7 +1594,7 @@ CONTAINS
     REAL(dp), DIMENSION(C%nz),                      INTENT(  OUT) :: d_int
 
     ! Local variables:
-    INTEGER                       :: k
+    INTEGER                       :: k, ierr
     REAL(dp), DIMENSION(C%nz)     :: d_min
     INTEGER                       :: via, vib, vic
     REAL(dp), DIMENSION(C%nz)     :: da, db, dc
@@ -1660,7 +1661,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'integrate_over_domain'
-    INTEGER                                                      :: vi
+    INTEGER                                                      :: vi, ierr
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2012,6 +2013,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extrapolate_Gaussian'
+    integer                                               :: ierr
     INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask_local
     INTEGER,  DIMENSION(mesh%nV)                          :: mask_tot
     REAL(dp), DIMENSION(mesh%nV)                          :: d_tot

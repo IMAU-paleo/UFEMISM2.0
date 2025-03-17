@@ -15,17 +15,13 @@ MODULE model_configuration
   ! new config parameters a bit tedious - you have to add the "_config" variable, add it
   ! as a field in the "C" type, add it to the namelist, and let the "C" type field be
   ! overwritten in the end.
-  !
-  ! NOTE: since UFEMISM 2.0, config files should list ALL config variables. This means the
-  !       default values in this module are now only for illustration, and are not used
-  !       anymore, so that the config file completely determines the model behaviour.
 
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  use mpi_f08, only: MPI_BCAST, MPI_COMM_WORLD, MPI_CHAR, MPI_LOGICAL
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &
                                                                      capitalise_string, remove_leading_spaces
 
@@ -805,7 +801,7 @@ MODULE model_configuration
     LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
     REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
     REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
-    
+
     ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
     REAL(dp)            :: BMB_transition_phase_t_start_config          = +9.8E9_dp                        ! [yr] Start time for BMB transition phase
@@ -1026,6 +1022,12 @@ MODULE model_configuration
     REAL(dp)            :: dx_output_grid_ROI_EAS_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Eurasia
     REAL(dp)            :: dx_output_grid_ROI_GRL_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Greenland
     REAL(dp)            :: dx_output_grid_ROI_ANT_config                = 5E3_dp                          ! [m] Horizontal resolution for the square grid used for output for the region of interest for Antarctica
+
+    ! Transects
+    character(len=1024) :: transects_NAM_config                         = ''                              ! List of transects to use for North America
+    character(len=1024) :: transects_EAS_config                         = ''                              ! List of transects to use for Eurasia
+    character(len=1024) :: transects_GRL_config                         = ''                              ! List of transects to use for Greenland
+    character(len=1024) :: transects_ANT_config                         = ''                              ! List of transects to use for Antarctica
 
     ! Which data fields we want to write to the main NetCDF output files
     CHARACTER(LEN=256)  :: choice_output_field_01_config                = 'none'
@@ -2084,6 +2086,12 @@ MODULE model_configuration
     REAL(dp)            :: dx_output_grid_ROI_GRL
     REAL(dp)            :: dx_output_grid_ROI_ANT
 
+    ! Transects
+    character(len=1024) :: transects_NAM
+    character(len=1024) :: transects_EAS
+    character(len=1024) :: transects_GRL
+    character(len=1024) :: transects_ANT
+
     ! Which data fields we want to write to the main NetCDF output files
     CHARACTER(LEN=256)  :: choice_output_field_01
     CHARACTER(LEN=256)  :: choice_output_field_02
@@ -2182,6 +2190,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_model_configuration'
+    integer                                            :: ierr
     CHARACTER(LEN=256)                                 :: config_filename
     CHARACTER(LEN=256)                                 :: output_dir_procedural
     LOGICAL                                            :: ex
@@ -2192,16 +2201,16 @@ CONTAINS
   ! == Figure out which git commit of the model we're running
   ! =========================================================
 
-    if (par%master) call get_git_commit_hash( git_commit_hash)
+    if (par%primary) call get_git_commit_hash( git_commit_hash)
     call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master) write(0,'(A)') ''
-    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+    if (par%primary) write(0,'(A)') ''
+    if (par%primary) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
 
-    if (par%master) call check_for_uncommitted_changes
+    if (par%primary) call check_for_uncommitted_changes
     call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master .and. has_uncommitted_changes) then
+    if (par%primary .and. has_uncommitted_changes) then
       write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
     end if
 
@@ -2209,20 +2218,20 @@ CONTAINS
   ! ====================================
 
     ! The name of the config file is provided as an input argument when calling the UFEMISM_program
-    ! executable. After calling MPI_INIT, only the master process "sees" this argument, so is must be
+    ! executable. After calling MPI_INIT, only the primary process "sees" this argument, so is must be
     ! broadcast to the other processes.
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
       IF     (iargc() == 1) THEN
         CALL getarg( 1, config_filename)
       ELSE
         CALL crash('run UFEMISM with the path the config file as an argument, e.g. "mpi_exec  -n 2  UFEMISM_program  config-files/config_test"')
       END IF
-    END IF ! IF (master) THEN
+    END IF
     CALL MPI_BCAST( config_filename,    256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') ' Running UFEMISM with settings from configuration file: ' // colour_string( TRIM( config_filename), 'light blue')
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') ' Running UFEMISM with settings from configuration file: ' // colour_string( TRIM( config_filename), 'light blue')
 
     ! Initialise the main config structure from the config file
     CALL initialise_config_from_file( config_filename)
@@ -2236,7 +2245,7 @@ CONTAINS
     IF (C%create_procedural_output_dir) THEN
       ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
 
-      IF (par%master) THEN
+      IF (par%primary) THEN
         CALL generate_procedural_output_dir_name( output_dir_procedural)
         C%output_dir( 1:LEN_TRIM( output_dir_procedural)+1) = TRIM( output_dir_procedural) // '/'
       END IF
@@ -2250,7 +2259,7 @@ CONTAINS
     END IF
 
     ! Create the directory
-    IF (par%master) THEN
+    IF (par%primary) THEN
 
       ! Safety
       INQUIRE( FILE = TRIM( C%output_dir) // '/.', EXIST = ex)
@@ -2265,13 +2274,13 @@ CONTAINS
       WRITE(0,'(A)') ''
       WRITE(0,'(A)') ' Output directory: ' // colour_string( TRIM( C%output_dir), 'light blue')
 
-    END IF ! IF (par%master) THEN
+    END IF
     CALL sync
 
     ! Copy the config file to the output directory
-    IF (par%master) THEN
+    IF (par%primary) THEN
       CALL system('cp ' // config_filename    // ' ' // TRIM( C%output_dir))
-    END IF ! IF (master) THEN
+    END IF
     CALL sync
 
     ! Finalise routine path
@@ -2286,21 +2295,22 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER :: routine_name = 'initialise_model_configuration_unit_tests'
+    integer                       :: ierr
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Figure out which git commit of the model we're running
-    if (par%master) call get_git_commit_hash( git_commit_hash)
+    if (par%primary) call get_git_commit_hash( git_commit_hash)
     call mpi_bcast( git_commit_hash, len( git_commit_hash), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master) write(0,'(A)') ''
-    if (par%master) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
+    if (par%primary) write(0,'(A)') ''
+    if (par%primary) write(0,'(A)') ' Running UFEMISM from git commit ' // colour_string( trim( git_commit_hash), 'pink')
 
-    if (par%master) call check_for_uncommitted_changes
+    if (par%primary) call check_for_uncommitted_changes
     call mpi_bcast( has_uncommitted_changes, 1, MPI_LOGICAL, 0, MPI_COMM_WORLD, ierr)
 
-    if (par%master .and. has_uncommitted_changes) then
+    if (par%primary .and. has_uncommitted_changes) then
       write(0,'(A)') colour_string( ' WARNING: You have uncommitted changes; the current simulation might not be reproducible!', 'yellow')
     end if
 
@@ -2989,6 +2999,10 @@ CONTAINS
       dx_output_grid_ROI_EAS_config                               , &
       dx_output_grid_ROI_GRL_config                               , &
       dx_output_grid_ROI_ANT_config                               , &
+      transects_NAM_config                                        , &
+      transects_EAS_config                                        , &
+      transects_GRL_config                                        , &
+      transects_ANT_config                                        , &
       choice_output_field_01_config                               , &
       choice_output_field_02_config                               , &
       choice_output_field_03_config                               , &
@@ -4081,6 +4095,12 @@ CONTAINS
     C%dx_output_grid_ROI_EAS                                 = dx_output_grid_ROI_EAS_config
     C%dx_output_grid_ROI_GRL                                 = dx_output_grid_ROI_GRL_config
     C%dx_output_grid_ROI_ANT                                 = dx_output_grid_ROI_ANT_config
+
+    ! Transects
+    C%transects_NAM                                          = transects_NAM_config
+    C%transects_EAS                                          = transects_EAS_config
+    C%transects_GRL                                          = transects_GRL_config
+    C%transects_ANT                                          = transects_ANT_config
 
     ! Which data fields we want to write to the main NetCDF output files
     C%choice_output_field_01                                 = choice_output_field_01_config

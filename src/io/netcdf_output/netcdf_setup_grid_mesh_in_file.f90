@@ -5,7 +5,7 @@ module netcdf_setup_grid_mesh_in_file
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_master
+  use CSR_sparse_matrix_utilities, only: gather_CSR_dist_to_primary
   use netcdf_basic
   use netcdf_add_field_mesh
   use netcdf, only: NF90_DOUBLE, NF90_INT, NF90_DEF_GRP
@@ -93,13 +93,13 @@ contains
     call create_variable( filename, ncid, get_first_option_from_list( field_name_options_x), NF90_DOUBLE, (/ id_dim_x /), id_var_x)
     call add_attribute_char( filename, ncid, id_var_x, 'long_name', 'x-coordinate')
     call add_attribute_char( filename, ncid, id_var_x, 'units'    , 'm'           )
-    call write_var_master( filename, ncid, id_var_x, grid%x)
+    call write_var_primary( filename, ncid, id_var_x, grid%x)
 
     ! y
     call create_variable( filename, ncid, get_first_option_from_list( field_name_options_y), NF90_DOUBLE, (/ id_dim_y /), id_var_y)
     call add_attribute_char( filename, ncid, id_var_y, 'long_name', 'y-coordinate')
     call add_attribute_char( filename, ncid, id_var_y, 'units'    , 'm'           )
-    call write_var_master( filename, ncid, id_var_y, grid%y)
+    call write_var_primary( filename, ncid, id_var_y, grid%y)
 
     ! lon/lat-coordinates
     if (allocated( grid%lon) .or. allocated( grid%lat)) then
@@ -112,13 +112,13 @@ contains
       call create_variable( filename, ncid, get_first_option_from_list( field_name_options_lon), NF90_DOUBLE, (/ id_dim_x, id_dim_y /), id_var_lon)
       call add_attribute_char( filename, ncid, id_var_lon, 'long_name', 'Longitude')
       call add_attribute_char( filename, ncid, id_var_lon, 'units'    , 'degrees east')
-      call write_var_master( filename, ncid, id_var_lon, grid%lon)
+      call write_var_primary( filename, ncid, id_var_lon, grid%lon)
 
       ! lat
       call create_variable( filename, ncid, get_first_option_from_list( field_name_options_lat), NF90_DOUBLE, (/ id_dim_x, id_dim_y /), id_var_lat)
       call add_attribute_char( filename, ncid, id_var_lat, 'long_name', 'Latitude')
       call add_attribute_char( filename, ncid, id_var_lat, 'units'    , 'degrees north')
-      call write_var_master( filename, ncid, id_var_lat, grid%lat)
+      call write_var_primary( filename, ncid, id_var_lat, grid%lat)
 
     end if ! if (allocated( grid%lon)) then
 
@@ -389,57 +389,57 @@ contains
     ! ==========================
 
     ! Metadata
-    call write_var_master(  filename, ncid, id_var_xmin       , mesh%xmin       )
-    call write_var_master(  filename, ncid, id_var_xmax       , mesh%xmax       )
-    call write_var_master(  filename, ncid, id_var_ymin       , mesh%ymin       )
-    call write_var_master(  filename, ncid, id_var_ymax       , mesh%ymax       )
-    call write_var_master(  filename, ncid, id_var_tol_dist   , mesh%tol_dist   )
-    call write_var_master(  filename, ncid, id_var_lambda_M   , mesh%lambda_M   )
-    call write_var_master(  filename, ncid, id_var_phi_M      , mesh%phi_M      )
-    call write_var_master(  filename, ncid, id_var_beta_stereo, mesh%beta_stereo)
+    call write_var_primary(  filename, ncid, id_var_xmin       , mesh%xmin       )
+    call write_var_primary(  filename, ncid, id_var_xmax       , mesh%xmax       )
+    call write_var_primary(  filename, ncid, id_var_ymin       , mesh%ymin       )
+    call write_var_primary(  filename, ncid, id_var_ymax       , mesh%ymax       )
+    call write_var_primary(  filename, ncid, id_var_tol_dist   , mesh%tol_dist   )
+    call write_var_primary(  filename, ncid, id_var_lambda_M   , mesh%lambda_M   )
+    call write_var_primary(  filename, ncid, id_var_phi_M      , mesh%phi_M      )
+    call write_var_primary(  filename, ncid, id_var_beta_stereo, mesh%beta_stereo)
 
     ! Vertex data
-    call write_var_master( filename, ncid, id_var_V    , mesh%V    )
-    call write_var_master( filename, ncid, id_var_nC   , mesh%nC   )
-    call write_var_master( filename, ncid, id_var_C    , mesh%C    )
-    call write_var_master( filename, ncid, id_var_niTri, mesh%niTri)
-    call write_var_master( filename, ncid, id_var_iTri , mesh%iTri )
-    call write_var_master( filename, ncid, id_var_VBI  , mesh%VBI  )
+    call write_var_primary( filename, ncid, id_var_V    , mesh%V    )
+    call write_var_primary( filename, ncid, id_var_nC   , mesh%nC   )
+    call write_var_primary( filename, ncid, id_var_C    , mesh%C    )
+    call write_var_primary( filename, ncid, id_var_niTri, mesh%niTri)
+    call write_var_primary( filename, ncid, id_var_iTri , mesh%iTri )
+    call write_var_primary( filename, ncid, id_var_VBI  , mesh%VBI  )
 
     ! Triangle data
-    call write_var_master( filename, ncid, id_var_Tri  , mesh%Tri  )
-    call write_var_master( filename, ncid, id_var_Tricc, mesh%Tricc)
-    call write_var_master( filename, ncid, id_var_TriC , mesh%TriC )
-    call write_var_master( filename, ncid, id_var_TriBI, mesh%TriBI)
+    call write_var_primary( filename, ncid, id_var_Tri  , mesh%Tri  )
+    call write_var_primary( filename, ncid, id_var_Tricc, mesh%Tricc)
+    call write_var_primary( filename, ncid, id_var_TriC , mesh%TriC )
+    call write_var_primary( filename, ncid, id_var_TriBI, mesh%TriBI)
 
     ! Edge data
-    call write_var_master( filename, ncid, id_var_E   , mesh%E   )
-    call write_var_master( filename, ncid, id_var_VE  , mesh%VE  )
-    call write_var_master( filename, ncid, id_var_EV  , mesh%EV  )
-    call write_var_master( filename, ncid, id_var_ETri, mesh%ETri)
-    call write_var_master( filename, ncid, id_var_TriE, mesh%TriE)
-    call write_var_master( filename, ncid, id_var_EBI , mesh%EBI )
+    call write_var_primary( filename, ncid, id_var_E   , mesh%E   )
+    call write_var_primary( filename, ncid, id_var_VE  , mesh%VE  )
+    call write_var_primary( filename, ncid, id_var_EV  , mesh%EV  )
+    call write_var_primary( filename, ncid, id_var_ETri, mesh%ETri)
+    call write_var_primary( filename, ncid, id_var_TriE, mesh%TriE)
+    call write_var_primary( filename, ncid, id_var_EBI , mesh%EBI )
 
     ! Voronoi mesh data
-    call write_var_master( filename, ncid, id_var_vi2vori, mesh%vi2vori)
-    call write_var_master( filename, ncid, id_var_ti2vori, mesh%ti2vori)
-    call write_var_master( filename, ncid, id_var_ei2vori, mesh%ei2vori)
-    call write_var_master( filename, ncid, id_var_vori2vi, mesh%vori2vi)
-    call write_var_master( filename, ncid, id_var_vori2ti, mesh%vori2ti)
-    call write_var_master( filename, ncid, id_var_vori2ei, mesh%vori2ei)
-    call write_var_master( filename, ncid, id_var_Vor    , mesh%Vor    )
-    call write_var_master( filename, ncid, id_var_VornC  , mesh%VornC  )
-    call write_var_master( filename, ncid, id_var_VorC   , mesh%VorC   )
-    call write_var_master( filename, ncid, id_var_nVVor  , mesh%nVVor  )
-    call write_var_master( filename, ncid, id_var_VVor   , mesh%VVor   )
+    call write_var_primary( filename, ncid, id_var_vi2vori, mesh%vi2vori)
+    call write_var_primary( filename, ncid, id_var_ti2vori, mesh%ti2vori)
+    call write_var_primary( filename, ncid, id_var_ei2vori, mesh%ei2vori)
+    call write_var_primary( filename, ncid, id_var_vori2vi, mesh%vori2vi)
+    call write_var_primary( filename, ncid, id_var_vori2ti, mesh%vori2ti)
+    call write_var_primary( filename, ncid, id_var_vori2ei, mesh%vori2ei)
+    call write_var_primary( filename, ncid, id_var_Vor    , mesh%Vor    )
+    call write_var_primary( filename, ncid, id_var_VornC  , mesh%VornC  )
+    call write_var_primary( filename, ncid, id_var_VorC   , mesh%VorC   )
+    call write_var_primary( filename, ncid, id_var_nVVor  , mesh%nVVor  )
+    call write_var_primary( filename, ncid, id_var_VVor   , mesh%VVor   )
 
     ! Secondary geometry data
-    call write_var_master( filename, ncid, id_var_TriGC, mesh%TriGC)
-    call write_var_master( filename, ncid, id_var_TriA , mesh%TriA )
-    call write_var_master( filename, ncid, id_var_R    , mesh%R    )
-    call write_var_master( filename, ncid, id_var_A    , mesh%A    )
-    call write_var_master( filename, ncid, id_var_lon  , mesh%lon  )
-    call write_var_master( filename, ncid, id_var_lat  , mesh%lat  )
+    call write_var_primary( filename, ncid, id_var_TriGC, mesh%TriGC)
+    call write_var_primary( filename, ncid, id_var_TriA , mesh%TriA )
+    call write_var_primary( filename, ncid, id_var_R    , mesh%R    )
+    call write_var_primary( filename, ncid, id_var_A    , mesh%A    )
+    call write_var_primary( filename, ncid, id_var_lon  , mesh%lon  )
+    call write_var_primary( filename, ncid, id_var_lat  , mesh%lat  )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -565,18 +565,18 @@ contains
     call create_variable( filename, grp_ncid, 'viksuv2n', NF90_INT, [id_dim_vi     , id_dim_nzp1, id_dim_two], id_var_viksuv2n)
 
     ! Write variables
-    call write_var_master( filename, grp_ncid, id_var_n2vi    , mesh%n2vi)
-    call write_var_master( filename, grp_ncid, id_var_n2viuv  , mesh%n2viuv)
-    call write_var_master( filename, grp_ncid, id_var_n2vik   , mesh%n2vik)
-    call write_var_master( filename, grp_ncid, id_var_n2vikuv , mesh%n2vikuv)
-    call write_var_master( filename, grp_ncid, id_var_n2viks  , mesh%n2viks)
-    call write_var_master( filename, grp_ncid, id_var_n2viksuv, mesh%n2viksuv)
-    call write_var_master( filename, grp_ncid, id_var_vi2n    , mesh%vi2n)
-    call write_var_master( filename, grp_ncid, id_var_viuv2n  , mesh%viuv2n)
-    call write_var_master( filename, grp_ncid, id_var_vik2n   , mesh%vik2n)
-    call write_var_master( filename, grp_ncid, id_var_vikuv2n , mesh%vikuv2n)
-    call write_var_master( filename, grp_ncid, id_var_viks2n  , mesh%viks2n)
-    call write_var_master( filename, grp_ncid, id_var_viksuv2n, mesh%viksuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_n2vi    , mesh%n2vi)
+    call write_var_primary( filename, grp_ncid, id_var_n2viuv  , mesh%n2viuv)
+    call write_var_primary( filename, grp_ncid, id_var_n2vik   , mesh%n2vik)
+    call write_var_primary( filename, grp_ncid, id_var_n2vikuv , mesh%n2vikuv)
+    call write_var_primary( filename, grp_ncid, id_var_n2viks  , mesh%n2viks)
+    call write_var_primary( filename, grp_ncid, id_var_n2viksuv, mesh%n2viksuv)
+    call write_var_primary( filename, grp_ncid, id_var_vi2n    , mesh%vi2n)
+    call write_var_primary( filename, grp_ncid, id_var_viuv2n  , mesh%viuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_vik2n   , mesh%vik2n)
+    call write_var_primary( filename, grp_ncid, id_var_vikuv2n , mesh%vikuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_viks2n  , mesh%viks2n)
+    call write_var_primary( filename, grp_ncid, id_var_viksuv2n, mesh%viksuv2n)
 
     ! b-grid (triangles)
     ! ==================
@@ -605,18 +605,18 @@ contains
     call create_variable( filename, grp_ncid, 'tiksuv2n', NF90_INT, [id_dim_ti     , id_dim_nzp1, id_dim_two], id_var_tiksuv2n)
 
     ! Write variables
-    call write_var_master( filename, grp_ncid, id_var_n2ti    , mesh%n2ti)
-    call write_var_master( filename, grp_ncid, id_var_n2tiuv  , mesh%n2tiuv)
-    call write_var_master( filename, grp_ncid, id_var_n2tik   , mesh%n2tik)
-    call write_var_master( filename, grp_ncid, id_var_n2tikuv , mesh%n2tikuv)
-    call write_var_master( filename, grp_ncid, id_var_n2tiks  , mesh%n2tiks)
-    call write_var_master( filename, grp_ncid, id_var_n2tiksuv, mesh%n2tiksuv)
-    call write_var_master( filename, grp_ncid, id_var_ti2n    , mesh%ti2n)
-    call write_var_master( filename, grp_ncid, id_var_tiuv2n  , mesh%tiuv2n)
-    call write_var_master( filename, grp_ncid, id_var_tik2n   , mesh%tik2n)
-    call write_var_master( filename, grp_ncid, id_var_tikuv2n , mesh%tikuv2n)
-    call write_var_master( filename, grp_ncid, id_var_tiks2n  , mesh%tiks2n)
-    call write_var_master( filename, grp_ncid, id_var_tiksuv2n, mesh%tiksuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_n2ti    , mesh%n2ti)
+    call write_var_primary( filename, grp_ncid, id_var_n2tiuv  , mesh%n2tiuv)
+    call write_var_primary( filename, grp_ncid, id_var_n2tik   , mesh%n2tik)
+    call write_var_primary( filename, grp_ncid, id_var_n2tikuv , mesh%n2tikuv)
+    call write_var_primary( filename, grp_ncid, id_var_n2tiks  , mesh%n2tiks)
+    call write_var_primary( filename, grp_ncid, id_var_n2tiksuv, mesh%n2tiksuv)
+    call write_var_primary( filename, grp_ncid, id_var_ti2n    , mesh%ti2n)
+    call write_var_primary( filename, grp_ncid, id_var_tiuv2n  , mesh%tiuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_tik2n   , mesh%tik2n)
+    call write_var_primary( filename, grp_ncid, id_var_tikuv2n , mesh%tikuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_tiks2n  , mesh%tiks2n)
+    call write_var_primary( filename, grp_ncid, id_var_tiksuv2n, mesh%tiksuv2n)
 
     ! c-grid (edges)
     ! ==============
@@ -645,18 +645,18 @@ contains
     call create_variable( filename, grp_ncid, 'eiksuv2n', NF90_INT, [id_dim_ei     , id_dim_nzp1, id_dim_two], id_var_eiksuv2n)
 
     ! Write variables
-    call write_var_master( filename, grp_ncid, id_var_n2ei    , mesh%n2ei)
-    call write_var_master( filename, grp_ncid, id_var_n2eiuv  , mesh%n2eiuv)
-    call write_var_master( filename, grp_ncid, id_var_n2eik   , mesh%n2eik)
-    call write_var_master( filename, grp_ncid, id_var_n2eikuv , mesh%n2eikuv)
-    call write_var_master( filename, grp_ncid, id_var_n2eiks  , mesh%n2eiks)
-    call write_var_master( filename, grp_ncid, id_var_n2eiksuv, mesh%n2eiksuv)
-    call write_var_master( filename, grp_ncid, id_var_ei2n    , mesh%ei2n)
-    call write_var_master( filename, grp_ncid, id_var_eiuv2n  , mesh%eiuv2n)
-    call write_var_master( filename, grp_ncid, id_var_eik2n   , mesh%eik2n)
-    call write_var_master( filename, grp_ncid, id_var_eikuv2n , mesh%eikuv2n)
-    call write_var_master( filename, grp_ncid, id_var_eiks2n  , mesh%eiks2n)
-    call write_var_master( filename, grp_ncid, id_var_eiksuv2n, mesh%eiksuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_n2ei    , mesh%n2ei)
+    call write_var_primary( filename, grp_ncid, id_var_n2eiuv  , mesh%n2eiuv)
+    call write_var_primary( filename, grp_ncid, id_var_n2eik   , mesh%n2eik)
+    call write_var_primary( filename, grp_ncid, id_var_n2eikuv , mesh%n2eikuv)
+    call write_var_primary( filename, grp_ncid, id_var_n2eiks  , mesh%n2eiks)
+    call write_var_primary( filename, grp_ncid, id_var_n2eiksuv, mesh%n2eiksuv)
+    call write_var_primary( filename, grp_ncid, id_var_ei2n    , mesh%ei2n)
+    call write_var_primary( filename, grp_ncid, id_var_eiuv2n  , mesh%eiuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_eik2n   , mesh%eik2n)
+    call write_var_primary( filename, grp_ncid, id_var_eikuv2n , mesh%eikuv2n)
+    call write_var_primary( filename, grp_ncid, id_var_eiks2n  , mesh%eiks2n)
+    call write_var_primary( filename, grp_ncid, id_var_eiksuv2n, mesh%eiksuv2n)
 
     call finalise_routine( routine_name)
 
@@ -680,8 +680,8 @@ contains
 
     call init_routine( routine_name)
 
-    ! Gather distributed matrix to the master
-    call gather_CSR_dist_to_master( A, A_tot)
+    ! Gather distributed matrix to the primary
+    call gather_CSR_dist_to_primary( A, A_tot)
 
     ! Create a new NetCDF group for this matrix operator
     ierr = NF90_DEF_GRP( ncid, name, grp_ncid)
@@ -698,9 +698,9 @@ contains
     call create_variable( filename, grp_ncid, 'val', NF90_DOUBLE, [id_dim_nnz], id_var_val)
 
     ! Write to NetCDF
-    call write_var_master( filename, grp_ncid, id_var_ptr, A_tot%ptr              )
-    call write_var_master( filename, grp_ncid, id_var_ind, A_tot%ind( 1:A_tot%nnz))
-    call write_var_master(  filename, grp_ncid, id_var_val, A_tot%val( 1:A_tot%nnz))
+    call write_var_primary( filename, grp_ncid, id_var_ptr, A_tot%ptr              )
+    call write_var_primary( filename, grp_ncid, id_var_ind, A_tot%ind( 1:A_tot%nnz))
+    call write_var_primary(  filename, grp_ncid, id_var_val, A_tot%val( 1:A_tot%nnz))
 
     call finalise_routine( routine_name)
 

@@ -20,6 +20,7 @@ MODULE region_types
   USE basal_inversion_types                                  , ONLY: type_basal_inversion, type_hydrology_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
   use tracer_tracking_model_types, only: type_tracer_tracking_model
+  use transect_types, only: type_transect
 
   IMPLICIT NONE
 
@@ -30,7 +31,7 @@ MODULE region_types
 
     ! Metadata
     CHARACTER(LEN=3)                        :: name                        ! NAM, EAS, GRL, ANT
-    CHARACTER(LEN=256)                      :: long_name                   ! North America, Eurasia, Greenland, Antarctica
+    CHARACTER(LEN=1024)                     :: long_name                   ! North America, Eurasia, Greenland, Antarctica
 
     ! The current time of this particular region.
     REAL(dp)                                :: time
@@ -72,7 +73,7 @@ MODULE region_types
 
     ! The glacial isostatic adjustment model
     TYPE(type_GIA_model)                    :: GIA
-    
+
     ! The elastic lithosphere relaxed asthenosphere model
     TYPE(type_ELRA_model)                   :: ELRA
 
@@ -90,17 +91,20 @@ MODULE region_types
 
     ! Output
     TYPE(type_grid)                         :: output_grid                 ! The square grid used for gridded output files
-    CHARACTER(LEN=256)                      :: output_filename_mesh        ! Name of NetCDF output file (mesh version)
-    CHARACTER(LEN=256)                      :: output_filename_grid        ! Name of NetCDF output file (grid version)
-    CHARACTER(LEN=256)                      :: output_filename_scalar      ! Name of NetCDF output file (grid version)
+    CHARACTER(LEN=1024)                     :: output_filename_mesh        ! Name of NetCDF output file (mesh version)
+    CHARACTER(LEN=1024)                     :: output_filename_grid        ! Name of NetCDF output file (grid version)
+    CHARACTER(LEN=1024)                     :: output_filename_scalar      ! Name of NetCDF output file (grid version)
     REAL(dp)                                :: output_t_next               ! Time when we should next write to main output
     REAL(dp)                                :: output_restart_t_next       ! Time when we should next write to restart output
     REAL(dp)                                :: output_grid_t_next          ! Time when we should next write to gridded output
 
     ! Region-of-interest output
     INTEGER                                 :: nROI                        ! Number of regions of interest for this model region
-    TYPE(type_grid)   , DIMENSION(100)      :: output_grids_ROI            ! The square grids used for gridded output files for the region of interest
-    CHARACTER(LEN=256), DIMENSION(100)      :: output_filenames_grid_ROI   ! Name of NetCDF output file for the region of interest (grid version)
+    TYPE(type_grid),     DIMENSION(100)      :: output_grids_ROI            ! The square grids used for gridded output files for the region of interest
+    CHARACTER(LEN=1024), DIMENSION(100)      :: output_filenames_grid_ROI   ! Name of NetCDF output file for the region of interest (grid version)
+
+    ! Transects output
+    type(type_transect), dimension(:), allocatable :: transects
 
   END TYPE type_model_region
 

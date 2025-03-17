@@ -3,19 +3,19 @@ module apply_maps
   ! Apply pre-created mapping operators to data fields to remap
   ! data fields between different grids/meshes.
 
-  use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, sync, ierr
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid, type_grid_lonlat
+  use transect_types, only: type_transect
   use remapping_types, only: type_map
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp
   use petsc_basic, only: multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
     mat_petsc2CSR, MatDestroy
   use mesh_utilities, only: set_border_vertices_to_interior_mean_dp_2D, set_border_vertices_to_interior_mean_dp_3D
   use mpi_distributed_memory, only: gather_to_all
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master, distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
 
   implicit none
 
@@ -26,7 +26,9 @@ module apply_maps
     apply_map_xy_grid_to_mesh_triangles_2D, apply_map_xy_grid_to_mesh_triangles_3D, &
     apply_map_lonlat_grid_to_mesh_2D, apply_map_lonlat_grid_to_mesh_3D, &
     apply_map_mesh_to_xy_grid_2D, apply_map_mesh_to_xy_grid_3D, apply_map_mesh_to_xy_grid_2D_minval, &
-    apply_map_mesh_to_mesh_2D, apply_map_mesh_to_mesh_3D
+    apply_map_mesh_to_mesh_2D, apply_map_mesh_to_mesh_3D, &
+    apply_map_mesh_vertices_to_transect_2D, apply_map_mesh_vertices_to_transect_3D, &
+    apply_map_mesh_triangles_to_transect_2D, apply_map_mesh_triangles_to_transect_3D
 
   ! The Atlas: the complete collection of all mapping objects.
   type(type_map), dimension(1000) :: Atlas
@@ -284,11 +286,11 @@ contains
     !     domain boundary, set values in the outermost row of grid cells
     !    equal to those in the second-outermost row
 
-    if (par%master) then
+    if (par%primary) then
       ! allocate memory for complete gridded data
       allocate( d_grid( grid%nx, grid%ny))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
       ! Set values in the outermost row of grid cells
       ! equal to those in the second-outermost row
       d_grid( 1      ,:) = d_grid( 2        ,:)
@@ -296,19 +298,19 @@ contains
       d_grid( :,1      ) = d_grid( :,2        )
       d_grid( :,grid%ny) = d_grid( :,grid%ny-1)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    else ! if (par%master) then
-      ! allocate zero memory for complete gridded data (only the master needs this)
+    else ! if (par%primary) then
+      ! allocate zero memory for complete gridded data (only the primary needs this)
       allocate( d_grid( 0,0))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master( grid, d_grid_vec_partial)
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    end if ! if (par%master) then
+    end if ! if (par%primary) then
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -345,11 +347,11 @@ contains
     !     domain boundary, set values in the outermost row of grid cells
     !    equal to those in the second-outermost row
 
-    if (par%master) then
+    if (par%primary) then
       ! allocate memory for complete gridded data
       allocate( d_grid( grid%nx, grid%ny, size( d_mesh_partial,2)))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
       ! Set values in the outermost row of grid cells
       ! equal to those in the second-outermost row
       d_grid( 1      ,:,:) = d_grid( 2        ,:,:)
@@ -357,19 +359,19 @@ contains
       d_grid( :,1      ,:) = d_grid( :,2        ,:)
       d_grid( :,grid%ny,:) = d_grid( :,grid%ny-1,:)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    else ! if (par%master) then
-      ! allocate zero memory for complete gridded data (only the master needs this)
+    else ! if (par%primary) then
+      ! allocate zero memory for complete gridded data (only the primary needs this)
       allocate( d_grid( 0,0,0))
       ! Gather complete gridded data
-      call gather_gridded_data_to_master( grid, d_grid_vec_partial, d_grid)
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
       ! Distribute complete gridded data back over the processes
-      call distribute_gridded_data_from_master( grid, d_grid, d_grid_vec_partial)
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
       ! Clean up after yourself
       deallocate( d_grid)
-    end if ! if (par%master) then
+    end if ! if (par%primary) then
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -393,7 +395,7 @@ contains
     real(dp), dimension(mesh%nV)    :: d_mesh_tot
     type(type_sparse_matrix_CSR_dp) :: M_CSR
     integer                         :: n,k1,k2,k,col,vi
-    real(dp)                        :: d_max, d_min
+    real(dp)                        :: d_min
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -409,15 +411,10 @@ contains
     ! Convert mapping matrix from PETSc format to UFEMISM CSR format
     call mat_petsc2CSR( map%M, M_CSR)
 
-    ! Find global maximum value of d
-    d_max = maxval( d_mesh_partial)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, d_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
     ! Map data
     do n = grid%n1, grid%n2
 
-      ! Initialise minimum as maximum
-      d_min = d_max
+      d_min = huge( d_min)
 
       ! Loop over all mesh vertices that this grid cell overlaps with
       k1 = M_CSR%ptr( n)
@@ -509,5 +506,126 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine apply_map_mesh_to_mesh_3D
+
+  ! ===== mesh to transect =====
+  ! ============================
+
+  !> Map a 2-D data field from the vertices of a mesh to a transect
+  subroutine apply_map_mesh_vertices_to_transect_2D( mesh, transect, map, d_mesh_partial, d_transect_partial)
+
+    ! In/output variables
+    type(type_mesh),        intent(in)  :: mesh
+    type(type_transect),    intent(in)  :: transect
+    type(type_map),         intent(in)  :: map
+    real(dp), dimension(:), intent(in)  :: d_mesh_partial
+    real(dp), dimension(:), intent(out) :: d_transect_partial
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_map_mesh_vertices_to_transect_2D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_transect_partial,1) /= transect%nV_loc) then
+      call crash('data fields are the wrong size!')
+    end if
+
+    ! Perform the mapping operation as a matrix multiplication
+    call multiply_PETSc_matrix_with_vector_1D( map%M, d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_vertices_to_transect_2D
+
+  !> Map a 3-D data field from the vertices of a mesh to a transect
+  subroutine apply_map_mesh_vertices_to_transect_3D( mesh, transect, map, d_mesh_partial, d_transect_partial)
+
+    ! In/output variables
+    type(type_mesh),          intent(in)  :: mesh
+    type(type_transect),      intent(in)  :: transect
+    type(type_map),           intent(in)  :: map
+    real(dp), dimension(:,:), intent(in)  :: d_mesh_partial
+    real(dp), dimension(:,:), intent(out) :: d_transect_partial
+
+    ! Local variables:
+    character(len=1024), parameter                  :: routine_name = 'apply_map_mesh_vertices_to_transect_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_transect_partial,1) /= transect%nV_loc &
+      .or. size( d_mesh_partial,2) /= size( d_transect_partial,2)) then
+      call crash('data fields are the wrong size!')
+    end if
+
+    ! Perform the mapping operation as a matrix multiplication
+    call multiply_PETSc_matrix_with_vector_2D( map%M, d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_vertices_to_transect_3D
+
+  !> Map a 2-D data field from the vertices of a mesh to a transect
+  subroutine apply_map_mesh_triangles_to_transect_2D( mesh, transect, map, d_mesh_partial, d_transect_partial)
+
+    ! In/output variables
+    type(type_mesh),        intent(in)  :: mesh
+    type(type_transect),    intent(in)  :: transect
+    type(type_map),         intent(in)  :: map
+    real(dp), dimension(:), intent(in)  :: d_mesh_partial
+    real(dp), dimension(:), intent(out) :: d_transect_partial
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_map_mesh_triangles_to_transect_2D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_transect_partial,1) /= transect%nV_loc) then
+      call crash('data fields are the wrong size!')
+    end if
+
+    ! Perform the mapping operation as a matrix multiplication
+    call multiply_PETSc_matrix_with_vector_1D( map%M, d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_triangles_to_transect_2D
+
+  !> Map a 2-D data field from the vertices of a mesh to a transect
+  subroutine apply_map_mesh_triangles_to_transect_3D( mesh, transect, map, d_mesh_partial, d_transect_partial)
+
+    ! In/output variables
+    type(type_mesh),          intent(in)  :: mesh
+    type(type_transect),      intent(in)  :: transect
+    type(type_map),           intent(in)  :: map
+    real(dp), dimension(:,:), intent(in)  :: d_mesh_partial
+    real(dp), dimension(:,:), intent(out) :: d_transect_partial
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_map_mesh_triangles_to_transect_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_transect_partial,1) /= transect%nV_loc &
+      .or. size( d_mesh_partial,2) /= size( d_transect_partial,2)) then
+      call crash('data fields are the wrong size!')
+    end if
+
+    ! Perform the mapping operation as a matrix multiplication
+    call multiply_PETSc_matrix_with_vector_2D( map%M, d_mesh_partial, d_transect_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_triangles_to_transect_3D
 
 end module apply_maps

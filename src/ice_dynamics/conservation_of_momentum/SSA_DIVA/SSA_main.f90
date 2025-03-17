@@ -2,7 +2,8 @@ module SSA_main
 
   ! Routines for calculating ice velocities using the Shallow Shelf Approximation (SSA)
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, &
+    MPI_LOR, MPI_LOGICAL, MPI_MIN, MPI_MAX
   use mpi_basic, only: par
   use precisions, only: dp
   use parameters, only: grav, ice_density
@@ -24,6 +25,7 @@ module SSA_main
   use SSA_DIVA_utilities, only: calc_driving_stress, calc_horizontal_strain_rates, relax_viscosity_iterations, &
     apply_velocity_limits, calc_L2_norm_uv
   use solve_linearised_SSA_DIVA, only: solve_SSA_DIVA_linearised
+  use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D
 
   implicit none
 
@@ -214,7 +216,7 @@ contains
       uv_max = maxval( SSA%u_b)
       call MPI_ALLREDUCE( MPI_IN_PLACE, uv_min, 1, MPI_doUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
       call MPI_ALLREDUCE( MPI_IN_PLACE, uv_max, 1, MPI_doUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      ! if (par%master) write(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], L2_uv = ', L2_uv
+      ! if (par%primary) write(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ', u = [', uv_min, ' - ', uv_max, '], L2_uv = ', L2_uv
 
       ! if the viscosity iteration has converged, or has reached the maximum allowed number of iterations, stop it.
       has_converged = .false.
@@ -224,7 +226,7 @@ contains
 
       ! if we've reached the maximum allowed number of iterations without converging, throw a warning
       if (viscosity_iteration_i > C%visc_it_nit) then
-        if (par%master) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
+        if (par%primary) call warning('viscosity iteration failed to converge within {int_01} iterations!', int_01 = C%visc_it_nit)
         exit viscosity_iteration
       end if
 
@@ -472,7 +474,7 @@ contains
     end if
 
     ! write to terminal
-    if (par%master) write(0,*) '   Initialising SSA velocities from file "' // &
+    if (par%primary) write(0,*) '   Initialising SSA velocities from file "' // &
       colour_string( trim( filename),'light blue') // '"...'
 
     ! Read velocities from the file
@@ -552,7 +554,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to SSA restart file "' // &
+    if (par%primary) write(0,'(A)') '   Writing to SSA restart file "' // &
       colour_string( trim( SSA%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -598,7 +600,7 @@ contains
     call generate_filename_XXXXXdotnc( filename_base, SSA%restart_filename)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating SSA restart file "' // &
+    if (par%primary) write(0,'(A)') '   Creating SSA restart file "' // &
       colour_string( trim( SSA%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

@@ -45,7 +45,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master)  write(*,'(a)') '     Initialising particle-based tracer-tracking model...'
+    if (par%primary)  write(*,'(a)') '     Initialising particle-based tracer-tracking model...'
 
     ! Basic data
     particles%n_max  = C%tractrackpart_n_max_particles

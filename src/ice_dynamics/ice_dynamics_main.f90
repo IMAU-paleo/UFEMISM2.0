@@ -28,7 +28,7 @@ module ice_dynamics_main
   use subgrid_ice_margin, only: calc_effective_thickness
   use zeta_gradients, only: calc_zeta_gradients
   use subgrid_grounded_fractions_main, only: calc_grounded_fractions
-  use mpi_distributed_memory, only: gather_to_all, distribute_from_master
+  use mpi_distributed_memory, only: gather_to_all, distribute_from_primary
   use remapping_main, only: map_from_mesh_to_mesh_2D, map_from_mesh_to_mesh_with_reallocation_2D, &
     map_from_mesh_to_mesh_with_reallocation_3D
   use reallocate_mod, only: reallocate_bounds
@@ -199,7 +199,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (par%master) write(*,"(A)") '   Initialising ice dynamics model...'
+    if (par%primary) write(*,"(A)") '   Initialising ice dynamics model...'
 
     ! === Memory allocation ===
     ! =========================
@@ -243,7 +243,7 @@ contains
     ! =======================
 
     ! ! DENK DROM
-    ! if (par%master) call warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
+    ! if (par%primary) call warning('GIA model isnt finished yet - need to include dHb in ice model initialisation')
 
     ! Basic geometry
     do vi = mesh%vi1, mesh%vi2
@@ -472,7 +472,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '    Remapping ice model data to the new mesh...'
+    if (par%primary) write(0,'(A)') '    Remapping ice model data to the new mesh...'
 
     ! Remap conserved ice model quantities
     ! ====================================
@@ -893,12 +893,12 @@ contains
 
     ! Remap bedrock from the original high-resolution grid, and add the (very smooth) modelled deformation to it
     ! Remapping of Hb in the refgeo structure has already happened, only need to copy the data
-    if (par%master) call warning('GIA model isnt finished yet - need to include dHb in mesh update!')
+    if (par%primary) call warning('GIA model isnt finished yet - need to include dHb in mesh update!')
     call reallocate_bounds( ice%Hb, mesh_new%vi1, mesh_new%vi2)  ! [m] Bedrock elevation (w.r.t. PD sea level)
     ice%Hb = refgeo_PD%Hb
 
     ! Remap sea level
-    if (par%master) call warning('sea  model isnt finished yet - need to include dSL in mesh update!')
+    if (par%primary) call warning('sea  model isnt finished yet - need to include dSL in mesh update!')
     call reallocate_bounds( ice%SL, mesh_new%vi1, mesh_new%vi2)  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
     ice%SL = 0._dp
 
@@ -1120,8 +1120,8 @@ contains
     ! NOTE: 0 = velocities and dH/dt are solved
     !       1 = velocities and H are prescribed at remapped values)
 
-    ! Let the master do this (difficult to parallelise)
-    if (par%master) then
+    ! Let the primary do this (difficult to parallelise)
+    if (par%primary) then
 
       ! Initialise mask
       BC_prescr_mask_tot   = 1
@@ -1204,12 +1204,12 @@ contains
 
       end do ! do ti = 1, mesh%nTri
 
-    end if ! if (par%master) then
+    end if
 
     ! Distribute BC masks to all processes
-    call distribute_from_master( BC_prescr_mask_tot   , BC_prescr_mask   )
-    call distribute_from_master( BC_prescr_mask_b_tot , BC_prescr_mask_b )
-    call distribute_from_master( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
+    call distribute_from_primary( BC_prescr_mask_tot   , BC_prescr_mask   )
+    call distribute_from_primary( BC_prescr_mask_b_tot , BC_prescr_mask_b )
+    call distribute_from_primary( BC_prescr_mask_bk_tot, BC_prescr_mask_bk)
 
     ! == Fill in prescribed velocities and thicknesses away from the front
     ! ====================================================================
@@ -1325,7 +1325,7 @@ contains
     t_pseudo = 0._dp
 
     ! Print to terminal
-    if (par%master .and. C%do_time_display .and. C%geometry_relaxation_t_years > 0._dp) then
+    if (par%primary .and. C%do_time_display .and. C%geometry_relaxation_t_years > 0._dp) then
 
       if (C%geometry_relaxation_t_years <= 999._dp .and. &
           C%geometry_relaxation_t_years >=   1._dp) then
@@ -1468,7 +1468,7 @@ contains
       t_pseudo = t_pseudo + t_step
 
       ! Time display
-      if (par%master .and. C%do_time_display) then
+      if (par%primary .and. C%do_time_display) then
         ! Carriage return flag
         r_adv = "no"
         if (t_pseudo >= C%geometry_relaxation_t_years) r_adv = "yes"

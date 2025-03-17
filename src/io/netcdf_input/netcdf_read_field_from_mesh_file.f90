@@ -1,12 +1,11 @@
 module netcdf_read_field_from_mesh_file
   !< Read data fields from a mesh file
 
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use model_configuration, only: C
-  use mpi_distributed_memory, only: distribute_from_master
+  use mpi_distributed_memory, only: distribute_from_primary
   use mesh_types, only: type_mesh
   use mesh_memory, only: deallocate_mesh
   use netcdf_basic
@@ -66,35 +65,35 @@ contains
     call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nV))
+    if (par%primary) allocate( d_mesh( mesh_loc%nV))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nV, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -144,35 +143,35 @@ contains
     call check_mesh_field_int_2D_b( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nTri))
+    if (par%primary) allocate( d_mesh( mesh_loc%nTri))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nTri, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nTri, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -222,35 +221,35 @@ contains
     call check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nV))
+    if (par%primary) allocate( d_mesh( mesh_loc%nV))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nV, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nV, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -300,35 +299,35 @@ contains
     call check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nTri))
+    if (par%primary) allocate( d_mesh( mesh_loc%nTri))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nTri, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nTri, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, ti /), count = (/ mesh_loc%nTri, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -381,35 +380,35 @@ contains
     call check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nV, 12))
+    if (par%primary) allocate( d_mesh( mesh_loc%nV, 12))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nV, 12, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, 12, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, 12, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, 12, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,:,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -464,35 +463,35 @@ contains
     call check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nV, nzeta_loc))
+    if (par%primary) allocate( d_mesh( mesh_loc%nV, nzeta_loc))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nV, nzeta_loc, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, nzeta_loc, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, nzeta_loc, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, nzeta_loc, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,:,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -547,35 +546,35 @@ contains
     call check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nTri, nzeta_loc))
+    if (par%primary) allocate( d_mesh( mesh_loc%nTri, nzeta_loc))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nTri, nzeta_loc, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nTri, nzeta_loc, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nTri, nzeta_loc, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nTri, nzeta_loc, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,:,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -630,35 +629,35 @@ contains
     call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = present( time_to_read))
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( mesh_loc%nV, ndepth_loc))
+    if (par%primary) allocate( d_mesh( mesh_loc%nV, ndepth_loc))
 
     ! Read data from file
     if (.not. present( time_to_read)) then
-      call read_var_master( filename, ncid, id_var, d_mesh)
+      call read_var_primary( filename, ncid, id_var, d_mesh)
     else
       ! allocate memory
-      if (par%master) allocate( d_mesh_with_time( mesh_loc%nV, ndepth_loc, 1))
+      if (par%primary) allocate( d_mesh_with_time( mesh_loc%nV, ndepth_loc, 1))
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, ndepth_loc, 1 /) )
+      call read_var_primary( filename, ncid, id_var, d_mesh_with_time, start = (/ 1, 1, ti /), count = (/ mesh_loc%nV, ndepth_loc, 1 /) )
       ! Copy to output memory
-      if (par%master) d_mesh = d_mesh_with_time( :,:,1)
+      if (par%primary) d_mesh = d_mesh_with_time( :,:,1)
       ! Clean up after yourself
-      if (par%master) deallocate( d_mesh_with_time)
+      if (par%primary) deallocate( d_mesh_with_time)
     end if
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
     call deallocate_mesh( mesh_loc)
 
     ! Finalise routine path
@@ -707,22 +706,22 @@ contains
     if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( nV_loc, C%subgrid_bedrock_cdf_nbins))
+    if (par%primary) allocate( d_mesh( nV_loc, C%subgrid_bedrock_cdf_nbins))
 
     ! Read data from file
-    call read_var_master( filename, ncid, id_var, d_mesh)
+    call read_var_primary( filename, ncid, id_var, d_mesh)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -770,22 +769,22 @@ contains
     if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
 
     ! allocate memory
-    if (par%master) allocate( d_mesh( nTri_loc, C%subgrid_bedrock_cdf_nbins))
+    if (par%primary) allocate( d_mesh( nTri_loc, C%subgrid_bedrock_cdf_nbins))
 
     ! Read data from file
-    call read_var_master( filename, ncid, id_var, d_mesh)
+    call read_var_primary( filename, ncid, id_var, d_mesh)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_from_master( d_mesh, d_mesh_partial)
+    call distribute_from_primary( d_mesh, d_mesh_partial)
 
     ! Clean up after yourself
-    if (par%master) deallocate( d_mesh)
+    if (par%primary) deallocate( d_mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
