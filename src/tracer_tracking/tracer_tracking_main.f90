@@ -88,7 +88,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master)  write(*,'(a)') '   Initialising tracer-tracking model ' // &
+    if (par%primary)  write(*,'(a)') '   Initialising tracer-tracking model ' // &
       colour_string( trim(C%choice_tracer_tracking_model), 'light blue') // '...'
 
     ! Allocate memory for the model-independent tracer-tracking data

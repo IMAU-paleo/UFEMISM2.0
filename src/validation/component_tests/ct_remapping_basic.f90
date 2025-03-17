@@ -5,7 +5,7 @@ module ct_remapping_basic
   use precisions, only: dp
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid
-  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use mpi_basic, only: par
   use analytical_solutions, only: Halfar_dome
 
@@ -63,8 +63,8 @@ contains
     real(dp), dimension(:,:), allocatable :: d_grid_ex
     integer                               :: i,j
 
-    ! Let the Master calculate the test function on the entire grid
-    if (par%master) then
+    ! Let the primary calculate the test function on the entire grid
+    if (par%primary) then
       allocate( d_grid_ex( grid%nx, grid%ny))
       do i = 1, grid%nx
       do j = 1, grid%ny
@@ -75,8 +75,8 @@ contains
 
     ! Distribute gridded data over the processes
     allocate( d_grid_ex_vec_partial( grid%n_loc))
-    call distribute_gridded_data_from_master( grid, d_grid_ex, d_grid_ex_vec_partial)
-    if (par%master) deallocate( d_grid_ex)
+    call distribute_gridded_data_from_primary( grid, d_grid_ex, d_grid_ex_vec_partial)
+    if (par%primary) deallocate( d_grid_ex)
 
   end subroutine calc_test_function_on_grid
 

@@ -1,9 +1,10 @@
 module predictor_corrector_scheme
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_INTEGER, &
+    MPI_MAX, MPI_SUM
   use mpi_basic, only: par
   use precisions, only: dp
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, crash
   use model_configuration, only: C
   use region_types, only: type_model_region
   use mesh_types, only: type_mesh
@@ -263,13 +264,13 @@ contains
       ! if not, check whether that occurs in a significant amount of vertices; if not,
       ! set the truncation error to almost the tolerance (to allow for growth) and move on
       elseif (100._dp * real( n_guilty,dp) / real(n_tot,dp) < C%pc_guilty_max) then
-        ! if (par%master) call warning('{dp_01}% of vertices are changing rapidly, ignoring for now', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp))
+        ! if (par%primary) call warning('{dp_01}% of vertices are changing rapidly, ignoring for now', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp))
         region%ice%pc%eta_np1 = .95_dp * C%pc_epsilon
         exit iterate_pc_timestep
 
       ! if not, re-do the PC timestep
       else
-        !if (par%master) call warning('{dp_01}% of vertices ({int_01}) are changing rapidly (eta = {dp_02}), reducing dt and redoing PC timestep', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp), int_01 = n_guilty, dp_02 = region%ice%pc%eta_np1)
+        !if (par%primary) call warning('{dp_01}% of vertices ({int_01}) are changing rapidly (eta = {dp_02}), reducing dt and redoing PC timestep', dp_01 = 100._dp * real( n_guilty,dp) / real(n_tot,dp), int_01 = n_guilty, dp_02 = region%ice%pc%eta_np1)
         region%ice%pc%dt_np1 = region%ice%pc%dt_np1 * 0.8_dp
         ! if the timestep has reached the specified lower limit, stop iterating
         if (region%ice%pc%dt_np1 <= C%dt_ice_min) then
@@ -435,7 +436,7 @@ contains
     end if
 
     ! write to terminal
-    if (par%master) write(0,*) '   Initialising ice thickness predictor/corrector scheme from file "' // colour_string( trim( filename),'light blue') // '"...'
+    if (par%primary) write(0,*) '   Initialising ice thickness predictor/corrector scheme from file "' // colour_string( trim( filename),'light blue') // '"...'
 
     ! Read values from the file
     if (timeframe_applied == 1E9_dp) then
@@ -493,7 +494,7 @@ contains
     end if
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Writing to ice dynamics restart file "' // &
+    if (par%primary) write(0,'(A)') '   Writing to ice dynamics restart file "' // &
       colour_string( trim( pc%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -550,7 +551,7 @@ contains
     call generate_filename_XXXXXdotnc( filename_base, pc%restart_filename)
 
     ! Print to terminal
-    if (par%master) write(0,'(A)') '   Creating ice dynamics restart file "' // &
+    if (par%primary) write(0,'(A)') '   Creating ice dynamics restart file "' // &
       colour_string( trim( pc%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

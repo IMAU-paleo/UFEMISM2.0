@@ -38,5 +38,5 @@ automated_testing/component_tests/figures/*.png
 automated_testing/component_tests/temporary_scoreboard_files/*.xml
 
 # Ignore unnecessary python stuff
-tools/python/__pycache__
+*__pycache__
 tools/python/klooi.ipynb

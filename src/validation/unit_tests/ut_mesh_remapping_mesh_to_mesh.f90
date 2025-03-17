@@ -5,6 +5,7 @@ module ut_mesh_remapping_mesh_to_mesh
   use tests_main
   use assertions_basic
   use ut_basic
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_LOGICAL
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C
@@ -21,9 +22,8 @@ module ut_mesh_remapping_mesh_to_mesh
   use mesh_disc_calc_matrix_operators_2D, only: calc_matrix_operators_mesh_a_b
   use remapping_mesh_to_mesh, only: create_map_from_mesh_to_mesh_nearest_neighbour, &
     create_map_from_mesh_to_mesh_trilin, create_map_from_mesh_to_mesh_2nd_order_conservative
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, gather_CSR_dist_to_master
+  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, gather_CSR_dist_to_primary
   use petsc_basic, only: mat_petsc2CSR
-  use mpi
 
   implicit none
 
@@ -183,9 +183,9 @@ contains
     call init_routine( routine_name)
 
     call mat_petsc2CSR( map%M, M_CSR)
-    call gather_CSR_dist_to_master( M_CSR, M_CSR_tot)
+    call gather_CSR_dist_to_primary( M_CSR, M_CSR_tot)
 
-    if (par%master) then
+    if (par%primary) then
       isso = .true.
       do i = 1, M_CSR_tot%m
         k1 = M_CSR_tot%ptr(i)

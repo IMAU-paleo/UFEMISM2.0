@@ -5,11 +5,9 @@ MODULE thermodynamics_3D_heat_equation
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_INTEGER, MPI_SUM
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -53,6 +51,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_3D_heat_equation'
+    integer                                            :: ierr
     INTEGER                                            :: vi, k
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: u_times_dTdxp_upwind, v_times_dTdyp_upwind
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: T_surf_annual, Q_base_grnd, T_base_float
@@ -250,8 +249,7 @@ CONTAINS
       ! Copy temperature solution
       Ti_tplusdt( vi,:) = icecol_Ti
 
-    END DO ! DO vi = mesh%vi1, mesh%vi2
-    CALL sync
+    END DO
 
     ! Cope with instability
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_unstable, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
@@ -264,7 +262,6 @@ CONTAINS
           CALL replace_Ti_with_robin_solution( mesh, ice, climate, SMB, Ti_tplusdt, vi)
         END IF
       END DO
-      CALL sync
 
     ELSE
       ! An unacceptably large number of grid cells was unstable; throw an error.
@@ -505,7 +502,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to thermodynamics restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to thermodynamics restart file "' // &
       colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -554,7 +551,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, ice%thermo_restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating thermodynamics restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating thermodynamics restart file "' // &
       colour_string( TRIM( ice%thermo_restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

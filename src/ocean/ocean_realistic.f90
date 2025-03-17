@@ -72,7 +72,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '     Initialising realistic ocean model "' // &
+    IF (par%primary)  WRITE(*,"(A)") '     Initialising realistic ocean model "' // &
       colour_string( TRIM( C%choice_ocean_model_realistic),'light blue') // '"...'
 
     ! Run the chosen realistic ocean model

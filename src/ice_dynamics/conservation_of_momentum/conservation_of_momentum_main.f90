@@ -46,7 +46,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (par%master) write(*,"(A)") '   Initialising ' // &
+    if (par%primary) write(*,"(A)") '   Initialising ' // &
       colour_string( trim( C%choice_stress_balance_approximation),'light blue') // ' solver...'
 
     select case (C%choice_stress_balance_approximation)

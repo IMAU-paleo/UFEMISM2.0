@@ -153,7 +153,7 @@ CONTAINS
         ! Update BMB only for cells in ROI
         DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_ROI(vi)) THEN
-            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN 
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
               BMB%BMB_shelf( vi) = C%uniform_BMB_ROI
             END IF
           END IF
@@ -186,7 +186,7 @@ CONTAINS
       DO vi = mesh%vi1, mesh%vi2
         BMB%BMB_modelled( vi) = BMB%BMB( vi)
       END DO
-    END IF 
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -212,7 +212,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising basal mass balance model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising basal mass balance model...'
 
     ! Determine which BMB model to initialise for this region
     SELECT CASE (region_name)
@@ -389,7 +389,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to BMB restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to BMB restart file "' // &
       colour_string( TRIM( BMB%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -493,7 +493,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, BMB%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating BMB model restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating BMB model restart file "' // &
       colour_string( TRIM( BMB%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
@@ -536,7 +536,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping basal mass balance model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping basal mass balance model data to the new mesh...'
 
     ! Determine which BMB model to initialise for this region
     SELECT CASE (region_name)
@@ -807,7 +807,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Note: apply extrapolation_FCMP_to_PMP to non-laddie BMB models before applying sub-grid schemes
-    
+
     DO vi = mesh%vi1, mesh%vi2
       ! Only for ROI cells
       IF (ice%mask_ROI(vi)) THEN

@@ -28,6 +28,17 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: | 
+          python -m pip install --upgrade pip
+          pip install -r tools/python/requirements.txt
+
       - name: Checkout data repository
         uses: actions/checkout@v4
         with:
@@ -56,12 +67,18 @@ jobs:
       - name: Run integrated_tests/idealised/MISMIPplus - 05_4km_ice1r
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_05_4km_ice1r.cfg
 
+      - name: Run integrated_tests/idealised/MISMIPplus - 06_5km_iceocean1r
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_06_5km_iceocean1r.cfg
+
       - name: Analyse integrated_tests/idealised/MISMIPplus
         uses: matlab-actions/run-command@v2
         with:
           command: |
             addpath('automated_testing/integrated_tests/idealised/MISMIPplus')
             analyse_integrated_test('${{github.workspace}}/automated_testing')
+
+      - name: Analyse integrated_tests/idealised/MISMIPplus/MISOMIP
+        run: python automated_testing/integrated_tests/idealised/MISMIPplus/analyse_integrated_test_misomip.py ${{github.workspace}}/automated_testing
 
       - name: Upload scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4

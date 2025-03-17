@@ -2,7 +2,7 @@ module ct_remapping_grid_to_mesh
 
   ! Test everything related to remapping
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
   use model_configuration, only: C
   use precisions, only: dp
   use mpi_basic, only: par
@@ -42,8 +42,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '    Running grid-to-mesh remapping component tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '    Running grid-to-mesh remapping component tests...'
+    if (par%primary) write(0,*) ''
 
     call create_grid_to_mesh_remapping_output_folder( foldername_remapping, foldername_grid_to_mesh)
 
@@ -55,7 +55,7 @@ contains
       end do
     end do
 
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) ''
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -79,7 +79,7 @@ contains
 
     foldername_grid_to_mesh = trim(foldername_remapping) // '/grid_to_mesh'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_grid_to_mesh) // '/.', exist = ex)
@@ -123,9 +123,9 @@ contains
     filename = trim( foldername_grid_to_mesh) // '/res_' // &
       grid_name( 1:len_trim(grid_name)) // '_TO_' // mesh_name( 1:len_trim(mesh_name)) // '.nc'
 
-    if (par%master) write(0,*) '      Running grid-to-mesh remapping tests on mesh-grid combination:'
-    if (par%master) write(0,*) '        grid: ', colour_string( trim( grid_name),'light blue')
-    if (par%master) write(0,*) '        mesh: ', colour_string( trim( mesh_name),'light blue')
+    if (par%primary) write(0,*) '      Running grid-to-mesh remapping tests on mesh-grid combination:'
+    if (par%primary) write(0,*) '        grid: ', colour_string( trim( grid_name),'light blue')
+    if (par%primary) write(0,*) '        mesh: ', colour_string( trim( mesh_name),'light blue')
 
     ! Set up the mesh and the grid from the provided files
     call open_existing_netcdf_file_for_reading( filename_mesh, ncid)

@@ -5,6 +5,7 @@ module ut_tracer_tracking
   use tests_main
   use assertions_basic
   use ut_basic
+  use mpi_f08, only:
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use model_configuration, only: C
@@ -18,12 +19,10 @@ module ut_tracer_tracking
   use mesh_utilities, only: find_containing_triangle, find_containing_vertex
   use tracer_tracking_model_types, only: type_tracer_tracking_model_particles, type_map_particles_to_mesh
   use tracer_tracking_model_particles, only: calc_particle_zeta, interpolate_3d_velocities_to_3D_point, &
-    calc_particles_to_mesh_map, initialise_tracer_tracking_model_particles, add_particle!, &
-    ! move_and_remove_particle
-  use mpi
+    calc_particles_to_mesh_map, initialise_tracer_tracking_model_particles, add_particle
   use ice_model_types, only: type_ice_model
   use ice_model_memory, only: allocate_ice_model
-  use reference_geometries, only: calc_idealised_geometry
+  use reference_geometries_main, only: calc_idealised_geometry
 
   implicit none
 

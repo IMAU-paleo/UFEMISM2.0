@@ -37,8 +37,8 @@ contains
     ! Safety - should be run on two cores
     call assert( test_eq( par%n, 2), 'should be run on two cores')
 
-    if (par%master) write(0,'(a)') ''
-    if (par%master) write(0,'(a)') ' Running UFEMISM unit tests...'
+    if (par%primary) write(0,'(a)') ''
+    if (par%primary) write(0,'(a)') ' Running UFEMISM unit tests...'
 
     ! Create an output folder and output file
     call create_unit_tests_output_folder
@@ -70,7 +70,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (par%master) then
+    if (par%primary) then
       ! Create filename
       filename_unit_tests_output = trim(C%output_dir) // '/unit_tests_output.txt'
       ! Create file
@@ -102,7 +102,7 @@ contains
     C%output_dir = 'automated_testing/unit_tests/results'
 
     ! Create the directory
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( C%output_dir) // '/.', exist = ex)

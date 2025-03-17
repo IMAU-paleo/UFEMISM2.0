@@ -5,9 +5,9 @@ MODULE UFEMISM_main_model
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_INTEGER, MPI_SUM, MPI_WTIME
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync, ierr
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: happy, warning, crash, init_routine, finalise_routine, colour_string, str2int, int2str, &
                                                                      insert_val_into_string_dp
   USE model_configuration                                    , ONLY: C
@@ -16,7 +16,7 @@ MODULE UFEMISM_main_model
   USE ice_model_types                                        , ONLY: type_ice_model
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
-  USE reference_geometries                                   , ONLY: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
+  use reference_geometries_main, only: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
   USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
@@ -39,10 +39,10 @@ MODULE UFEMISM_main_model
   use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
-  USE main_regional_output                                   , ONLY: create_main_regional_output_file_mesh,   create_main_regional_output_file_grid, &
-                                                                     write_to_main_regional_output_file_mesh, write_to_main_regional_output_file_grid, &
-                                                                     create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI, &
-                                                                     create_scalar_regional_output_file, write_to_scalar_regional_output_file
+  USE mesh_output_files, only: create_main_regional_output_file_mesh, write_to_main_regional_output_file_mesh
+  use grid_output_files, only: create_main_regional_output_file_grid, write_to_main_regional_output_file_grid, &
+    create_main_regional_output_file_grid_ROI, write_to_main_regional_output_file_grid_ROI
+  use scalar_output_files, only: create_scalar_regional_output_file, buffer_scalar_output, write_to_scalar_regional_output_file
   use mesh_ROI_polygons
   use plane_geometry, only: longest_triangle_leg
   use apply_maps, only: clear_all_maps_involving_this_mesh
@@ -78,8 +78,8 @@ CONTAINS
     routine_name = 'run_model('  //  region%name  //  ')'
     CALL init_routine( routine_name)
 
-    IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE (0,'(A,A,A,A,A,F9.3,A,F9.3,A)') &
+    IF (par%primary) WRITE(0,*) ''
+    IF (par%primary) WRITE (0,'(A,A,A,A,A,F9.3,A,F9.3,A)') &
       ' Running model region ', colour_string( region%name, 'light blue'), ' (', colour_string( TRIM( region%long_name), 'light blue'), &
       ') from t = ', region%time/1000._dp, ' to t = ', t_end/1000._dp, ' kyr'
 
@@ -164,7 +164,7 @@ CONTAINS
       ! Keep track of the average ice-dynamical time step and print it to the terminal
       ndt_av = ndt_av + 1
       dt_av  = dt_av  + (region%ice%t_Hi_next - region%ice%t_Hi_prev)
-      IF (par%master .AND. C%do_time_display) THEN
+      IF (par%primary .AND. C%do_time_display) THEN
         CALL time_display( region, t_end, dt_av, ndt_av)
       END IF
 
@@ -178,7 +178,7 @@ CONTAINS
       ! Give all processes time to catch up
       CALL sync
       ! Congrats, you've made it
-      IF (par%master) WRITE(0,'(A)') ' Finalising regional simulation...'
+      IF (par%primary) WRITE(0,'(A)') ' Finalising regional simulation...'
       ! Write the final model state to output
       CALL write_to_regional_output_files( region)
     END IF
@@ -208,8 +208,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Write to scalar regional output file
-    CALL write_to_scalar_regional_output_file( region)
+    ! Buffer scalar output data
+    call buffer_scalar_output( region)
 
     ! Determine time of next output event
     t_closest = MIN( region%output_t_next, region%output_restart_t_next, region%output_grid_t_next)
@@ -272,6 +272,7 @@ CONTAINS
     END IF ! IF (.NOT. region%output_files_match_current_mesh) THEN
 
     IF (do_output_main) THEN
+
       ! Write to the main regional output files
       CALL write_to_main_regional_output_file_mesh( region)
 
@@ -282,6 +283,10 @@ CONTAINS
 
       ! Write to the transect output files
       call write_to_transect_netcdf_output_files( region)
+
+      ! Write to the regional scalar output file
+      call write_to_scalar_regional_output_file( region)
+
     END IF
 
     IF (do_output_restart) THEN
@@ -436,8 +441,8 @@ CONTAINS
     END IF
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') ' Initialising model region ' // colour_string( region%name,'light blue') // ' (' // &
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') ' Initialising model region ' // colour_string( region%name,'light blue') // ' (' // &
       colour_string( TRIM( region%long_name),'light blue') // ')...'
 
     ! ===== Reference geometries =====
@@ -635,13 +640,10 @@ CONTAINS
     ! ========================
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') ' Finished initialising model region ' // colour_string( TRIM( region%long_name),'light blue')
+    IF (par%primary) WRITE(0,'(A)') ' Finished initialising model region ' // colour_string( TRIM( region%long_name),'light blue')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-
-    ! CALL write_to_main_regional_output_file_mesh( region)
-    ! stop ':)'
 
   END SUBROUTINE initialise_model_region
 
@@ -662,7 +664,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
+    IF (par%primary) WRITE(0,'(A)') '   Setting up the first mesh for model region ' // colour_string( region%name,'light blue') // '...'
 
     ! Get settings from config
     IF     (region%name == 'NAM') THEN
@@ -717,7 +719,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '     Creating mesh from initial geometry...'
+    IF (par%primary) WRITE(0,'(A)') '     Creating mesh from initial geometry...'
 
     ! Determine model domain
     IF     (region%name == 'NAM') THEN
@@ -873,7 +875,7 @@ CONTAINS
     end if
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
+    IF (par%primary) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
 
     ! Read the mesh from the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename_initial_mesh, ncid)
@@ -1128,8 +1130,8 @@ CONTAINS
     tstart = MPI_WTIME()
 
     ! Print to screen
-    IF (par%master) WRITE(0,'(A)') ''
-    IF (par%master) WRITE(0,'(A)') '   Creating a new mesh for model region ' // colour_string( region%name,'light blue') // '...'
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') '   Creating a new mesh for model region ' // colour_string( region%name,'light blue') // '...'
 
     ! Determine model domain
     IF     (region%name == 'NAM') THEN
@@ -1232,7 +1234,7 @@ CONTAINS
     ! Print to screen
     str = '   Finished the mesh update in {dp_01} seconds'
     CALL insert_val_into_string_dp( str, '{dp_01}', tstop-tstart)
-    IF (par%master) WRITE(0,'(A)') str
+    IF (par%primary) WRITE(0,'(A)') str
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1252,7 +1254,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'calc_mesh_fitness_coefficient'
-    INTEGER                                                            :: vi
+    INTEGER                                                            :: vi, ierr
     INTEGER                                                            :: nV_grounding_line_tot, nV_calving_front_tot, nV_ice_front_tot, nV_coastline_tot
     INTEGER                                                            :: nV_grounding_line_bad, nV_calving_front_bad, nV_ice_front_bad, nV_coastline_bad
     REAL(dp)                                                           :: f_grounding_line, f_calving_front, f_ice_front, f_coastline
@@ -1415,7 +1417,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%master) WRITE(0,'(A)') '   Implementing regional corrections...'
+    IF (par%primary) WRITE(0,'(A)') '   Implementing regional corrections...'
 
     ! === SMB over ice-free land ===
     ! ==============================

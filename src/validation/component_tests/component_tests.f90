@@ -2,9 +2,8 @@ module component_tests
 
   ! All the component tests.
 
-  use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use model_configuration, only: C
   use ct_create_test_meshes, only: create_all_test_meshes_and_grids
@@ -29,8 +28,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (par%master) write(0,'(a)') ''
-    if (par%master) write(0,'(a)') ' Running UFEMISM component tests...'
+    if (par%primary) write(0,'(a)') ''
+    if (par%primary) write(0,'(a)') ' Running UFEMISM component tests...'
 
     call create_component_tests_output_folder
     call create_all_test_meshes_and_grids( test_mesh_filenames, test_grid_filenames)
@@ -56,7 +55,7 @@ contains
     C%output_dir = 'automated_testing/component_tests/results'
 
     ! Create the directory
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( C%output_dir) // '/.', exist = ex)

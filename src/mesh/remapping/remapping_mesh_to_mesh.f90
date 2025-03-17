@@ -3,8 +3,9 @@ module remapping_mesh_to_mesh
 #include <petsc/finclude/petscksp.h>
   use petscksp
   use precisions, only: dp
-  use mpi_basic, only: par, sync
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map, type_single_row_mapping_matrices
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
@@ -91,7 +92,7 @@ contains
     call mat_CSR2petsc( M_CSR, map%M)
 
     ! Delete mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
@@ -194,7 +195,7 @@ contains
     call mat_CSR2petsc( M_CSR, map%M)
 
     ! Delete mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
@@ -248,7 +249,7 @@ contains
     call correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
 
     ! Delete mesh netcdf dumps
-    if (par%master) then
+    if (par%primary) then
       open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
       if (stat == 0) close(1234, status = 'delete')
       open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')

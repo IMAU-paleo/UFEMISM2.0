@@ -2,7 +2,7 @@ module ct_remapping_mesh_to_mesh
 
   ! Test everything related to remapping
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
   use model_configuration, only: C
   use precisions, only: dp
   use mpi_basic, only: par
@@ -14,7 +14,7 @@ module ct_remapping_mesh_to_mesh
   use apply_maps, only: clear_all_maps_involving_this_mesh
   use netcdf_io_main
   use netcdf, only: NF90_DOUBLE, NF90_PUT_VAR
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
 
   implicit none
 
@@ -40,8 +40,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '    Running mesh-to-mesh remapping component tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '    Running mesh-to-mesh remapping component tests...'
+    if (par%primary) write(0,*) ''
 
     call create_mesh_to_mesh_remapping_output_folder( foldername_remapping, foldername_mesh_to_mesh)
 
@@ -53,7 +53,7 @@ contains
       end do
     end do
 
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) ''
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -77,7 +77,7 @@ contains
 
     foldername_mesh_to_mesh = trim(foldername_remapping) // '/mesh_to_mesh'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_mesh_to_mesh) // '/.', exist = ex)
@@ -124,9 +124,9 @@ contains
     filename = trim( foldername_mesh_to_mesh) // '/res_' // &
       mesh_name1( 1:len_trim(mesh_name1)) // '_TO_' // mesh_name2( 1:len_trim(mesh_name2)) // '.nc'
 
-    if (par%master) write(0,*) '      Running mesh-to-mesh remapping tests on mesh-mesh combination:'
-    if (par%master) write(0,*) '        from mesh: ', colour_string( trim( mesh_name1),'light blue')
-    if (par%master) write(0,*) '          to mesh: ', colour_string( trim( mesh_name2),'light blue')
+    if (par%primary) write(0,*) '      Running mesh-to-mesh remapping tests on mesh-mesh combination:'
+    if (par%primary) write(0,*) '        from mesh: ', colour_string( trim( mesh_name1),'light blue')
+    if (par%primary) write(0,*) '          to mesh: ', colour_string( trim( mesh_name2),'light blue')
 
     ! Set up the mesh and the grid from the provided files
     call open_existing_netcdf_file_for_reading( filename_mesh1, ncid)
@@ -167,10 +167,10 @@ contains
     call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_trilin')
     call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_cons')
 
-    if (par%master) allocate( d_mesh1_ex_tot( mesh1%nV))
-    call gather_to_master( d_mesh1_ex, d_mesh1_ex_tot)
+    if (par%primary) allocate( d_mesh1_ex_tot( mesh1%nV))
+    call gather_to_primary( d_mesh1_ex, d_mesh1_ex_tot)
 
-    if (par%master) then
+    if (par%primary) then
       nerr = NF90_PUT_VAR( ncid, id_var_mesh1_A   , mesh1%A)
       nerr = NF90_PUT_VAR( ncid, id_var_d_mesh1_ex, d_mesh1_ex_tot)
     end if

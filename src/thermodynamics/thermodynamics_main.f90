@@ -5,11 +5,8 @@ MODULE thermodynamics_main
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -265,7 +262,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a uniform value...'
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures with a uniform value...'
 
     ! Determine choice of initial uniform ice temperatures for this model region
     IF     (region_name == 'NAM') THEN
@@ -316,7 +313,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with a linear profile...'
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures with a linear profile...'
 
     DO vi = mesh%vi1, mesh%vi2
 
@@ -365,7 +362,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures with the Robin solution...'
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures with the Robin solution...'
 
     ! Calculate Ti_pmp
     CALL calc_pressure_melting_point( mesh, ice)
@@ -431,12 +428,12 @@ CONTAINS
     end if
 
     ! Print to terminal
-    IF (par%master) WRITE (0,*) '  Initialising ice temperatures from file "' // &
+    IF (par%primary) WRITE (0,*) '  Initialising ice temperatures from file "' // &
       colour_string( TRIM( filename_initial_ice_temperature), 'light blue') // '"...'
 
     ! Allocate
     ALLOCATE( zeta_read (mesh%nz), source=0.0_dp)
-    ALLOCATE( Ti_read (mesh%nV, mesh%nz), source=0.0_dp)
+    ALLOCATE( Ti_read (mesh%vi1:mesh%vi2, mesh%nz), source=0.0_dp)
 
     ! Read data
     IF (timeframe_initial_ice_temperature == 1E9_dp) THEN

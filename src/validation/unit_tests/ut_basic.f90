@@ -45,7 +45,7 @@ contains
     str_file     = trim( str_file)     // ' ' // trim( test_name)
     str_terminal = trim( str_terminal) // ' ' // trim( test_name)
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Write to terminal
       write(0,*) trim( str_terminal)

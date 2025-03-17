@@ -1,9 +1,9 @@
 module ice_mass_and_fluxes
   !< Integrate ice volume/mass and ice mass fluxes
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_SUM
   use precisions, only: dp
-  use mpi_basic, only: par, ierr
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use parameters, only: ice_density, seawater_density, ocean_area
   use mesh_types, only: type_mesh
@@ -12,7 +12,7 @@ module ice_mass_and_fluxes
   use SMB_model_types, only: type_SMB_model
   use BMB_model_types, only: type_BMB_model
   use LMB_model_types, only: type_LMB_model
-  use reference_geometries, only: type_reference_geometry
+  use reference_geometry_types, only: type_reference_geometry
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
   use mpi_distributed_memory, only: gather_to_all
 
@@ -34,7 +34,7 @@ contains
     type(type_BMB_model),          intent(in   ) :: BMB
     type(type_LMB_model),          intent(in   ) :: LMB
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
-    type(type_regional_scalars),   intent(  out) :: scalars
+    type(type_regional_scalars),   intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_ice_model_scalars'
@@ -80,11 +80,11 @@ contains
     ! In/output variables:
     type(type_mesh),               intent(in   ) :: mesh
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
-    type(type_regional_scalars),   intent(  out) :: scalars
+    type(type_regional_scalars),   intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area_PD'
-    integer                        :: vi
+    integer                        :: vi, ierr
     real(dp)                       :: sea_level_PD, thickness_af_PD
 
     ! Add routine to path
@@ -133,13 +133,13 @@ contains
     ! Calculate total regional ice volume and area
 
     ! In/output variables:
-    type(type_mesh),             intent(in)  :: mesh
-    type(type_ice_model),        intent(in)  :: ice
-    type(type_regional_scalars), intent(out) :: scalars
+    type(type_mesh),             intent(in   ) :: mesh
+    type(type_ice_model),        intent(in   ) :: ice
+    type(type_regional_scalars), intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_volume_and_area'
-    integer                        :: vi
+    integer                        :: vi, ierr
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -182,11 +182,11 @@ contains
     type(type_SMB_model),        intent(in   ) :: SMB
     type(type_BMB_model),        intent(in   ) :: BMB
     type(type_LMB_model),        intent(in   ) :: LMB
-    type(type_regional_scalars), intent(  out) :: scalars
+    type(type_regional_scalars), intent(inout) :: scalars
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_icesheet_integrated_fluxes'
-    integer                        :: vi
+    integer                        :: vi, ierr
     real(dp)                       :: total_amb
 
     ! Add routine to path
@@ -344,7 +344,7 @@ contains
     logical,  dimension(mesh%nV)           :: mask_floating_ice_tot
     logical,  dimension(mesh%nV)           :: mask_icefree_land_tot
     logical,  dimension(mesh%nV)           :: mask_icefree_ocean_tot
-    integer                                :: vi, ci, ei, vj
+    integer                                :: vi, ci, ei, vj, ierr
     real(dp)                               :: A_i, L_c
     real(dp)                               :: u_perp
 

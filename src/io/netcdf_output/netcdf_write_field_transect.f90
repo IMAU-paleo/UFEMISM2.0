@@ -5,7 +5,7 @@ module netcdf_write_field_transect
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use transect_types, only: type_transect
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
   use netcdf_basic
 
   implicit none
@@ -45,12 +45,12 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
-    ! Gather data to the master
-    if (par%master) allocate( d_transect( transect%nV))
-    call gather_to_master( d_transect_partial, d_transect)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_transect( transect%nV))
+    call gather_to_primary( d_transect_partial, d_transect)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_transect_with_time( transect%nV,1))
       d_transect_with_time( :,1) = d_transect
     end if
@@ -59,7 +59,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_transect_with_time, start = (/ 1, ti /), count = (/ transect%nV, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_transect_with_time, start = (/ 1, ti /), count = (/ transect%nV, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -92,12 +92,12 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('no variables for name options "' // trim( field_name_options) // '" were found in file "' // trim( filename) // '"!')
 
-    ! Gather data to the master
-    if (par%master) allocate( d_transect( transect%nV, size( d_transect_partial,2)))
-    call gather_to_master( d_transect_partial, d_transect)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_transect( transect%nV, size( d_transect_partial,2)))
+    call gather_to_primary( d_transect_partial, d_transect)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_transect_with_time( transect%nV, size( d_transect_partial,2), 1))
       d_transect_with_time( :,:,1) = d_transect
     end if
@@ -106,7 +106,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_transect_with_time, start = (/ 1, 1, ti /), count = (/ transect%nV, size( d_transect_partial,2), 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_transect_with_time, start = (/ 1, 1, ti /), count = (/ transect%nV, size( d_transect_partial,2), 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)

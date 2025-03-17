@@ -90,7 +90,7 @@ CONTAINS
 !    DO vi = region%mesh%vi1, region%mesh%vi2
 !      region%ice%dHb_dt( vi) = (region%GIA%dHb_next( vi) - region%GIA%dHb_prev( vi)) / C%dt_GIA
 !    END DO
-    
+
     DO vi = region%mesh%vi1, region%mesh%vi2
   	  region%ice%Hb( vi) = region%refgeo_GIAeq%Hb( vi) + region%ice%dHb( vi)
 	END DO
@@ -110,7 +110,7 @@ CONTAINS
     TYPE(type_GIA_model),                   INTENT(OUT)   :: GIA
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     TYPE(type_reference_geometry), optional, INTENT(IN)   :: refgeo_GIAeq
-    TYPE(type_ELRA_model), optional,         INTENT(OUT)   :: ELRA    
+    TYPE(type_ELRA_model), optional,         INTENT(OUT)   :: ELRA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_GIA_model'
@@ -120,7 +120,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising GIA model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising GIA model...'
 
     ! Create the square grid for the GIA model
     grid_name = 'square_grid_GIA_' // region_name
@@ -232,8 +232,8 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_GIA_model),                   INTENT(OUT)   :: GIA
-    TYPE(type_reference_geometry), optional, INTENT(IN)    :: refgeo_GIAeq   
-    TYPE(type_ELRA_model), optional, INTENT(OUT) :: ELRA     
+    TYPE(type_reference_geometry), optional, INTENT(IN)    :: refgeo_GIAeq
+    TYPE(type_ELRA_model), optional, INTENT(OUT) :: ELRA
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_GIA_model'
@@ -242,7 +242,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping GIA model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping GIA model data to the new mesh...'
 
     ! Reallocate memory for main variables
 

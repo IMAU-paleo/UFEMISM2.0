@@ -117,7 +117,7 @@ contains
     call insert_val_into_string_dp(  str, '{dp_01}', MINVAL( mesh%R))
     call insert_val_into_string_dp(  str, '{dp_02}', MAXVAL( mesh%R))
 
-    if (par%master) WRITE(0,'(A)') trim( str)
+    if (par%primary) WRITE(0,'(A)') trim( str)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

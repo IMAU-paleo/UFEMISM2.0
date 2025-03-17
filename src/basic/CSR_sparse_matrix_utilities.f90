@@ -3,9 +3,10 @@ module CSR_sparse_matrix_utilities
   ! Subroutines to work with Compressed Sparse Row formatted matrices
 
   use CSR_sparse_matrix_type                                 , only: type_sparse_matrix_CSR_dp
-  use mpi
+  use mpi_f08, only: MPI_ALLGATHER, MPI_INTEGER, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_SEND, MPI_RECV, &
+    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE
   use precisions                                             , only: dp
-  use mpi_basic                                              , only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging                  , only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use parameters
   use reallocate_mod                                         , only: reallocate
@@ -27,6 +28,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter                      :: routine_name = 'allocate_matrix_CSR_dist'
+    integer                                            :: ierr
     integer,  dimension(par%n)                         :: m_loc_all, n_loc_all
 
     ! Add routine to call stack
@@ -219,15 +221,17 @@ contains
 
   end subroutine crop_matrix_CSR_dist
 
-  subroutine gather_CSR_dist_to_master( A, A_tot)
-    ! Gather a CSR-format sparse m-by-n matrix A that is distributed over the processes, to the master
+  subroutine gather_CSR_dist_to_primary( A, A_tot)
+    ! Gather a CSR-format sparse m-by-n matrix A that is distributed over the processes, to the primary
 
     ! In- and output variables:
     type(type_sparse_matrix_CSR_dp),     intent(in)    :: A
     type(type_sparse_matrix_CSR_dp),     intent(OUT)   :: A_tot
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'gather_CSR_dist_to_master'
+    character(len=256), parameter                      :: routine_name = 'gather_CSR_dist_to_primary'
+    integer                                            :: ierr
+    type(MPI_STATUS)                                   :: recv_status
     integer,  dimension(par%n)                         :: m_glob_all, n_glob_all, m_loc_all, n_loc_all
     integer                                            :: nnz_tot
     integer                                            :: p
@@ -253,7 +257,7 @@ contains
     if (sum( n_loc_all) /= A%n ) call crash('local numbers of columns do not add up across the processes!')
 
     ! Allocate memory
-    if (par%master) then
+    if (par%primary) then
       A_tot%m       = A%m
       A_tot%m_loc   = A%m
       A_tot%i1      = 1
@@ -280,8 +284,8 @@ contains
       A_tot%nnz_max = 0
     end if
 
-    ! Start with the master's own data
-    if (par%master) then
+    ! Start with the primary's own data
+    if (par%primary) then
       do row = A%i1, A%i2
         k1 = A%ptr( row)
         k2 = A%ptr( row+1) - 1
@@ -298,7 +302,7 @@ contains
 
       if     (par%i == p) then
 
-        ! Send matrix metadata to master
+        ! Send matrix metadata to primary
         call MPI_Send( A%m      , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%m_loc  , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%i1     , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
@@ -310,12 +314,12 @@ contains
         call MPI_Send( A%nnz    , 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%nnz_max, 1, MPI_integer, 0, 0, MPI_COMM_WORLD, ierr)
 
-        ! Send matrix data to master
+        ! Send matrix data to primary
         call MPI_Send( A%ptr, A%m_loc+1, MPI_integer         , 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%ind, A%nnz_max, MPI_integer         , 0, 0, MPI_COMM_WORLD, ierr)
         call MPI_Send( A%val, A%nnz_max, MPI_DOUBLE_PRECISION, 0, 0, MPI_COMM_WORLD, ierr)
 
-      elseif (par%master) then
+      elseif (par%primary) then
 
         ! Receive matrix metadata from process
         call MPI_RECV( A_proc%m      , 1, MPI_integer, p, MPI_any_TAG, MPI_COMM_WORLD, recv_status, ierr)
@@ -363,7 +367,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine gather_CSR_dist_to_master
+  end subroutine gather_CSR_dist_to_primary
 
   subroutine read_single_row_CSR_dist( A, i, ind, val, nnz)
     ! Read the coefficients of a single row of A

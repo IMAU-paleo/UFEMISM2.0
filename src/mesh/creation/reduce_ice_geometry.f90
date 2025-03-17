@@ -4,15 +4,15 @@ module reduce_ice_geometry
   ! ice front, ice-sheet polygon and ice-shelf polygon from an ice geometry
   ! defined on either a grid or a mesh; these can then be used to create a new mesh.
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_INTEGER, MPI_DOUBLE_PRECISION
   use mpi_basic, only: par, sync
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
   use grid_basic, only: calc_grid_mask_as_polygons, calc_grid_contour_as_line
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary
   use ice_geometry_basics, only: thickness_above_floatation
   use mesh_utilities, only: calc_mesh_mask_as_polygons, calc_mesh_contour_as_line
 
@@ -72,7 +72,7 @@ contains
     call init_routine( routine_name)
 
     ! allocate memory for gathered ice geometry data
-    if (par%master) then
+    if (par%primary) then
       allocate( Hi_grid( grid%nx, grid%ny))
       allocate( Hb_grid( grid%nx, grid%ny))
       allocate( Hs_grid( grid%nx, grid%ny))
@@ -84,15 +84,15 @@ contains
       allocate( SL_grid( 0, 0))
     end if
 
-    ! Gather ice geometry data in grid form to the master
-    call gather_gridded_data_to_master( grid, Hi, Hi_grid)
-    call gather_gridded_data_to_master( grid, Hb, Hb_grid)
-    call gather_gridded_data_to_master( grid, Hs, Hs_grid)
-    call gather_gridded_data_to_master( grid, SL, SL_grid)
+    ! Gather ice geometry data in grid form to the primary
+    call gather_gridded_data_to_primary( grid, Hi, Hi_grid)
+    call gather_gridded_data_to_primary( grid, Hb, Hb_grid)
+    call gather_gridded_data_to_primary( grid, Hs, Hs_grid)
+    call gather_gridded_data_to_primary( grid, SL, SL_grid)
 
-    ! Let the master calculate the polygons and lines
+    ! Let the primary calculate the polygons and lines
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Allocate memory for thickness above floatation and Hb-SL
       allocate( TAF_grid(         grid%nx, grid%ny))
@@ -198,15 +198,14 @@ contains
       n_line_ice_front      = size( p_line_ice_front     ,1)
       n_line_coastline      = size( p_line_coastline     ,1)
 
-    end if ! if (par%master) then
-    call sync
+    end if
 
     ! Broadcast polygon sizes to all processes
     call MPI_BCAST( n_poly_mult_sheet, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( n_poly_mult_shelf, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for the polygons on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( poly_mult_sheet( n_poly_mult_sheet,2))
       allocate( poly_mult_shelf( n_poly_mult_shelf,2))
     end if
@@ -222,7 +221,7 @@ contains
     call MPI_BCAST( n_line_coastline     , 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory for the lines on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( p_line_grounding_line( n_line_grounding_line,4))
       allocate( p_line_calving_front(  n_line_calving_front ,4))
       allocate( p_line_ice_front(      n_line_ice_front     ,4))
@@ -287,22 +286,22 @@ contains
     call init_routine( routine_name)
 
     ! allocate memory for gathered ice geometry data
-    if (par%master) then
+    if (par%primary) then
       allocate( Hi_tot( mesh%nV))
       allocate( Hb_tot( mesh%nV))
       allocate( Hs_tot( mesh%nV))
       allocate( SL_tot( mesh%nV))
     end if
 
-    ! Gather ice geometry data in grid form to the master
-    call gather_to_master( Hi, Hi_tot)
-    call gather_to_master( Hb, Hb_tot)
-    call gather_to_master( Hs, Hs_tot)
-    call gather_to_master( SL, SL_tot)
+    ! Gather ice geometry data in grid form to the primary
+    call gather_to_primary( Hi, Hi_tot)
+    call gather_to_primary( Hb, Hb_tot)
+    call gather_to_primary( Hs, Hs_tot)
+    call gather_to_primary( SL, SL_tot)
 
-    ! Let the master calculate the polygons and lines
+    ! Let the primary calculate the polygons and lines
 
-    if (par%master) then
+    if (par%primary) then
 
       ! allocate memory for thickness above floatation and Hb-SL
       allocate( TAF_tot(         mesh%nV))
@@ -372,15 +371,14 @@ contains
       n_line_ice_front      = size( p_line_ice_front     ,1)
       n_line_coastline      = size( p_line_coastline     ,1)
 
-    end if ! if (par%master) then
-    call sync
+    end if
 
     ! Broadcast polygon sizes to all processes
     call MPI_BCAST( n_poly_mult_sheet, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST( n_poly_mult_shelf, 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for the polygons on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( poly_mult_sheet( n_poly_mult_sheet,2))
       allocate( poly_mult_shelf( n_poly_mult_shelf,2))
     end if
@@ -396,7 +394,7 @@ contains
     call MPI_BCAST( n_line_coastline     , 1, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for the lines on the other processes
-    if (.not. par%master) then
+    if (.not. par%primary) then
       allocate( p_line_grounding_line( n_line_grounding_line,4))
       allocate( p_line_calving_front(  n_line_calving_front ,4))
       allocate( p_line_ice_front(      n_line_ice_front     ,4))

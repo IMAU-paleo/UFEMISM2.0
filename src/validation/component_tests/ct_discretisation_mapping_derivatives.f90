@@ -2,7 +2,7 @@ module ct_discretisation_mapping_derivatives
 
   ! Test the mesh matrix operators for mapping and derivatives
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
   use model_configuration, only: C
   use precisions, only: dp
   use parameters
@@ -46,8 +46,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '    Running mapping/derivative tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '    Running mapping/derivative tests...'
+    if (par%primary) write(0,*) ''
 
     call create_map_deriv_tests_output_folder( foldername_discretisation, foldername_map_deriv)
 
@@ -56,7 +56,7 @@ contains
       call run_all_map_deriv_tests_on_mesh( foldername_map_deriv, test_mesh_filename)
     end do
 
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) ''
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -80,7 +80,7 @@ contains
 
     foldername_map_deriv = trim(foldername_discretisation) // '/mapping_derivatives'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_map_deriv) // '/.', exist = ex)
@@ -116,7 +116,7 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '      Running mapping/derivative tests on mesh ', &
+    if (par%primary) write(0,*) '      Running mapping/derivative tests on mesh ', &
       colour_string(trim(test_mesh_filename( index( test_mesh_filename,'/',back=.true.)+1:&
       len_trim( test_mesh_filename))),'light blue'), '...'
 
@@ -180,7 +180,7 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '        Running all mapping/derivative tests on function ', &
+    if (par%primary) write(0,*) '        Running all mapping/derivative tests on function ', &
       colour_string(trim(function_name),'light blue'), '...'
 
     ! Calculate exact solutions

@@ -4,10 +4,9 @@ module grid_basic
 
 #include <petsc/finclude/petscksp.h>
   use petscksp
-  use mpi
   use precisions, only: dp
   use grid_types, only: type_grid
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
   use parameters
   use petsc_basic, only: mat_CSR2petsc
@@ -17,7 +16,7 @@ module grid_basic
   use mpi_distributed_memory, only: partition_list
   use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
     add_entry_CSR_dist, deallocate_matrix_CSR_dist
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master, distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
 
   implicit none
 

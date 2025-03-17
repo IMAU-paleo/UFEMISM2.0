@@ -117,7 +117,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_coinciding = verified_coinciding .and. &
             i_left == i-1+ii .and. &
             j_left == j
@@ -181,7 +181,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_notcoinciding = verified_notcoinciding .and. &
             i_left == i-1+ii .and. &
             j_left == j
@@ -260,7 +260,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_coinciding = verified_coinciding .and. &
             i_left == i+1-ii .and. &
             j_left == j
@@ -324,7 +324,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_notcoinciding = verified_notcoinciding .and. &
             i_left == i+1-ii .and. &
             j_left == j
@@ -403,7 +403,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_coinciding = verified_coinciding .and. &
             i_left == i-1 .and. &
             j_left == j-1+ii
@@ -467,7 +467,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_notcoinciding = verified_notcoinciding .and. &
             i_left == i .and. &
             j_left == j-1+ii
@@ -546,7 +546,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_coinciding = verified_coinciding .and. &
             i_left == i+1 .and. &
             j_left == j+1-ii
@@ -610,7 +610,7 @@ contains
           n_left = single_row%index_left( ii)
           i_left = grid%n2ij( n_left,1)
           j_left = grid%n2ij( n_left,2)
-          ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+          ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
           verified_notcoinciding = verified_notcoinciding .and. &
             i_left == i .and. &
             j_left == j+1-ii
@@ -682,7 +682,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
       verified_pq_through_b = verified_pq_through_b .and. &
         i_left == ii .and. &
         j_left == ii
@@ -712,7 +712,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       !   floor( real( ii+1,dp) / 2._dp), ',', floor( real( ii+2,dp) / 2._dp), '])'
       verified_pq_left_of_b = verified_pq_left_of_b .and. &
         i_left == floor( real( ii+1,dp) / 2._dp) .and. &
@@ -743,7 +743,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       !   floor( real( ii+2,dp) / 2._dp), ',', floor( real( ii+1,dp) / 2._dp), '])'
       verified_pq_right_of_b = verified_pq_right_of_b .and. &
         i_left == floor( real( ii+2,dp) / 2._dp) .and. &
@@ -813,7 +813,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
       verified_pq_through_b = verified_pq_through_b .and. &
         i_left == grid%nx+1-ii .and. &
         j_left == grid%ny+1-ii
@@ -843,7 +843,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       !   grid%nx - floor( real( ii-1,dp) / 2._dp), ',', grid%nx - floor( real( ii,dp) / 2._dp), '])'
       verified_pq_left_of_b = verified_pq_left_of_b .and. &
         i_left == grid%nx - floor( real( ii-1,dp) / 2._dp) .and. &
@@ -874,7 +874,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       !   grid%nx - floor( real( ii,dp) / 2._dp), ',', grid%nx - floor( real( ii-1,dp) / 2._dp), '])'
       verified_pq_right_of_b = verified_pq_right_of_b .and. &
         i_left == grid%nx - floor( real( ii  ,dp) / 2._dp) .and. &
@@ -944,7 +944,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
       verified_pq_through_b = verified_pq_through_b .and. &
         i_left == ii .and. &
         j_left == grid%ny+1-ii
@@ -974,7 +974,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       !   floor( real( ii+2,dp) / 2._dp), ',', grid%ny - floor( real( ii-1,dp) / 2._dp), '])'
       verified_pq_left_of_b = verified_pq_left_of_b .and. &
         i_left == floor( real( ii+2,dp) / 2._dp) .and. &
@@ -1005,7 +1005,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       !   floor( real( ii+1,dp) / 2._dp), ',', grid%ny - floor( real( ii,dp) / 2._dp), '])'
       verified_pq_right_of_b = verified_pq_right_of_b .and. &
         i_left == floor( real( ii+1,dp) / 2._dp) .and. &
@@ -1075,7 +1075,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, ']'
       verified_pq_through_b = verified_pq_through_b .and. &
         i_left == grid%nx+1-ii .and. &
         j_left == ii
@@ -1105,7 +1105,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       !   grid%nx - floor( real( ii-1,dp) / 2._dp), ',', floor( real( ii+2,dp) / 2._dp), '])'
       verified_pq_left_of_b = verified_pq_left_of_b .and. &
         i_left == grid%nx - floor( real( ii-1,dp) / 2._dp) .and. &
@@ -1136,7 +1136,7 @@ contains
       n_left = single_row%index_left( ii)
       i_left = grid%n2ij( n_left,1)
       j_left = grid%n2ij( n_left,2)
-      ! if (par%master) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
+      ! if (par%primary) write(0,*) '[i,j]-left(', ii, ') = [', i_left, ',', j_left, '] (attempt [', &
       ! grid%ny - floor( real( ii,dp) / 2._dp), ',', floor( real( ii+1,dp) / 2._dp), '])'
       verified_pq_right_of_b = verified_pq_right_of_b .and. &
         i_left == grid%ny - floor( real( ii,dp) / 2._dp) .and. &
@@ -1210,7 +1210,7 @@ contains
         n_left = single_row%index_left( 1)
         i_left = grid%n2ij( n_left,1)
         j_left = grid%n2ij( n_left,2)
-        ! if (par%master) write(0,*) '[i,j]-left = [', i_left, ',', j_left, '] (LI = ', &
+        ! if (par%primary) write(0,*) '[i,j]-left = [', i_left, ',', j_left, '] (LI = ', &
         !   single_row%LI_xdy( 1), '; ', grid%dx**2._dp, ')'
         verified = verified .and. &
           single_row%n == 1 .and. &

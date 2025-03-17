@@ -2,7 +2,7 @@ module conservation_of_mass_main
 
   ! Contains all the routines needed to calculate ice thickness rates of change (dH/dt)
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_MIN
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use model_configuration, only: C

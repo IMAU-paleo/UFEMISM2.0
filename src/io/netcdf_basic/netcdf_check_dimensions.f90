@@ -7,7 +7,7 @@ module netcdf_check_dimensions
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use netcdf, only: NF90_MAX_VAR_DIMS, NF90_DOUBLE, NF90_FLOAT, NF90_UNLIMITED, NF90_INT
   use netcdf_field_name_options
-  use netcdf_read_var_master
+  use netcdf_read_var_primary
 
   implicit none
 
@@ -68,18 +68,18 @@ subroutine check_x( filename, ncid)
   allocate( x( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, x)
+  call read_var_primary( filename, ncid, id_var, x)
 
-  if (par%master) call assert( (.not. any( isnan( x))), 'found NaNs in x')
+  if (par%primary) call assert( (.not. any( isnan( x))), 'found NaNs in x')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dx = x( 2) - x( 1)
     do i = 2, n
       dxp = x( i) - x( i-1)
       if (abs( 1._dp - dxp / dx) > 1E-5_dp) call crash('x coordinate in file "' // trim( filename) // '" is irregular!')
     end do
-  end if ! if (par%master) then
+  end if
   call sync
 
   ! Clean up after yourself
@@ -140,12 +140,12 @@ subroutine check_y( filename, ncid)
   allocate( y( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, y)
+  call read_var_primary( filename, ncid, id_var, y)
 
-  if (par%master) call assert( (.not. any( isnan( y))), 'found NaNs in y')
+  if (par%primary) call assert( (.not. any( isnan( y))), 'found NaNs in y')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dy = y( 2) - y( 1)
     do i = 2, n
       dyp = y( i) - y( i-1)
@@ -206,18 +206,18 @@ subroutine check_lon( filename, ncid)
   allocate( lon( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, lon)
+  call read_var_primary( filename, ncid, id_var, lon)
 
-  if (par%master) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
+  if (par%primary) call assert( (.not. any( isnan( lon))), 'found NaNs in lon')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dlon = lon( 2) - lon( 1)
     do i = 2, n
       dlonp = lon( i) - lon( i-1)
       if (abs( 1._dp - dlonp / dlon) > 1E-5_dp) call crash('longitude coordinate in file "' // trim( filename) // '" is irregular!')
     end do
-  end if ! if (par%master) then
+  end if
   call sync
 
   ! Clean up after yourself
@@ -271,18 +271,18 @@ subroutine check_lat( filename, ncid)
   allocate( lat( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, lat)
+  call read_var_primary( filename, ncid, id_var, lat)
 
-  if (par%master) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
+  if (par%primary) call assert( (.not. any( isnan( lat))), 'found NaNs in lat')
 
   ! Check grid spacing
-  if (par%master) then
+  if (par%primary) then
     dlat = lat( 2) - lat( 1)
     do i = 2, n
       dlatp = lat( i) - lat( i-1)
       if (abs( 1._dp - dlatp / dlat) > 1E-5_dp) call crash('latitude coordinate in file "' // trim( filename) // '" is irregular!')
     end do
-  end if ! if (par%master) then
+  end if
   call sync
 
   ! Clean up after yourself
@@ -556,10 +556,10 @@ subroutine check_zeta( filename, ncid)
   allocate( zeta( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, zeta)
+  call read_var_primary( filename, ncid, id_var, zeta)
 
   ! Check validity
-  if (par%master) then
+  if (par%primary) then
     call assert( (.not. any( isnan( zeta))), 'found NaNs in zeta')
 
     if (zeta( 1) /= 0._dp) call crash('zeta in file "' // trim( filename) // '" does not start at zero!')
@@ -652,10 +652,10 @@ subroutine check_time( filename, ncid)
     allocate( time( n))
 
     ! Read variable
-    call read_var_master( filename, ncid, id_var, time)
+    call read_var_primary( filename, ncid, id_var, time)
 
     ! Check validity
-    if (par%master) call assert( (.not. any( isnan( time))), 'found NaN in time')
+    if (par%primary) call assert( (.not. any( isnan( time))), 'found NaN in time')
 
     ! Clean up after yourself
     deallocate( time)
@@ -710,10 +710,10 @@ subroutine check_depth( filename, ncid)
   allocate( depth( n))
 
   ! Read variable
-  call read_var_master( filename, ncid, id_var, depth)
+  call read_var_primary( filename, ncid, id_var, depth)
 
   ! Check validity
-  if (par%master) then
+  if (par%primary) then
     call assert( (.not. any( isnan( depth))), 'found NaNs in depth')
 
     do k = 2, n

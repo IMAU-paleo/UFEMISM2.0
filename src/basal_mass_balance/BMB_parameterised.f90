@@ -112,7 +112,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising parameterised BMB model "' // &
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising parameterised BMB model "' // &
       colour_string( TRIM( C%choice_BMB_model_parameterised),'light blue') // '"...'
 
     ! Initialise the chosen parameterised BMB model
