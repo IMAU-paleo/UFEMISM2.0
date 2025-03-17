@@ -353,5 +353,148 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_insolation_timeframes_from_file
+  
+! == Prescribed CO2 record
+  SUBROUTINE update_CO2_at_model_time( time)
+    ! Interpolate the data in forcing%CO2 to find the value at the queried time.
+    ! If time lies outside the range of forcing%CO2_time, return the first/last value
+    !
+    ! NOTE: assumes time is listed in yr BP, so LGM would be -21000.0, and 0.0 corresponds to January 1st 1900.
+    !
+    ! NOTE: calculates average value over the preceding 30 years. For paleo this doesn't matter
+    !       in the least, but for the historical period this makes everything more smooth.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
+    INTEGER                                            :: ti1, ti2, til, tiu
+    REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2
+    REAL(dp), PARAMETER                                :: dt_smooth = 60._dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      ! Observed CO2 is needed for these forcing methods.
+    ELSE
+      CALL crash('should only be called when choice_forcing_method = "CO2_direct"!')
+    END IF
+
+    IF (par%master) THEN
+
+      IF     (time < MINVAL( forcing%CO2_time)) THEN
+        ! Model time before start of CO2 record; using constant extrapolation
+        forcing%CO2_obs = forcing%CO2_record( 1)
+      ELSEIF (time > MAXVAL( forcing%CO2_time)) THEN
+        ! Model time beyond end of CO2 record; using constant extrapolation
+        forcing%CO2_obs = forcing%CO2_record( C%CO2_record_length)
+      ELSE
+
+        ! Find range of raw time frames enveloping model time
+        ti1 = 1
+        DO WHILE (forcing%CO2_time( ti1) < time - dt_smooth .AND. ti1 < C%CO2_record_length)
+          ti1 = ti1 + 1
+        END DO
+        ti1 = MAX( 1, ti1 - 1)
+
+        ti2 = 2
+        DO WHILE (forcing%CO2_time( ti2) < time             .AND. ti2 < C%CO2_record_length)
+          ti2 = ti2 + 1
+        END DO
+
+        ! Calculate conservatively-remapped time-averaged CO2
+        intCO2 = 0._dp
+        DO til = ti1, ti2 - 1
+          tiu = til + 1
+
+          ! Linear interpolation between til and tiu: CO2( t) = a + b*t
+          b = (forcing%CO2_record( tiu) - forcing%CO2_record( til)) / (forcing%CO2_time( tiu) - forcing%CO2_time( til))
+          a = forcing%CO2_record( til) - b*forcing%CO2_time( til)
+
+          ! Window of overlap between [til,tiu] and [t - dt_smooth, t]
+          tl = MAX( forcing%CO2_time( til), time - dt_smooth)
+          tu = MIN( forcing%CO2_time( tiu), time            )
+          dintCO2 = (tu - tl) * (a + b * (tl + tu) / 2._dp)
+          intCO2 = intCO2 + dintCO2
+        END DO
+        forcing%CO2_obs = intCO2 / dt_smooth
+
+      END IF
+
+    END IF
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_CO2_at_model_time
+  SUBROUTINE initialise_CO2_record
+    ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is an ASCII text file with at least two columns (time in kyr and CO2 in ppmv)
+    ! and the number of rows being equal to C%CO2_record_length
+
+    ! NOTE: assumes time is listed in kyr BP (so LGM would be -21.0); converts to yr after reading!
+
+    IMPLICIT NONE
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_CO2_record'
+    INTEGER                                            :: i,ios
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      ! Observed CO2 is needed for these forcing methods.
+    ELSE
+      CALL crash('should only be called when choice_forcing_method = "CO2_direct"!')
+    END IF
+
+    ! Allocate shared memory to take the data
+    CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_time,   forcing%wCO2_time  )
+    CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_record, forcing%wCO2_record)
+    CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )
+
+    ! Read CO2 record (time and values) from specified text file
+    IF (par%master) THEN
+
+      WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+! check this?!
+      OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
+
+      DO i = 1, C%CO2_record_length
+        READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time( i), forcing%CO2_record( i)
+        IF (ios /= 0) THEN
+          CALL crash('length of text file "' // TRIM(C%filename_CO2_record) // '" does not match C%CO2_record_length!')
+        END IF
+      END DO
+
+      CLOSE( UNIT  = 1337)
+
+      IF (C%start_time_of_run/1000._dp < forcing%CO2_time(1)) THEN
+         CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
+      END IF
+      IF (C%end_time_of_run/1000._dp > forcing%CO2_time(C%CO2_record_length)) THEN
+         CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
+      END IF
+
+      ! Convert from kyr to yr
+      forcing%CO2_time = forcing%CO2_time * 1000._dp
+
+    END IF ! IF (par%master)
+    CALL sync
+
+    ! Set the value for the current (starting) model time
+    CALL update_CO2_at_model_time( C%start_time_of_run)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_CO2_record
 
 END MODULE climate_realistic
