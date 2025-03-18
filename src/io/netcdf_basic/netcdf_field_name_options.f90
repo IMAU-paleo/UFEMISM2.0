@@ -85,8 +85,8 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_SL             = 'SL'
   character(len=1024), parameter :: field_name_options_dHb            = 'dHb'
   character(len=1024), parameter :: field_name_options_Ti             = 'Ti'
-  character(len=1024), parameter :: field_name_options_T_ocean        = 'T_ocean||t_ocean||t_an'
-  character(len=1024), parameter :: field_name_options_S_ocean        = 'S_ocean||s_ocean||s_an'
+  character(len=1024), parameter :: field_name_options_T_ocean        = 'T_ocean||t_ocean||t_an||votemper'
+  character(len=1024), parameter :: field_name_options_S_ocean        = 'S_ocean||s_ocean||s_an||vosaline'
 
 contains
 
