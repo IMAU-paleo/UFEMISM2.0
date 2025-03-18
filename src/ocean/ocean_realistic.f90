@@ -1,44 +1,44 @@
-MODULE ocean_realistic
+module ocean_realistic
 
   ! Realistic ocean models
 
 ! ===== Preamble =====
 ! ====================
 
-  USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE parameters
-  USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
-  USE ocean_model_types                                      , ONLY: type_ocean_model
+  use precisions                                             , only: dp
+  use mpi_basic                                              , only: par, sync
+  use control_resources_and_error_messaging                  , only: crash, init_routine, finalise_routine, colour_string
+  use model_configuration                                    , only: C
+  use parameters
+  use mesh_types                                             , only: type_mesh
+  use ice_model_types                                        , only: type_ice_model
+  use ocean_model_types                                      , only: type_ocean_model
   use netcdf_io_main
 
-  IMPLICIT NONE
+  implicit none
 
-CONTAINS
+contains
 
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_ocean_model_realistic( mesh, ice, ocean)
+  subroutine run_ocean_model_realistic( mesh, ice, ocean)
     ! Calculate the ocean
     !
     ! Use an realistic ocean scheme
 
-    IMPLICIT NONE
+    implicit none
 
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_ice_model),                   intent(in)    :: ice
+    type(type_ocean_model),                 intent(inout) :: ocean
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_ocean_model_realistic'
+    character(len=256), parameter                         :: routine_name = 'run_ocean_model_realistic'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Run the chosen realistic ocean model
     select case (C%choice_ocean_model_realistic)
@@ -57,54 +57,54 @@ CONTAINS
     end select
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE run_ocean_model_realistic
+  end subroutine run_ocean_model_realistic
 
-  SUBROUTINE initialise_ocean_model_realistic( mesh, ocean, region_name)
+  subroutine initialise_ocean_model_realistic( mesh, ocean, region_name)
     ! Initialise the ocean model
     !
     ! Use an realistic ocean scheme
 
-    IMPLICIT NONE
+    implicit none
 
     ! In- and output variables
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
-    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_ocean_model),                 intent(inout) :: ocean
+    character(len=3),                       intent(in)    :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_ocean_model_realistic'
-    CHARACTER(LEN=256)                                    :: filename_ocean_snapshot
+    character(len=256), parameter                         :: routine_name = 'initialise_ocean_model_realistic'
+    character(len=256)                                    :: filename_ocean_snapshot
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%primary)  WRITE(*,"(A)") '     Initialising realistic ocean model "' // &
-      colour_string( TRIM( C%choice_ocean_model_realistic),'light blue') // '"...'
+    if (par%primary)  write(*,"(A)") '     Initialising realistic ocean model "' // &
+      colour_string( trim( C%choice_ocean_model_realistic),'light blue') // '"...'
 
     ! Run the chosen realistic ocean model
     select case (C%choice_ocean_model_realistic)
       case ('snapshot')
         ! Read single-time data from external file
 
-        ! Determine which ocean model to initialise for this region
-        IF     (region_name == 'NAM') THEN
-          filename_ocean_snapshot = C%filename_ocean_snapshot_NAM
-        ELSEIF (region_name == 'EAS') THEN
-          filename_ocean_snapshot = C%filename_ocean_snapshot_EAS
-        ELSEIF (region_name == 'GRL') THEN
-          filename_ocean_snapshot = C%filename_ocean_snapshot_GRL
-        ELSEIF (region_name == 'ANT') THEN
-          filename_ocean_snapshot = C%filename_ocean_snapshot_ANT
-        ELSE
-          CALL crash('unknown region_name "' // region_name // '"')
-        END IF
+        select case (region_name)
+          case ('NAM')
+            filename_ocean_snapshot = C%filename_ocean_snapshot_NAM
+          case ('EAS')
+            filename_ocean_snapshot = C%filename_ocean_snapshot_EAS
+          case ('GRL')
+            filename_ocean_snapshot = C%filename_ocean_snapshot_GRL
+          case ('ANT')
+            filename_ocean_snapshot = C%filename_ocean_snapshot_ANT
+          case default
+            call crash('unknown region_name "' // region_name // '"')
+        end select
 
         ! Fill in  main variables
-        CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, ocean%T)
-        CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, ocean%S)
+        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, ocean%T)
+        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, ocean%S)
 
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)
@@ -119,8 +119,8 @@ CONTAINS
     end select
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_ocean_model_realistic
+  end subroutine initialise_ocean_model_realistic
 
-END MODULE ocean_realistic
+end module ocean_realistic
