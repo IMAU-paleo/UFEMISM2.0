@@ -41,11 +41,20 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Run the chosen realistic ocean model
-    IF     (C%choice_ocean_model_realistic == 'snapshot') THEN
-      ! Do nothing
-    ELSE
-      CALL crash('unknown choice_ocean_model_realistic "' // TRIM( C%choice_ocean_model_realistic) // '"')
-    END IF
+    select case (C%choice_ocean_model_realistic)
+      case ('snapshot')
+
+        ! Apply extrapolation method if required
+        select case (C%choice_ocean_extrapolation_method)
+          case('initialisation')
+            ! TODO 
+          case default
+            call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
+        end select
+
+      case default
+        call crash('unknown choice_ocean_model_realistic "' // trim( C%choice_ocean_model_realistic) // '"')
+    end select
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -76,29 +85,38 @@ CONTAINS
       colour_string( TRIM( C%choice_ocean_model_realistic),'light blue') // '"...'
 
     ! Run the chosen realistic ocean model
-    IF (C%choice_ocean_model_realistic == 'snapshot') THEN
-      ! Read single-time data from external file
+    select case (C%choice_ocean_model_realistic)
+      case ('snapshot')
+        ! Read single-time data from external file
 
-      ! Determine which ocean model to initialise for this region
-      IF     (region_name == 'NAM') THEN
-        filename_ocean_snapshot = C%filename_ocean_snapshot_NAM
-      ELSEIF (region_name == 'EAS') THEN
-        filename_ocean_snapshot = C%filename_ocean_snapshot_EAS
-      ELSEIF (region_name == 'GRL') THEN
-        filename_ocean_snapshot = C%filename_ocean_snapshot_GRL
-      ELSEIF (region_name == 'ANT') THEN
-        filename_ocean_snapshot = C%filename_ocean_snapshot_ANT
-      ELSE
-        CALL crash('unknown region_name "' // region_name // '"')
-      END IF
+        ! Determine which ocean model to initialise for this region
+        IF     (region_name == 'NAM') THEN
+          filename_ocean_snapshot = C%filename_ocean_snapshot_NAM
+        ELSEIF (region_name == 'EAS') THEN
+          filename_ocean_snapshot = C%filename_ocean_snapshot_EAS
+        ELSEIF (region_name == 'GRL') THEN
+          filename_ocean_snapshot = C%filename_ocean_snapshot_GRL
+        ELSEIF (region_name == 'ANT') THEN
+          filename_ocean_snapshot = C%filename_ocean_snapshot_ANT
+        ELSE
+          CALL crash('unknown region_name "' // region_name // '"')
+        END IF
 
-      ! Fill in  main variables
-      CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, ocean%T)
-      CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, ocean%S)
+        ! Fill in  main variables
+        CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, ocean%T)
+        CALL read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, ocean%S)
 
-    ELSE
-      CALL crash('unknown choice_ocean_model_realistic "' // TRIM( C%choice_ocean_model_realistic) // '"')
-    END IF
+        ! Apply extrapolation method if required
+        select case (C%choice_ocean_extrapolation_method)
+          case('initialisation')
+            ! TODO 
+          case default
+            call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
+        end select
+
+      case default
+        call crash('unknown choice_ocean_model_realistic "' // trim( C%choice_ocean_model_realistic) // '"')
+    end select
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
