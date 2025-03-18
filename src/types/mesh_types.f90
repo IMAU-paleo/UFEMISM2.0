@@ -105,9 +105,12 @@ module mesh_types
     integer,  dimension(:,:  ), allocatable :: VVor                          !           For each regular vertex, the indices of the Voronoi vertices spanning its Voronoi cell
 
     ! Parallelisation ranges
-    integer                                 :: vi1, vi2, nV_loc              ! Each process "owns" nV_loc   vertices  vi1 - vi2, so that nV_loc   = vi2 + 1 - vi1
-    integer                                 :: ti1, ti2, nTri_loc            ! Each process "owns" nTri_loc triangles ti1 - ti2, so that nTri_loc = ti2 + 1 - ti1
-    integer                                 :: ei1, ei2, nE_loc              ! Each process "owns" nE_loc   edges     ei1 - ei2, so that nE_loc   = ei2 + 1 - ei1
+    integer                                 :: vi1_node, vi2_node, nV_node   ! Each node    "owns" nV_node   vertices  vi1_node - vi2_node, so that nV_node   = vi2_node + 1 - vi1_node
+    integer                                 :: ti1_node, ti2_node, nTri_node ! Each node    "owns" nTri_node triangles ti1_node - ti2_node, so that nTri_node = ti2_node + 1 - ti1_node
+    integer                                 :: ei1_node, ei2_node, nE_node   ! Each node    "owns" nE_node   edges     ei1_node - ei2_node, so that nE_node   = ei2_node + 1 - ei1_node
+    integer                                 :: vi1, vi2, nV_loc              ! Each process "owns" nV_loc    vertices  vi1      - vi2     , so that nV_loc    = vi2      + 1 - vi1
+    integer                                 :: ti1, ti2, nTri_loc            ! Each process "owns" nTri_loc  triangles ti1      - ti2     , so that nTri_loc  = ti2      + 1 - ti1
+    integer                                 :: ei1, ei2, nE_loc              ! Each process "owns" nE_loc    edges     ei1      - ei2     , so that nE_loc    = ei2      + 1 - ei1
 
   ! Matrix operators
   ! ================
