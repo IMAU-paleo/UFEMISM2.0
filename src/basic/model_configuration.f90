@@ -2812,14 +2812,14 @@ CONTAINS
       filename_climate_snapshot_EAS_config                        , &
       filename_climate_snapshot_GRL_config                        , &
       filename_climate_snapshot_ANT_config                        , &
-      lapse_rate_temp_NAM                                         , &
-      lapse_rate_temp_EAS                                         , &
-      lapse_rate_temp_GRL                                         , &
-      lapse_rate_temp_ANT                                         , &
-      lapse_rate_precip_NAM                                       , &
-      lapse_rate_precip_EAS                                       , &
-      lapse_rate_precip_GRL                                       , &
-      lapse_rate_precip_ANT                                       , &
+      lapse_rate_temp_NAM_config                                  , &
+      lapse_rate_temp_EAS_config                                  , &
+      lapse_rate_temp_GRL_config                                  , &
+      lapse_rate_temp_ANT_config                                  , &
+      lapse_rate_precip_NAM_config                                , &
+      lapse_rate_precip_EAS_config                                , &
+      lapse_rate_precip_GRL_config                                , &
+      lapse_rate_precip_ANT_config                                , &
       choice_insolation_forcing_config                            , &
       filename_insolation_config                                  , &
       static_insolation_time_config                               , &
