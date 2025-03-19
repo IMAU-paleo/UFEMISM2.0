@@ -16,7 +16,7 @@ module netcdf_read_field_from_series_file
 
   private
 
-  public :: read_field_from_series_file_monthly, read_field_from_lat_file_1D_monthly, read_time_from_file
+  public :: read_field_from_series_file_monthly, read_field_from_file_1D_monthly, read_time_from_file
 
 contains
 
@@ -27,7 +27,7 @@ contains
     character(len=*),          intent( in) :: filename
     character(len=*),          intent( in) :: field_name_options
     real(dp), dimension(:),    intent(out) :: series
-    real(dp),                  intent( in) :: time_to_read
+    real(dp),     optional,    intent( in) :: time_to_read
 
     ! Local variables
     character(len=1024), parameter         :: routine_name = 'read_field_from_series_file_monthly'
@@ -76,7 +76,7 @@ contains
 
   end subroutine read_field_from_series_file_monthly
 
-  subroutine read_field_from_lat_file_1D_monthly( filename, field_name_options, &
+  subroutine read_field_from_file_1D_monthly( filename, field_name_options, &
     d_grid_vec_partial, time_to_read)
     !< Read a 1-D monthly data field from a NetCDF file on a lat-grid, copying the values along the 'lon' dimension
 
@@ -89,7 +89,7 @@ contains
     real(dp),                 optional, intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter            :: routine_name = 'read_field_from_lat_file_1D_monthly'
+    character(len=1024), parameter            :: routine_name = 'read_field_from_file_1D_monthly'
     integer                                   :: ncid
     type(type_grid_lat)                       :: vec_loc
     type(type_grid_lonlat)                    :: grid_loc
@@ -198,7 +198,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_lat_file_1D_monthly
+  end subroutine read_field_from_file_1D_monthly
 
   subroutine read_time_from_file( filename, time)
     ! Reads the time variable/dimension of a file
