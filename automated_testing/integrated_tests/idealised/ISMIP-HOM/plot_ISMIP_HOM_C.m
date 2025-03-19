@@ -10,11 +10,12 @@ foldername_ensemble = '/Users/Beren017/Documents/GitHub/data/model_ensembles/ISM
 
 close all
 
-c_HO     = [0.1 ,0.5 ,0.2];
-c_FS     = [0.2 ,0.5 ,1.0];
-c_SIASSA = [1.0, 0.0, 0.0];
-c_DIVA   = [0.9, 0.7, 0.0];
-c_BPA    = [0.5, 0.2, 0.7];
+c_HO      = [0.1 ,0.5 ,0.2];
+c_FS      = [0.2 ,0.5 ,1.0];
+
+ls_SIASSA = '--';
+ls_DIVA   = '-';
+ls_BPA    = ':';
 
 wa = 250;
 ha = 200;
@@ -52,9 +53,9 @@ patch( 'parent',H.Ax{ 2,3},'vertices',[],'faces',[],'facecolor',c_FS,...
   'edgecolor','none','facealpha',0.7);
 % line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_HO,'linewidth',2);
 % line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_FS,'linewidth',2);
-line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_SIASSA,'linewidth',2);
-line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_DIVA  ,'linewidth',2);
-line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_BPA   ,'linewidth',2);
+line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color','k','linestyle',ls_SIASSA,'linewidth',2);
+line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color','k','linestyle',ls_DIVA  ,'linewidth',2);
+line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color','k','linestyle',ls_BPA   ,'linewidth',2);
 
 set( H.Ax{ 1,1},'ylim',[4,18]);
 set( H.Ax{ 1,2},'ylim',[10,20]);
@@ -138,11 +139,11 @@ for Li = 1:6
     approx = approxs{ approxi};
 
     if strcmpi( approx,'SIASSA')
-      colour = c_SIASSA;
+      ls = ls_SIASSA;
     elseif strcmpi( approx,'DIVA')
-      colour = c_DIVA;
+      ls = ls_DIVA;
     elseif strcmpi( approx,'BPA')
-      colour = c_BPA;
+      ls = ls_BPA;
     end
 
     foldername = ['results_ISMIP_HOM_C_' num2str(L) '_' approx];
@@ -153,7 +154,7 @@ for Li = 1:6
     u_surf = u_3D(:,1);
 
     % Plot results
-    line('parent',ax,'xdata',xt,'ydata',u_surf,'color',colour,...
+    line('parent',ax,'xdata',xt,'ydata',u_surf,'color','k','linestyle',ls,...
       'linewidth',2)
 
   end
