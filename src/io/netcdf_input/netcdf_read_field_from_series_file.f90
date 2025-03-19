@@ -235,7 +235,7 @@ contains
 
     ! Read time from file
     if (par%master) WRITE(0,*) '     Reading variable...'
-    call read_var_master( filename, ncid, id_var_time, time_from_file)
+    call read_var_primary( filename, ncid, id_var_time, time_from_file)
     if (par%master) WRITE(0,*) '     MPI broadcasting...'
     call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     time = time_from_file

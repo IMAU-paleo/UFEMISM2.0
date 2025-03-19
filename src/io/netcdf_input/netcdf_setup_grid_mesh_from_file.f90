@@ -369,7 +369,7 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
 
     ! Read and assign y
-    call read_var_master( filename, ncid, id_var_lat, vec%lat)
+    call read_var_primary( filename, ncid, id_var_lat, vec%lat)
     grid%lat  = vec%lat
 
     ! Broadcast x and y from the master to the other processes
