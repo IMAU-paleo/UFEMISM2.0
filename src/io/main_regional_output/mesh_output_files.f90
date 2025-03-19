@@ -508,9 +508,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call warning('ocean temperature not implemented yet!')
+        call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'T_ocean', region%ocean%T)
       case ('S_ocean')
-        call warning('ocean salinity not implemented yet!')
+        call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'S_ocean', region%ocean%S)
 
     ! == Surface mass balance ==
     ! ==========================
@@ -580,6 +580,8 @@ contains
         call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'viscV', region%BMB%laddie%viscV)
       case ('T_base')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_base', region%BMB%laddie%T_base)
+      case ('T_amb')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_amb', region%BMB%laddie%T_amb)
       case ('u_star')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_star', region%BMB%laddie%u_star)
       case ('gamma_T')
@@ -669,6 +671,7 @@ contains
     call add_time_dimension_to_file(  region%output_filename_mesh, ncid)
     call add_zeta_dimension_to_file(  region%output_filename_mesh, ncid, region%mesh%zeta)
     call add_month_dimension_to_file( region%output_filename_mesh, ncid)
+    call add_depth_dimension_to_file( region%output_filename_mesh, ncid, C%z_ocean)
 
     ! Operator matrices
     if (C%do_write_matrix_operators) then
@@ -1088,9 +1091,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call warning('ocean temperature not implemented yet!')
+        call add_field_mesh_dp_3D_ocean_notime( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
       case ('S_ocean')
-        call warning('ocean salinity not implemented yet!')
+        call add_field_mesh_dp_3D_ocean_notime( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'PSU')
 
     ! == Surface mass balance ==
     ! ==========================
@@ -1160,6 +1163,8 @@ contains
         call add_field_mesh_dp_2D_b( filename, ncid, 'viscV', long_name = 'Laddie V viscosity', units = 'm^2 s^-2')
       case ('T_base')
         call add_field_mesh_dp_2D( filename, ncid, 'T_base', long_name = 'Temperature at ice/ocean interface', units = 'deg C')
+      case ('T_amb')
+        call add_field_mesh_dp_2D( filename, ncid, 'T_amb', long_name = 'Temperature at interface with ambient ocean', units = 'deg C')
       case ('u_star')
         call add_field_mesh_dp_2D( filename, ncid, 'u_star', long_name = 'Friction velocity', units = 'm s^-1')
       case ('gamma_T')

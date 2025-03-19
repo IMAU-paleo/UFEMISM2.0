@@ -11,7 +11,7 @@ module mpi_basic
 
   private
 
-  public :: par, sync, initialise_parallelisation
+  public :: par, sync, initialise_parallelisation, sync_node
 
   type parallel_info
 
@@ -190,5 +190,14 @@ contains
     call MPI_BARRIER( MPI_COMM_WORLD, ierr)
 
   end subroutine sync
+
+  subroutine sync_node
+
+    ! Local variables:
+    integer :: ierr
+
+    call MPI_BARRIER( par%mpi_comm_node, ierr)
+
+  end subroutine sync_node
 
 end module mpi_basic
