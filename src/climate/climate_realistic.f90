@@ -42,6 +42,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Update temperature and precipitation fields based on the mismatch between 
+    ! the ice sheet surface elevation in the forcing climate and the model's ice sheet surface elevation
+    CALL update_climate_fields( mesh, ice, climate)
+
     ! Run the chosen realistic climate model
     IF     (C%choice_climate_model_realistic == 'snapshot') THEN
       ! Do nothing
@@ -91,12 +95,20 @@ CONTAINS
       ! Determine which climate model to initialise for this region
       IF     (region_name == 'NAM') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_NAM
+        climate%lapse_rate_precip = C%lapse_rate_precip_NAM
+        climate%lapse_rate_temp   = C%lapse_rate_temp_NAM
       ELSEIF (region_name == 'EAS') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_EAS
+        climate%lapse_rate_precip = C%lapse_rate_precip_EAS
+        climate%lapse_rate_temp   = C%lapse_rate_temp_EAS
       ELSEIF (region_name == 'GRL') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_GRL
+        climate%lapse_rate_precip = C%lapse_rate_precip_GRL
+        climate%lapse_rate_temp   = C%lapse_rate_temp_GRL
       ELSEIF (region_name == 'ANT') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_ANT
+        climate%lapse_rate_precip = C%lapse_rate_precip_ANT
+        climate%lapse_rate_temp   = C%lapse_rate_temp_ANT
       ELSE
         CALL crash('unknown region_name "' // region_name // '"')
       END IF
@@ -108,6 +120,8 @@ CONTAINS
       allocate(climate%Q_TOA(  mesh%vi1:mesh%vi2,12))
       allocate(climate%Albedo( mesh%vi1:mesh%vi2,12))
       allocate(climate%I_abs(  mesh%vi1:mesh%vi2))
+
+      call update_climate_fields( mesh, ice, climate)
 
       IF (par%master)  WRITE(*,"(A)") '     Initialising global forcings...'
       CALL initialise_global_forcings( mesh, forcing)
@@ -314,6 +328,47 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE get_insolation_at_time
+
+  SUBROUTINE update_climate_fields( mesh, ice, climate)
+    ! Applies the lapse rate corrections for temperature and precipitation
+    ! to correct for the mismatch between T and P at the forcing's ice surface elevation and the model's ice surface elevation
+
+    IMPLICIT NONE
+
+    TYPE(type_mesh)                       INTENT(IN)    :: mesh
+    TYPE(type_ice_model)                  INTENT(IN)    :: ice
+    TYPE(type_climate_model)              INTENT(INOUT) :: climate
+
+    ! Local Variables
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'update_climate_fields'
+    INTEGER                                             :: vi, m
+    REAL(dp)                                            :: deltaH, deltaT, deltaP
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF     (C%choice_climate_model_realistic == 'snapshot') THEN
+
+      ! Do corrections - based on Eq. 11 of Albrecht et al. (2020; TC) for PISM
+      do vi = mesh%vi1, mesh%vi2
+        deltaH = ice%Hs( vi) - climate%Hs( vi)
+        do m = 1, 12
+          ! we convert the lapse rates from %/K to -/K, and from K/km to K/m
+          deltaT = climate%T2m( vi, m) + climate%lapse_rate_temp * 1E-3_dp * deltaH
+          deltaP = climate%Precip( vi, m) * exp(climate%lapse_rate_precip 1E-2_dp * climate%lapse_rate_temp 1E-3_dp * deltaH)
+          climate%T2m( vi, m) = climate%T2m( vi, m) + deltaT
+          climate%Precip( vi, m) climate%Precip( vi, m) + deltaP
+        end do ! m
+      end do ! vi
+
+    ELSEIF (C%choice_climate_model_realistic == 'climate_matrix') THEN
+      ! Not yet implemented! Will likely use the lambda field from Berends et al. (2018)
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE
 
   SUBROUTINE update_insolation_timeframes_from_file( forcing, time, mesh)
     ! Read the NetCDF file containing the insolation forcing data. Only read the time frames enveloping the current

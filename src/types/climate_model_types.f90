@@ -20,9 +20,10 @@ MODULE climate_model_types
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Precip                  ! [m.w.e.] Monthly precipitation
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: Hs                      ! [m] orography
     
-    ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
-    REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: lambda
-    INTEGER :: wlambda
+    ! lapse rates for GCM snapshots 
+    REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: lambda ! Spatially variable (see Berends et al., 2018)
+    REAL(dp)                                  :: lapse_rate_precip  ! single-value per region (precipitation)
+    REAL(dp)                                  :: lapse_rate_temp    ! single-value per region (precipitation)
 
     ! Reference absorbed insolation (for GCM snapshots), or insolation at model time for the applied climate
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: Q_TOA                   ! [W/m2] Monthly mean insolation at the top of the atmosphere (taken from the prescribed insolation solution at orbit_time)
@@ -62,6 +63,7 @@ MODULE climate_model_types
       REAL(dp),                   ALLOCATABLE     :: ins_t0, ins_t1
       INTEGER,                    ALLOCATABLE     :: ins_ti0,ins_ti1
       REAL(dp), DIMENSION(:,:  ), ALLOCATABLE     :: ins_Q_TOA0, ins_Q_TOA1
+      
       
       INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
       
