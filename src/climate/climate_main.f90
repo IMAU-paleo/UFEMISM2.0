@@ -12,6 +12,7 @@ MODULE climate_main
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
+  use SMB_model_types                                        , only: type_SMB_model
   USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
@@ -36,7 +37,7 @@ CONTAINS
     TYPE(type_grid),                        INTENT(IN)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
-    TYPE(type_global_forcing)               INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
     TYPE(type_SMB_model), optional,         INTENT(IN)    :: SMB
@@ -142,9 +143,13 @@ CONTAINS
     ALLOCATE( climate%Hs(    mesh%vi1:mesh%vi2))
     ALLOCATE( climate%T2m(    mesh%vi1:mesh%vi2,12))
     ALLOCATE( climate%Precip( mesh%vi1:mesh%vi2,12))
+    allocate( climate%Wind_LR( mesh%vi1:mesh%vi2, 12))
+    allocate( climate%Wind_DU( mesh%vi1:mesh%vi2, 12))
     climate%Hs     = 0._dp
     climate%T2m    = 0._dp
     climate%Precip = 0._dp
+    climate%Wind_LR = 0._dp
+    climate%Wind_DU = 0._dp
 
     ! Set time of next calculation to start time
     climate%t_next = C%start_time_of_run

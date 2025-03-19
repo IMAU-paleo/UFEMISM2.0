@@ -285,6 +285,7 @@ UFEMISM_source = \
   \
   climate/climate_idealised.f90 \
   climate/climate_realistic.f90 \
+  climate/climate_matrix.f90 \
   climate/climate_main.f90 \
   \
   glacial_isostatic_adjustment/kelvin_function.f90 \

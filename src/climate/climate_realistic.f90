@@ -17,6 +17,13 @@ MODULE climate_realistic
 
   IMPLICIT NONE
 
+  private
+
+  public :: run_climate_model_realistic
+  public :: initialise_climate_model_realistic
+  public :: get_insolation_at_time
+  public :: update_CO2_at_model_time
+
 CONTAINS
 
 ! ===== Main routines =====
@@ -382,10 +389,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
       ! Observed CO2 is needed for these forcing methods.
     ELSE
-      CALL crash('should only be called when choice_forcing_method = "CO2_direct"!')
+      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
     END IF
 
     IF (par%master) THEN
@@ -456,10 +463,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
       ! Observed CO2 is needed for these forcing methods.
     ELSE
-      CALL crash('should only be called when choice_forcing_method = "CO2_direct"!')
+      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
     END IF
 
     ! Allocate shared memory to take the data

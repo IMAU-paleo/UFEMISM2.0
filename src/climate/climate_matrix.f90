@@ -4,25 +4,33 @@ module climate_matrix
 ! ====================
 
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync
+  USE mpi_basic                                              , ONLY: par, sync, ierr
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE climate_model_types                                    , ONLY: type_climate_model
-  USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
-  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic, get_insolation_at_time, update_CO2_at_model_time
+  USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing, type_climate_model_matrix, type_climate_snapshot
+  use SMB_model_types, only: type_SMB_model
+!  USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
+  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, get_insolation_at_time, update_CO2_at_model_time
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
   use mesh_data_smoothing, only: smooth_Gaussian
-  use mesh_operators, only: ddx_a_a_2D ! do I need to add more?
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D ! do I need to add more?
+  use erf_mod, only: error_function
+  use SMB_parameterised, only: run_SMB_model_parameterised_IMAUITM
   ! check the previous calleds
 !  use forcing_module, only: get_insolation_at_time, update_CO2_at_model_time
 ! added in climate_realistic the subroutines initialise_global_forcing, get_insolation_at_time, update_insolation_timeframes_from_file
-  IMPLICIT NONE
+  implicit none
 
-CONTAINS
+  private
+
+  public :: run_climate_model_matrix
+  public :: initialise_climate_matrix
+
+contains
 
 ! == Climate matrix
 ! ===========================
@@ -46,6 +54,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix'
+    INTEGER                                            :: vi ,m
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -56,10 +65,10 @@ CONTAINS
     CALL update_CO2_at_model_time( time, forcing) 
 
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
-    CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name)
+    CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name, forcing)
 
     ! Use the (CO2 + ice-sheet geometry)-based interpolation scheme for precipitation
-    CALL run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name)
+    CALL run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name, forcing)
 
     ! == Safety checks from UFE1.x
     ! ================
@@ -67,7 +76,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
       IF (climate%T2m( vi,m) < 150._dp) THEN
-        CALL warning('excessively low temperatures (<150K) detected!')
+        CALL crash('excessively low temperatures (<150K) detected!')
       ELSEIF (climate%T2m( vi,m) < 0._dp) THEN
         CALL crash('negative temperatures (<0K) detected!')
       ELSEIF (climate%T2m( vi,m) /= climate%T2m( vi,m)) THEN
@@ -85,7 +94,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix
-  SUBROUTINE run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name)
+  SUBROUTINE run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name, forcing)
     ! The (CO2 + absorbed insolation)-based matrix interpolation for temperature, from Berends et al. (2018)
 
     IMPLICIT NONE
@@ -96,16 +105,17 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
+    type(type_global_forcing), intent(inout) :: forcing
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_temperature'
     INTEGER                                            :: vi ,m
     REAL(dp)                                           :: CO2, w_CO2
-    REAL(dp), DIMENSION(:    ), POINTER                ::  w_ins,  w_ins_smooth,  w_ice,  w_tot
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            ::  w_ins,  w_ins_smooth,  w_ice,  w_tot
     REAL(dp)                                           :: w_ins_av
-    REAL(dp), DIMENSION(:,:  ), POINTER                :: T_ref_GCM
-    REAL(dp), DIMENSION(:    ), POINTER                :: Hs_GCM, lambda_GCM
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: T_ref_GCM
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Hs_GCM, lambda_GCM
     REAL(dp), PARAMETER                                :: w_cutoff = 0.5_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
     REAL(dp), PARAMETER                                :: P_offset = 0.008_dp       ! Normalisation term in precipitation anomaly to avoid divide-by-nearly-zero
 
@@ -126,15 +136,15 @@ CONTAINS
 
     IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
       CO2 = forcing%CO2_obs
-    ELSEIF (choice_matrix_forcing == 'd18O_inverse_CO2') THEN
+    ELSEIF (C%choice_matrix_forcing == 'd18O_inverse_CO2') THEN
       CALL crash('not implemented yet!')
-      CO2 = forcing%CO2_mod
-    ELSEIF (choice_matrix_forcing == 'd18O_inverse_dT_glob') THEN
+      !CO2 = forcing%CO2_mod
+    ELSEIF (C%choice_matrix_forcing == 'd18O_inverse_dT_glob') THEN
       CO2 = 0._dp
       CALL crash('must only be called with the correct forcing method, check your code!')
     ELSE
       CO2 = 0._dp
-      CALL crash('unknown choice_forcing_method"' // TRIM(choice_matrix_forcing) // '"!')
+      CALL crash('unknown choice_forcing_method"' // TRIM(C%choice_matrix_forcing) // '"!')
     END IF
 
     ! If CO2 ~= warm snap -> weight is 1. If ~= cold snap -> weight is 0.
@@ -170,7 +180,7 @@ CONTAINS
 
     ! Smooth the weighting field
     w_ins_smooth( mesh%vi1:mesh%vi2) = w_ins( mesh%vi1:mesh%vi2)
-    CALL smooth_Gaussian_2D( mesh, grid, w_ins_smooth, 200000._dp)
+    CALL smooth_Gaussian( mesh, grid, w_ins_smooth, 200000._dp)
 
     ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
@@ -227,7 +237,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix_temperature
-  SUBROUTINE run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name)
+  SUBROUTINE run_climate_model_matrix_precipitation( mesh, grid, ice, climate, region_name, forcing)
     ! The (CO2 + ice geometry)-based matrix interpolation for precipitation, from Berends et al. (2018)
     ! For NAM and EAS, this is based on local ice geometry and uses the Roe&Lindzen precipitation model for downscaling.
     ! For GRL and ANT, this is based on total ice volume,  and uses the simple CC   precipitation model for downscaling.
@@ -241,16 +251,17 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
+    type(type_global_forcing), intent(in) :: forcing
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_precipitation'
     INTEGER                                            :: vi, m
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_warm,  w_cold
-    INTEGER                                            :: ww_warm, ww_cold
+    REAL(dp), DIMENSION(:), ALLOCATABLE                ::  w_warm,  w_cold
+!    INTEGER                                            :: ww_warm, ww_cold
     REAL(dp)                                           :: w_tot
-    REAL(dp), DIMENSION(:,:,:), POINTER                :: T_ref_GCM, P_ref_GCM
-    REAL(dp), DIMENSION(:,:  ), POINTER                :: Hs_GCM
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE                :: T_ref_GCM, P_ref_GCM
+    REAL(dp), DIMENSION(:),   ALLOCATABLE                :: Hs_GCM
 
     REAL(dp), PARAMETER                                :: w_cutoff = 0.25_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
 
@@ -303,7 +314,7 @@ CONTAINS
       w_cold( mesh%vi1:mesh%vi2) = w_cold( mesh%vi1:mesh%vi2) * w_tot 
       
       ! Smooth the weighting field
-      CALL smooth_Gaussian_2D( grid, w_cold, 200000._dp)
+      CALL smooth_Gaussian( mesh, grid, w_cold, 200000._dp)
 
       w_warm( mesh%vi1:mesh%vi2) = 1._dp - w_cold( mesh%vi1:mesh%vi2)
 
@@ -379,8 +390,8 @@ CONTAINS
 
     ! Allocate shared memory
     allocate( climate%matrix%I_abs(           mesh%vi1:mesh%vi2))
-    allocate( climate%matrix%GCM_bias_T2m(    mesh%vi1:mesh%vi2), 12)
-    allocate( climate%matrix%GCM_bias_Precip( mesh%vi1:mesh%vi2), 12)
+    allocate( climate%matrix%GCM_bias_T2m(    mesh%vi1:mesh%vi2, 12))
+    allocate( climate%matrix%GCM_bias_Precip( mesh%vi1:mesh%vi2, 12))
     !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, climate%matrix%I_abs          , climate%matrix%wI_abs          )
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_T2m   , climate%matrix%wGCM_bias_T2m   )
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_Precip, climate%matrix%wGCM_bias_Precip)
@@ -615,7 +626,6 @@ CONTAINS
       snapshot%Precip( vi,m) = snapshot%Precip( vi,m) / bias_Precip( vi,m)
     END DO
     END DO
-    END DO
     CALL sync
 
     ! Finalise routine path
@@ -638,7 +648,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_calc_spatially_variable_lapserate'
     INTEGER                                             :: vi,m
-    INTEGER,  DIMENSION(:    ), POINTER                 ::  mask_calc_lambda
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE             ::  mask_calc_lambda
     REAL(dp)                                            :: dT_mean_nonice
     INTEGER                                             :: n_nonice, n_ice
     REAL(dp)                                            :: lambda_mean_ice
@@ -723,7 +733,7 @@ CONTAINS
     END DO
 
     ! Smooth the lapse rate field with a 160 km Gaussian filter
-    CALL smooth_Gaussian_2D( mesh, grid_smooth, snapshot%lambda, 160000._dp)
+    CALL smooth_Gaussian( mesh, grid_smooth, snapshot%lambda, 160000._dp)
 
     ! Normalise the entire region to a mean lapse rate of 8 K /km
     snapshot%lambda( mesh%vi1:mesh%vi2) = snapshot%lambda( mesh%vi1:mesh%vi2) * (C%constant_lapserate / lambda_mean_ice)
@@ -747,7 +757,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_calc_absorbed_insolation'
-    INTEGER                                             :: i,j,m
+    INTEGER                                             :: vi,m,i
     TYPE(type_ice_model)                                :: ice_dummy
     TYPE(type_climate_model)                            :: climate_dummy
     TYPE(type_SMB_model)                                :: SMB_dummy
@@ -783,48 +793,45 @@ CONTAINS
 
     ! Ice
     ! ===
-    allocate( ice_dummy%mask_ocean_a( mesh%vi1:mesh%vi2))
-    allocate( ice_dummy%mask_ice_a(   mesh%vi1:mesh%vi2))
-    allocate( ice_dummy%mask_shelf_a( mesh%vi1:mesh%vi2))
+    allocate( ice_dummy%mask_icefree_ocean( mesh%vi1:mesh%vi2))
+    allocate( ice_dummy%mask_grounded_ice(   mesh%vi1:mesh%vi2))
+    allocate( ice_dummy%mask_floating_ice( mesh%vi1:mesh%vi2))
 
     ! Fill in masks for the SMB model
     DO vi = mesh%vi1, mesh%vi2
 
       IF (snapshot%Hs( vi) == MINVAL(snapshot%Hs)) THEN
-        ice_dummy%mask_ocean_a( vi) = 1
+        ice_dummy%mask_icefree_ocean( vi) = .true.
       ELSE
-        ice_dummy%mask_ocean_a( vi) = 0
+        ice_dummy%mask_icefree_ocean( vi) = .false.
       END IF
 
       ! this IF is like (climate%Mask_ice( vi) > .3_dp) in Ufe1.x
       IF (snapshot%Hs( vi) > 100._dp .AND. SUM(snapshot%T2m( vi,:)) / 12._dp < 0._dp) THEN
-        ice_dummy%mask_ice_a(   vi) = 1
+        ice_dummy%mask_grounded_ice(   vi) = .true.
       ELSE
-        ice_dummy%mask_ice_a(   vi) = 0
+        ice_dummy%mask_grounded_ice(   vi) = .false.
       END IF
 
       ! mask_shelf is used in the SMB model only to find open ocean; since mask_ocean
       ! in this case already marks only open ocean, no need to look for shelves
-      ice_dummy%mask_shelf_a( vi) = 0
+      ice_dummy%mask_floating_ice( vi) = .false.
 
     END DO
 
     ! SMB
     ! ===
-    allocate( SMB_dummy%AlbedoSurf(       mesh%vi1:mesh%vi2)
-    allocate( SMB_dummy%MeltPreviousYear( mesh%vi1:mesh%vi2))
-    allocate( SMB_dummy%FirnDepth(        mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Rainfall(         mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Snowfall(         mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%AddedFirn(        mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Melt(             mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Refreezing(       mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Refreezing_year(  mesh%vi1:mesh%vi2))
-    allocate( SMB_dummy%Runoff(           mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Albedo(           mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Albedo_year(      mesh%vi1:mesh%vi2))
-    allocate( SMB_dummy%SMB(              mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%SMB_year(         mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%AlbedoSurf      (mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%Rainfall        (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Snowfall        (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%AddedFirn       (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Melt            (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Refreezing      (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Refreezing_year (mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%Runoff          (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Albedo          (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%Albedo_year     (mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%SMB_monthly     (mesh%vi1:mesh%vi2,12))
 
 ! not needed anymore.. commment for now
 !    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_constant, SMB_dummy%wC_abl_constant)
@@ -859,11 +866,11 @@ CONTAINS
     ! Run the SMB model for 10 years for this particular climate
     ! (experimentally determined to be long enough to converge)
     DO i = 1, 10
-      CALL run_SMB_model( mesh, ice_dummy, climate_dummy, 0._dp, SMB_dummy, mask_noice)
+      CALL run_SMB_model_parameterised_IMAUITM( mesh, ice_dummy, climate_dummy, SMB_dummy)
     END DO
 
     ! Calculate yearly total absorbed insolation
-    snapshot%I_abs( mesh%vi1:mesh%vi2,:) = 0._dp
+    snapshot%I_abs( mesh%vi1:mesh%vi2) = 0._dp
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
       snapshot%I_abs( vi) = snapshot%I_abs( vi) + snapshot%Q_TOA( vi,m) * (1._dp - SMB_dummy%Albedo( vi,m))
@@ -881,7 +888,7 @@ CONTAINS
   ! - the Roe & Lindzen temperature/orography-based model (used for NAM and EAS)
   SUBROUTINE adapt_precip_CC( mesh, Hs, Hs_GCM, T_ref_GCM, P_ref_GCM, Precip_GCM, region_name)
 
-    USE parameters_module, ONLY: T0
+    USE parameters, ONLY: T0
 
     IMPLICIT NONE
 
@@ -899,7 +906,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_CC'
     INTEGER                                            :: vi,m
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  T_inv,  T_inv_ref
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            ::  T_inv,  T_inv_ref
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -940,13 +947,14 @@ CONTAINS
       CALL sync
 
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR - adapt_precip_CC should only be used for Greenland and Antarctica!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF (par%master) THEN
+        CALL crash('ERROR - adapt_precip_CC should only be used for Greenland and Antarctica!')
+      END IF
     END IF
 
     ! Clean up after yourself
-    CALL deallocate_shared( wT_inv)
-    CALL deallocate_shared( wT_inv_ref)
+    !CALL deallocate_shared( wT_inv)
+    !CALL deallocate_shared( wT_inv_ref)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -970,9 +978,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_Roe'
     INTEGER                                            :: vi,m
-    REAL(dp), DIMENSION(:    ), POINTER                ::  dHs_dx1,  dHs_dx2
-    REAL(dp), DIMENSION(:    ), POINTER                ::  dHs_dy1,  dHs_dy2
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Precip_RL1,  Precip_RL2,  dPrecip_RL
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            ::  dHs_dx1,  dHs_dx2
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            ::  dHs_dy1,  dHs_dy2
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            ::  Precip_RL1,  Precip_RL2,  dPrecip_RL
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1022,7 +1030,7 @@ CONTAINS
   SUBROUTINE precipitation_model_Roe( T2m, dHs_dx, dHs_dy, Wind_LR, Wind_DU, Precip)
     ! Precipitation model of Roe (J. Glac, 2002), integration from Roe and Lindzen (J. Clim. 2001)
 
-    USE parameters_module, ONLY: T0, pi, sec_per_year
+    USE parameters, ONLY: T0, pi, sec_per_year
 
     ! In/output variables:
     REAL(dp),                            INTENT(IN)    :: T2m                  ! 2-m air temperature [K]
@@ -1037,7 +1045,7 @@ CONTAINS
     REAL(dp)                                           :: upwind_slope         ! Upwind slope
     REAL(dp)                                           :: E_sat                ! Saturation vapour pressure as function of temperature [Pa]
     REAL(dp)                                           :: x0                   ! Integration parameter x0 [m s-1]
-    REAL(dp)                                           :: err_in,err_out
+    REAL(dp)                                           :: err
 
     REAL(dp), PARAMETER                                :: e_sat0  = 611.2_dp   ! Saturation vapour pressure at 273.15 K [Pa]
     REAL(dp), PARAMETER                                :: c_one   = 17.67_dp   ! Constant c1 []
@@ -1060,11 +1068,11 @@ CONTAINS
     x0 = a_par / b_par + upwind_slope
 
     ! Calculate the error function (2nd term on the r.h.s.)
-    err_in = alpha * ABS(x0)
-    CALL error_function(err_in,err_out)
+    err = alpha * ABS(x0)
+    !CALL error_function(err)
 
     ! Calculate precipitation rate as in Appendix of Roe et al. (J. Clim, 2001)
-    Precip = ( b_par * E_sat ) * ( x0 / 2._dp + x0**2 * err_out / (2._dp * ABS(x0)) + &
+    Precip = ( b_par * E_sat ) * ( x0 / 2._dp + x0**2 * error_function(err) / (2._dp * ABS(x0)) + &
                                          EXP (-alpha**2 * x0**2) / (2._dp * SQRT(pi) * alpha) ) * sec_per_year
 
     ! Finalise routine path
