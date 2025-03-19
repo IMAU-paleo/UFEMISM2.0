@@ -81,6 +81,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_climate_model_realistic'
     CHARACTER(LEN=256)                                    :: filename_climate_snapshot
     REAL(dp)                                              :: timeframe_init_insolation
+    LOGICAL                                               :: do_lapse_rates
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -96,18 +97,22 @@ CONTAINS
       ! Determine which climate model to initialise for this region
       IF     (region_name == 'NAM') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_NAM
+        climate%do_lapse_rates    = C%do_lapse_rate_corrections_NAM
         climate%lapse_rate_precip = C%lapse_rate_precip_NAM
         climate%lapse_rate_temp   = C%lapse_rate_temp_NAM
       ELSEIF (region_name == 'EAS') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_EAS
+        climate%do_lapse_rates    = C%do_lapse_rate_corrections_EAS
         climate%lapse_rate_precip = C%lapse_rate_precip_EAS
         climate%lapse_rate_temp   = C%lapse_rate_temp_EAS
       ELSEIF (region_name == 'GRL') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_GRL
+        climate%do_lapse_rates    = C%do_lapse_rate_corrections_GRL
         climate%lapse_rate_precip = C%lapse_rate_precip_GRL
         climate%lapse_rate_temp   = C%lapse_rate_temp_GRL
       ELSEIF (region_name == 'ANT') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_ANT
+        climate%do_lapse_rates    = C%do_lapse_rate_corrections_ANT
         climate%lapse_rate_precip = C%lapse_rate_precip_ANT
         climate%lapse_rate_temp   = C%lapse_rate_temp_ANT
       ELSE
@@ -348,16 +353,16 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_climate_model_realistic == 'snapshot') THEN
+    IF     (C%choice_climate_model_realistic == 'snapshot') .AND. (climate%do_lapse_rates == .TRUE.) THEN
 
       ! Do corrections - based on Eq. 11 of Albrecht et al. (2020; TC) for PISM
       do vi = mesh%vi1, mesh%vi2
         deltaH = ice%Hs( vi) - climate%Hs( vi)
         do m = 1, 12
           ! we convert the lapse rates from %/K to -/K, and from K/km to K/m
-          deltaT = climate%T2m( vi, m) + climate%lapse_rate_temp * deltaH
-          deltaP = climate%Precip( vi, m) * exp(climate%lapse_rate_precip * climate%lapse_rate_temp * deltaH)
-          climate%T2m( vi, m)    = climate%T2m( vi, m) + deltaT
+          deltaT = climate%lapse_rate_temp * -deltaH
+          deltaP = climate%Precip( vi, m) * exp(climate%lapse_rate_precip * deltaT)
+          climate%T2m( vi, m)    = climate%T2m( vi, m)    + deltaT
           climate%Precip( vi, m) = climate%Precip( vi, m) + deltaP
         end do ! m
       end do ! vi

@@ -22,6 +22,7 @@ MODULE climate_model_types
     
     ! lapse rates for GCM snapshots 
     REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: lambda ! Spatially variable (see Berends et al., 2018)
+    LOGICAL                                   :: do_lapse_rates     ! whether or not to apply the lapse rates below
     REAL(dp)                                  :: lapse_rate_precip  ! single-value per region (precipitation)
     REAL(dp)                                  :: lapse_rate_temp    ! single-value per region (precipitation)
 
