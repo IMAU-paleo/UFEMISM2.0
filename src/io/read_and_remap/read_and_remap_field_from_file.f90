@@ -30,7 +30,7 @@ module read_and_remap_field_from_file
   private
 
   public :: read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
-    read_field_from_file_3D_ocean, read_field_from_file_0D
+    read_field_from_file_3D_ocean, read_field_from_file_0D, read_field_from_file_1D_monthly
 
 contains
 
@@ -93,7 +93,7 @@ contains
       allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))
 
       ! Read gridded data
-      call read_field_from_file_1D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
+      call read_field_from_lat_file_1D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
       call map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
