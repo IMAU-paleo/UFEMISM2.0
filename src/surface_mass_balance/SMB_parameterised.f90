@@ -153,6 +153,7 @@ contains
       END DO
 
       SMB%SMB( vi) = SUM(SMB%SMB_monthly( vi,:))
+      !IF (ice%mask_icefree_ocean( vi) .eqv. .TRUE.) SMB%SMB( vi) = 0._dp ! should we limit SMB over open ocean?
 
       ! Calculate total melt over this year, to be used for determining next year's albedo
       SMB%MeltPreviousYear( vi) = SUM(SMB%Melt( vi,:))
