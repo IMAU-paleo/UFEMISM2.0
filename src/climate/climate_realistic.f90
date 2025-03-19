@@ -13,7 +13,7 @@ MODULE climate_realistic
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing
-  use netcdf_io_main
+  USE netcdf_io_main
 
   IMPLICIT NONE
 
@@ -357,8 +357,8 @@ CONTAINS
           ! we convert the lapse rates from %/K to -/K, and from K/km to K/m
           deltaT = climate%T2m( vi, m) + climate%lapse_rate_temp * deltaH
           deltaP = climate%Precip( vi, m) * exp(climate%lapse_rate_precip * climate%lapse_rate_temp * deltaH)
-          climate%T2m( vi, m) = climate%T2m( vi, m) + deltaT
-          climate%Precip( vi, m) climate%Precip( vi, m) + deltaP
+          climate%T2m( vi, m)    = climate%T2m( vi, m) + deltaT
+          climate%Precip( vi, m) = climate%Precip( vi, m) + deltaP
         end do ! m
       end do ! vi
 
