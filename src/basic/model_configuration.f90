@@ -665,14 +665,14 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
     ! == Climate - fixed regional lapse rates
-    REAL(dp)            :: lapse_rate_temp_NAM                          = 7.9E-3_dp                          ! Elevation lapse rate effect on temperature [K m^-1]
-    REAL(dp)            :: lapse_rate_temp_EAS                          = 7.9E-3_dp                          ! 
-    REAL(dp)            :: lapse_rate_temp_GRL                          = 7.9E-3_dp                          ! 
-    REAL(dp)            :: lapse_rate_temp_ANT                          = 7.9E-3_dp                          ! 
-    REAL(dp)            :: lapse_rate_precip_NAM                        = 0.07_dp                            ! Elevation-desertification lapse rate [K^-1]
-    REAL(dp)            :: lapse_rate_precip_EAS                        = 0.07_dp                            ! 
-    REAL(dp)            :: lapse_rate_precip_GRL                        = 0.07_dp                            ! 
-    REAL(dp)            :: lapse_rate_precip_ANT                        = 0.07_dp                            ! 
+    REAL(dp)            :: lapse_rate_temp_NAM_config                   = 7.9E-3_dp                          ! Elevation lapse rate effect on temperature [K m^-1]
+    REAL(dp)            :: lapse_rate_temp_EAS_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_temp_GRL_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_temp_ANT_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_precip_NAM_config                 = 0.07_dp                            ! Elevation-desertification lapse rate [K^-1]
+    REAL(dp)            :: lapse_rate_precip_EAS_config                 = 0.07_dp                            ! 
+    REAL(dp)            :: lapse_rate_precip_GRL_config                 = 0.07_dp                            ! 
+    REAL(dp)            :: lapse_rate_precip_ANT_config                 = 0.07_dp                            ! 
     
 
     ! == Climate - Insolation
