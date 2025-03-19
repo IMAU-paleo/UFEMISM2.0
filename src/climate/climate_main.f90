@@ -97,13 +97,14 @@ CONTAINS
 
   END SUBROUTINE run_climate_model
 
-  SUBROUTINE initialise_climate_model( mesh, climate, forcing, region_name)
+  SUBROUTINE initialise_climate_model( mesh, ice, climate, forcing, region_name)
     ! Initialise the climate model
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
@@ -148,7 +149,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL initialise_climate_model_idealised( mesh, climate)
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh, climate, forcing, region_name)
+      CALL initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
