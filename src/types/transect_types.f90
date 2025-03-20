@@ -30,8 +30,14 @@ module transect_types
     integer :: id_var_SL
     integer :: id_var_Hi_eff
     integer :: id_var_Ti
-    integer :: id_var_u_par
-    integer :: id_var_u_ort
+    integer :: id_var_u_3D
+    integer :: id_var_v_3D
+    integer :: id_var_w_3D
+    integer :: id_var_u_par_3D
+    integer :: id_var_u_ort_3D
+    integer :: id_var_du_dx_3D
+    integer :: id_var_dv_dy_3D
+    integer :: id_var_dw_dz_3D
 
     integer :: id_var_ice_mass_flux
     integer :: id_var_GL_dist_from_start
