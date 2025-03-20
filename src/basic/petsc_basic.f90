@@ -14,11 +14,15 @@ MODULE petsc_basic
   USE reallocate_mod                                         , ONLY: reallocate
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, &
-    add_entry_CSR_dist, deallocate_matrix_CSR_dist, crop_matrix_CSR_dist, &
-    multiply_CSR_matrix_with_vector_1D, multiply_CSR_matrix_with_vector_2D
+    add_entry_CSR_dist, deallocate_matrix_CSR_dist, crop_matrix_CSR_dist
   use mpi_distributed_memory, only: partition_list, gather_to_all
 
   IMPLICIT NONE
+
+  private
+
+  public :: solve_matrix_equation_CSR_PETSc, vec_double2petsc, vec_petsc2double, &
+    mat_CSR2petsc, mat_petsc2CSR, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D
 
   INTEGER :: perr    ! Error flag for PETSc routines
 
@@ -87,14 +91,14 @@ CONTAINS
       CALL crash('matrix and vector sub-sizes dont match!')
     END IF
 
-  ! == Set up right-hand side and solution vectors as PETSc data structures
-  ! =======================================================================
+    ! == Set up right-hand side and solution vectors as PETSc data structures
+    ! =======================================================================
 
     CALL vec_double2petsc( xx, x)
     CALL vec_double2petsc( bb, b)
 
-  ! Set up the solver
-  ! =================
+    ! Set up the solver
+    ! =================
 
     ! Set up the KSP solver
     CALL KSPcreate( PETSC_COMM_WORLD, KSP_solver, perr)
@@ -112,8 +116,8 @@ CONTAINS
     ! KSPSetFromOptions() is called _after_ any other customization routines.
     CALL KSPSetFromOptions( KSP_solver, perr)
 
-  ! == Solve Ax=b
-  ! =============
+    ! == Solve Ax=b
+    ! =============
 
     ! Solve the linear system
     CALL solve_matrix_equation_PETSc_KSPSolve( KSP_solver, b, x)
@@ -403,12 +407,12 @@ CONTAINS
     ptr_proc( AA%m_loc) = AA%ptr( AA%i2+1) - AA%ptr( AA%i1)
 
     ! Create PETSc matrix
-!    IF (AA%balanced) then
+    ! IF (AA%balanced) then
       CALL MatCreateMPIAIJWithArrays( PETSC_COMM_WORLD, AA%m_loc, AA%n_loc, AA%m, AA%n, ptr_proc, ind_proc, val_proc, A, perr)
-!    ELSE
-!      ! Special treatment if the rows are not partitioned according to PETSC
-!      CALL MatCreateMPIAIJWithArrays( PETSC_COMM_WORLD, nrows_proc, nrows_proc, AA%m, AA%n, ptr_proc, ind_proc, val_proc, A, perr)
-!    END IF
+    ! ELSE
+    !   ! Special treatment if the rows are not partitioned according to PETSC
+    !   CALL MatCreateMPIAIJWithArrays( PETSC_COMM_WORLD, nrows_proc, nrows_proc, AA%m, AA%n, ptr_proc, ind_proc, val_proc, A, perr)
+    ! END IF
 
     ! Assemble matrix and vectors, using the 2-step process:
     !   MatAssemblyBegin(), MatAssemblyEnd()
@@ -455,7 +459,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Determine local and global size and local ownership range of Fortran vectors
+    ! == Determine local and global size and local ownership range of Fortran vectors
 
     ! == x
 
@@ -483,7 +487,7 @@ CONTAINS
     i1Fy_glob = SUM( nFy_loc_all( 1:par%i)) + 1
     i2Fy_glob = i1Fy_glob + nFy_loc - 1
 
-  ! == Determine local and global size and local ownership range of PETSc matrix
+    ! == Determine local and global size and local ownership range of PETSc matrix
 
     CALL MatGetSize(      A, mA_glob, nA_glob, perr)
     CALL MatGetLocalSize( A, mA_loc , nA_loc , perr)

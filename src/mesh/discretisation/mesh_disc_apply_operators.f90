@@ -7,7 +7,7 @@ module mesh_disc_apply_operators
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use mpi_distributed_memory, only: gather_to_all
-  use petsc_basic, only: multiply_CSR_matrix_with_vector_1D, &
+  use CSR_sparse_matrix_utilities, only: multiply_CSR_matrix_with_vector_1D, &
     multiply_CSR_matrix_with_vector_2D
 
   implicit none
