@@ -10,7 +10,7 @@ module apply_maps
   use grid_types, only: type_grid, type_grid_lonlat
   use transect_types, only: type_transect
   use remapping_types, only: type_map
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use petsc_basic, only: multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
     mat_petsc2CSR, MatDestroy
   use mesh_utilities, only: set_border_vertices_to_interior_mean_dp_2D, set_border_vertices_to_interior_mean_dp_3D

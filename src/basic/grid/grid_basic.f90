@@ -14,7 +14,8 @@ module grid_basic
   use interpolation, only: linint_points
   use projections, only: inverse_oblique_sg_projection
   use mpi_distributed_memory, only: partition_list
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, &
     add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
 
