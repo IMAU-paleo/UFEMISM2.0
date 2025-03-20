@@ -13,7 +13,7 @@ module remapping_mesh_to_mesh
     add_empty_row_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use plane_geometry, only: triangle_area
   use mesh_utilities, only: calc_Voronoi_cell, find_containing_triangle, find_containing_vertex
-  use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR, MatConvert
+  use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR
   use line_tracing_triangles, only: trace_line_tri
   use line_tracing_Voronoi, only: trace_line_Vor
   use netcdf_output
