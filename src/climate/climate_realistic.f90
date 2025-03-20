@@ -349,27 +349,46 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                        :: routine_name = 'update_climate_fields'
     INTEGER                                              :: vi, m
     REAL(dp)                                             :: deltaH, deltaT, deltaP
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE                :: T_inv, T_inv_ref
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     (C%choice_climate_model_realistic == 'snapshot') .AND. (climate%do_lapse_rates == .TRUE.) THEN
+    IF     ((C%choice_climate_model_realistic == 'snapshot') .AND. (climate%do_lapse_rates .eqv. .TRUE.)) THEN
 
-      ! Do corrections - based on Eq. 11 of Albrecht et al. (2020; TC) for PISM
+      allocate( T_inv     (mesh%vi1:mesh%vi2, 12))
+      allocate( T_inv_ref (mesh%vi1:mesh%vi2, 12))
+
+      
       do vi = mesh%vi1, mesh%vi2
-        deltaH = ice%Hs( vi) - climate%Hs( vi)
-        do m = 1, 12
-          ! we convert the lapse rates from %/K to -/K, and from K/km to K/m
-          deltaT = climate%lapse_rate_temp * -deltaH
-          deltaP = climate%Precip( vi, m) * exp(climate%lapse_rate_precip * deltaT)
-          climate%T2m( vi, m)    = climate%T2m( vi, m)    + deltaT
-          climate%Precip( vi, m) = climate%Precip( vi, m) + deltaP
-        end do ! m
+
+        ! we only apply corrections where it is not open ocean
+        if (ice%mask_icefree_ocean( vi) .eqv. .FALSE.) then
+          deltaT  = (ice%Hs( vi) - climate%Hs( vi)) * (-1._dp * abs(climate%lapse_rate_temp))
+          do m = 1, 12
+            ! Do corrections - based on Eq. 11 of Albrecht et al. (2020; TC) for PISM
+            climate%T2m( vi, m)    = climate%T2m( vi, m)    + deltaT
+            
+
+            ! Calculate inversion-layer temperatures
+            T_inv_ref( vi, m) = 88.9_dp + 0.67_dp *  climate%T2m( vi, m)
+            T_inv(     vi, m) = 88.9_dp + 0.67_dp * (climate%T2m( vi, m) - climate%lapse_rate_temp * (ice%Hs( vi) - climate%Hs( vi)))
+            ! Correct precipitation based on a simple Clausius-Clapeyron method (Jouzel & Merlivat, 1984; Huybrechts, 2002)
+            ! Same as implemented in IMAU-ICE
+            climate%precip( vi, m) = climate%precip( vi, m) * (T_inv_ref( vi, m) / T_inv( vi, m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi, m) - T0 / T_inv( vi, m)))
+            
+          end do ! m
+        end if
       end do ! vi
 
+      deallocate(T_inv)
+      deallocate(T_inv_ref)
+      
     ELSEIF (C%choice_climate_model_realistic == 'climate_matrix') THEN
       ! Not yet implemented! Will likely use the lambda field from Berends et al. (2018)
     END IF
+
+    
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

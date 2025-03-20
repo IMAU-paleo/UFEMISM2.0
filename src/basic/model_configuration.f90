@@ -665,10 +665,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
     ! == Climate - fixed regional lapse rates
-    LOGICAL             :: do_lapse_rate_corrections_NAM_config        = .FALSE.                          ! whether or not to apply the lapse rates below - they seem to produce much higher SMB at the ice sheet fringes
-    LOGICAL             :: do_lapse_rate_corrections_EAS_config        = .FALSE.
-    LOGICAL             :: do_lapse_rate_corrections_GRL_config        = .FALSE.
-    LOGICAL             :: do_lapse_rate_corrections_ANT_config        = .FALSE.
+    LOGICAL             :: do_lapse_rate_corrections_NAM_config         = .FALSE.                          ! whether or not to apply the lapse rates below - they seem to produce much higher SMB at the ice sheet fringes
+    LOGICAL             :: do_lapse_rate_corrections_EAS_config         = .FALSE.
+    LOGICAL             :: do_lapse_rate_corrections_GRL_config         = .FALSE.
+    LOGICAL             :: do_lapse_rate_corrections_ANT_config         = .FALSE.
     REAL(dp)            :: lapse_rate_temp_NAM_config                   = 7.9E-3_dp                          ! Elevation lapse rate effect on temperature [K m^-1]
     REAL(dp)            :: lapse_rate_temp_EAS_config                   = 7.9E-3_dp                          ! 
     REAL(dp)            :: lapse_rate_temp_GRL_config                   = 7.9E-3_dp                          ! 
