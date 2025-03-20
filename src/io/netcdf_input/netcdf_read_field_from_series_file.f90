@@ -4,7 +4,7 @@ module netcdf_read_field_from_series_file
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
   use model_configuration, only: C
-  use mpi_distributed_memory, only: distribute_from_master
+  use mpi_distributed_memory, only: distribute_from_primary
   use netcdf_determine_indexing
   use netcdf_basic
   use grid_lonlat_basic
@@ -27,7 +27,7 @@ contains
     character(len=*),          intent( in) :: filename
     character(len=*),          intent( in) :: field_name_options
     real(dp), dimension(:),    intent(out) :: series
-    real(dp),                  intent( in) :: time_to_read
+    real(dp),     optional,    intent( in) :: time_to_read
 
     ! Local variables
     character(len=1024), parameter         :: routine_name = 'read_field_from_series_file_monthly'
@@ -54,19 +54,19 @@ contains
     call check_month( filename, ncid)
 
     !Allocate memory for time series
-    if (par%master) allocate( monthly_cycle( 12))
+    if (par%primary) allocate( monthly_cycle( 12))
 
     ! Find out which timeframe to read
     call find_timeframe( filename, ncid, time_to_read, ti)
 
     ! Read data
-    call read_var_master( filename, ncid, id_var, monthly_cycle, start=(/ 1, ti /), count=(/ 12, 1 /) )
+    call read_var_primary( filename, ncid, id_var, monthly_cycle, start=(/ 1, ti /), count=(/ 12, 1 /) )
 
     ! Copy to output memory
     series = monthly_cycle
 
     ! Clean up after yourself
-    if (par%master) deallocate(monthly_cycle)
+    if (par%primary) deallocate(monthly_cycle)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -131,10 +131,10 @@ contains
 
       ! allocate memory
       allocate( d_vec( vec_loc%nlat, 12))
-      call read_var_master( filename, ncid, id_var, d_vec)
+      call read_var_primary( filename, ncid, id_var, d_vec)
       
       ! copy along the longitudes
-      if (par%master) then
+      if (par%primary) then
         do i = 1, grid_loc%nlon
             d_grid(i,:,:) = d_vec
         end do
@@ -142,17 +142,17 @@ contains
     else
     
       ! allocate memory
-      !if (par%master) allocate( d_grid_with_time( grid_loc%nlon, vec_loc%nlat, 12, 1)) ! probably not used
+      !if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, vec_loc%nlat, 12, 1)) ! probably not used
       allocate( d_vec_with_time( 1, 12, vec_loc%nlat))
 
       ! Find out which timeframe to read
       call find_timeframe( filename, ncid, time_to_read, ti)
 
       ! Read data
-      call read_var_master( filename, ncid, id_var, d_vec_with_time, start = (/ ti, 1, 1 /), count = (/ 1, 12, vec_loc%nlat /) )
+      call read_var_primary( filename, ncid, id_var, d_vec_with_time, start = (/ ti, 1, 1 /), count = (/ 1, 12, vec_loc%nlat /) )
       
       ! Copy to output memory, replicating along the longitudes and into the proper dimensions
-      if (par%master) then
+      if (par%primary) then
         do i = 1, grid_loc%nlon
         do m = 1, 12
             d_grid(i,:,m) = d_vec_with_time(1,m,:)
@@ -179,16 +179,16 @@ contains
       ! No need to do anything
     !elseif (latdir == 'reverse') then
     !  call flip( grid_loc%lat)
-    !  if (par%master) call flip( d_grid, 2)
+    !  if (par%primary) call flip( d_grid, 2)
     !else
     !  call crash('unknown latdir = "' // trim( latdir) // '"!')
     !end if
 
-    ! == Distribute gridded data from the master to all processes in partial vector form
+    ! == Distribute gridded data from the primary to all processes in partial vector form
     ! ==================================================================================
 
     ! Distribute data
-    call distribute_lonlat_gridded_data_from_master_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
+    call distribute_lonlat_gridded_data_from_primary_dp_3D( grid_loc, d_grid, d_grid_vec_partial)
 
     ! Clean up after yourself
     deallocate( d_grid)
@@ -218,7 +218,7 @@ contains
     call init_routine( routine_name)
 
     ! Open the NetCDF file
-    if (par%master) WRITE(0,*) '     Opening file to read time...'
+    if (par%primary) WRITE(0,*) '     Opening file to read time...'
     call open_existing_netcdf_file_for_reading( filename, ncid)
 
     ! Check if the file contains a valid time dimension and variable
@@ -234,9 +234,9 @@ contains
     allocate( time_from_file( nt))
 
     ! Read time from file
-    if (par%master) WRITE(0,*) '     Reading variable...'
-    call read_var_master( filename, ncid, id_var_time, time_from_file)
-    if (par%master) WRITE(0,*) '     MPI broadcasting...'
+    if (par%primary) WRITE(0,*) '     Reading variable...'
+    call read_var_primary( filename, ncid, id_var_time, time_from_file)
+    if (par%primary) WRITE(0,*) '     MPI broadcasting...'
     call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     time = time_from_file
     !deallocate(time)

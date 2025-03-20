@@ -78,7 +78,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(*,"(a)") '   Running parameterised SMB model "' // &
+    if (par%primary) write(*,"(a)") '   Running parameterised SMB model "' // &
       colour_string( trim( C%choice_SMB_parameterised),'light blue') // '"...'
 
     ! Run the chosen parameterised SMB model
@@ -153,6 +153,7 @@ contains
       END DO
 
       SMB%SMB( vi) = SUM(SMB%SMB_monthly( vi,:))
+      !IF (ice%mask_icefree_ocean( vi) .eqv. .TRUE.) SMB%SMB( vi) = 0._dp ! should we limit SMB over open ocean?
 
       ! Calculate total melt over this year, to be used for determining next year's albedo
       SMB%MeltPreviousYear( vi) = SUM(SMB%Melt( vi,:))
@@ -187,7 +188,7 @@ contains
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising parameterised SMB model "' // &
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising parameterised SMB model "' // &
       colour_string( TRIM( C%choice_SMB_parameterised),'light blue') // '"...'
 
     ! Initialise the chosen parameterised SMB model
@@ -351,7 +352,7 @@ contains
     END SELECT
 
      ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising SMB-model firn layer from file "' // colour_string( TRIM(filename_restart_firn),'light blue') // '"...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising SMB-model firn layer from file "' // colour_string( TRIM(filename_restart_firn),'light blue') // '"...'
 
 
     ! Read firn layer from file

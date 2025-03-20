@@ -96,12 +96,12 @@ CONTAINS
       CASE ('idealised')
         CALL run_SMB_model_idealised( mesh, ice, SMB, time)
       CASE ('prescribed')
-        IF (par%master)  WRITE(*,"(A)") '   Running prescribed SMB...'
+        IF (par%primary)  WRITE(*,"(A)") '   Running prescribed SMB...'
         CALL run_SMB_model_prescribed( mesh, ice, SMB, region_name, time)
       CASE ('reconstructed')
         CALL run_SMB_model_reconstructed( mesh, grid_smooth, ice, SMB, region_name, time)
       CASE ('parameterised')  
-        IF (par%master)  WRITE(*,"(A)") '   Running parameterised SMB...'
+        IF (par%primary)  WRITE(*,"(A)") '   Running parameterised SMB...'
         CALL run_SMB_model_parameterised( mesh, ice, SMB, climate, time)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -162,12 +162,12 @@ CONTAINS
       CASE ('idealised')
         CALL initialise_SMB_model_idealised( mesh, SMB)
       CASE ('prescribed')
-        IF (par%master)  WRITE(*,"(A)") '   Initialising prescribed SMB...'
+        IF (par%primary)  WRITE(*,"(A)") '   Initialising prescribed SMB...'
         CALL initialise_SMB_model_prescribed( mesh, SMB, region_name)
       CASE ('reconstructed')
         CALL initialise_SMB_model_reconstructed( mesh, SMB, region_name)
       CASE ('parameterised')  
-        IF (par%master)  WRITE(*,"(A)") '   Initialising parameterised SMB...'
+        IF (par%primary)  WRITE(*,"(A)") '   Initialising parameterised SMB...'
         CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -254,7 +254,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to SMB restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to SMB restart file "' // &
       colour_string( TRIM( SMB%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -359,7 +359,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, SMB%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating SMB model restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating SMB model restart file "' // &
       colour_string( TRIM( SMB%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file

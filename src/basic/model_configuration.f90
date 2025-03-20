@@ -664,6 +664,21 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL_config         = ''
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
+    ! == Climate - fixed regional lapse rates
+    LOGICAL             :: do_lapse_rate_corrections_NAM_config         = .FALSE.                          ! whether or not to apply the lapse rates below - they seem to produce much higher SMB at the ice sheet fringes
+    LOGICAL             :: do_lapse_rate_corrections_EAS_config         = .FALSE.
+    LOGICAL             :: do_lapse_rate_corrections_GRL_config         = .FALSE.
+    LOGICAL             :: do_lapse_rate_corrections_ANT_config         = .FALSE.
+    REAL(dp)            :: lapse_rate_temp_NAM_config                   = 7.9E-3_dp                          ! Elevation lapse rate effect on temperature [K m^-1]
+    REAL(dp)            :: lapse_rate_temp_EAS_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_temp_GRL_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_temp_ANT_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_precip_NAM_config                 = 0.07_dp                            ! Elevation-desertification lapse rate [K^-1]
+    REAL(dp)            :: lapse_rate_precip_EAS_config                 = 0.07_dp                            ! 
+    REAL(dp)            :: lapse_rate_precip_GRL_config                 = 0.07_dp                            ! 
+    REAL(dp)            :: lapse_rate_precip_ANT_config                 = 0.07_dp                            ! 
+    
+
     ! == Climate - Insolation
     CHARACTER(LEN=256)  :: choice_insolation_forcing_config             = 'none'                           ! 'none', 'static' or 'realistic'
     CHARACTER(LEN=256)  :: filename_insolation_config                   = ''                               ! File with the insolation solution (Laskar 2004)
@@ -1730,6 +1745,20 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT
 
+    ! == Climate - fixed regional lapse rates
+    LOGICAL             :: do_lapse_rate_corrections_NAM
+    LOGICAL             :: do_lapse_rate_corrections_EAS
+    LOGICAL             :: do_lapse_rate_corrections_GRL
+    LOGICAL             :: do_lapse_rate_corrections_ANT
+    REAL(dp)            :: lapse_rate_temp_NAM
+    REAL(dp)            :: lapse_rate_temp_EAS
+    REAL(dp)            :: lapse_rate_temp_GRL
+    REAL(dp)            :: lapse_rate_temp_ANT  
+    REAL(dp)            :: lapse_rate_precip_NAM
+    REAL(dp)            :: lapse_rate_precip_EAS
+    REAL(dp)            :: lapse_rate_precip_GRL
+    REAL(dp)            :: lapse_rate_precip_ANT
+
     ! == Climate - Insolation
     CHARACTER(LEN=256)  :: choice_insolation_forcing
     CHARACTER(LEN=256)  :: filename_insolation
@@ -2791,6 +2820,18 @@ CONTAINS
       filename_climate_snapshot_EAS_config                        , &
       filename_climate_snapshot_GRL_config                        , &
       filename_climate_snapshot_ANT_config                        , &
+      do_lapse_rate_corrections_NAM_config                        , &
+      do_lapse_rate_corrections_EAS_config                        , &
+      do_lapse_rate_corrections_GRL_config                        , &
+      do_lapse_rate_corrections_ANT_config                        , &
+      lapse_rate_temp_NAM_config                                  , &
+      lapse_rate_temp_EAS_config                                  , &
+      lapse_rate_temp_GRL_config                                  , &
+      lapse_rate_temp_ANT_config                                  , &
+      lapse_rate_precip_NAM_config                                , &
+      lapse_rate_precip_EAS_config                                , &
+      lapse_rate_precip_GRL_config                                , &
+      lapse_rate_precip_ANT_config                                , &
       choice_insolation_forcing_config                            , &
       filename_insolation_config                                  , &
       static_insolation_time_config                               , &
@@ -3741,6 +3782,20 @@ CONTAINS
     C%filename_climate_snapshot_EAS                          = filename_climate_snapshot_EAS_config
     C%filename_climate_snapshot_GRL                          = filename_climate_snapshot_GRL_config
     C%filename_climate_snapshot_ANT                          = filename_climate_snapshot_ANT_config
+
+    ! Lapse rates
+    C%do_lapse_rate_corrections_NAM                          = do_lapse_rate_corrections_NAM_config
+    C%do_lapse_rate_corrections_EAS                          = do_lapse_rate_corrections_EAS_config
+    C%do_lapse_rate_corrections_GRL                          = do_lapse_rate_corrections_GRL_config
+    C%do_lapse_rate_corrections_ANT                          = do_lapse_rate_corrections_ANT_config
+    C%lapse_rate_temp_NAM                                    = lapse_rate_temp_NAM_config
+    C%lapse_rate_temp_EAS                                    = lapse_rate_temp_EAS_config
+    C%lapse_rate_temp_GRL                                    = lapse_rate_temp_GRL_config
+    C%lapse_rate_temp_ANT                                    = lapse_rate_temp_ANT_config
+    C%lapse_rate_precip_NAM                                  = lapse_rate_precip_NAM_config
+    C%lapse_rate_precip_EAS                                  = lapse_rate_precip_EAS_config
+    C%lapse_rate_precip_GRL                                  = lapse_rate_precip_GRL_config
+    C%lapse_rate_precip_ANT                                  = lapse_rate_precip_ANT_config
 
     C%choice_insolation_forcing                              = choice_insolation_forcing_config
     C%filename_insolation                                    = filename_insolation_config
