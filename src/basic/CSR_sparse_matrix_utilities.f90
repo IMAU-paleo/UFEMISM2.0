@@ -402,115 +402,104 @@ contains
 
   end subroutine read_single_row_CSR_dist
 
-  SUBROUTINE multiply_CSR_matrix_with_vector_1D( AA, xx, yy)
-    ! Multiply a CSR matrix with a FORTRAN vector: y = A*x
-    !
+  subroutine multiply_CSR_matrix_with_vector_1D( AA, xx, yy)
+    !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
+
     ! NOTE: A, x, and y are stored as distributed memory
 
-    IMPLICIT NONE
-
     ! In- and output variables:
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: AA
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: xx
-    REAL(dp), DIMENSION(AA%i1:AA%i2),    INTENT(OUT)   :: yy
+    type(type_sparse_matrix_CSR_dp),  intent(in   ) :: AA
+    real(dp), dimension(:),           intent(in   ) :: xx
+    real(dp), dimension(AA%i1:AA%i2), intent(  out) :: yy
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'multiply_CSR_matrix_with_vector_1D'
-    integer                                            :: ierr
-    INTEGER                                            :: nx_local, nx_global, ny_local, ny_global
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: xxv
-    INTEGER                                            :: i,k1,k2,k,j
+    character(len=1024), parameter      :: routine_name = 'multiply_CSR_matrix_with_vector_1D'
+    integer                             :: ierr
+    integer                             :: nx_local, nx_global, ny_local, ny_global
+    real(dp), dimension(:), allocatable :: xxv
+    integer                             :: i,k1,k2,k,j
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Get vector sizes
-    nx_local = SIZE( xx,1)
-    ny_local = SIZE( yy,1)
+    nx_local = size( xx,1)
+    ny_local = size( yy,1)
 
-    CALL MPI_ALLREDUCE( nx_local, nx_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( ny_local, ny_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( nx_local, nx_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( ny_local, ny_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! Safety: check sizes
-    IF (ny_local /= (AA%m_loc) .OR. nx_global /= AA%n .OR. ny_global /= AA%m) THEN
-      CALL warning('nx_local = {int_01}, nx_global = {int_02}', int_01 = nx_local, int_02 = nx_global)
-      CALL warning('ny_local = {int_01}, ny_global = {int_02}', int_01 = ny_local, int_02 = ny_global)
-      CALL warning('A: m = {int_01}, n = {int_02}, i1 = {int_03}, i2 = {int_04}', int_01 = AA%m, int_02 = AA%n, int_03 = AA%i1, int_04 = AA%i2)
-      CALL crash('matrix and vector sizes dont match!')
-    END IF
+    if (ny_local /= (AA%m_loc) .or. nx_global /= AA%n .or. ny_global /= AA%m) then
+      call warning('nx_local = {int_01}, nx_global = {int_02}', int_01 = nx_local, int_02 = nx_global)
+      call warning('ny_local = {int_01}, ny_global = {int_02}', int_01 = ny_local, int_02 = ny_global)
+      call warning('A: m = {int_01}, n = {int_02}, i1 = {int_03}, i2 = {int_04}', int_01 = AA%m, int_02 = AA%n, int_03 = AA%i1, int_04 = AA%i2)
+      call crash('matrix and vector sizes dont match!')
+    end if
 
     ! Allocate memory for gathered vector x
-    ALLOCATE( xxv( nx_global))
+    allocate( xxv( nx_global))
 
     ! Gather x
-    CALL gather_to_all( xx, xxv)
+    call gather_to_all( xx, xxv)
 
     ! Perform CSR matrix multiplication
-    DO i = AA%i1, AA%i2
+    do i = AA%i1, AA%i2
 
       yy( i) = 0._dp
 
       k1 = AA%ptr( i)
       k2 = AA%ptr( i+1)-1
 
-      DO k = k1, k2
+      do k = k1, k2
         j = AA%ind( k)
         yy( i) = yy( i) + AA%val( k) * xxv( j)
-      END DO
+      end do
 
-    END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( xxv)
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE multiply_CSR_matrix_with_vector_1D
+  end subroutine multiply_CSR_matrix_with_vector_1D
 
-  SUBROUTINE multiply_CSR_matrix_with_vector_2D( AA, xx, yy)
-    ! Multiply a CSR matrix with a FORTRAN vector: y = A*x
-    !
+  subroutine multiply_CSR_matrix_with_vector_2D( AA, xx, yy)
+    !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
+
     ! NOTE: A, x, and y are stored as distributed memory
 
-    IMPLICIT NONE
-
     ! In- and output variables:
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: AA
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: xx
-    REAL(dp), DIMENSION(AA%i1:AA%i2,SIZE(xx,2)),  INTENT(OUT)   :: yy
+    type(type_sparse_matrix_CSR_dp),             intent(in   ) :: AA
+    real(dp), dimension(:,:),                    intent(in   ) :: xx
+    real(dp), dimension(AA%i1:AA%i2,SIZE(xx,2)), intent(  out) :: yy
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'multiply_CSR_matrix_with_vector_2D'
-    INTEGER                                            :: n1,n2,j
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: xx_1D, yy_1D
+    character(len=1024), parameter      :: routine_name = 'multiply_CSR_matrix_with_vector_2D'
+    integer                             :: n1,n2,j
+    real(dp), dimension(:), allocatable :: xx_1D, yy_1D
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Vector sizes
-    n1 = SIZE( xx,1)
-    n2 = SIZE( xx,2)
+    n1 = size( xx,1)
+    n2 = size( xx,2)
 
     ! Allocate memory
-    ALLOCATE( xx_1D( n1), source = 0._dp)
-    ALLOCATE( yy_1D( AA%i1:AA%i2), source = 0._dp)
+    allocate( xx_1D( n1), source = 0._dp)
+    allocate( yy_1D( AA%i1:AA%i2), source = 0._dp)
 
     ! Calculate each column separately
-    DO j = 1, n2
+    do j = 1, n2
       xx_1D = xx( :,j)
-      CALL multiply_CSR_matrix_with_vector_1D( AA, xx_1D, yy_1D)
+      call multiply_CSR_matrix_with_vector_1D( AA, xx_1D, yy_1D)
       yy( :,j) = yy_1D
-    END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( xx_1D)
-    DEALLOCATE( yy_1D)
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE multiply_CSR_matrix_with_vector_2D
+  end subroutine multiply_CSR_matrix_with_vector_2D
 
   ! ===== CSR matrices in local memory =====
   ! ========================================
