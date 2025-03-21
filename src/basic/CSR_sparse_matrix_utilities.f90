@@ -405,7 +405,7 @@ contains
   subroutine multiply_CSR_matrix_with_vector_1D( AA, xx, yy)
     !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
 
-    ! NOTE: A, x, and y are stored as distributed memory
+    ! NOTE: AA, xx, and yy are stored as distributed memory
 
     ! In- and output variables:
     type(type_sparse_matrix_CSR_dp),  intent(in   ) :: AA
@@ -422,14 +422,15 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Get vector sizes
+#if (DO_ASSERTIONS)
+    ! Safety: check sizes
+
     nx_local = size( xx,1)
     ny_local = size( yy,1)
 
     call MPI_ALLREDUCE( nx_local, nx_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( ny_local, ny_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
-    ! Safety: check sizes
     if (ny_local /= (AA%m_loc) .or. nx_global /= AA%n .or. ny_global /= AA%m) then
       call warning('nx_local = {int_01}, nx_global = {int_02}', int_01 = nx_local, int_02 = nx_global)
       call warning('ny_local = {int_01}, ny_global = {int_02}', int_01 = ny_local, int_02 = ny_global)
@@ -437,8 +438,10 @@ contains
       call crash('matrix and vector sizes dont match!')
     end if
 
+#endif
+
     ! Allocate memory for gathered vector x
-    allocate( xxv( nx_global))
+    allocate( xxv( AA%n))
 
     ! Gather x
     call gather_to_all( xx, xxv)
@@ -466,7 +469,7 @@ contains
   subroutine multiply_CSR_matrix_with_vector_2D( AA, xx, yy)
     !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
 
-    ! NOTE: A, x, and y are stored as distributed memory
+    ! NOTE: AA, xx, and yy are stored as distributed memory
 
     ! In- and output variables:
     type(type_sparse_matrix_CSR_dp),             intent(in   ) :: AA
