@@ -11,6 +11,7 @@ module netcdf_read_field_from_series_file
   use netcdf_setup_grid_mesh_from_file
   use grid_types, only: type_grid_lonlat, type_grid_lat
   use flip_mod
+  use netcdf
 
   implicit none
 
@@ -24,10 +25,10 @@ contains
     !< Read a 1-D time-dependent data field (e.g., time series) from a NetCDF file, and returns the associated time as well
 
     ! In/output variables:
-    character(len=*),          intent( in) :: filename
-    character(len=*),          intent( in) :: field_name_options
-    real(dp), dimension(:),    intent(out) :: series
-    real(dp), dimension(:),    intent(out) :: series_time
+    character(len=*),                     intent( in) :: filename
+    character(len=*),                     intent( in) :: field_name_options
+    real(dp), dimension(:), allocatable,  intent(out) :: series
+    real(dp), dimension(:),               intent(out) :: series_time
 
     ! Local variables
     character(len=1024), parameter         :: routine_name = 'read_field_from_series_file'
@@ -38,14 +39,16 @@ contains
     integer                                :: ndims_of_var
     integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
     integer                                :: nt
-    real(dp), dimension(:)                 :: series
-    real(dp), dimension(:)                 :: series_time
+
 
     ! Add routine to path
     call init_routine( routine_name)
 
     ! == Read data from file
     ! ======================
+
+    ! Read time
+    call read_time_from_file(filename, series_time)
     
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_reading( filename, ncid)
@@ -54,13 +57,10 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
 
-    ! Check if the file has a time dimension and variable
-    call check_time( filename, ncid)
     
-
     ! Inquire variable info (incl. time)
     call inquire_var_info(    filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-    call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
+
 
     ! Inquire file time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
@@ -71,15 +71,17 @@ contains
     if (.not. ANY( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
     ! Inquire length of time dimension
-    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
+
+    ! allocate memory for the time series and time axis
+    ! TODO: should this be done here or out of the function?
+    allocate(series (nt))
 
     ! Read the data
     call read_var_primary( filename, ncid, id_var,      series,      start = (/ 1 /), count = (/ nt /))
-    call read_var_primary( filename, ncid, id_var_time, series_time, start = (/ 1 /), count = (/ nt /))
 
     ! Broadcast to all processes
     call MPI_BCAST(      series, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST( series_time, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
