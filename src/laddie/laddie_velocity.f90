@@ -19,7 +19,7 @@ MODULE laddie_velocity
   USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D, map_b_c_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
-  use CSR_sparse_matrix_utilities, only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
 
   IMPLICIT NONE
 

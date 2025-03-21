@@ -9,7 +9,7 @@ module create_maps_gridlonlat_mesh
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
     deallocate_matrix_CSR_dist, add_entry_CSR_dist
   use petsc_basic, only: mat_CSR2petsc
 
