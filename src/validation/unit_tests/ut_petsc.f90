@@ -11,7 +11,8 @@ module ut_petsc
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine
   use model_configuration, only: C
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_sparse_matrix_utilities, only: deallocate_matrix_CSR_dist, multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_basics, only: deallocate_matrix_CSR_dist
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use petsc_basic, only: mat_CSR2petsc, multiply_petsc_matrix_with_vector_1D, mat_petsc2CSR
   use tests_main
   use assertions_basic

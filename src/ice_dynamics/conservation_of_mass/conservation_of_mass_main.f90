@@ -8,8 +8,8 @@ module conservation_of_mass_main
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, &
-    duplicate_matrix_CSR_dist, multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, duplicate_matrix_CSR_dist
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use ice_geometry_basics, only: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
   use mpi_distributed_memory, only: gather_to_all
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D

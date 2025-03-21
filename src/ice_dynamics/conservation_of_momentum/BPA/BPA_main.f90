@@ -20,7 +20,7 @@ module BPA_main
   use sliding_laws, only: calc_basal_friction_coefficient
   use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, &
     read_single_row_CSR_dist, deallocate_matrix_CSR_dist
   use netcdf_io_main
   use mpi_distributed_memory, only: gather_to_all
