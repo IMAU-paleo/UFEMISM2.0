@@ -667,13 +667,37 @@ contains
     call add_attribute_char( filename, ncid, transect%nc%id_var_Ti, 'long_name', 'Englacial temperature')
     call add_attribute_char( filename, ncid, transect%nc%id_var_Ti, 'units', 'K')
 
-    call create_variable(  filename, ncid, 'u_par', NF90_DOUBLE, [n, z, t], transect%nc%id_var_u_par)
-    call add_attribute_char( filename, ncid, transect%nc%id_var_u_par, 'long_name', '3-D ice velocity in along-transect direction')
-    call add_attribute_char( filename, ncid, transect%nc%id_var_u_par, 'units'    , 'm yr^-1')
+    call create_variable(  filename, ncid, 'u_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_u_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_u_3D, 'long_name', '3-D ice velocity in x-direction')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_u_3D, 'units'    , 'm yr^-1')
 
-    call create_variable(  filename, ncid, 'u_ort', NF90_DOUBLE, [n, z, t], transect%nc%id_var_u_ort)
-    call add_attribute_char( filename, ncid, transect%nc%id_var_u_ort, 'long_name', '3-D ice velocity in across-transect direction')
-    call add_attribute_char( filename, ncid, transect%nc%id_var_u_ort, 'units'    , 'm yr^-1')
+    call create_variable(  filename, ncid, 'v_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_v_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_v_3D, 'long_name', '3-D ice velocity in y-direction')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_v_3D, 'units'    , 'm yr^-1')
+
+    call create_variable(  filename, ncid, 'w_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_w_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_w_3D, 'long_name', '3-D ice velocity in z-direction')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_w_3D, 'units'    , 'm yr^-1')
+
+    call create_variable(  filename, ncid, 'u_par_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_u_par_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_u_par_3D, 'long_name', '3-D ice velocity in along-transect direction')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_u_par_3D, 'units'    , 'm yr^-1')
+
+    call create_variable(  filename, ncid, 'u_ort_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_u_ort_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_u_ort_3D, 'long_name', '3-D ice velocity in across-transect direction')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_u_ort_3D, 'units'    , 'm yr^-1')
+
+    call create_variable(  filename, ncid, 'du_dx_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_du_dx_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_du_dx_3D, 'long_name', '3-D xx strain rate')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_du_dx_3D, 'units'    , 'yr^-1')
+
+    call create_variable(  filename, ncid, 'dv_dy_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_dv_dy_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_dv_dy_3D, 'long_name', '3-D yy strain rate')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_dv_dy_3D, 'units'    , 'yr^-1')
+
+    call create_variable(  filename, ncid, 'dw_dz_3D', NF90_DOUBLE, [n, z, t], transect%nc%id_var_dw_dz_3D)
+    call add_attribute_char( filename, ncid, transect%nc%id_var_dw_dz_3D, 'long_name', '3-D zz strain rate')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_dw_dz_3D, 'units'    , 'yr^-1')
 
     ! Integrated quantities
     call create_variable(  filename, ncid, 'ice_mass_flux', NF90_DOUBLE, [t], transect%nc%id_var_ice_mass_flux)
@@ -754,8 +778,12 @@ contains
     real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tTi_partial
     real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tu_partial
     real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tv_partial
+    real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tw_partial
     real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tu_par_partial
     real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tu_ort_partial
+    real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tdu_dx_partial
+    real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tdv_dy_partial
+    real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tdw_dz_partial
     ! real(dp), dimension(transect%vi1:transect%vi2,C%nz) :: tage_partial
     real(dp)                                            :: ice_mass_flux
     real(dp), dimension(C%nz)                           :: u_ort_prof
@@ -776,15 +804,19 @@ contains
       colour_string( trim( filename), 'light blue'), '"...'
 
     ! Map ice model data to transect
-    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hi,     tHi_partial,     'trilin')
-    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hb,     tHb_partial,     'trilin')
-    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hs,     tHs_partial,     'trilin')
-    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hib,    tHib_partial,    'trilin')
-    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%SL,     tSL_partial,     'trilin')
-    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hi_eff, tHi_eff_partial, 'nearest_neighbour')
-    call map_from_mesh_vertices_to_transect_3D ( mesh, transect, ice%Ti,     tTi_partial,     'trilin')
-    call map_from_mesh_triangles_to_transect_3D( mesh, transect, ice%u_3D_b, tu_partial)
-    call map_from_mesh_triangles_to_transect_3D( mesh, transect, ice%v_3D_b, tv_partial)
+    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hi,       tHi_partial,     'trilin')
+    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hb,       tHb_partial,     'trilin')
+    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hs,       tHs_partial,     'trilin')
+    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hib,      tHib_partial,    'trilin')
+    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%SL,       tSL_partial,     'trilin')
+    call map_from_mesh_vertices_to_transect_2D ( mesh, transect, ice%Hi_eff,   tHi_eff_partial, 'nearest_neighbour')
+    call map_from_mesh_vertices_to_transect_3D ( mesh, transect, ice%Ti,       tTi_partial,     'trilin')
+    call map_from_mesh_triangles_to_transect_3D( mesh, transect, ice%u_3D_b,   tu_partial)
+    call map_from_mesh_triangles_to_transect_3D( mesh, transect, ice%v_3D_b,   tv_partial)
+    call map_from_mesh_vertices_to_transect_3D ( mesh, transect, ice%w_3D,     tw_partial,      'trilin')
+    call map_from_mesh_vertices_to_transect_3D(  mesh, transect, ice%du_dx_3D, tdu_dx_partial,  'trilin')
+    call map_from_mesh_vertices_to_transect_3D(  mesh, transect, ice%dv_dy_3D, tdv_dy_partial,  'trilin')
+    call map_from_mesh_vertices_to_transect_3D(  mesh, transect, ice%dw_dz_3D, tdw_dz_partial,  'trilin')
 
     ! Calculate parallel/orthogonal velocity components
     do k = 1, transect%nz
@@ -811,15 +843,21 @@ contains
 
     call write_time_to_file( filename, ncid, time)
 
-    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hi'    , tHi_partial)
-    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hb'    , tHb_partial)
-    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hs'    , tHs_partial)
-    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hib'   , tHib_partial)
-    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'SL'    , tSL_partial)
-    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'Ti'    , tTi_partial)
-    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hi_eff', tHi_eff_partial)
-    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'u_par' , tu_par_partial)
-    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'u_ort' , tu_ort_partial)
+    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hi'      , tHi_partial)
+    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hb'      , tHb_partial)
+    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hs'      , tHs_partial)
+    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hib'     , tHib_partial)
+    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'SL'      , tSL_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'Ti'      , tTi_partial)
+    call write_to_field_multopt_transect_dp_2D( transect, filename, ncid, 'Hi_eff'  , tHi_eff_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'u_3D'    , tu_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'v_3D'    , tv_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'w_3D'    , tw_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'u_par_3D', tu_par_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'u_ort_3D', tu_ort_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'du_dx_3D', tdu_dx_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'dv_dy_3D', tdv_dy_partial)
+    call write_to_field_multopt_transect_dp_3D( transect, filename, ncid, 'dw_dz_3D', tdw_dz_partial)
 
     call write_to_field_multopt_dp_0D( filename, ncid, 'ice_mass_flux', ice_mass_flux)
     call write_to_field_multopt_dp_0D( filename, ncid, 'grounding_line_distance_from_start', GL_dist_from_start)
