@@ -256,7 +256,7 @@ contains
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_precipitation'
-    INTEGER                                            :: vi, m
+    INTEGER                                            :: vi
     REAL(dp), DIMENSION(:), ALLOCATABLE                ::  w_warm,  w_cold
 !    INTEGER                                            :: ww_warm, ww_cold
     REAL(dp)                                           :: w_tot
@@ -377,13 +377,12 @@ contains
     type(type_grid),                     intent(in)    :: grid !used to smooth later on, check if grid is called during initialise
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    INTEGER,  DIMENSION(:),          INTENT(IN)    :: mask_noice
+    LOGICAL,  DIMENSION(:),          INTENT(IN)    :: mask_noice
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing    
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_matrix'
     INTEGER                                            :: vi, m
-    LOGICAL                                            :: found_winds_PD_obs, found_winds_PI, found_winds_warm, found_winds_cold
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -752,7 +751,7 @@ contains
     TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     !!! FIX mask_noice is used later on run_SMB_model, this is probably different in UFE2
-    INTEGER,  DIMENSION(:  ),           INTENT(IN)    :: mask_noice
+    LOGICAL,  DIMENSION(:  ),           INTENT(IN)    :: mask_noice
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
 
     ! Local variables:

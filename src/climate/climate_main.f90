@@ -93,7 +93,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL run_climate_model_realistic( mesh, ice, climate, forcing, time)
     ELSEIF (choice_climate_model == 'matrix') THEN
-      call run_climate_model_matrix( mesh, grid, ice, SMB, climate, region_name, time)
+      call run_climate_model_matrix( mesh, grid, ice, SMB, climate, region_name, time, forcing)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
