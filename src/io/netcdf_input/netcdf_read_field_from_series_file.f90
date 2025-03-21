@@ -16,26 +16,30 @@ module netcdf_read_field_from_series_file
 
   private
 
-  public :: read_field_from_series_file_monthly, read_field_from_lat_file_1D_monthly, read_time_from_file
+  public :: read_field_from_series_file, read_field_from_lat_file_1D_monthly, read_time_from_file
 
 contains
 
-  subroutine read_field_from_series_file_monthly( filename, field_name_options, series, time_to_read)
-    !< Read a 1-D data field (e.g., time series) from a NetCDF file
+  subroutine read_field_from_series_file( filename, field_name_options, series, series_time)
+    !< Read a 1-D time-dependent data field (e.g., time series) from a NetCDF file, and returns the associated time as well
 
     ! In/output variables:
     character(len=*),          intent( in) :: filename
     character(len=*),          intent( in) :: field_name_options
     real(dp), dimension(:),    intent(out) :: series
-    real(dp),     optional,    intent( in) :: time_to_read
+    real(dp), dimension(:),    intent(out) :: series_time
 
     ! Local variables
-    character(len=1024), parameter         :: routine_name = 'read_field_from_series_file_monthly'
-    integer                                :: ncid
-    integer                                :: id_var
+    character(len=1024), parameter         :: routine_name = 'read_field_from_series_file'
+    integer                                :: ncid, ierr
+    integer                                :: id_var, id_var_time, id_dim_time
     character(len=1024)                    :: var_name
-    real(dp), dimension(:), allocatable    :: monthly_cycle
-    integer                                :: ti
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                :: nt
+    real(dp), dimension(:)                 :: series
+    real(dp), dimension(:)                 :: series_time
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -50,23 +54,32 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
 
-    ! Check if the file has a valid month dimension
-    call check_month( filename, ncid)
+    ! Check if the file has a time dimension and variable
+    call check_time( filename, ncid)
+    
 
-    !Allocate memory for time series
-    if (par%primary) allocate( monthly_cycle( 12))
+    ! Inquire variable info (incl. time)
+    call inquire_var_info(    filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
-    ! Find out which timeframe to read
-    call find_timeframe( filename, ncid, time_to_read, ti)
+    ! Inquire file time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
-    ! Read data
-    call read_var_primary( filename, ncid, id_var, monthly_cycle, start=(/ 1, ti /), count=(/ 12, 1 /) )
 
-    ! Copy to output memory
-    series = monthly_cycle
+    ! Check if the variable has time as a dimension
+    if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    if (.not. ANY( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-    ! Clean up after yourself
-    if (par%primary) deallocate(monthly_cycle)
+    ! Inquire length of time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Read the data
+    call read_var_primary( filename, ncid, id_var,      series,      start = (/ 1 /), count = (/ nt /))
+    call read_var_primary( filename, ncid, id_var_time, series_time, start = (/ 1 /), count = (/ nt /))
+
+    ! Broadcast to all processes
+    call MPI_BCAST(      series, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( series_time, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -74,7 +87,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_series_file_monthly
+  end subroutine read_field_from_series_file
 
   subroutine read_field_from_lat_file_1D_monthly( filename, field_name_options, &
     d_grid_vec_partial, time_to_read)
