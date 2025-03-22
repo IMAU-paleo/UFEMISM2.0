@@ -196,7 +196,54 @@ contains
 
   end subroutine multiply_CSR_matrix_with_vector_1D_hybrid_dist
 
-  subroutine multiply_CSR_matrix_with_vector_2D( AA, xx, yy)
+  subroutine multiply_CSR_matrix_with_vector_2D( AA, xx, yy, xx_is_hybrid, yy_is_hybrid)
+    !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
+
+    ! NOTE: AA, xx, and yy are stored as distributed memory
+
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp), intent(in   ) :: AA
+    real(dp), dimension(:,:),        intent(in   ) :: xx
+    real(dp), dimension(:,:),        intent(  out) :: yy
+    logical, optional,               intent(in   ) :: xx_is_hybrid, yy_is_hybrid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'multiply_CSR_matrix_with_vector_2D'
+    logical                        :: xx_is_hybrid_, yy_is_hybrid_
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (present( xx_is_hybrid)) then
+      xx_is_hybrid_ = xx_is_hybrid
+    else
+      xx_is_hybrid_ = .false.
+    end if
+    if (present( yy_is_hybrid)) then
+      yy_is_hybrid_ = yy_is_hybrid
+    else
+      yy_is_hybrid_ = .false.
+    end if
+
+    if ((.not. xx_is_hybrid_) .and. (.not. yy_is_hybrid_)) then
+      call multiply_CSR_matrix_with_vector_2D_dist_dist( AA, xx, yy)
+    elseif ((.not. xx_is_hybrid_) .and. yy_is_hybrid_) then
+      call crash('xx dist, yy hybrid not implemented yet!')
+      ! call multiply_CSR_matrix_with_vector_2D_dist_hybrid( AA, xx, yy)
+    elseif (xx_is_hybrid_ .and. (.not. yy_is_hybrid_)) then
+      call crash('xx hybrid, yy dist not implemented yet!')
+      ! call multiply_CSR_matrix_with_vector_2D_hybrid_dist( AA, xx, yy)
+    elseif (xx_is_hybrid_ .and. yy_is_hybrid_) then
+      call crash('xx hybrid, yy hybrid not implemented yet!')
+      ! call multiply_CSR_matrix_with_vector_2D_hybrid_hybrid( AA, xx, yy)
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine multiply_CSR_matrix_with_vector_2D
+
+  subroutine multiply_CSR_matrix_with_vector_2D_dist_dist( AA, xx, yy)
     !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
 
     ! NOTE: AA, xx, and yy are stored as distributed memory
@@ -207,7 +254,7 @@ contains
     real(dp), dimension(AA%i1:AA%i2,SIZE(xx,2)), intent(  out) :: yy
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'multiply_CSR_matrix_with_vector_2D'
+    character(len=1024), parameter      :: routine_name = 'multiply_CSR_matrix_with_vector_2D_dist_dist'
     integer                             :: n1,n2,j
     real(dp), dimension(:), allocatable :: xx_1D, yy_1D
 
@@ -232,6 +279,6 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine multiply_CSR_matrix_with_vector_2D
+  end subroutine multiply_CSR_matrix_with_vector_2D_dist_dist
 
 end module CSR_matrix_vector_multiplication
