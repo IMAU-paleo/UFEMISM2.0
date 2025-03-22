@@ -4,7 +4,7 @@ module CSR_matrix_basics
 
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use mpi_f08, only: MPI_ALLGATHER, MPI_INTEGER, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_SEND, MPI_RECV, &
-    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE
+    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE, MPI_MIN, MPI_MAX
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -29,13 +29,13 @@ contains
     ! Allocate memory for a CSR-format sparse m-by-n matrix A
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp),     intent(inout) :: A
-    integer,                             intent(in)    :: m_glob, n_glob, m_loc, n_loc, nnz_max_proc
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
+    integer,                         intent(in)    :: m_glob, n_glob, m_loc, n_loc, nnz_max_proc
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'allocate_matrix_CSR_dist'
-    integer                                            :: ierr
-    integer,  dimension(par%n)                         :: m_loc_all, n_loc_all
+    character(len=1024), parameter :: routine_name = 'allocate_matrix_CSR_dist'
+    integer                        :: ierr
+    integer, dimension(par%n)      :: m_loc_all, n_loc_all
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -61,8 +61,17 @@ contains
     A%j1 = 1 + sum( n_loc_all( 1:par%i  ))
     A%j2 = 1 + sum( n_loc_all( 1:par%i+1))-1
 
+    ! Range owned by this node
+    call MPI_ALLREDUCE( A%i1, A%i1_node, 1, MPI_INTEGER, MPI_MIN, par%mpi_comm_node, ierr)
+    call MPI_ALLREDUCE( A%i2, A%i2_node, 1, MPI_INTEGER, MPI_MAX, par%mpi_comm_node, ierr)
+    A%m_node = A%i2_node + 1 - A%i1_node
+
+    call MPI_ALLREDUCE( A%j1, A%j1_node, 1, MPI_INTEGER, MPI_MIN, par%mpi_comm_node, ierr)
+    call MPI_ALLREDUCE( A%j2, A%j2_node, 1, MPI_INTEGER, MPI_MAX, par%mpi_comm_node, ierr)
+    A%n_node = A%j2_node + 1 - A%j1_node
+
     ! Allocate memory
-    allocate( A%ptr( A%i1: A%i2+1    ), source = 1    )
+    allocate( A%ptr( A%i1: A%i2+1), source = 1)
     allocate( A%ind( A%nnz_max), source = 0    )
     allocate( A%val( A%nnz_max), source = 0._dp)
 
