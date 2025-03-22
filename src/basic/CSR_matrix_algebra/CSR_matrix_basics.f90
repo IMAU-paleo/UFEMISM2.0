@@ -81,28 +81,39 @@ contains
   end subroutine allocate_matrix_CSR_dist
 
   subroutine deallocate_matrix_CSR_dist( A)
-    ! Deallocate memory for a CSR-format sparse matrix A
+    !< Deallocate memory for a CSR-format sparse matrix A
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp),     intent(inout) :: A
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'deallocate_matrix_CSR_dist'
+    character(len=1024), parameter :: routine_name = 'deallocate_matrix_CSR_dist'
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
     ! Matrix dimensions
     A%m       = 0
+    A%n       = 0
+    A%nnz_max = 0
+    A%nnz     = 0
+
+    ! Parallelisation ranges
     A%m_loc   = 0
     A%i1      = 0
     A%i2      = 0
-    A%n       = 0
+
     A%n_loc   = 0
     A%j1      = 0
     A%j2      = 0
-    A%nnz_max = 0
-    A%nnz     = 0
+
+    A%m_node  = 0
+    A%i1_node = 0
+    A%i2_node = 0
+
+    A%n_node  = 0
+    A%j1_node = 0
+    A%j2_node = 0
 
     if (allocateD( A%ptr)) deallocate( A%ptr)
     if (allocateD( A%ind)) deallocate( A%ind)
@@ -121,22 +132,33 @@ contains
     type(type_sparse_matrix_CSR_dp),     intent(OUT)   :: B
 
     ! Local variables:
-    character(len=256), parameter                      :: routine_name = 'duplicate_matrix_CSR_dist'
+    character(len=1024), parameter :: routine_name = 'duplicate_matrix_CSR_dist'
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
     ! Matrix dimensions
     B%m       = A%m
+    B%n       = A%n
+    B%nnz_max = A%nnz_max
+    B%nnz     = A%nnz
+
+    ! Parallelisation ranges
     B%m_loc   = A%m_loc
     B%i1      = A%i1
     B%i2      = A%i2
-    B%n       = A%n
+
     B%n_loc   = A%n_loc
     B%j1      = A%j1
     B%j2      = A%j2
-    B%nnz_max = A%nnz_max
-    B%nnz     = A%nnz
+
+    B%m_node  = A%m_node
+    B%i1_node = A%i1_node
+    B%i2_node = A%i2_node
+
+    B%n_node  = A%n_node
+    B%j1_node = A%j1_node
+    B%j2_node = A%j2_node
 
     ! Allocate memory
     allocate( B%ptr( B%i1: B%i2+1    ), source = 1    )
