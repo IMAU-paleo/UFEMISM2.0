@@ -4,14 +4,15 @@ module CSR_matrix_vector_multiplication
 
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use mpi_f08, only: MPI_ALLGATHER, MPI_INTEGER, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_SEND, MPI_RECV, &
-    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE, MPI_BCAST
+    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE, MPI_BCAST, MPI_WIN
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use parameters
   use reallocate_mod, only: reallocate
   use mpi_distributed_memory, only: partition_list, gather_to_all
-  use mpi_distributed_shared_memory, only: gather_dist_shared_to_all
+  use mpi_distributed_shared_memory, only: allocate_dist_shared, gather_dist_shared_to_all, &
+    deallocate_dist_shared
 
   implicit none
 
@@ -231,8 +232,7 @@ contains
       call crash('xx dist, yy hybrid not implemented yet!')
       ! call multiply_CSR_matrix_with_vector_2D_dist_hybrid( AA, xx, yy)
     elseif (xx_is_hybrid_ .and. (.not. yy_is_hybrid_)) then
-      call crash('xx hybrid, yy dist not implemented yet!')
-      ! call multiply_CSR_matrix_with_vector_2D_hybrid_dist( AA, xx, yy)
+      call multiply_CSR_matrix_with_vector_2D_hybrid_dist( AA, xx, yy)
     elseif (xx_is_hybrid_ .and. yy_is_hybrid_) then
       call crash('xx hybrid, yy hybrid not implemented yet!')
       ! call multiply_CSR_matrix_with_vector_2D_hybrid_hybrid( AA, xx, yy)
@@ -280,5 +280,48 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine multiply_CSR_matrix_with_vector_2D_dist_dist
+
+  subroutine multiply_CSR_matrix_with_vector_2D_hybrid_dist( AA, xx, yy)
+    !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
+
+    ! NOTE: AA and yy are stored as distributed memory, xx as hybrid distributed/shared memory
+
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp),             intent(in   ) :: AA
+    real(dp), dimension(:,:),                    intent(in   ) :: xx
+    real(dp), dimension(AA%i1:AA%i2,SIZE(xx,2)), intent(  out) :: yy
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'multiply_CSR_matrix_with_vector_2D_hybrid_dist'
+    integer                             :: n1,n2,j
+    real(dp), dimension(:), pointer     :: xx_1D
+    type(MPI_WIN)                       :: wxx_1D
+    real(dp), dimension(:), allocatable :: yy_1D
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Vector sizes
+    n1 = size( xx,1)
+    n2 = size( xx,2)
+
+    ! Allocate memory
+    call allocate_dist_shared( xx_1D, wxx_1D, size( xx,1))
+    allocate( yy_1D( AA%i1:AA%i2), source = 0._dp)
+
+    ! Calculate each column separately
+    do j = 1, n2
+      xx_1D = xx( :,j)
+      call multiply_CSR_matrix_with_vector_1D( AA, xx_1D, yy_1D)
+      yy( :,j) = yy_1D
+    end do
+
+    ! Clean up after yourself
+    call deallocate_dist_shared( xx_1D, wxx_1D)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine multiply_CSR_matrix_with_vector_2D_hybrid_dist
 
 end module CSR_matrix_vector_multiplication
