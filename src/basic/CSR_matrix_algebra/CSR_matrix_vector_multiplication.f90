@@ -169,7 +169,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'multiply_CSR_matrix_with_vector_1D_hybrid_dist'
-    real(dp), dimension(:), pointer :: xx_tot
+    real(dp), dimension(:), pointer :: xx_tot => null()
     type(MPI_WIN)                   :: wxx_tot
     integer                         :: i,k1,k2,k,j
 
@@ -220,7 +220,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'multiply_CSR_matrix_with_vector_1D_hybrid_hybrid'
-    real(dp), dimension(:), pointer :: xx_tot
+    real(dp), dimension(:), pointer :: xx_tot => null()
     type(MPI_WIN)                   :: wxx_tot
     integer                         :: i,k1,k2,k,j
 
@@ -358,7 +358,7 @@ contains
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'multiply_CSR_matrix_with_vector_2D_hybrid_dist'
     integer                             :: j
-    real(dp), dimension(:), pointer     :: xx_1D
+    real(dp), dimension(:), pointer     :: xx_1D => null()
     type(MPI_WIN)                       :: wxx_1D
     real(dp), dimension(:), allocatable :: yy_1D
 
