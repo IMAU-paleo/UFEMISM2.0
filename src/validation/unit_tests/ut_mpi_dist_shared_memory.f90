@@ -13,6 +13,7 @@ module ut_mpi_dist_shared_memory
   use ut_mpi_gather_dist_shared_to_primary, only: test_gather_dist_shared_to_primary
   use ut_mpi_gather_dist_shared_to_all, only: test_gather_dist_shared_to_all
   use ut_mpi_distribute_dist_shared_from_primary, only: test_distribute_dist_shared_from_primary
+  use ut_mpi_multiply_CSR_matrix_vector, only: test_multiply_CSR_matrix_with_vector
   use mpi_f08, only: MPI_WIN, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD
 
   implicit none
@@ -44,10 +45,11 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! ! Run all unit tests for the MPI distributed memory subroutines
-    call test_allocate_dist_shared( test_name)
-    call test_gather_dist_shared_to_primary( test_name)
-    call test_gather_dist_shared_to_all( test_name)
+    call test_allocate_dist_shared               ( test_name)
+    call test_gather_dist_shared_to_primary      ( test_name)
+    call test_gather_dist_shared_to_all          ( test_name)
     call test_distribute_dist_shared_from_primary( test_name)
+    call test_multiply_CSR_matrix_with_vector    ( test_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
