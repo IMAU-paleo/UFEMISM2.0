@@ -60,7 +60,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'test_multiply_CSR_matrix_with_vector_1D_dist_dist'
-    character(len=1024), parameter      :: test_name_local = '1D/dist_dist'
+    character(len=1024), parameter      :: test_name_local = 'dist_dist_1D'
     character(len=1024)                 :: test_name
     type(type_sparse_matrix_CSR_dp)     :: AA
     real(dp), dimension(:), allocatable :: xx, yy, yy_correct
@@ -150,7 +150,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'test_multiply_CSR_matrix_with_vector_1D_dist_hybrid'
-    character(len=1024), parameter      :: test_name_local = '1D/dist_hybrid'
+    character(len=1024), parameter      :: test_name_local = 'dist_hybrid_1D'
     character(len=1024)                 :: test_name
     type(type_sparse_matrix_CSR_dp)     :: AA
     real(dp), dimension(:), allocatable :: xx
@@ -250,7 +250,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'test_multiply_CSR_matrix_with_vector_1D_hybrid_dist'
-    character(len=1024), parameter      :: test_name_local = '1D/hybrid_dist'
+    character(len=1024), parameter      :: test_name_local = 'hybrid_dist_1D'
     character(len=1024)                 :: test_name
     type(type_sparse_matrix_CSR_dp)     :: AA
     real(dp), dimension(:), pointer     :: xx => null()
@@ -346,7 +346,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'test_multiply_CSR_matrix_with_vector_1D_hybrid_hybrid'
-    character(len=1024), parameter      :: test_name_local = '1D/hybrid_hybrid'
+    character(len=1024), parameter      :: test_name_local = 'hybrid_hybrid_1D'
     character(len=1024)                 :: test_name
     type(type_sparse_matrix_CSR_dp)     :: AA
     real(dp), dimension(:), pointer     :: xx => null()
