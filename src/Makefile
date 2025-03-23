@@ -353,6 +353,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
   validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
   validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
+  validation/unit_tests/ut_mpi_multiply_CSR_matrix_vector.f90 \
   validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
   validation/unit_tests/unit_tests_multinode.f90 \
   \
