@@ -26,6 +26,7 @@ MODULE laddie_main
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use mesh_utilities, only: average_over_domain
 
   IMPLICIT NONE
 
@@ -118,6 +119,7 @@ CONTAINS
 
       ! Display or save fields
       CALL print_diagnostics( mesh, laddie, tl)
+      call crash('whoopsiedaisy!')
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
@@ -281,6 +283,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: Hstar
+    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -294,6 +297,10 @@ CONTAINS
 
     ! Compute Hstar
     Hstar = C%laddie_fbrk3_beta1 * laddie%np13%H + (1-C%laddie_fbrk3_beta1) * laddie%now%H
+
+    ! DENK DROM
+    call average_over_domain( mesh, Hstar, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
 
     ! Update diffusive terms
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
@@ -314,6 +321,10 @@ CONTAINS
     ! Compute new Hstar
     Hstar = C%laddie_fbrk3_beta2 * laddie%np12%H + (1-C%laddie_fbrk3_beta2) * laddie%now%H
 
+    ! DENK DROM
+    call average_over_domain( mesh, Hstar, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
+
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
 
@@ -332,6 +343,10 @@ CONTAINS
 
     ! Compute new Hstar
     Hstar = C%laddie_fbrk3_beta3 * laddie%np1%H + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H + C%laddie_fbrk3_beta3 * laddie%now%H
+
+    ! DENK DROM
+    call average_over_domain( mesh, Hstar, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
 
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)

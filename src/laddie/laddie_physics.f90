@@ -4,7 +4,7 @@ MODULE laddie_physics
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -15,11 +15,12 @@ MODULE laddie_physics
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
+  use mesh_utilities, only: average_over_domain
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -42,14 +43,15 @@ CONTAINS
     REAL(dp), PARAMETER                                   :: nu0 = 1.95E-6
     REAL(dp), PARAMETER                                   :: eps = 1.0E-12 ! Some small parameter to prevent div. by zero
     REAL(dp), PARAMETER                                   :: tol = 1.0E-12 ! Some small parameter to prevent div. by zero
- 
+    real(dp) :: d_av
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Get friction velocity
     laddie%u_star= (C%laddie_drag_coefficient_top * (npx%U_a**2 + npx%V_a**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
 
-    ! Get gamma values 
+    ! Get gamma values
     SELECT CASE (C%choice_laddie_gamma)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_gamma "' // TRIM( C%choice_laddie_gamma) // '"')
@@ -60,8 +62,8 @@ CONTAINS
         DO vi = mesh%vi1, mesh%vi2
            IF (laddie%mask_a( vi)) THEN
              AA = 2.12_dp*LOG(laddie%u_star( vi) * Hstar( vi)/nu0+eps)
-             laddie%gamma_T( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Prandtl_number**(2.0_dp/3) - 8.68_dp) 
-             laddie%gamma_S( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Schmidt_number**(2.0_dp/3) - 8.68_dp) 
+             laddie%gamma_T( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Prandtl_number**(2.0_dp/3) - 8.68_dp)
+             laddie%gamma_S( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Schmidt_number**(2.0_dp/3) - 8.68_dp)
            END IF
         END DO
     END SELECT
@@ -78,7 +80,7 @@ CONTAINS
          IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
            ! Ignore heat diffusion into ice
            Chat = cp_ocean / L_fusion
-         ELSE 
+         ELSE
            Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
          END IF
 
@@ -90,7 +92,7 @@ CONTAINS
            ! Probably not possible, but to prevent NaNs, set melt rate to zero
            laddie%melt( vi) = 0.0
          ELSE
-           laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval)) 
+           laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval))
          END IF
 
          ! Get temperature at ice base
@@ -101,14 +103,20 @@ CONTAINS
          ELSE
            IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
              ! Ignore heat diffusion into ice
-             laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+             laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
            ELSE
-             laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval 
+             laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
            END IF
          END IF
 
        END IF
     END DO
+
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%melt, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean melt = ', d_av
+    call average_over_domain( mesh, laddie%T_base, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean T_base = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -130,7 +138,8 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
     INTEGER                                               :: vi
     REAL(dp), PARAMETER                                   :: maxdetr = 0.001_dp
- 
+    real(dp) :: d_av
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -140,13 +149,13 @@ CONTAINS
        IF (laddie%mask_a( vi)) THEN
          ! Get salinity at ice base
          laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 - freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
-         
+
          ! Get buoyancy at ice base
          laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (npx%S( vi)-laddie%S_base( vi)) &
                                - C%uniform_laddie_eos_linear_alpha * (npx%T( vi)-laddie%T_base( vi))
 
          ! Get entrainment
-         laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav & 
+         laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav &
                           * laddie%u_star( vi)**3 / (Hstar( vi) * laddie%drho_amb( vi)) &
                           - laddie%drho_base( vi) / laddie%drho_amb( vi) * laddie%melt( vi)
 
@@ -157,6 +166,16 @@ CONTAINS
          laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
        END IF
     END DO
+
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%S_base, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean S_base = ', d_av
+    call average_over_domain( mesh, laddie%drho_base, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean drho_base = ', d_av
+    call average_over_domain( mesh, laddie%entr, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean entr = ', d_av
+    call average_over_domain( mesh, laddie%detr, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean detr = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -177,7 +196,8 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_freezing_temperature'
     INTEGER                                               :: vi
- 
+    real(dp) :: d_av
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -187,6 +207,10 @@ CONTAINS
        END IF
     END DO
 
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%T_freeze, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean T_freeze = ', d_av
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -194,7 +218,7 @@ CONTAINS
 
   SUBROUTINE compute_buoyancy( mesh, ice, laddie, npx, Hstar)
     ! Compute buoyancy = (rho_amb - rho)/rho_sw
-    ! TODO update with Roquet EOS 
+    ! TODO update with Roquet EOS
 
     ! In- and output variables
 
@@ -208,7 +232,8 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
     INTEGER                                               :: vi, vj, n, ci
     REAL(dp)                                              :: T, S, H
- 
+    real(dp) :: d_av
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -228,6 +253,12 @@ CONTAINS
 
        END IF
     END DO
+
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%drho_amb, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean drho_amb = ', d_av
+    call average_over_domain( mesh, laddie%Hdrho_amb, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean Hdrho_amb = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

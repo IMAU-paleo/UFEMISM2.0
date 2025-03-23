@@ -4,7 +4,7 @@ MODULE laddie_tracers
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -16,11 +16,12 @@ MODULE laddie_tracers
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use mesh_utilities, only: average_over_domain
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -42,7 +43,8 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
     INTEGER                                               :: vi
     REAL(dp)                                              :: dHTdt, dHSdt, HT_next, HS_next
- 
+    real(dp) :: d_av
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -86,6 +88,12 @@ CONTAINS
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
+    ! DENK DROM
+    call average_over_domain( mesh, npx%T, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%T = ', d_av
+    call average_over_domain( mesh, npx%S, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%S = ', d_av
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -108,6 +116,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
     REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
+    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -135,7 +144,7 @@ CONTAINS
           IF (mask_a_tot( vj)) THEN
             ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
 
-            Kh = C%laddie_diffusivity 
+            Kh = C%laddie_diffusivity
 
             laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
             laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
@@ -144,6 +153,12 @@ CONTAINS
 
       END IF
     END DO
+
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%diffT, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffT% = ', d_av
+    call average_over_domain( mesh, laddie%diffS, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffS% = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -229,7 +244,7 @@ CONTAINS
           END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)
-       
+
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2

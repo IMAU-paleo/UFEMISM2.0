@@ -20,6 +20,7 @@ MODULE laddie_velocity
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use mesh_utilities, only: average_over_domain
 
   IMPLICIT NONE
 
@@ -53,6 +54,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
+    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -179,6 +181,12 @@ CONTAINS
     CALL map_b_a_2D( mesh, npx%U, npx%U_a)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a)
 
+    ! DENK DROM
+    call average_over_domain( mesh, npx%U_a, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%U_a = ', d_av
+    call average_over_domain( mesh, npx%V_a, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%V_a = ', d_av
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -201,6 +209,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
     REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
+    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -250,6 +259,12 @@ CONTAINS
 
       END IF !(laddie%mask_b( ti)
     END DO !ti = mesh%ti1, mesh%ti2
+
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%viscU, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscU = ', d_av
+    call average_over_domain( mesh, laddie%viscV, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscV = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -4,7 +4,7 @@ MODULE laddie_thickness
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -19,11 +19,12 @@ MODULE laddie_thickness
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
+  use mesh_utilities, only: average_over_domain
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -43,7 +44,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_npx'
- 
+    real(dp) :: d_av
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -61,8 +63,8 @@ CONTAINS
 
     ! Compute melt rate
     CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
-     
-    ! Compute entrainment                                    
+
+    ! Compute entrainment
     CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
 
     ! Do integration
@@ -91,6 +93,7 @@ CONTAINS
     character(len=256), parameter                         :: routine_name = 'integrate_H'
     integer                                               :: vi
     real(dp)                                              :: dHdt
+    real(dp) :: d_av
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -128,6 +131,10 @@ CONTAINS
       end if !(laddie%mask_a( vi)) THEN
     end do !vi = mesh%vi, mesh%v2
 
+    ! DENK DROM
+    call average_over_domain( mesh, npx%H, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%H = ', d_av
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -148,6 +155,7 @@ CONTAINS
     INTEGER                                               :: vi, ci, vj, ei
     REAL(dp)                                              :: u_perp
     LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
+    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -203,10 +211,14 @@ CONTAINS
           END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)
-       
+
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%divQH, d_av)
+    if (par%primary) write(0,'(A,F12.8)') ' mean divQH = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
