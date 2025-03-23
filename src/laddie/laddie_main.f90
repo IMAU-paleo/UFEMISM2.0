@@ -7,7 +7,7 @@ MODULE laddie_main
 
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
+  USE control_resources_and_error_messaging                  , ONLY: crash, warning, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
@@ -53,7 +53,6 @@ CONTAINS
     REAL(dp)                                              :: dt               ! [s] Laddie time step
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
     REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
-
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -118,7 +117,7 @@ CONTAINS
       END SELECT
 
       ! Display or save fields
-      CALL print_diagnostics( laddie, tl)
+      CALL print_diagnostics( mesh, laddie, tl)
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 

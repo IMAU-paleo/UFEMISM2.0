@@ -19,6 +19,8 @@ MODULE laddie_utilities
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use CSR_matrix_basics, only: allocate_matrix_CSR_dist
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use mesh_utilities, only: average_over_domain
+  use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD
 
   IMPLICIT NONE
 
@@ -254,27 +256,42 @@ CONTAINS
 
   END SUBROUTINE allocate_laddie_timestep
 
-  SUBROUTINE print_diagnostics( laddie, tl)
-    ! Print out diagnostics
+  subroutine print_diagnostics( mesh, laddie, tl)
+    !< Print out diagnostics
 
     ! In- and output variables
-    TYPE(type_laddie_model),                INTENT(IN)    :: laddie
-    REAL(dp),                               INTENT(IN)    :: tl
+    type(type_mesh),         intent(in   ) :: mesh
+    type(type_laddie_model), intent(in   ) :: laddie
+    real(dp),                intent(in   ) :: tl
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'print_diagnostics'
+    character(len=1024), parameter :: routine_name = 'print_diagnostics'
+    real(dp)                       :: H_av, Meltmax, Umax, Tmax
+    integer                        :: ierr
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    IF (par%primary) THEN
-      WRITE( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt*sec_per_year), '   U', MAXVAL(SQRT(laddie%now%U**2+laddie%now%V**2)), '   Tmax', MAXVAL(laddie%now%T)
-    END IF
+    call average_over_domain( mesh, laddie%now%H, H_av)
+
+    Meltmax = maxval( laddie%melt) * sec_per_year
+    call MPI_ALLREDUCE( MPI_IN_PLACE, Meltmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    Umax = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2))
+    call MPI_ALLREDUCE( MPI_IN_PLACE, Umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    Tmax = maxval( laddie%now%T)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, Tmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    if (par%primary) then
+      write( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, &
+        '  Dmean ', H_av, '  Meltmax', Meltmax, '   U', Umax, '   Tmax', Tmax
+    end if
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE print_diagnostics
+  end subroutine print_diagnostics
 
 END MODULE laddie_utilities
 
