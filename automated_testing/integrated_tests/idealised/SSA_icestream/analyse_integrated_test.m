@@ -48,7 +48,7 @@ for fi = 1: length( foldernames)
   filename = [foldername '/transect_southnorth.nc'];
   V = ncread( filename,'V');
   yt = V(:,2);
-  u_3D = ncread( filename,'u_ort');
+  u_3D = ncread( filename,'u_ort_3D');
   u_surf = u_3D(:,1);
 
   % Compare to analytical solution

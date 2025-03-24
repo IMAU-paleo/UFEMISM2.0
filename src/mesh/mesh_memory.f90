@@ -11,7 +11,7 @@ MODULE mesh_memory
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
   USE reallocate_mod                                         , ONLY: reallocate
-  USE CSR_sparse_matrix_utilities                            , ONLY: deallocate_matrix_CSR_dist
+  USE CSR_matrix_basics                            , ONLY: deallocate_matrix_CSR_dist
 
   IMPLICIT NONE
 

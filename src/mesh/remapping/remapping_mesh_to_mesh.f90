@@ -8,11 +8,12 @@ module remapping_mesh_to_mesh
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map, type_single_row_mapping_matrices
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
     add_empty_row_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use plane_geometry, only: triangle_area
   use mesh_utilities, only: calc_Voronoi_cell, find_containing_triangle, find_containing_vertex
-  use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR, MatConvert
+  use petsc_basic, only: mat_CSR2petsc, mat_petsc2CSR
   use line_tracing_triangles, only: trace_line_tri
   use line_tracing_Voronoi, only: trace_line_Vor
   use netcdf_output

@@ -4,7 +4,7 @@ module laddie_operators
 
 ! ===== Preamble =====
 ! ====================
-    
+
   use precisions                                             , only: dp
   use mpi_basic                                              , only: par, sync
   use control_resources_and_error_messaging                  , only: crash, init_routine, finalise_routine, colour_string
@@ -13,13 +13,13 @@ module laddie_operators
   use ice_model_types                                        , only: type_ice_model
   use laddie_model_types                                     , only: type_laddie_model, type_laddie_timestep
   use mpi_distributed_memory                                 , only: gather_to_all
-  use CSR_sparse_matrix_utilities                            , only: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
+  use CSR_matrix_basics                            , only: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
                                                                      add_entry_CSR_dist, add_empty_row_CSR_dist, crop_matrix_CSR_dist
 
   implicit none
-    
+
 contains
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -62,7 +62,7 @@ contains
     nrows_loc       = mesh%nTri_loc
     nnz_per_row_est = 3
     nnz_est_proc    = nrows_loc * nnz_per_row_est
- 
+
     call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! == Calculate coefficients
@@ -103,7 +103,7 @@ contains
 
       else
         ! Outside laddie domain, so skip
-        call add_empty_row_CSR_dist( laddie%M_map_H_a_b, ti) 
+        call add_empty_row_CSR_dist( laddie%M_map_H_a_b, ti)
 
       end if
 
@@ -119,7 +119,7 @@ contains
     nrows_loc       = mesh%nE_loc
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
- 
+
     call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! == Calculate coefficients
@@ -161,7 +161,7 @@ contains
     nrows_loc       = mesh%nE_loc
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
- 
+
     call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! == Calculate coefficients
@@ -183,7 +183,7 @@ contains
           call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 1._dp)
         else
           ! Outside laddie domain, so omit
-          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei) 
+          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei)
         end if
       elseif (tir == 0 .and. til > 0) then
         ! Only triangle on left side exists
@@ -192,7 +192,7 @@ contains
           call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 1._dp)
         else
           ! Outside laddie domain, so omit
-          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei) 
+          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei)
         end if
       elseif (til > 0 .and. tir > 0) then
         ! Both triangles exist
@@ -202,7 +202,7 @@ contains
           call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 0.5_dp)
         else
           ! Both outside laddie domain, so omit
-          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei) 
+          call add_empty_row_CSR_dist( laddie%M_map_UV_b_c, ei)
         end if
       else
           call crash('something is seriously wrong with the ETri array of this mesh!')

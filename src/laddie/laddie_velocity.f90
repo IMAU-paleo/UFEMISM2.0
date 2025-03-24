@@ -4,7 +4,7 @@ MODULE laddie_velocity
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -16,15 +16,15 @@ MODULE laddie_velocity
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
-  USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D, map_b_c_2D
+  USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
-  use petsc_basic                                            , only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -53,20 +53,20 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
     REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
     REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
     CALL gather_to_all( laddie%mask_a, mask_a_tot)
 
-    ! Initialise ambient T and S                             
+    ! Initialise ambient T and S
     ! TODO costly, see whether necessary to recompute with Hstar
     CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
 
     ! Compute buoyancy
     CALL compute_buoyancy( mesh, ice, laddie, npx, Hstar)
- 
-    ! Bunch of mappings                                      
+
+    ! Bunch of mappings
     CALL map_a_b_2D( mesh, laddie%detr, detr_b)
     CALL map_H_a_b( mesh, laddie, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
     CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
@@ -165,8 +165,8 @@ CONTAINS
       IF (laddie%mask_b( ti)) THEN
         ! Get absolute velocity
         Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
-        
-        ! Scale U and V 
+
+        ! Scale U and V
         IF (Uabs == 0) CYCLE ! Prevent division by zero
         npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
         npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
@@ -185,9 +185,9 @@ CONTAINS
   END SUBROUTINE compute_UV_npx
 
   SUBROUTINE compute_viscUV( mesh, ice, laddie, npxref)
-    ! Compute horizontal viscosity of momentum          
-  
-    ! In- and output variables                               
+    ! Compute horizontal viscosity of momentum
+
+    ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
@@ -201,24 +201,24 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
     REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
-    
+
     ! Add routine to path
-    CALL init_routine( routine_name)        
+    CALL init_routine( routine_name)
 
     ! Gather
-    CALL gather_to_all( npxref%U, U_tot)            
-    CALL gather_to_all( npxref%V, V_tot)            
+    CALL gather_to_all( npxref%U, U_tot)
+    CALL gather_to_all( npxref%V, V_tot)
     CALL gather_to_all( laddie%mask_oc_b, mask_oc_b_tot)
     CALL gather_to_all( npxref%H_c, H_c_tot)
 
-    ! Loop over triangles                                  
+    ! Loop over triangles
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
-    
+
         ! Initialise at 0
         laddie%viscU( ti) = 0.0_dp
         laddie%viscV( ti) = 0.0_dp
-      
+
         ! Loop over connected triangles
         DO ci = 1, 3
           tj = mesh%TriC( ti, ci)
@@ -235,13 +235,13 @@ CONTAINS
             laddie%viscU( ti) = laddie%viscU( ti) - npxref%U( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
             laddie%viscV( ti) = laddie%viscV( ti) - npxref%V( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
           ELSE
-            ! Skip calving front - ocean connection: d/dx = d/dy = 0 
+            ! Skip calving front - ocean connection: d/dx = d/dy = 0
             IF (mask_oc_b_tot( tj)) CYCLE
 
             dUabs = SQRT((U_tot( tj) - U_tot( ti))**2 + (V_tot( tj) - V_tot( ti))**2)
             Ah = C%laddie_viscosity * dUabs * mesh%triCw( ti, ci) / 100.0_dp
-            
-            ! Add viscosity flux based on dU/dx and dV/dy. 
+
+            ! Add viscosity flux based on dU/dx and dV/dy.
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
             laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
             laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
@@ -250,10 +250,10 @@ CONTAINS
 
       END IF !(laddie%mask_b( ti)
     END DO !ti = mesh%ti1, mesh%ti2
-      
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-    
+
   END SUBROUTINE compute_viscUV
 
   SUBROUTINE compute_divQUV_upstream( mesh, laddie, npxref, Hstar_b)
@@ -348,9 +348,9 @@ CONTAINS
 
   subroutine map_UV_b_c( mesh, laddie, U, V, U_c, V_c)
     ! Calculate velocities on the c-grid for solving the layer thickness equation
-    ! 
+    !
     ! Uses a different scheme then the standard mapping operator, as that one is too diffusive
-        
+
     ! In/output variables:
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(in)    :: laddie
@@ -358,10 +358,10 @@ CONTAINS
     real(dp), dimension(mesh%ti1:mesh%ti2), intent(in)    :: V
     real(dp), dimension(mesh%ei1:mesh%ei2), intent(out)   :: U_c
     real(dp), dimension(mesh%ei1:mesh%ei2), intent(out)   :: V_c
-      
+
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_UV_b_c'
-      
+
     ! Add routine to path
     call init_routine( routine_name)
 
