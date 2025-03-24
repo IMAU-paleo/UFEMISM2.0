@@ -761,11 +761,11 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
 
     ! Parameterised SMB forcing
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_config              = 'IMAU-ITM'
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_config              = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM_config          = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS_config          = ''
     CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL_config          = ''
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT_config          = 'IMAU-ITM'
+    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT_config          = ''
 
     ! IMAU-ITM SMB model
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"

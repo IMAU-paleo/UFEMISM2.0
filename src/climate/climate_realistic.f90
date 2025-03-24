@@ -134,13 +134,19 @@ CONTAINS
 
       ! If the simulation is properly set up with times in [ka], we just get the absolute value of the initial time
       ! TODO: what is the standard? time in [ka] or in "[a]"
-      IF (C%start_time_of_run < 0._dp) THEN
-        timeframe_init_insolation = C%start_time_of_run
-      ELSE
-        timeframe_init_insolation = 0._dp
+      IF (C%choice_SMB_parameterised == 'IMAU-ITM') THEN
+        IF     (C%choice_insolation_forcing == 'none') THEN
+          CALL crash('IMAU-ITM cannot be chosen with choice_insolation_forcing = "none"!')
+        ELSE
+          IF (C%start_time_of_run < 0._dp) THEN
+            timeframe_init_insolation = C%start_time_of_run
+          ELSE
+            timeframe_init_insolation = 0._dp
+          END IF
+          IF (par%primary)  WRITE(*,"(A)") '     Calling getting insolation at time...'
+          CALL get_insolation_at_time( mesh, timeframe_init_insolation, forcing, climate%Q_TOA) ! TODO: check logic
+        END IF
       END IF
-      IF (par%primary)  WRITE(*,"(A)") '     Calling getting insolation at time...'
-      CALL get_insolation_at_time( mesh, timeframe_init_insolation, forcing, climate%Q_TOA) ! TODO: check logic
 
     ELSE
       CALL crash('unknown choice_climate_model_realistic "' // TRIM( C%choice_climate_model_realistic) // '"')
@@ -250,10 +256,6 @@ CONTAINS
         if (par%primary) WRITE(0,*) '     Reading Q_TOA1...'
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
       end if
-
-      
-
-      
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
