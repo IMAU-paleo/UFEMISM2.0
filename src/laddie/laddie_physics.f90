@@ -48,75 +48,77 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Get friction velocity
-    laddie%u_star= (C%laddie_drag_coefficient_top * (npx%U_a**2 + npx%V_a**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
+    call crash('fixme!')
 
-    ! Get gamma values
-    SELECT CASE (C%choice_laddie_gamma)
-      CASE DEFAULT
-        CALL crash('unknown choice_laddie_gamma "' // TRIM( C%choice_laddie_gamma) // '"')
-      CASE ('uniform')
-        laddie%gamma_T = C%uniform_laddie_gamma_T
-        laddie%gamma_S = C%uniform_laddie_gamma_T/35.0_dp
-      CASE ('Jenkins1991')
-        DO vi = mesh%vi1, mesh%vi2
-           IF (laddie%mask_a( vi)) THEN
-             AA = 2.12_dp*LOG(laddie%u_star( vi) * Hstar( vi)/nu0+eps)
-             laddie%gamma_T( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Prandtl_number**(2.0_dp/3) - 8.68_dp)
-             laddie%gamma_S( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Schmidt_number**(2.0_dp/3) - 8.68_dp)
-           END IF
-        END DO
-    END SELECT
+    ! ! Get friction velocity
+    ! laddie%u_star= (C%laddie_drag_coefficient_top * (npx%U_a**2 + npx%V_a**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
 
-    ! == Get melt rate ==
-    ! ===================
-    Ctil = cp_ice/cp_ocean
+    ! ! Get gamma values
+    ! SELECT CASE (C%choice_laddie_gamma)
+    !   CASE DEFAULT
+    !     CALL crash('unknown choice_laddie_gamma "' // TRIM( C%choice_laddie_gamma) // '"')
+    !   CASE ('uniform')
+    !     laddie%gamma_T = C%uniform_laddie_gamma_T
+    !     laddie%gamma_S = C%uniform_laddie_gamma_T/35.0_dp
+    !   CASE ('Jenkins1991')
+    !     DO vi = mesh%vi1, mesh%vi2
+    !        IF (laddie%mask_a( vi)) THEN
+    !          AA = 2.12_dp*LOG(laddie%u_star( vi) * Hstar( vi)/nu0+eps)
+    !          laddie%gamma_T( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Prandtl_number**(2.0_dp/3) - 8.68_dp)
+    !          laddie%gamma_S( vi) = laddie%u_star( vi) / (AA + 12.5_dp * Schmidt_number**(2.0_dp/3) - 8.68_dp)
+    !        END IF
+    !     END DO
+    ! END SELECT
 
-    ! Loop over vertices
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         ! Solve three equations
-         That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
-         IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
-           ! Ignore heat diffusion into ice
-           Chat = cp_ocean / L_fusion
-         ELSE
-           Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
-         END IF
+    ! ! == Get melt rate ==
+    ! ! ===================
+    ! Ctil = cp_ice/cp_ocean
 
-         Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
-         Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-npx%T( vi) + freezing_lambda_1*npx%S( vi))
+    ! ! Loop over vertices
+    ! DO vi = mesh%vi1, mesh%vi2
+    !    IF (laddie%mask_a( vi)) THEN
+    !      ! Solve three equations
+    !      That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
+    !      IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
+    !        ! Ignore heat diffusion into ice
+    !        Chat = cp_ocean / L_fusion
+    !      ELSE
+    !        Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
+    !      END IF
 
-         ! Get melt rate
-         IF (4*Cval > Bval**2) THEN
-           ! Probably not possible, but to prevent NaNs, set melt rate to zero
-           laddie%melt( vi) = 0.0
-         ELSE
-           laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval))
-         END IF
+    !      Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
+    !      Cval = Chat*laddie%gamma_T( vi)*laddie%gamma_S( vi) * (That-npx%T( vi) + freezing_lambda_1*npx%S( vi))
 
-         ! Get temperature at ice base
-         Dval = laddie%melt( vi) * cp_ice - cp_ocean * laddie%gamma_T( vi)
-         IF (ABS(Dval) < tol) THEN
-           ! Seems like a very unlikely case, but better to be careful
-           laddie%T_base( vi) = laddie%T_freeze( vi)
-         ELSE
-           IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
-             ! Ignore heat diffusion into ice
-             laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
-           ELSE
-             laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
-           END IF
-         END IF
+    !      ! Get melt rate
+    !      IF (4*Cval > Bval**2) THEN
+    !        ! Probably not possible, but to prevent NaNs, set melt rate to zero
+    !        laddie%melt( vi) = 0.0
+    !      ELSE
+    !        laddie%melt( vi) = 0.5_dp * (-Bval + SQRT(Bval**2 - 4.0_dp*Cval))
+    !      END IF
 
-       END IF
-    END DO
+    !      ! Get temperature at ice base
+    !      Dval = laddie%melt( vi) * cp_ice - cp_ocean * laddie%gamma_T( vi)
+    !      IF (ABS(Dval) < tol) THEN
+    !        ! Seems like a very unlikely case, but better to be careful
+    !        laddie%T_base( vi) = laddie%T_freeze( vi)
+    !      ELSE
+    !        IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
+    !          ! Ignore heat diffusion into ice
+    !          laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
+    !        ELSE
+    !          laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
+    !        END IF
+    !      END IF
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%melt, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean melt = ', d_av
-    call average_over_domain( mesh, laddie%T_base, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean T_base = ', d_av
+    !    END IF
+    ! END DO
+
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, laddie%melt, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean melt = ', d_av
+    ! call average_over_domain( mesh, laddie%T_base, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean T_base = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -143,39 +145,41 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Only Gaspar option for now
+    call crash('fixme!')
 
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         ! Get salinity at ice base
-         laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 - freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
+    ! ! Only Gaspar option for now
 
-         ! Get buoyancy at ice base
-         laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (npx%S( vi)-laddie%S_base( vi)) &
-                               - C%uniform_laddie_eos_linear_alpha * (npx%T( vi)-laddie%T_base( vi))
+    ! DO vi = mesh%vi1, mesh%vi2
+    !    IF (laddie%mask_a( vi)) THEN
+    !      ! Get salinity at ice base
+    !      laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 - freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
 
-         ! Get entrainment
-         laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav &
-                          * laddie%u_star( vi)**3 / (Hstar( vi) * laddie%drho_amb( vi)) &
-                          - laddie%drho_base( vi) / laddie%drho_amb( vi) * laddie%melt( vi)
+    !      ! Get buoyancy at ice base
+    !      laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (npx%S( vi)-laddie%S_base( vi)) &
+    !                            - C%uniform_laddie_eos_linear_alpha * (npx%T( vi)-laddie%T_base( vi))
 
-         ! Prevent too strong detrainment
-         laddie%entr( vi) = MAX(laddie%entr( vi), -maxdetr)
+    !      ! Get entrainment
+    !      laddie%entr( vi) = 2*C%laddie_Gaspar1988_mu/grav &
+    !                       * laddie%u_star( vi)**3 / (Hstar( vi) * laddie%drho_amb( vi)) &
+    !                       - laddie%drho_base( vi) / laddie%drho_amb( vi) * laddie%melt( vi)
 
-         ! Get detrainment = negative component of entrainment
-         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
-       END IF
-    END DO
+    !      ! Prevent too strong detrainment
+    !      laddie%entr( vi) = MAX(laddie%entr( vi), -maxdetr)
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%S_base, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean S_base = ', d_av
-    call average_over_domain( mesh, laddie%drho_base, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean drho_base = ', d_av
-    call average_over_domain( mesh, laddie%entr, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean entr = ', d_av
-    call average_over_domain( mesh, laddie%detr, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean detr = ', d_av
+    !      ! Get detrainment = negative component of entrainment
+    !      laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
+    !    END IF
+    ! END DO
+
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, laddie%S_base, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean S_base = ', d_av
+    ! call average_over_domain( mesh, laddie%drho_base, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean drho_base = ', d_av
+    ! call average_over_domain( mesh, laddie%entr, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean entr = ', d_av
+    ! call average_over_domain( mesh, laddie%detr, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean detr = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -201,15 +205,17 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
-       END IF
-    END DO
+    call crash('fixme!')
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%T_freeze, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean T_freeze = ', d_av
+    ! DO vi = mesh%vi1, mesh%vi2
+    !    IF (laddie%mask_a( vi)) THEN
+    !      laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
+    !    END IF
+    ! END DO
+
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, laddie%T_freeze, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean T_freeze = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -237,28 +243,30 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    laddie%drho_amb = 0.0_dp
+    call crash('fixme!')
 
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         ! Get buoyancy
-         laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-npx%S( vi)) &
-                              - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-npx%T( vi))
+    ! laddie%drho_amb = 0.0_dp
 
-         ! Make sure buoyancy is positive TODO expand with convection scheme
-         laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),C%laddie_buoyancy_minimum/seawater_density)
+    ! DO vi = mesh%vi1, mesh%vi2
+    !    IF (laddie%mask_a( vi)) THEN
+    !      ! Get buoyancy
+    !      laddie%drho_amb( vi) = C%uniform_laddie_eos_linear_beta  * (laddie%S_amb( vi)-npx%S( vi)) &
+    !                           - C%uniform_laddie_eos_linear_alpha * (laddie%T_amb( vi)-npx%T( vi))
 
-         ! Get depth-integrated buoyancy based on Hstar
-         laddie%Hdrho_amb( vi) = Hstar( vi) * laddie%drho_amb( vi)
+    !      ! Make sure buoyancy is positive TODO expand with convection scheme
+    !      laddie%drho_amb( vi) = MAX(laddie%drho_amb( vi),C%laddie_buoyancy_minimum/seawater_density)
 
-       END IF
-    END DO
+    !      ! Get depth-integrated buoyancy based on Hstar
+    !      laddie%Hdrho_amb( vi) = Hstar( vi) * laddie%drho_amb( vi)
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%drho_amb, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean drho_amb = ', d_av
-    call average_over_domain( mesh, laddie%Hdrho_amb, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hdrho_amb = ', d_av
+    !    END IF
+    ! END DO
+
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, laddie%drho_amb, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean drho_amb = ', d_av
+    ! call average_over_domain( mesh, laddie%Hdrho_amb, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean Hdrho_amb = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

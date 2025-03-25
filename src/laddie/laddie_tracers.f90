@@ -48,51 +48,53 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Compute divergence of heat and salt
-    CALL compute_divQTS( mesh, laddie, npx, Hstar)
+    call crash('fixme!')
 
-    ! Loop over vertices
-    DO vi = mesh%vi1, mesh%vi2
-      IF (laddie%mask_a( vi)) THEN
+    ! ! Compute divergence of heat and salt
+    ! CALL compute_divQTS( mesh, laddie, npx, Hstar)
 
-        ! == Get time derivatives ==
+    ! ! Loop over vertices
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   IF (laddie%mask_a( vi)) THEN
 
-        ! Time-derivative heat equation
-        dHTdt = -laddie%divQT( vi) &
-               + laddie%melt( vi) * laddie%T_base( vi) &
-               + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
-               + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-               - laddie%detr( vi) * npxref%T( vi)
+    !     ! == Get time derivatives ==
 
-        ! Time-derivative salt equation
-        dHSdt = -laddie%divQS( vi) &
-               + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
-               + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-               - laddie%detr( vi) * npxref%S( vi)
+    !     ! Time-derivative heat equation
+    !     dHTdt = -laddie%divQT( vi) &
+    !            + laddie%melt( vi) * laddie%T_base( vi) &
+    !            + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
+    !            + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
+    !            - laddie%detr( vi) * npxref%T( vi)
 
-        ! Add diffusive terms if requested
-        IF (include_diffusive_terms) THEN
-          dHTdt = dHTdt + laddie%diffT( vi)
-          dHSdt = dHSdt + laddie%diffS( vi)
-        END IF
+    !     ! Time-derivative salt equation
+    !     dHSdt = -laddie%divQS( vi) &
+    !            + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
+    !            + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
+    !            - laddie%detr( vi) * npxref%S( vi)
 
-        ! == Apply time-integration ==
+    !     ! Add diffusive terms if requested
+    !     IF (include_diffusive_terms) THEN
+    !       dHTdt = dHTdt + laddie%diffT( vi)
+    !       dHSdt = dHSdt + laddie%diffS( vi)
+    !     END IF
 
-        ! HT_n = HT + dHT_dt * dt
-        HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
-        npx%T( vi) = HT_next / npx%H( vi)
+    !     ! == Apply time-integration ==
 
-        ! HS_n = HS + dHS_dt * dt
-        HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
-        npx%S( vi) = HS_next / npx%H( vi)
-      END IF !(laddie%mask_a( vi)) THEN
-    END DO !vi = mesh%vi, mesh%v2
+    !     ! HT_n = HT + dHT_dt * dt
+    !     HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
+    !     npx%T( vi) = HT_next / npx%H( vi)
 
-    ! DENK DROM
-    call average_over_domain( mesh, npx%T, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean npx%T = ', d_av
-    call average_over_domain( mesh, npx%S, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean npx%S = ', d_av
+    !     ! HS_n = HS + dHS_dt * dt
+    !     HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
+    !     npx%S( vi) = HS_next / npx%H( vi)
+    !   END IF !(laddie%mask_a( vi)) THEN
+    ! END DO !vi = mesh%vi, mesh%v2
+
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, npx%T, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean npx%T = ', d_av
+    ! call average_over_domain( mesh, npx%S, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean npx%S = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -121,44 +123,46 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Gather
-    CALL gather_to_all( npxref%T, T_tot)
-    CALL gather_to_all( npxref%S, S_tot)
-    CALL gather_to_all( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all( npxref%H_c, H_c_tot)
+    call crash('fixme!')
 
-    ! Initialise at 0
-    laddie%diffT = 0.0_dp
-    laddie%diffS = 0.0_dp
+    ! ! Gather
+    ! CALL gather_to_all( npxref%T, T_tot)
+    ! CALL gather_to_all( npxref%S, S_tot)
+    ! CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    ! CALL gather_to_all( npxref%H_c, H_c_tot)
 
-    ! Loop over vertices
-    DO vi = mesh%vi1, mesh%vi2
+    ! ! Initialise at 0
+    ! laddie%diffT = 0.0_dp
+    ! laddie%diffS = 0.0_dp
 
-      IF (laddie%mask_a( vi)) THEN
+    ! ! Loop over vertices
+    ! DO vi = mesh%vi1, mesh%vi2
 
-        ! Loop over connected vertices
-        DO ci = 1, mesh%nC( vi)
-          vj = mesh%C( vi, ci)
-          ei = mesh%VE( vi, ci)
-          ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
-          IF (mask_a_tot( vj)) THEN
-            ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
+    !   IF (laddie%mask_a( vi)) THEN
 
-            Kh = C%laddie_diffusivity
+    !     ! Loop over connected vertices
+    !     DO ci = 1, mesh%nC( vi)
+    !       vj = mesh%C( vi, ci)
+    !       ei = mesh%VE( vi, ci)
+    !       ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
+    !       IF (mask_a_tot( vj)) THEN
+    !         ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
 
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
-          END IF
-        END DO
+    !         Kh = C%laddie_diffusivity
 
-      END IF
-    END DO
+    !         laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+    !         laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+    !       END IF
+    !     END DO
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%diffT, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffT% = ', d_av
-    call average_over_domain( mesh, laddie%diffS, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffS% = ', d_av
+    !   END IF
+    ! END DO
+
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, laddie%diffT, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffT% = ', d_av
+    ! call average_over_domain( mesh, laddie%diffS, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffS% = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -188,66 +192,68 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all( npx%U_c, U_c_tot)
-    CALL gather_to_all( npx%V_c, V_c_tot)
-    CALL gather_to_all( Hstar, Hstar_tot)
-    CALL gather_to_all( npx%T, T_tot)
-    CALL gather_to_all( npx%S, S_tot)
-    CALL gather_to_all( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
+    call crash('fixme!')
 
-    ! Initialise with zeros
-    laddie%divQT = 0.0_dp
-    laddie%divQS = 0.0_dp
+    ! ! Calculate vertically averaged ice velocities on the edges
+    ! CALL gather_to_all( npx%U_c, U_c_tot)
+    ! CALL gather_to_all( npx%V_c, V_c_tot)
+    ! CALL gather_to_all( Hstar, Hstar_tot)
+    ! CALL gather_to_all( npx%T, T_tot)
+    ! CALL gather_to_all( npx%S, S_tot)
+    ! CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    ! CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
+    ! CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
 
-    ! == Loop over vertices ==
-    ! =========================
+    ! ! Initialise with zeros
+    ! laddie%divQT = 0.0_dp
+    ! laddie%divQS = 0.0_dp
 
-    DO vi = mesh%vi1, mesh%vi2
+    ! ! == Loop over vertices ==
+    ! ! =========================
 
-      IF (laddie%mask_a( vi)) THEN
+    ! DO vi = mesh%vi1, mesh%vi2
 
-        ! Loop over all connections of vertex vi
-        DO ci = 1, mesh%nC( vi)
+    !   IF (laddie%mask_a( vi)) THEN
 
-          ! Connection ci from vertex vi leads through edge ei to vertex vj
-          vj = mesh%C(  vi,ci)
+    !     ! Loop over all connections of vertex vi
+    !     DO ci = 1, mesh%nC( vi)
 
-          ! Skip connection if neighbour is grounded. No flux across grounding line
-          ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-          IF (mask_gr_a_tot( vj)) CYCLE
+    !       ! Connection ci from vertex vi leads through edge ei to vertex vj
+    !       vj = mesh%C(  vi,ci)
 
-          ei = mesh%VE( vi,ci)
+    !       ! Skip connection if neighbour is grounded. No flux across grounding line
+    !       ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
+    !       IF (mask_gr_a_tot( vj)) CYCLE
 
-          ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-          u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+    !       ei = mesh%VE( vi,ci)
 
-          ! Calculate upwind momentum divergence
-          ! =============================
-          ! u_perp > 0: flow is exiting this vertex into vertex vj
-          IF (u_perp > 0) THEN
-            laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
-            laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
-          ! u_perp < 0: flow is entering this vertex from vertex vj
-          ELSE
-            IF (mask_oc_a_tot( vj)) THEN
-              CYCLE ! no inflow
-              ! TODO fix boundary condition inflow
-              laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
-              laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
-            ELSE
-              laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * T_tot( vj) / mesh%A( vi)
-              laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * S_tot( vj) / mesh%A( vi)
-            END IF
-          END IF
+    !       ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
+    !       u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
-        END DO ! DO ci = 1, mesh%nC( vi)
+    !       ! Calculate upwind momentum divergence
+    !       ! =============================
+    !       ! u_perp > 0: flow is exiting this vertex into vertex vj
+    !       IF (u_perp > 0) THEN
+    !         laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
+    !         laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
+    !       ! u_perp < 0: flow is entering this vertex from vertex vj
+    !       ELSE
+    !         IF (mask_oc_a_tot( vj)) THEN
+    !           CYCLE ! no inflow
+    !           ! TODO fix boundary condition inflow
+    !           laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
+    !           laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
+    !         ELSE
+    !           laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * T_tot( vj) / mesh%A( vi)
+    !           laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * S_tot( vj) / mesh%A( vi)
+    !         END IF
+    !       END IF
 
-      END IF ! (laddie%mask_a( vi))
+    !     END DO ! DO ci = 1, mesh%nC( vi)
 
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+    !   END IF ! (laddie%mask_a( vi))
+
+    ! END DO ! DO vi = mesh%vi1, mesh%vi2
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

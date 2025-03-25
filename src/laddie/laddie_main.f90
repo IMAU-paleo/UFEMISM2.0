@@ -58,70 +58,72 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! == Preparation ==
-    ! =================
+    call crash('fixme!')
 
-    ! Extrapolate data into new cells
-    CALL extrapolate_laddie_variables( mesh, ice, laddie)
+    ! ! == Preparation ==
+    ! ! =================
 
-    ! == Update masks ==
-    CALL update_laddie_masks( mesh, ice, laddie)
+    ! ! Extrapolate data into new cells
+    ! CALL extrapolate_laddie_variables( mesh, ice, laddie)
 
-    ! Set values to zero if outside laddie mask
-    DO vi = mesh%vi1, mesh%vi2
-      IF (.NOT. laddie%mask_a( vi)) THEN
-        laddie%now%H( vi)     = 0.0_dp
-        laddie%now%T( vi)     = 0.0_dp
-        laddie%now%S( vi)     = 0.0_dp
-        laddie%melt( vi)  = 0.0_dp
-        laddie%entr( vi)  = 0.0_dp
-      END IF
-    END DO
+    ! ! == Update masks ==
+    ! CALL update_laddie_masks( mesh, ice, laddie)
 
-    DO ti = mesh%ti1, mesh%ti2
-      IF (.NOT. laddie%mask_b( ti)) THEN
-        laddie%now%U( ti)     = 0.0_dp
-        laddie%now%V( ti)     = 0.0_dp
-        laddie%now%H_b( ti)   = 0.0_dp
-      END IF
-    END DO
+    ! ! Set values to zero if outside laddie mask
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   IF (.NOT. laddie%mask_a( vi)) THEN
+    !     laddie%now%H( vi)     = 0.0_dp
+    !     laddie%now%T( vi)     = 0.0_dp
+    !     laddie%now%S( vi)     = 0.0_dp
+    !     laddie%melt( vi)  = 0.0_dp
+    !     laddie%entr( vi)  = 0.0_dp
+    !   END IF
+    ! END DO
 
-    ! Simply set H_c zero everywhere, will be recomputed through mapping later
-    laddie%now%H_c = 0.0_dp
+    ! DO ti = mesh%ti1, mesh%ti2
+    !   IF (.NOT. laddie%mask_b( ti)) THEN
+    !     laddie%now%U( ti)     = 0.0_dp
+    !     laddie%now%V( ti)     = 0.0_dp
+    !     laddie%now%H_b( ti)   = 0.0_dp
+    !   END IF
+    ! END DO
 
-    ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    ! ! Simply set H_c zero everywhere, will be recomputed through mapping later
+    ! laddie%now%H_c = 0.0_dp
 
-    ! == Main time loop ==
-    ! ====================
+    ! ! == Update operators ==
+    ! CALL update_laddie_operators( mesh, ice, laddie)
 
-    tl = 0.0_dp
+    ! ! == Main time loop ==
+    ! ! ====================
 
-    DO WHILE (tl < duration * sec_per_day)
+    ! tl = 0.0_dp
 
-      ! Set time step
-      IF (tl < time_relax_laddie * sec_per_day) THEN
-        ! Relaxation, take short time step
-        dt = C%dt_laddie / fac_dt_relax
-      ELSE
-        ! Regular timestep
-        dt = C%dt_laddie
-      END IF
+    ! DO WHILE (tl < duration * sec_per_day)
 
-      SELECT CASE(C%choice_laddie_integration_scheme)
-        CASE DEFAULT
-          CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-        CASE ('euler')
-          CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
-        CASE ('fbrk3')
-          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
-      END SELECT
+    !   ! Set time step
+    !   IF (tl < time_relax_laddie * sec_per_day) THEN
+    !     ! Relaxation, take short time step
+    !     dt = C%dt_laddie / fac_dt_relax
+    !   ELSE
+    !     ! Regular timestep
+    !     dt = C%dt_laddie
+    !   END IF
 
-      ! Display or save fields
-      CALL print_diagnostics( mesh, laddie, tl)
-      call crash('whoopsiedaisy!')
+    !   SELECT CASE(C%choice_laddie_integration_scheme)
+    !     CASE DEFAULT
+    !       CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+    !     CASE ('euler')
+    !       CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
+    !     CASE ('fbrk3')
+    !       CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
+    !   END SELECT
 
-    END DO !DO WHILE (tl < C%time_duration_laddie)
+    !   ! Display or save fields
+    !   CALL print_diagnostics( mesh, laddie, tl)
+    !   call crash('whoopsiedaisy!')
+
+    ! END DO !DO WHILE (tl < C%time_duration_laddie)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -145,33 +147,35 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Print to terminal
-    IF (par%primary)  WRITE(*,"(A)") '   Initialising LADDIE model...'
+    call crash('fixme!')
 
-    ! Allocate variables
-    CALL allocate_laddie_model( mesh, laddie)
+    ! ! Print to terminal
+    ! IF (par%primary)  WRITE(*,"(A)") '   Initialising LADDIE model...'
 
-    ! Mask on a grid
-    DO vi = mesh%vi1, mesh%vi2
-      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
-    END DO
+    ! ! Allocate variables
+    ! CALL allocate_laddie_model( mesh, laddie)
 
-    ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    ! ! Mask on a grid
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
+    ! END DO
 
-    ! Initialise requested timesteps
-    CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
+    ! ! == Update operators ==
+    ! CALL update_laddie_operators( mesh, ice, laddie)
 
-    SELECT CASE(C%choice_laddie_integration_scheme)
-      CASE DEFAULT
-        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-      CASE ('euler')
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
-      CASE ('fbrk3')
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np13)
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
-    END SELECT
+    ! ! Initialise requested timesteps
+    ! CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
+
+    ! SELECT CASE(C%choice_laddie_integration_scheme)
+    !   CASE DEFAULT
+    !     CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+    !   CASE ('euler')
+    !     CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+    !   CASE ('fbrk3')
+    !     CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np13)
+    !     CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
+    !     CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+    ! END SELECT
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -196,30 +200,32 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate timestep
-    CALL allocate_laddie_timestep( mesh, npx)
+    call crash('fixme!')
 
-    ! Layer thickness
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         npx%H( vi)      = C%laddie_initial_thickness
-       END IF
-    END DO
+    ! ! Allocate timestep
+    ! CALL allocate_laddie_timestep( mesh, npx)
 
-    ! Layer thickness on b and c grid
-    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
-    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
+    ! ! Layer thickness
+    ! DO vi = mesh%vi1, mesh%vi2
+    !    IF (laddie%mask_a( vi)) THEN
+    !      npx%H( vi)      = C%laddie_initial_thickness
+    !    END IF
+    ! END DO
 
-    ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npx%H)
+    ! ! Layer thickness on b and c grid
+    ! CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
+    ! CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
-    ! Initialise main T and S
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         npx%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset
-         npx%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
-       END IF
-    END DO
+    ! ! Initialise ambient T and S
+    ! CALL compute_ambient_TS( mesh, ice, ocean, laddie, npx%H)
+
+    ! ! Initialise main T and S
+    ! DO vi = mesh%vi1, mesh%vi2
+    !    IF (laddie%mask_a( vi)) THEN
+    !      npx%T( vi)      = laddie%T_amb( vi) + C%laddie_initial_T_offset
+    !      npx%S( vi)      = laddie%S_amb( vi) + C%laddie_initial_S_offset
+    !    END IF
+    ! END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -245,20 +251,22 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
+    call crash('fixme!')
 
-    ! Update diffusive terms based on now time step
-    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
+    ! ! Integrate H 1 time step
+    ! CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
 
-    ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    ! ! Update diffusive terms based on now time step
+    ! CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
-    ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    ! ! Integrate U and V 1 time step
+    ! CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
-    ! == Move time ==
-    CALL move_laddie_timestep( laddie, tl, dt)
+    ! ! Integrate T and S 1 time step
+    ! CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+
+    ! ! == Move time ==
+    ! CALL move_laddie_timestep( laddie, tl, dt)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -288,78 +296,80 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! == Stage 1: explicit 1/3 timestep ==
-    ! == RHS terms defined at n ==========
-    ! ====================================
+    call crash('fixme!')
 
-    ! Integrate H 1/3 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, time, dt/3)
+    ! ! == Stage 1: explicit 1/3 timestep ==
+    ! ! == RHS terms defined at n ==========
+    ! ! ====================================
 
-    ! Compute Hstar
-    Hstar = C%laddie_fbrk3_beta1 * laddie%np13%H + (1-C%laddie_fbrk3_beta1) * laddie%now%H
+    ! ! Integrate H 1/3 time step
+    ! CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, time, dt/3)
 
-    ! DENK DROM
-    call average_over_domain( mesh, Hstar, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
+    ! ! Compute Hstar
+    ! Hstar = C%laddie_fbrk3_beta1 * laddie%np13%H + (1-C%laddie_fbrk3_beta1) * laddie%now%H
 
-    ! Update diffusive terms
-    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, Hstar, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
 
-    ! Integrate U and V 1/3 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
+    ! ! Update diffusive terms
+    ! CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
-    ! Integrate T and S 1/3 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
+    ! ! Integrate U and V 1/3 time step
+    ! CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
 
-    ! == Stage 2: explicit 1/2 timestep ==
-    ! == RHS terms defined at n + 1/3 ====
-    ! ====================================
+    ! ! Integrate T and S 1/3 time step
+    ! CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
 
-    ! Integrate H 1/2 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, time, dt/2)
+    ! ! == Stage 2: explicit 1/2 timestep ==
+    ! ! == RHS terms defined at n + 1/3 ====
+    ! ! ====================================
 
-    ! Compute new Hstar
-    Hstar = C%laddie_fbrk3_beta2 * laddie%np12%H + (1-C%laddie_fbrk3_beta2) * laddie%now%H
+    ! ! Integrate H 1/2 time step
+    ! CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, time, dt/2)
 
-    ! DENK DROM
-    call average_over_domain( mesh, Hstar, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
+    ! ! Compute new Hstar
+    ! Hstar = C%laddie_fbrk3_beta2 * laddie%np12%H + (1-C%laddie_fbrk3_beta2) * laddie%now%H
 
-    ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, Hstar, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
 
-    ! Integrate U and V 1/2 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstar, dt/2, .false.)
+    ! ! Update diffusive terms
+    ! !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
 
-    ! Integrate T and S 1/2 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
+    ! ! Integrate U and V 1/2 time step
+    ! CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstar, dt/2, .false.)
 
-    ! == Stage 3: explicit 1 timestep ====
-    ! == RHS terms defined at n + 1/2 ====
-    ! ====================================
+    ! ! Integrate T and S 1/2 time step
+    ! CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
 
-    ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, time, dt)
+    ! ! == Stage 3: explicit 1 timestep ====
+    ! ! == RHS terms defined at n + 1/2 ====
+    ! ! ====================================
 
-    ! Compute new Hstar
-    Hstar = C%laddie_fbrk3_beta3 * laddie%np1%H + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H + C%laddie_fbrk3_beta3 * laddie%now%H
+    ! ! Integrate H 1 time step
+    ! CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, time, dt)
 
-    ! DENK DROM
-    call average_over_domain( mesh, Hstar, d_av)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
+    ! ! Compute new Hstar
+    ! Hstar = C%laddie_fbrk3_beta3 * laddie%np1%H + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H + C%laddie_fbrk3_beta3 * laddie%now%H
 
-    ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
+    ! ! DENK DROM
+    ! call average_over_domain( mesh, Hstar, d_av)
+    ! if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
 
-    ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstar, dt, .true.)
+    ! ! Update diffusive terms
+    ! !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
 
-    ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
+    ! ! Integrate U and V 1 time step
+    ! CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstar, dt, .true.)
 
-    ! ===============
-    ! == Move time ==
-    CALL move_laddie_timestep( laddie, tl, dt)
+    ! ! Integrate T and S 1 time step
+    ! CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
+
+    ! ! ===============
+    ! ! == Move time ==
+    ! CALL move_laddie_timestep( laddie, tl, dt)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -381,21 +391,23 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Increase laddie time
-    tl = tl + dt
+    call crash('fixme!')
 
-    ! Move main variables by 1 time step
-    laddie%now%H = laddie%np1%H
-    laddie%now%T = laddie%np1%T
-    laddie%now%S = laddie%np1%S
-    laddie%now%U = laddie%np1%U
-    laddie%now%V = laddie%np1%V
-    laddie%now%H_b = laddie%np1%H_b
-    laddie%now%H_c = laddie%np1%H_c
-    laddie%now%U_a = laddie%np1%U_a
-    laddie%now%U_c = laddie%np1%U_c
-    laddie%now%V_a = laddie%np1%V_a
-    laddie%now%V_c = laddie%np1%V_c
+    ! ! Increase laddie time
+    ! tl = tl + dt
+
+    ! ! Move main variables by 1 time step
+    ! laddie%now%H = laddie%np1%H
+    ! laddie%now%T = laddie%np1%T
+    ! laddie%now%S = laddie%np1%S
+    ! laddie%now%U = laddie%np1%U
+    ! laddie%now%V = laddie%np1%V
+    ! laddie%now%H_b = laddie%np1%H_b
+    ! laddie%now%H_c = laddie%np1%H_c
+    ! laddie%now%U_a = laddie%np1%U_a
+    ! laddie%now%U_c = laddie%np1%U_c
+    ! laddie%now%V_a = laddie%np1%V_a
+    ! laddie%now%V_c = laddie%np1%V_c
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -420,11 +432,13 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Compute diffusivities
-    CALL compute_diffTS( mesh, ice, laddie, npxref)
+    call crash('fixme!')
 
-    ! Compute viscosities
-    CALL compute_viscUV( mesh, ice, laddie, npxref)
+    ! ! Compute diffusivities
+    ! CALL compute_diffTS( mesh, ice, laddie, npxref)
+
+    ! ! Compute viscosities
+    ! CALL compute_viscUV( mesh, ice, laddie, npxref)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -448,96 +462,98 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Mask on a grid
-    DO vi = mesh%vi1, mesh%vi2
-      ! Check whether vertex on border
-      IF (mesh%VBI( vi) > 0) THEN
-        laddie%mask_a( vi)    = .false.
-        laddie%mask_gr_a( vi) = .true.
-      ELSE IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) THEN
-        laddie%mask_a( vi)    = .false.
-        laddie%mask_gr_a( vi) = .true.
-      ELSE IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) THEN
-        laddie%mask_a( vi)    = .false.
-        laddie%mask_oc_a( vi) = .true.
-      ELSE
-        ! Inherit regular masks
-        laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
-        laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)
-        laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
-      END IF
-    END DO
+    call crash('fixme!')
 
-    ! Mask on b grid
-    CALL gather_to_all( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
+    ! ! Mask on a grid
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   ! Check whether vertex on border
+    !   IF (mesh%VBI( vi) > 0) THEN
+    !     laddie%mask_a( vi)    = .false.
+    !     laddie%mask_gr_a( vi) = .true.
+    !   ELSE IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) THEN
+    !     laddie%mask_a( vi)    = .false.
+    !     laddie%mask_gr_a( vi) = .true.
+    !   ELSE IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) THEN
+    !     laddie%mask_a( vi)    = .false.
+    !     laddie%mask_oc_a( vi) = .true.
+    !   ELSE
+    !     ! Inherit regular masks
+    !     laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
+    !     laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)
+    !     laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
+    !   END IF
+    ! END DO
 
-    DO ti = mesh%ti1, mesh%ti2
-      ! Initialise as false to overwrite previous mask
-      laddie%mask_b( ti)    = .false.
-      laddie%mask_gl_b( ti) = .false.
-      laddie%mask_cf_b( ti) = .false.
-      laddie%mask_oc_b( ti) = .false.
+    ! ! Mask on b grid
+    ! CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    ! CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
+    ! CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
 
-      ! Define floating mask if any of the three vertices is floating
-      DO i = 1, 3
-        vi = mesh%Tri( ti, i)
-        IF (mask_a_tot( vi)) THEN
-          ! Set true if any of the three vertices is floating
-          laddie%mask_b( ti) = .true.
-        END IF
-      END DO
+    ! DO ti = mesh%ti1, mesh%ti2
+    !   ! Initialise as false to overwrite previous mask
+    !   laddie%mask_b( ti)    = .false.
+    !   laddie%mask_gl_b( ti) = .false.
+    !   laddie%mask_cf_b( ti) = .false.
+    !   laddie%mask_oc_b( ti) = .false.
 
-      ! Define grounding line triangles
-      DO i = 1, 3
-        vi = mesh%Tri( ti, i)
-        ! Check if any connected vertex is grounded
-        IF (mask_gr_a_tot( vi)) THEN
-          ! Omit triangle from floating mask. Adjust for no slip conditions
-          laddie%mask_b( ti) = .false.
-          ! Define as grounding line triangle
-          laddie%mask_gl_b( ti) = .true.
-        END IF
-      END DO
+    !   ! Define floating mask if any of the three vertices is floating
+    !   DO i = 1, 3
+    !     vi = mesh%Tri( ti, i)
+    !     IF (mask_a_tot( vi)) THEN
+    !       ! Set true if any of the three vertices is floating
+    !       laddie%mask_b( ti) = .true.
+    !     END IF
+    !   END DO
 
-      ! Also define border triangles as grounding line
-      IF (mesh%TriBI( ti) > 0) THEN
-        ! Omit triangle from floating mask. Adjust for no slip conditions
-        laddie%mask_b( ti) = .false.
-        ! Define as grounding line triangle
-        laddie%mask_gl_b( ti) = .true.
-      END IF
+    !   ! Define grounding line triangles
+    !   DO i = 1, 3
+    !     vi = mesh%Tri( ti, i)
+    !     ! Check if any connected vertex is grounded
+    !     IF (mask_gr_a_tot( vi)) THEN
+    !       ! Omit triangle from floating mask. Adjust for no slip conditions
+    !       laddie%mask_b( ti) = .false.
+    !       ! Define as grounding line triangle
+    !       laddie%mask_gl_b( ti) = .true.
+    !     END IF
+    !   END DO
 
-      ! For non-grounding line triangles:
-      IF (.NOT. laddie%mask_gl_b( ti)) THEN
-        ! Define calving front triangles
-        DO i = 1, 3
-          vi = mesh%Tri( ti, i)
-          ! Check if any vertex is icefree ocean
-          IF (mask_oc_a_tot( vi)) THEN
-            ! Define as calving front triangle
-            laddie%mask_cf_b( ti) = .true.
-          END IF
-        END DO
-      END IF
+    !   ! Also define border triangles as grounding line
+    !   IF (mesh%TriBI( ti) > 0) THEN
+    !     ! Omit triangle from floating mask. Adjust for no slip conditions
+    !     laddie%mask_b( ti) = .false.
+    !     ! Define as grounding line triangle
+    !     laddie%mask_gl_b( ti) = .true.
+    !   END IF
 
-      ! Define ocean triangles
-      no = 0 ! Number of ice free ocean vertices
-      DO i = 1, 3
-        vi = mesh%Tri( ti, i)
-        ! Check if vertex is icefree ocean
-        IF (mask_oc_a_tot( vi)) THEN
-          no = no + 1
-        END IF
-      END DO
-      ! Check whether all vertices are icefree ocean
-      IF (no == 3) THEN
-        ! Define as ocean triangle
-        laddie%mask_oc_b( ti) = .true.
-      END IF
+    !   ! For non-grounding line triangles:
+    !   IF (.NOT. laddie%mask_gl_b( ti)) THEN
+    !     ! Define calving front triangles
+    !     DO i = 1, 3
+    !       vi = mesh%Tri( ti, i)
+    !       ! Check if any vertex is icefree ocean
+    !       IF (mask_oc_a_tot( vi)) THEN
+    !         ! Define as calving front triangle
+    !         laddie%mask_cf_b( ti) = .true.
+    !       END IF
+    !     END DO
+    !   END IF
 
-    END DO !ti = mesh%ti1, mesh%ti2
+    !   ! Define ocean triangles
+    !   no = 0 ! Number of ice free ocean vertices
+    !   DO i = 1, 3
+    !     vi = mesh%Tri( ti, i)
+    !     ! Check if vertex is icefree ocean
+    !     IF (mask_oc_a_tot( vi)) THEN
+    !       no = no + 1
+    !     END IF
+    !   END DO
+    !   ! Check whether all vertices are icefree ocean
+    !   IF (no == 3) THEN
+    !     ! Define as ocean triangle
+    !     laddie%mask_oc_b( ti) = .true.
+    !   END IF
+
+    ! END DO !ti = mesh%ti1, mesh%ti2
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -562,57 +578,59 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Initialise mask
-    mask = 0
+    call crash('fixme!')
 
-    ! Determine mask for seed (2: previously floating cells), fill (1: new floating cells), or ignore (0: grounded/ocean)
-    DO vi = mesh%vi1, mesh%vi2
-      ! Skip if vertex is at border
-      IF (mesh%VBI( vi) > 0) CYCLE
+    ! ! Initialise mask
+    ! mask = 0
 
-      ! Skip if water column thickness is insufficient, treated as grounded for now
-      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
+    ! ! Determine mask for seed (2: previously floating cells), fill (1: new floating cells), or ignore (0: grounded/ocean)
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   ! Skip if vertex is at border
+    !   IF (mesh%VBI( vi) > 0) CYCLE
 
-      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+    !   ! Skip if water column thickness is insufficient, treated as grounded for now
+    !   IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
 
-      ! Currently floating ice, so either seed or fill here
-      IF (ice%mask_floating_ice( vi)) THEN
-        IF (laddie%mask_a( vi)) THEN
-          ! Data already available here, so use as seed
-          mask( vi) = 2
-        ELSE
-          ! New floating cells, so fill here
-          mask (vi) = 1
-        END IF
-      END IF
-    END DO
+    !   IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
 
-    ! Apply extrapolation to H, T and S
-    CALL extrapolate_Gaussian( mesh, mask, laddie%now%H, sigma)
-    CALL extrapolate_Gaussian( mesh, mask, laddie%now%T, sigma)
-    CALL extrapolate_Gaussian( mesh, mask, laddie%now%S, sigma)
+    !   ! Currently floating ice, so either seed or fill here
+    !   IF (ice%mask_floating_ice( vi)) THEN
+    !     IF (laddie%mask_a( vi)) THEN
+    !       ! Data already available here, so use as seed
+    !       mask( vi) = 2
+    !     ELSE
+    !       ! New floating cells, so fill here
+    !       mask (vi) = 1
+    !     END IF
+    !   END IF
+    ! END DO
 
-    ! The above should ensure that all (newly) floating vertices have a non-zero thickness
-    ! In case the extrapolation did not cover this, apply a backup check to set values
-    ! at non-zero initialisation
-    DO vi = mesh%vi1, mesh%vi2
-      ! Skip if vertex is at border
-      IF (mesh%VBI( vi) > 0) CYCLE
+    ! ! Apply extrapolation to H, T and S
+    ! CALL extrapolate_Gaussian( mesh, mask, laddie%now%H, sigma)
+    ! CALL extrapolate_Gaussian( mesh, mask, laddie%now%T, sigma)
+    ! CALL extrapolate_Gaussian( mesh, mask, laddie%now%S, sigma)
 
-      ! Skip if water column thickness is insufficient, treated as grounded for now
-      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
+    ! ! The above should ensure that all (newly) floating vertices have a non-zero thickness
+    ! ! In case the extrapolation did not cover this, apply a backup check to set values
+    ! ! at non-zero initialisation
+    ! DO vi = mesh%vi1, mesh%vi2
+    !   ! Skip if vertex is at border
+    !   IF (mesh%VBI( vi) > 0) CYCLE
 
-      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+    !   ! Skip if water column thickness is insufficient, treated as grounded for now
+    !   IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
 
-      ! Currently floating ice, so either seed or fill here
-      IF (ice%mask_floating_ice( vi)) THEN
-        IF (laddie%now%H( vi) == 0.0_dp) THEN
-          laddie%now%H( vi) = C%laddie_thickness_minimum
-          laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
-          laddie%now%S( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
-        END IF
-      END IF
-    END DO
+    !   IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+
+    !   ! Currently floating ice, so either seed or fill here
+    !   IF (ice%mask_floating_ice( vi)) THEN
+    !     IF (laddie%now%H( vi) == 0.0_dp) THEN
+    !       laddie%now%H( vi) = C%laddie_thickness_minimum
+    !       laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
+    !       laddie%now%S( vi) = laddie%S_amb( vi) + C%laddie_initial_S_offset
+    !     END IF
+    !   END IF
+    ! END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -637,97 +655,99 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! == Regular variables ==
+    call crash('fixme!')
 
-    ! Thickness
-    CALL reallocate_bounds( laddie%dH_dt,                mesh_new%vi1, mesh_new%vi2)
+    ! ! == Regular variables ==
 
-    ! Temperatures
-    CALL reallocate_bounds( laddie%T_amb,                mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%T_base,               mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%T_freeze,             mesh_new%vi1, mesh_new%vi2)
+    ! ! Thickness
+    ! CALL reallocate_bounds( laddie%dH_dt,                mesh_new%vi1, mesh_new%vi2)
 
-    ! Salinities
-    CALL reallocate_bounds( laddie%S_amb,                mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%S_base,               mesh_new%vi1, mesh_new%vi2)
+    ! ! Temperatures
+    ! CALL reallocate_bounds( laddie%T_amb,                mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%T_base,               mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%T_freeze,             mesh_new%vi1, mesh_new%vi2)
 
-    ! Densities and buoyancies
-    CALL reallocate_bounds( laddie%rho,                  mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%rho_amb,              mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%drho_amb,             mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%Hdrho_amb,            mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%Hdrho_amb_b,          mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%drho_base,            mesh_new%vi1, mesh_new%vi2)
+    ! ! Salinities
+    ! CALL reallocate_bounds( laddie%S_amb,                mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%S_base,               mesh_new%vi1, mesh_new%vi2)
 
-    ! Friction velocity
-    CALL reallocate_bounds( laddie%u_star,               mesh_new%vi1, mesh_new%vi2)
+    ! ! Densities and buoyancies
+    ! CALL reallocate_bounds( laddie%rho,                  mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%rho_amb,              mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%drho_amb,             mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%Hdrho_amb,            mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%Hdrho_amb_b,          mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%drho_base,            mesh_new%vi1, mesh_new%vi2)
 
-    ! Physical parameter fields
-    CALL reallocate_bounds( laddie%gamma_T,              mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%gamma_S,              mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%A_h,                  mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%K_h,                  mesh_new%vi1, mesh_new%vi2)
+    ! ! Friction velocity
+    ! CALL reallocate_bounds( laddie%u_star,               mesh_new%vi1, mesh_new%vi2)
 
-    ! Vertical rates
-    CALL reallocate_bounds( laddie%melt,                 mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%entr,                 mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%entr_dmin,            mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%detr,                 mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%entr_tot,             mesh_new%vi1, mesh_new%vi2)
+    ! ! Physical parameter fields
+    ! CALL reallocate_bounds( laddie%gamma_T,              mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%gamma_S,              mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%A_h,                  mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%K_h,                  mesh_new%vi1, mesh_new%vi2)
 
-    ! Horizontal fluxes
-    CALL reallocate_bounds( laddie%divQH,                mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%divQU,                mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%divQV,                mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%divQT,                mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%divQS,                mesh_new%vi1, mesh_new%vi2)
+    ! ! Vertical rates
+    ! CALL reallocate_bounds( laddie%melt,                 mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%entr,                 mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%entr_dmin,            mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%detr,                 mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%entr_tot,             mesh_new%vi1, mesh_new%vi2)
 
-    ! Viscosities
-    CALL reallocate_bounds( laddie%viscU,                mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%viscV,                mesh_new%ti1, mesh_new%ti2)
+    ! ! Horizontal fluxes
+    ! CALL reallocate_bounds( laddie%divQH,                mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%divQU,                mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%divQV,                mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%divQT,                mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%divQS,                mesh_new%vi1, mesh_new%vi2)
 
-    ! Diffusivities
-    CALL reallocate_bounds( laddie%diffT,                mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%diffS,                mesh_new%vi1, mesh_new%vi2)
+    ! ! Viscosities
+    ! CALL reallocate_bounds( laddie%viscU,                mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%viscV,                mesh_new%ti1, mesh_new%ti2)
 
-    ! RHS terms
-    CALL reallocate_bounds( laddie%ddrho_amb_dx_b,       mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%ddrho_amb_dy_b,       mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%dH_dx_b,              mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%dH_dy_b,              mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%detr_b,               mesh_new%ti1, mesh_new%ti2)
+    ! ! Diffusivities
+    ! CALL reallocate_bounds( laddie%diffT,                mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%diffS,                mesh_new%vi1, mesh_new%vi2)
 
-    ! Masks
-    CALL reallocate_bounds( laddie%mask_a,               mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%mask_gr_a,            mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%mask_oc_a,            mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( laddie%mask_b,               mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%mask_gl_b,            mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%mask_cf_b,            mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( laddie%mask_oc_b,            mesh_new%ti1, mesh_new%ti2)
+    ! ! RHS terms
+    ! CALL reallocate_bounds( laddie%ddrho_amb_dx_b,       mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%ddrho_amb_dy_b,       mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%dH_dx_b,              mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%dH_dy_b,              mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%detr_b,               mesh_new%ti1, mesh_new%ti2)
 
-    ! == Re-initialise masks ==
-    CALL update_laddie_masks( mesh_new, ice, laddie)
+    ! ! Masks
+    ! CALL reallocate_bounds( laddie%mask_a,               mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%mask_gr_a,            mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%mask_oc_a,            mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( laddie%mask_b,               mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%mask_gl_b,            mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%mask_cf_b,            mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( laddie%mask_oc_b,            mesh_new%ti1, mesh_new%ti2)
 
-    ! == Update operators ==
-    CALL update_laddie_operators( mesh_new, ice, laddie)
+    ! ! == Re-initialise masks ==
+    ! CALL update_laddie_masks( mesh_new, ice, laddie)
 
-    ! == Timestep variables ==
-    CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
+    ! ! == Update operators ==
+    ! CALL update_laddie_operators( mesh_new, ice, laddie)
 
-    SELECT CASE(C%choice_laddie_integration_scheme)
-      CASE DEFAULT
-        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-      CASE ('euler')
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
-      CASE ('fbrk3')
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np13)
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np12)
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
-    END SELECT
+    ! ! == Timestep variables ==
+    ! CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
 
-    ! == Re-initialise ==
-    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init)
+    ! SELECT CASE(C%choice_laddie_integration_scheme)
+    !   CASE DEFAULT
+    !     CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+    !   CASE ('euler')
+    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
+    !   CASE ('fbrk3')
+    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np13)
+    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np12)
+    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
+    ! END SELECT
+
+    ! ! == Re-initialise ==
+    ! CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -753,24 +773,26 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Reallocate
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%H, '2nd_order_conservative')
-    CALL reallocate_bounds( npx%H_b,                     mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( npx%H_c,                     mesh_new%ei1, mesh_new%ei2)
-    CALL reallocate_bounds( npx%U,                       mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( npx%U_a,                     mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( npx%U_c,                     mesh_new%ei1, mesh_new%ei2)
-    CALL reallocate_bounds( npx%V,                       mesh_new%ti1, mesh_new%ti2)
-    CALL reallocate_bounds( npx%V_a,                     mesh_new%vi1, mesh_new%vi2)
-    CALL reallocate_bounds( npx%V_c,                     mesh_new%ei1, mesh_new%ei2)
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%T, '2nd_order_conservative')
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%S, '2nd_order_conservative')
+    call crash('fixme!')
 
-    ! == Re-initialise ==
+    ! ! Reallocate
+    ! CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%H, '2nd_order_conservative')
+    ! CALL reallocate_bounds( npx%H_b,                     mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( npx%H_c,                     mesh_new%ei1, mesh_new%ei2)
+    ! CALL reallocate_bounds( npx%U,                       mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( npx%U_a,                     mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( npx%U_c,                     mesh_new%ei1, mesh_new%ei2)
+    ! CALL reallocate_bounds( npx%V,                       mesh_new%ti1, mesh_new%ti2)
+    ! CALL reallocate_bounds( npx%V_a,                     mesh_new%vi1, mesh_new%vi2)
+    ! CALL reallocate_bounds( npx%V_c,                     mesh_new%ei1, mesh_new%ei2)
+    ! CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%T, '2nd_order_conservative')
+    ! CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%S, '2nd_order_conservative')
 
-    ! Layer thickness on b and c grid
-    CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
-    CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
+    ! ! == Re-initialise ==
+
+    ! ! Layer thickness on b and c grid
+    ! CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
+    ! CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
