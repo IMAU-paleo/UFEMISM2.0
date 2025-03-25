@@ -49,18 +49,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_npx'
-    INTEGER                                               :: ti, ci, nfl, vj
-    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Hdrho_fl, Uabs
+    INTEGER                                               :: ti
+    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Uabs
     logical, dimension(:), pointer                        :: mask_a_tot => null()
     real(dp), dimension(:), pointer                       :: detr_b     => null()
     real(dp), dimension(:), pointer                       :: Hstar_b    => null()
     real(dp), dimension(:), pointer                       :: Hstar_c    => null()
     type(MPI_WIN)                                         :: wmask_a_tot, wdetr_b, wHstar_b, wHstar_c
-    ! LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    ! REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
-    ! REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
-    ! REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -82,7 +77,7 @@ CONTAINS
     CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, ice, laddie, npx, Hstar)
+    CALL compute_buoyancy( mesh, laddie, npx, Hstar)
 
     ! Bunch of mappings
     CALL map_a_b_2D( mesh, laddie%detr, detr_b, d_a_is_hybrid = .true., d_b_is_hybrid = .true.)
@@ -197,12 +192,6 @@ CONTAINS
     CALL map_b_a_2D( mesh, npx%U, npx%U_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
 
-    ! DENK DROM
-    call average_over_domain( mesh, npx%U_a, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean npx%U_a = ', d_av
-    call average_over_domain( mesh, npx%V_a, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean npx%V_a = ', d_av
-
     ! Clean up after yourself
     call deallocate_dist_shared( mask_a_tot, wmask_a_tot)
     call deallocate_dist_shared( detr_b    , wdetr_b    )
@@ -214,13 +203,12 @@ CONTAINS
 
   END SUBROUTINE compute_UV_npx
 
-  SUBROUTINE compute_viscUV( mesh, ice, laddie, npxref)
+  SUBROUTINE compute_viscUV( mesh, laddie, npxref)
     ! Compute horizontal viscosity of momentum
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 
@@ -233,10 +221,6 @@ CONTAINS
     logical, dimension(:), pointer                        :: mask_oc_b_tot => null()
     real(dp), dimension(:), pointer                       :: H_c_tot       => null()
     type(MPI_WIN)                                         :: wU_tot, wV_tot, wmask_oc_b_tot, wH_c_tot
-    ! REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
-    ! LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
-    ! REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -292,12 +276,6 @@ CONTAINS
 
       END IF !(laddie%mask_b( ti)
     END DO !ti = mesh%ti1, mesh%ti2
-
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%viscU, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscU = ', d_av
-    call average_over_domain( mesh, laddie%viscV, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscV = ', d_av
 
     ! Clean up after yourself
     call deallocate_dist_shared( U_tot        , wU_tot        )

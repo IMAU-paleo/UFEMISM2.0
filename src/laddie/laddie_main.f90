@@ -52,7 +52,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti, ei
+    INTEGER                                               :: vi, ti
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
@@ -93,7 +93,7 @@ CONTAINS
     laddie%now%H_c( mesh%ei1:mesh%ei2) = 0.0_dp
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    CALL update_laddie_operators( mesh, laddie)
 
     ! == Main time loop ==
     ! ====================
@@ -121,8 +121,7 @@ CONTAINS
       END SELECT
 
       ! Display or save fields
-      CALL print_diagnostics( mesh, laddie, tl)
-      call crash('whoopsiedaisy!')
+      ! CALL print_diagnostics( mesh, laddie, tl)
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
@@ -160,7 +159,7 @@ CONTAINS
     END DO
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    CALL update_laddie_operators( mesh, laddie)
 
     ! Initialise requested timesteps
     CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
@@ -258,7 +257,7 @@ CONTAINS
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! == Move time ==
     CALL move_laddie_timestep( mesh, laddie, tl, dt)
@@ -288,7 +287,6 @@ CONTAINS
     real(dp), dimension(:), pointer                       :: Hstar => null()
     type(MPI_WIN)                                         :: wHstar
     integer                                               :: vi
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -309,10 +307,6 @@ CONTAINS
       Hstar( vi) = C%laddie_fbrk3_beta1 * laddie%np13%H( vi) + (1-C%laddie_fbrk3_beta1) * laddie%now%H( vi)
     end do
 
-    ! DENK DROM
-    call average_over_domain( mesh, Hstar, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
-
     ! Update diffusive terms
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
@@ -320,7 +314,7 @@ CONTAINS
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, Hstar, dt/3, .false.)
 
     ! Integrate T and S 1/3 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
+    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
 
     ! == Stage 2: explicit 1/2 timestep ==
     ! == RHS terms defined at n + 1/3 ====
@@ -334,10 +328,6 @@ CONTAINS
       Hstar( vi) = C%laddie_fbrk3_beta2 * laddie%np12%H( vi) + (1-C%laddie_fbrk3_beta2) * laddie%now%H( vi)
     end do
 
-    ! DENK DROM
-    call average_over_domain( mesh, Hstar, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
-
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
 
@@ -345,7 +335,7 @@ CONTAINS
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, Hstar, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
+    CALL compute_TS_npx( mesh, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
 
     ! == Stage 3: explicit 1 timestep ====
     ! == RHS terms defined at n + 1/2 ====
@@ -359,10 +349,6 @@ CONTAINS
       Hstar( vi) = C%laddie_fbrk3_beta3 * laddie%np1%H( vi) + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H( vi) + C%laddie_fbrk3_beta3 * laddie%now%H( vi)
     end do
 
-    ! DENK DROM
-    call average_over_domain( mesh, Hstar, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hstar = ', d_av
-
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
 
@@ -370,7 +356,7 @@ CONTAINS
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, Hstar, dt, .true.)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
+    CALL compute_TS_npx( mesh, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
 
     ! ===============
     ! == Move time ==
@@ -439,10 +425,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Compute diffusivities
-    CALL compute_diffTS( mesh, ice, laddie, npxref)
+    CALL compute_diffTS( mesh, laddie, npxref)
 
     ! Compute viscosities
-    CALL compute_viscUV( mesh, ice, laddie, npxref)
+    CALL compute_viscUV( mesh, laddie, npxref)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -28,13 +28,12 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, Hstar, dt, include_diffusive_terms)
+  SUBROUTINE compute_TS_npx( mesh, laddie, npxref, npx, Hstar, dt, include_diffusive_terms)
     ! Integrate T and S by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
@@ -46,7 +45,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
     INTEGER                                               :: vi
     REAL(dp)                                              :: dHTdt, dHSdt, HT_next, HS_next
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -91,24 +89,17 @@ CONTAINS
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
-    ! DENK DROM
-    call average_over_domain( mesh, npx%T, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean npx%T = ', d_av
-    call average_over_domain( mesh, npx%S, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean npx%S = ', d_av
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE compute_TS_npx
 
-  SUBROUTINE compute_diffTS( mesh, ice, laddie, npxref)
+  SUBROUTINE compute_diffTS( mesh, laddie, npxref)
     ! Compute horizontal diffusion of heat and salt
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 
@@ -121,7 +112,6 @@ CONTAINS
     logical, dimension(:), pointer                        :: mask_a_tot => null()
     real(dp), dimension(:), pointer                       :: H_c_tot    => null()
     type(MPI_WIN)                                         :: wT_tot, wS_tot, wmask_a_tot, wH_c_tot
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -165,12 +155,6 @@ CONTAINS
       END IF
     END DO
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%diffT, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffT% = ', d_av
-    call average_over_domain( mesh, laddie%diffS, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%diffS% = ', d_av
-
     ! Clean up after yourself
     call deallocate_dist_shared( T_tot     , wT_tot     )
     call deallocate_dist_shared( S_tot     , wS_tot     )
@@ -199,14 +183,12 @@ CONTAINS
     real(dp), dimension(:), pointer                       :: S_tot     => null()
     real(dp), dimension(:), pointer                       :: Hstar_tot => null()
     type(MPI_WIN)                                         :: wU_c_tot, wV_c_tot, wT_tot, wS_tot, wHstar_tot
-    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    INTEGER                                               :: ti, ci, ei, tj, vi, vj, vi1, vi2, i, j, e, k
+    INTEGER                                               :: ci, ei, vi, vj
     REAL(dp)                                              :: u_perp
     logical, dimension(:), pointer                        :: mask_a_tot    => null()
     logical, dimension(:), pointer                        :: mask_gr_a_tot => null()
     logical, dimension(:), pointer                        :: mask_oc_a_tot => null()
     type(MPI_WIN)                                         :: wmask_a_tot, wmask_gr_a_tot, wmask_oc_a_tot
-    LOGICAL                                               :: isbound
 
     ! Add routine to path
     CALL init_routine( routine_name)

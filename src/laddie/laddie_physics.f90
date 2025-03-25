@@ -43,7 +43,6 @@ CONTAINS
     REAL(dp), PARAMETER                                   :: nu0 = 1.95E-6
     REAL(dp), PARAMETER                                   :: eps = 1.0E-12 ! Some small parameter to prevent div. by zero
     REAL(dp), PARAMETER                                   :: tol = 1.0E-12 ! Some small parameter to prevent div. by zero
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -114,12 +113,6 @@ CONTAINS
        END IF
     END DO
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%melt, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean melt = ', d_av
-    call average_over_domain( mesh, laddie%T_base, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean T_base = ', d_av
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -140,7 +133,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
     INTEGER                                               :: vi
     REAL(dp), PARAMETER                                   :: maxdetr = 0.001_dp
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -169,16 +161,6 @@ CONTAINS
        END IF
     END DO
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%S_base, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean S_base = ', d_av
-    call average_over_domain( mesh, laddie%drho_base, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean drho_base = ', d_av
-    call average_over_domain( mesh, laddie%entr, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean entr = ', d_av
-    call average_over_domain( mesh, laddie%detr, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean detr = ', d_av
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -198,7 +180,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_freezing_temperature'
     INTEGER                                               :: vi
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -209,32 +190,25 @@ CONTAINS
        END IF
     END DO
 
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%T_freeze, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean T_freeze = ', d_av
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE compute_freezing_temperature
 
-  SUBROUTINE compute_buoyancy( mesh, ice, laddie, npx, Hstar)
+  SUBROUTINE compute_buoyancy( mesh, laddie, npx, Hstar)
     ! Compute buoyancy = (rho_amb - rho)/rho_sw
     ! TODO update with Roquet EOS
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%vi1_node:mesh%vi2_node), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
-    INTEGER                                               :: vi, vj, n, ci
-    REAL(dp)                                              :: T, S, H
-    real(dp) :: d_av
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -255,12 +229,6 @@ CONTAINS
 
        END IF
     END DO
-
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%drho_amb, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean drho_amb = ', d_av
-    call average_over_domain( mesh, laddie%Hdrho_amb, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean Hdrho_amb = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -47,7 +47,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_npx'
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -62,7 +61,7 @@ CONTAINS
     CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
+    CALL compute_buoyancy( mesh, laddie, npx, npxref%H)
 
     ! Compute melt rate
     CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
@@ -96,7 +95,6 @@ CONTAINS
     character(len=256), parameter                         :: routine_name = 'integrate_H'
     integer                                               :: vi
     real(dp)                                              :: dHdt
-    real(dp) :: d_av
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -134,10 +132,6 @@ CONTAINS
       end if !(laddie%mask_a( vi)) THEN
     end do !vi = mesh%vi, mesh%v2
 
-    ! DENK DROM
-    call average_over_domain( mesh, npx%H, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean npx%H = ', d_av
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -157,22 +151,18 @@ CONTAINS
     real(dp), dimension(:), pointer                       :: V_c_tot => null()
     real(dp), dimension(:), pointer                       :: H_tot   => null()
     type(MPI_WIN)                                         :: wU_c_tot, wV_c_tot, wH_tot
-    ! REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
-    ! REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
     INTEGER                                               :: vi, ci, vj, ei
     REAL(dp)                                              :: u_perp
     logical, dimension(:), pointer                        :: mask_gr_a_tot => null()
     logical, dimension(:), pointer                        :: mask_oc_a_tot => null()
     type(MPI_WIN)                                         :: wmask_gr_a_tot, wmask_oc_a_tot
-    ! LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate hybrid distributed/shared memory
     call allocate_dist_shared( U_c_tot      , wU_c_tot      , mesh%nE)
-    call allocate_dist_shared( V_c_tot      , wU_c_tot      , mesh%nE)
+    call allocate_dist_shared( V_c_tot      , wV_c_tot      , mesh%nE)
     call allocate_dist_shared( H_tot        , wH_tot        , mesh%nV)
     call allocate_dist_shared( mask_gr_a_tot, wmask_gr_a_tot, mesh%nV)
     call allocate_dist_shared( mask_oc_a_tot, wmask_oc_a_tot, mesh%nV)
@@ -232,10 +222,6 @@ CONTAINS
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
-
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%divQH, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean divQH = ', d_av
 
     ! Clean up after yourself
     call deallocate_dist_shared( U_c_tot      , wU_c_tot      )

@@ -26,13 +26,12 @@ contains
 ! ===== Main routines =====
 ! =========================
 
-  subroutine update_laddie_operators( mesh, ice, laddie)
+  subroutine update_laddie_operators( mesh, laddie)
     ! Update matrix operators at the start of a new run
 
     ! In- and output variables
 
     type(type_mesh),                        intent(in)    :: mesh
-    type(type_ice_model),                   intent(in)    :: ice
     type(type_laddie_model),                intent(inout) :: laddie
 
     ! Local variables:

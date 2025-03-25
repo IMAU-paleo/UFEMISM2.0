@@ -45,7 +45,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_ambient_TS'
     INTEGER                                               :: vi
-    real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -57,12 +56,6 @@ CONTAINS
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
-
-    ! DENK DROM
-    call average_over_domain( mesh, laddie%T_amb, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean T_amb = ', d_av
-    call average_over_domain( mesh, laddie%S_amb, d_av, d_is_hybrid = .true.)
-    if (par%primary) write(0,'(A,F12.8)') ' mean S_amb = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
