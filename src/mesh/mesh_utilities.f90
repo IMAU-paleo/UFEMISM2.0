@@ -1649,64 +1649,177 @@ CONTAINS
 
   END SUBROUTINE interpolate_to_point_dp_3D
 
-  SUBROUTINE integrate_over_domain( mesh, d, int_d)
+  subroutine integrate_over_domain( mesh, d, int_d, d_is_hybrid)
     ! Calculate the integral int_d over the model domain of a 2-D data field d
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                         INTENT(IN)          :: mesh
-    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(IN)          :: d
-    REAL(dp),                                INTENT(OUT)         :: int_d
+    type(type_mesh),        intent(in   ) :: mesh
+    real(dp), dimension(:), intent(in   ) :: d
+    real(dp),               intent(  out) :: int_d
+    logical, optional,      intent(in   ) :: d_is_hybrid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'integrate_over_domain'
-    INTEGER                                                      :: vi, ierr
+    character(len=1024), parameter :: routine_name = 'integrate_over_domain'
+    logical                        :: d_is_hybrid_
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
+
+    if (present( d_is_hybrid)) then
+      d_is_hybrid_ = d_is_hybrid
+    else
+      d_is_hybrid_ = .false.
+    end if
+
+    if (d_is_hybrid_) then
+      call integrate_over_domain_hybrid( mesh, d, int_d)
+    else
+      call integrate_over_domain_dist( mesh, d, int_d)
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine integrate_over_domain
+
+  subroutine integrate_over_domain_dist( mesh, d, int_d)
+    ! Calculate the integral int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),                         intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1:mesh%vi2), intent(in   ) :: d
+    real(dp),                                intent(  out) :: int_d
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'integrate_over_domain_dist'
+    integer                        :: vi, ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Integrate over process domain
     int_d = 0._dp
-    DO vi = mesh%vi1, mesh%vi2
+    do vi = mesh%vi1, mesh%vi2
       int_d = int_d + d( vi) * mesh%A( vi)
-    END DO
-
-    ! Reduce over processes to find total domain integral
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    end do
+    call MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE integrate_over_domain
+  END SUBROUTINE integrate_over_domain_dist
 
-  SUBROUTINE average_over_domain( mesh, d, av_d)
-    ! Calculate the average int_d over the model domain of a 2-D data field d
-
-    IMPLICIT NONE
+  subroutine integrate_over_domain_hybrid( mesh, d, int_d)
+    ! Calculate the integral int_d over the model domain of a 2-D data field d
 
     ! In/output variables:
-    TYPE(type_mesh),                         INTENT(IN)          :: mesh
-    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(IN)          :: d
-    REAL(dp),                                INTENT(OUT)         :: av_d
+    type(type_mesh),                                   intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1_node:mesh%vi2_node), intent(in   ) :: d
+    real(dp),                                          intent(  out) :: int_d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'average_over_domain'
-    REAL(dp)                                                     :: int_d
+    character(len=1024), parameter :: routine_name = 'integrate_over_domain_hybrid'
+    integer                        :: vi, ierr
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
+
+    ! Integrate over process domain
+    int_d = 0._dp
+    do vi = mesh%vi1, mesh%vi2
+      int_d = int_d + d( vi) * mesh%A( vi)
+    end do
+    call MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  END SUBROUTINE integrate_over_domain_hybrid
+
+  subroutine average_over_domain( mesh, d, av_d, d_is_hybrid)
+    !< Calculate the average int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),        intent(in   ) :: mesh
+    real(dp), dimension(:), intent(in   ) :: d
+    real(dp),               intent(  out) :: av_d
+    logical, optional,      intent(in   ) :: d_is_hybrid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'average_over_domain'
+    logical                        :: d_is_hybrid_
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (present( d_is_hybrid)) then
+      d_is_hybrid_ = d_is_hybrid
+    else
+      d_is_hybrid_ = .false.
+    end if
+
+    if (d_is_hybrid_) then
+      call average_over_domain_hybrid( mesh, d, av_d)
+    else
+      call average_over_domain_dist( mesh, d, av_d)
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine average_over_domain
+
+  subroutine average_over_domain_dist( mesh, d, av_d)
+    !< Calculate the average int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),                         intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1:mesh%vi2), intent(in   ) :: d
+    real(dp),                                intent(  out) :: av_d
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'average_over_domain_dist'
+    real(dp)                       :: int_d
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Integrate over the domain
-    CALL integrate_over_domain( mesh, d, int_d)
+    call integrate_over_domain( mesh, d, int_d, d_is_hybrid = .false.)
 
     ! Divide by domain area to find the average
     av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE average_over_domain
+  end subroutine average_over_domain_dist
+
+  subroutine average_over_domain_hybrid( mesh, d, av_d)
+    !< Calculate the average int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),                                   intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1_node:mesh%vi2_node), intent(in   ) :: d
+    real(dp),                                          intent(  out) :: av_d
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'average_over_domain_hybrid'
+    real(dp)                       :: int_d
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Integrate over the domain
+    call integrate_over_domain( mesh, d, int_d, d_is_hybrid = .true.)
+
+    ! Divide by domain area to find the average
+    av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine average_over_domain_hybrid
 
 ! == Set values of border vertices to mean of interior neighbours
 
