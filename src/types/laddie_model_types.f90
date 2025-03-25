@@ -16,17 +16,17 @@ module laddie_model_types
     ! Fields of (partial) timesteps
 
     ! Main data fields
-    real(dp), dimension(:), pointer :: H           ! [m]               Layer thickness
-    real(dp), dimension(:), pointer :: H_b         ! [m]               Layer thickness on b grid
-    real(dp), dimension(:), pointer :: H_c         ! [m]               Layer thickness on c grid
-    real(dp), dimension(:), pointer :: U           ! [m s^-1]          2D velocity
-    real(dp), dimension(:), pointer :: U_a         ! [m s^-1]          2D velocity on a grid
-    real(dp), dimension(:), pointer :: U_c         ! [m s^-1]          2D velocity on c grid
-    real(dp), dimension(:), pointer :: V           ! [m s^-1]
-    real(dp), dimension(:), pointer :: V_a         ! [m s^-1]
-    real(dp), dimension(:), pointer :: V_c         ! [m s^-1]
-    real(dp), dimension(:), pointer :: T           ! [degrees Celsius] Temperature
-    real(dp), dimension(:), pointer :: S           ! [PSU]             Salinity
+    real(dp), dimension(:), pointer :: H                           => null() ! [m]               Layer thickness
+    real(dp), dimension(:), pointer :: H_b                         => null() ! [m]               Layer thickness on b grid
+    real(dp), dimension(:), pointer :: H_c                         => null() ! [m]               Layer thickness on c grid
+    real(dp), dimension(:), pointer :: U                           => null() ! [m s^-1]          2D velocity
+    real(dp), dimension(:), pointer :: U_a                         => null() ! [m s^-1]          2D velocity on a grid
+    real(dp), dimension(:), pointer :: U_c                         => null() ! [m s^-1]          2D velocity on c grid
+    real(dp), dimension(:), pointer :: V                           => null() ! [m s^-1]
+    real(dp), dimension(:), pointer :: V_a                         => null() ! [m s^-1]
+    real(dp), dimension(:), pointer :: V_c                         => null() ! [m s^-1]
+    real(dp), dimension(:), pointer :: T                           => null() ! [degrees Celsius] Temperature
+    real(dp), dimension(:), pointer :: S                           => null() ! [PSU]             Salinity
     type(MPI_WIN) :: wH,wH_b,wH_c,wU,wU_a,wU_c,wV,wV_a,wV_c,wT,wS
 
   end type type_laddie_timestep
