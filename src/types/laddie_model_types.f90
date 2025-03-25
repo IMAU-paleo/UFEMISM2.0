@@ -35,8 +35,8 @@ module laddie_model_types
     ! The laddie model structure
 
     ! Time domain
-    real(dp)                        :: dt                          => null() ! [s]               Time step
-    real(dp)                        :: tend                        => null() ! [s]               Time end of Laddie cycle
+    real(dp)                        :: dt                                    ! [s]               Time step
+    real(dp)                        :: tend                                  ! [s]               Time end of Laddie cycle
 
     real(dp), dimension(:), pointer :: dH_dt                       => null() ! [m s^-1]          Layer thickness change
     type(MPI_WIN) :: wdH_dt
