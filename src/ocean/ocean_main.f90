@@ -412,7 +412,8 @@ CONTAINS
     ELSEIF (choice_ocean_model == 'idealised') THEN
       CALL initialise_ocean_model_idealised( mesh_new, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
-      CALL crash('Remapping after mesh update not implemented yet for realistic ocean')
+      CALL initialise_ocean_model_realistic( mesh_new, ocean, region_name)
+      !CALL crash('Remapping after mesh update not implemented yet for realistic ocean')
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
