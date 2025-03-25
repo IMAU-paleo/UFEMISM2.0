@@ -21,6 +21,7 @@ MODULE laddie_utilities
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use mesh_utilities, only: average_over_domain
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD
+  use mpi_distributed_shared_memory, only: allocate_dist_shared
 
   IMPLICIT NONE
 
@@ -39,7 +40,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%vi1_node:mesh%vi2_node), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_ambient_TS'
@@ -49,21 +50,19 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Get T and S at layer base
+    DO vi = mesh%vi1, mesh%vi2
+       IF (laddie%mask_a( vi)) THEN
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
+       END IF
+    END DO
 
-    ! ! Get T and S at layer base
-    ! DO vi = mesh%vi1, mesh%vi2
-    !    IF (laddie%mask_a( vi)) THEN
-    !      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
-    !      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
-    !    END IF
-    ! END DO
-
-    ! ! DENK DROM
-    ! call average_over_domain( mesh, laddie%T_amb, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean T_amb = ', d_av
-    ! call average_over_domain( mesh, laddie%S_amb, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean S_amb = ', d_av
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%T_amb, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean T_amb = ', d_av
+    call average_over_domain( mesh, laddie%S_amb, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean S_amb = ', d_av
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -77,8 +76,8 @@ CONTAINS
 
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(in)    :: laddie
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
-    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: H_b
+    real(dp), dimension(mesh%vi1_node:mesh%vi2_node), intent(in)    :: H_a
+    real(dp), dimension(mesh%ti1_node:mesh%ti2_node), intent(inout) :: H_b
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_H_a_b'
@@ -86,9 +85,8 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call crash('fixme!')
-
-    ! call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, H_a, H_b)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, H_a, H_b, &
+      xx_is_hybrid = .true., yy_is_hybrid = .true.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -102,8 +100,8 @@ CONTAINS
 
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(in)    :: laddie
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
-    real(dp), dimension(mesh%ei1:mesh%ei2), intent(inout) :: H_c
+    real(dp), dimension(mesh%vi1_node:mesh%vi2_node), intent(in)    :: H_a
+    real(dp), dimension(mesh%ei1_node:mesh%ei2_node), intent(inout) :: H_c
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_H_a_c'
@@ -111,9 +109,8 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call crash('fixme!')
-
-    ! call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, H_a, H_c)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, H_a, H_c, &
+      xx_is_hybrid = .true., yy_is_hybrid = .true.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -134,107 +131,160 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Thickness
+    call allocate_dist_shared(  laddie%dH_dt         , laddie%wdH_dt         , mesh%nV_node  ) ! [m]             change
 
-    ! ! Thickness
-    ! ALLOCATE( laddie%dH_dt              ( mesh%vi1:mesh%vi2), source=0._dp) ! [m]             change
+    laddie%dH_dt         (mesh%vi1_node:mesh%vi2_node) => laddie%dH_dt
 
-    ! ! Temperatures
-    ! ALLOCATE( laddie%T_amb              ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC]          Temperature layer bottom
-    ! ALLOCATE( laddie%T_base             ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC]          Temperature ice shelf base
-    ! ALLOCATE( laddie%T_freeze           ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC]          Temperature freezing
+    ! Temperatures
+    call allocate_dist_shared(  laddie%T_amb         , laddie%wT_amb         , mesh%nV_node  ) ! [degC]          Temperature layer bottom
+    call allocate_dist_shared(  laddie%T_base        , laddie%wT_base        , mesh%nV_node  ) ! [degC]          Temperature ice shelf base
+    call allocate_dist_shared(  laddie%T_freeze      , laddie%wT_freeze      , mesh%nV_node  ) ! [degC]          Temperature freezing
 
-    ! ! Salinities
-    ! ALLOCATE( laddie%S_amb              ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU]           Salinity layer bottom
-    ! ALLOCATE( laddie%S_base             ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU]           Salinity ice shelf base
+    laddie%T_amb         (mesh%vi1_node:mesh%vi2_node) => laddie%T_amb
+    laddie%T_base        (mesh%vi1_node:mesh%vi2_node) => laddie%T_base
+    laddie%T_freeze      (mesh%vi1_node:mesh%vi2_node) => laddie%T_freeze
 
-    ! ! Densities and buoyancies
-    ! ALLOCATE( laddie%rho                ( mesh%vi1:mesh%vi2), source=0._dp) ! [kg m^-3]       Layer density
-    ! ALLOCATE( laddie%rho_amb            ( mesh%vi1:mesh%vi2), source=0._dp) ! [kg m^-3]       Ambient water density
-    ! ALLOCATE( laddie%drho_amb           ( mesh%vi1:mesh%vi2), source=0._dp) ! []              Buoyancy at layer bottom
-    ! ALLOCATE( laddie%Hdrho_amb          ( mesh%vi1:mesh%vi2), source=0._dp) ! []              Depth-integrated buoyancy at layer bottom
-    ! ALLOCATE( laddie%Hdrho_amb_b        ( mesh%ti1:mesh%ti2), source=0._dp) ! []              Depth-integrated buoyancy at layer bottom
-    ! ALLOCATE( laddie%drho_base          ( mesh%vi1:mesh%vi2), source=0._dp) ! []              Buoyancy at ice base
+    ! Salinities
+    call allocate_dist_shared(  laddie%S_amb         , laddie%wS_amb         , mesh%nV_node  ) ! [PSU]           Salinity layer bottom
+    call allocate_dist_shared(  laddie%S_base        , laddie%wS_base        , mesh%nV_node  ) ! [PSU]           Salinity ice shelf base
 
-    ! ! Friction velocity
-    ! ALLOCATE( laddie%u_star             ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        Friction velocity
+    laddie%S_amb         (mesh%vi1_node:mesh%vi2_node) => laddie%S_amb
+    laddie%S_base        (mesh%vi1_node:mesh%vi2_node) => laddie%S_base
 
-    ! ! Physical parameter fields
-    ! ALLOCATE( laddie%gamma_T            ( mesh%vi1:mesh%vi2), source=0._dp) ! []              Turbulent heat exchange coefficient
-    ! ALLOCATE( laddie%gamma_S            ( mesh%vi1:mesh%vi2), source=0._dp) ! []              Turbulent salt exchange coefficient
-    ! ALLOCATE( laddie%A_h                ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^2 s^-1]      Horizontal laplacian viscosity
-    ! ALLOCATE( laddie%K_h                ( mesh%vi1:mesh%vi2), source=0._dp) ! [m^2 s^-1]      Horizontal diffusivity
+    ! Densities and buoyancies
+    call allocate_dist_shared(  laddie%rho           , laddie%wrho           , mesh%nV_node  ) ! [kg m^-3]       Layer density
+    call allocate_dist_shared(  laddie%rho_amb       , laddie%wrho_amb       , mesh%nV_node  ) ! [kg m^-3]       Ambient water density
+    call allocate_dist_shared(  laddie%drho_amb      , laddie%wdrho_amb      , mesh%nV_node  ) ! []              Buoyancy at layer bottom
+    call allocate_dist_shared(  laddie%Hdrho_amb     , laddie%wHdrho_amb     , mesh%nV_node  ) ! []              Depth-integrated buoyancy at layer bottom
+    call allocate_dist_shared(  laddie%Hdrho_amb_b   , laddie%wHdrho_amb_b   , mesh%nTri_node) ! []              Depth-integrated buoyancy at layer bottom
+    call allocate_dist_shared(  laddie%drho_base     , laddie%wdrho_base     , mesh%nV_node  ) ! []              Buoyancy at ice base
 
-    ! ! Vertical rates
-    ! ALLOCATE( laddie%melt               ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        Melting / freezing rate
-    ! ALLOCATE( laddie%entr               ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        Entrainment
-    ! ALLOCATE( laddie%entr_dmin          ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        Entrainment for D_min
-    ! ALLOCATE( laddie%detr               ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        Detrainment
-    ! ALLOCATE( laddie%entr_tot           ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        Total (net) entrainment
+    laddie%rho           (mesh%vi1_node:mesh%vi2_node) => laddie%rho
+    laddie%rho_amb       (mesh%vi1_node:mesh%vi2_node) => laddie%rho_amb
+    laddie%drho_amb      (mesh%vi1_node:mesh%vi2_node) => laddie%drho_amb
+    laddie%Hdrho_amb     (mesh%vi1_node:mesh%vi2_node) => laddie%Hdrho_amb
+    laddie%Hdrho_amb_b   (mesh%ti1_node:mesh%ti2_node) => laddie%Hdrho_amb_b
+    laddie%drho_base     (mesh%vi1_node:mesh%vi2_node) => laddie%drho_base
 
-    ! ! Horizontal fluxes
-    ! ALLOCATE( laddie%divQH              ( mesh%vi1:mesh%vi2), source=0._dp) ! [m^3 s^-1]      Divergence of layer thickness
-    ! ALLOCATE( laddie%divQU              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^4 s^-2]      Divergence of momentum
-    ! ALLOCATE( laddie%divQV              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^4 s^-2]
-    ! ALLOCATE( laddie%divQT              ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC m^3 s^-1] Divergence of heat
-    ! ALLOCATE( laddie%divQS              ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU m^3 s^-1]  Divergence of salt
+    ! Friction velocity
+    call allocate_dist_shared(  laddie%u_star        , laddie%wu_star        , mesh%nV_node  ) ! [m s^-1]        Friction velocity
 
-    ! ! Viscosities
-    ! ALLOCATE( laddie%viscU              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^2 s^-2]      Horizontal viscosity term
-    ! ALLOCATE( laddie%viscV              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^2 s^-2]
+    laddie%u_star        (mesh%vi1_node:mesh%vi2_node) => laddie%u_star
 
-    ! ! Diffusivities
-    ! ALLOCATE( laddie%diffT              ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC m s^-1]   Horizontal diffusivity of heat
-    ! ALLOCATE( laddie%diffS              ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU m s^-1]    Horizontal diffusivity of salt
+    ! Physical parameter fields
+    call allocate_dist_shared(  laddie%gamma_T       , laddie%wgamma_T       , mesh%nV_node  ) ! []              Turbulent heat exchange coefficient
+    call allocate_dist_shared(  laddie%gamma_S       , laddie%wgamma_S       , mesh%nV_node  ) ! []              Turbulent salt exchange coefficient
+    call allocate_dist_shared(  laddie%A_h           , laddie%wA_h           , mesh%nTri_node) ! [m^2 s^-1]      Horizontal laplacian viscosity
+    call allocate_dist_shared(  laddie%K_h           , laddie%wK_h           , mesh%nV_node  ) ! [m^2 s^-1]      Horizontal diffusivity
 
-    ! ! RHS terms
-    ! ALLOCATE( laddie%ddrho_amb_dx_b     ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-1]          Horizontal derivative of buoyancy
-    ! ALLOCATE( laddie%ddrho_amb_dy_b     ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-1]
-    ! ALLOCATE( laddie%dH_dx_b            ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-2]          Horizontal derivative of thickness
-    ! ALLOCATE( laddie%dH_dy_b            ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-2]
-    ! ALLOCATE( laddie%detr_b             ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]        Detrainment on b grid
+    laddie%gamma_T       (mesh%vi1_node:mesh%vi2_node) => laddie%gamma_T
+    laddie%gamma_S       (mesh%vi1_node:mesh%vi2_node) => laddie%gamma_S
+    laddie%A_h           (mesh%ti1_node:mesh%ti2_node) => laddie%A_h
+    laddie%K_h           (mesh%vi1_node:mesh%vi2_node) => laddie%K_h
 
-    ! ! Masks
-    ! ALLOCATE( laddie%mask_a             ( mesh%vi1:mesh%vi2), source=.false.) !                 Mask on a-grid
-    ! ALLOCATE( laddie%mask_gr_a          ( mesh%vi1:mesh%vi2), source=.false.) !                 Grounded mask on a-grid
-    ! ALLOCATE( laddie%mask_oc_a          ( mesh%vi1:mesh%vi2), source=.false.) !                 Icefree ocean mask on a-grid
-    ! ALLOCATE( laddie%mask_b             ( mesh%ti1:mesh%ti2), source=.false.) !                 Mask on b-grid
-    ! ALLOCATE( laddie%mask_gl_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Grounding line mask on b-grid
-    ! ALLOCATE( laddie%mask_cf_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Calving front mask on b-grid
-    ! ALLOCATE( laddie%mask_oc_b          ( mesh%ti1:mesh%ti2), source=.false.) !                 Icefree ocean mask on b-grid
+    ! Vertical rates
+    call allocate_dist_shared(  laddie%melt          , laddie%wmelt          , mesh%nV_node  ) ! [m s^-1]        Melting / freezing rate
+    call allocate_dist_shared(  laddie%entr          , laddie%wentr          , mesh%nV_node  ) ! [m s^-1]        Entrainment
+    call allocate_dist_shared(  laddie%entr_dmin     , laddie%wentr_dmin     , mesh%nV_node  ) ! [m s^-1]        Entrainment for D_min
+    call allocate_dist_shared(  laddie%detr          , laddie%wdetr          , mesh%nV_node  ) ! [m s^-1]        Detrainment
+    call allocate_dist_shared(  laddie%entr_tot      , laddie%wentr_tot      , mesh%nV_node  ) ! [m s^-1]        Total (net) entrainment
 
-    ! ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-    ! ! ===================================================================
+    laddie%melt          (mesh%vi1_node:mesh%vi2_node) => laddie%melt
+    laddie%entr          (mesh%vi1_node:mesh%vi2_node) => laddie%entr
+    laddie%entr_dmin     (mesh%vi1_node:mesh%vi2_node) => laddie%entr_dmin
+    laddie%detr          (mesh%vi1_node:mesh%vi2_node) => laddie%detr
+    laddie%entr_tot      (mesh%vi1_node:mesh%vi2_node) => laddie%entr_tot
 
-    ! ! Matrix size
-    ! ncols           = mesh%nV        ! from
-    ! ncols_loc       = mesh%nV_loc
-    ! nrows           = mesh%nTri      ! to
-    ! nrows_loc       = mesh%nTri_loc
-    ! nnz_per_row_est = 3
-    ! nnz_est_proc    = nrows_loc * nnz_per_row_est
+    ! Horizontal fluxes
+    call allocate_dist_shared(  laddie%divQH         , laddie%wdivQH         , mesh%nV_node  ) ! [m^3 s^-1]      Divergence of layer thickness
+    call allocate_dist_shared(  laddie%divQU         , laddie%wdivQU         , mesh%nTri_node) ! [m^4 s^-2]      Divergence of momentum
+    call allocate_dist_shared(  laddie%divQV         , laddie%wdivQV         , mesh%nTri_node) ! [m^4 s^-2]
+    call allocate_dist_shared(  laddie%divQT         , laddie%wdivQT         , mesh%nV_node  ) ! [degC m^3 s^-1] Divergence of heat
+    call allocate_dist_shared(  laddie%divQS         , laddie%wdivQS         , mesh%nV_node  ) ! [PSU m^3 s^-1]  Divergence of salt
 
-    ! call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    laddie%divQH         (mesh%vi1_node:mesh%vi2_node) => laddie%divQH
+    laddie%divQU         (mesh%ti1_node:mesh%ti2_node) => laddie%divQU
+    laddie%divQV         (mesh%ti1_node:mesh%ti2_node) => laddie%divQV
+    laddie%divQT         (mesh%vi1_node:mesh%vi2_node) => laddie%divQT
+    laddie%divQS         (mesh%vi1_node:mesh%vi2_node) => laddie%divQS
 
-    ! ! Matrix size
-    ! ncols           = mesh%nV        ! from
-    ! ncols_loc       = mesh%nV_loc
-    ! nrows           = mesh%nE      ! to
-    ! nrows_loc       = mesh%nE_loc
-    ! nnz_per_row_est = 2
-    ! nnz_est_proc    = nrows_loc * nnz_per_row_est
+    ! Viscosities
+    call allocate_dist_shared(  laddie%viscU         , laddie%wviscU         , mesh%nTri_node) ! [m^2 s^-2]      Horizontal viscosity term
+    call allocate_dist_shared(  laddie%viscV         , laddie%wviscV         , mesh%nTri_node) ! [m^2 s^-2]
 
-    ! call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    laddie%viscU         (mesh%ti1_node:mesh%ti2_node) => laddie%viscU
+    laddie%viscV         (mesh%ti1_node:mesh%ti2_node) => laddie%viscV
 
-    ! ! Matrix size
-    ! ncols           = mesh%nTri        ! from
-    ! ncols_loc       = mesh%nTri_loc
-    ! nrows           = mesh%nE      ! to
-    ! nrows_loc       = mesh%nE_loc
-    ! nnz_per_row_est = 2
-    ! nnz_est_proc    = nrows_loc * nnz_per_row_est
+    ! Diffusivities
+    call allocate_dist_shared(  laddie%diffT         , laddie%wdiffT         , mesh%nV_node  ) ! [degC m s^-1]   Horizontal diffusivity of heat
+    call allocate_dist_shared(  laddie%diffS         , laddie%wdiffS         , mesh%nV_node  ) ! [PSU m s^-1]    Horizontal diffusivity of salt
 
-    ! call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    laddie%diffT         (mesh%vi1_node:mesh%vi2_node) => laddie%diffT
+    laddie%diffS         (mesh%vi1_node:mesh%vi2_node) => laddie%diffS
+
+    ! RHS terms
+    call allocate_dist_shared(  laddie%ddrho_amb_dx_b, laddie%wddrho_amb_dx_b, mesh%nTri_node) ! [m^-1]          Horizontal derivative of buoyancy
+    call allocate_dist_shared(  laddie%ddrho_amb_dy_b, laddie%wddrho_amb_dy_b, mesh%nTri_node) ! [m^-1]
+    call allocate_dist_shared(  laddie%dH_dx_b       , laddie%wdH_dx_b       , mesh%nTri_node) ! [m^-2]          Horizontal derivative of thickness
+    call allocate_dist_shared(  laddie%dH_dy_b       , laddie%wdH_dy_b       , mesh%nTri_node) ! [m^-2]
+    call allocate_dist_shared(  laddie%detr_b        , laddie%wdetr_b        , mesh%nTri_node) ! [m s^-1]        Detrainment on b grid
+
+    laddie%ddrho_amb_dx_b(mesh%ti1_node:mesh%ti2_node) => laddie%ddrho_amb_dx_b
+    laddie%ddrho_amb_dy_b(mesh%ti1_node:mesh%ti2_node) => laddie%ddrho_amb_dy_b
+    laddie%dH_dx_b       (mesh%ti1_node:mesh%ti2_node) => laddie%dH_dx_b
+    laddie%dH_dy_b       (mesh%ti1_node:mesh%ti2_node) => laddie%dH_dy_b
+    laddie%detr_b        (mesh%ti1_node:mesh%ti2_node) => laddie%detr_b
+
+    ! Masks
+    call allocate_dist_shared(  laddie%mask_a        , laddie%wmask_a        , mesh%nV_node  ) !                 Mask on a-grid
+    call allocate_dist_shared(  laddie%mask_gr_a     , laddie%wmask_gr_a     , mesh%nV_node  ) !                 Grounded mask on a-grid
+    call allocate_dist_shared(  laddie%mask_oc_a     , laddie%wmask_oc_a     , mesh%nV_node  ) !                 Icefree ocean mask on a-grid
+    call allocate_dist_shared(  laddie%mask_b        , laddie%wmask_b        , mesh%nTri_node) !                 Mask on b-grid
+    call allocate_dist_shared(  laddie%mask_gl_b     , laddie%wmask_gl_b     , mesh%nTri_node) !                 Grounding line mask on b-grid
+    call allocate_dist_shared(  laddie%mask_cf_b     , laddie%wmask_cf_b     , mesh%nTri_node) !                 Calving front mask on b-grid
+    call allocate_dist_shared(  laddie%mask_oc_b     , laddie%wmask_oc_b     , mesh%nTri_node) !                 Icefree ocean mask on b-grid
+
+    laddie%mask_a        (mesh%vi1_node:mesh%vi2_node) => laddie%mask_a
+    laddie%mask_gr_a     (mesh%vi1_node:mesh%vi2_node) => laddie%mask_gr_a
+    laddie%mask_oc_a     (mesh%vi1_node:mesh%vi2_node) => laddie%mask_oc_a
+    laddie%mask_b        (mesh%ti1_node:mesh%ti2_node) => laddie%mask_b
+    laddie%mask_gl_b     (mesh%ti1_node:mesh%ti2_node) => laddie%mask_gl_b
+    laddie%mask_cf_b     (mesh%ti1_node:mesh%ti2_node) => laddie%mask_cf_b
+    laddie%mask_oc_b     (mesh%ti1_node:mesh%ti2_node) => laddie%mask_oc_b
+
+    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
+    ! ===================================================================
+
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nTri      ! to
+    nrows_loc       = mesh%nTri_loc
+    nnz_per_row_est = 3
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Matrix size
+    ncols           = mesh%nV        ! from
+    ncols_loc       = mesh%nV_loc
+    nrows           = mesh%nE      ! to
+    nrows_loc       = mesh%nE_loc
+    nnz_per_row_est = 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Matrix size
+    ncols           = mesh%nTri        ! from
+    ncols_loc       = mesh%nTri_loc
+    nrows           = mesh%nE      ! to
+    nrows_loc       = mesh%nE_loc
+    nnz_per_row_est = 2
+    nnz_est_proc    = nrows_loc * nnz_per_row_est
+
+    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -254,19 +304,29 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    call allocate_dist_shared( npx%H  , npx%wH  , mesh%nV_node  ) ! [m]             Layer thickness
+    call allocate_dist_shared( npx%H_b, npx%wH_b, mesh%nTri_node) ! [m]             Layer thickness on b grid
+    call allocate_dist_shared( npx%H_c, npx%wH_c, mesh%nE_node  ) ! [m]             Layer thickness on c grid
+    call allocate_dist_shared( npx%U  , npx%wU  , mesh%nTri_node) ! [m s^-1]        2D velocity
+    call allocate_dist_shared( npx%U_a, npx%wU_a, mesh%nV_node  ) ! [m s^-1]        2D velocity on a grid
+    call allocate_dist_shared( npx%U_c, npx%wU_c, mesh%nE_node  ) ! [m s^-1]        2D velocity on b grid
+    call allocate_dist_shared( npx%V  , npx%wV  , mesh%nTri_node) ! [m s^-1]
+    call allocate_dist_shared( npx%V_a, npx%wV_a, mesh%nV_node  ) ! [m s^-1]
+    call allocate_dist_shared( npx%V_c, npx%wV_c, mesh%nE_node  ) ! [m s^-1]
+    call allocate_dist_shared( npx%T  , npx%wT  , mesh%nV_node  ) ! [degC]          Temperature
+    call allocate_dist_shared( npx%S  , npx%wS  , mesh%nV_node  ) ! [PSU]           Salinity
 
-    ! ALLOCATE( npx%H                  ( mesh%vi1:mesh%vi2), source=0._dp) ! [m]             Layer thickness
-    ! ALLOCATE( npx%H_b                ( mesh%ti1:mesh%ti2), source=0._dp) ! [m]             Layer thickness on b grid
-    ! ALLOCATE( npx%H_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m]             Layer thickness on c grid
-    ! ALLOCATE( npx%U                  ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]        2D velocity
-    ! ALLOCATE( npx%U_a                ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        2D velocity on a grid
-    ! ALLOCATE( npx%U_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m s^-1]        2D velocity on b grid
-    ! ALLOCATE( npx%V                  ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]
-    ! ALLOCATE( npx%V_a                ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]
-    ! ALLOCATE( npx%V_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m s^-1]
-    ! ALLOCATE( npx%T                  ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC]          Temperature
-    ! ALLOCATE( npx%S                  ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU]           Salinity
+    npx%H  ( mesh%vi1_node:mesh%vi2_node) => npx%H
+    npx%H_b( mesh%ti1_node:mesh%ti2_node) => npx%H_b
+    npx%H_c( mesh%ei1_node:mesh%ei2_node) => npx%H_c
+    npx%U  ( mesh%ti1_node:mesh%ti2_node) => npx%U
+    npx%U_a( mesh%vi1_node:mesh%vi2_node) => npx%U_a
+    npx%U_c( mesh%ei1_node:mesh%ei2_node) => npx%U_c
+    npx%V  ( mesh%ti1_node:mesh%ti2_node) => npx%V
+    npx%V_a( mesh%vi1_node:mesh%vi2_node) => npx%V_a
+    npx%V_c( mesh%ei1_node:mesh%ei2_node) => npx%V_c
+    npx%T  ( mesh%vi1_node:mesh%vi2_node) => npx%T
+    npx%S  ( mesh%vi1_node:mesh%vi2_node) => npx%S
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -289,23 +349,21 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call crash('fixme!')
+    call average_over_domain( mesh, laddie%now%H, H_av, d_is_hybrid = .true.)
 
-    ! call average_over_domain( mesh, laddie%now%H, H_av)
+    Meltmax = maxval( laddie%melt) * sec_per_year
+    call MPI_ALLREDUCE( MPI_IN_PLACE, Meltmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    ! Meltmax = maxval( laddie%melt) * sec_per_year
-    ! call MPI_ALLREDUCE( MPI_IN_PLACE, Meltmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    Umax = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2))
+    call MPI_ALLREDUCE( MPI_IN_PLACE, Umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    ! Umax = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2))
-    ! call MPI_ALLREDUCE( MPI_IN_PLACE, Umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    Tmax = maxval( laddie%now%T)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, Tmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    ! Tmax = maxval( laddie%now%T)
-    ! call MPI_ALLREDUCE( MPI_IN_PLACE, Tmax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    ! if (par%primary) then
-    !   write( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, &
-    !     '  Dmean ', H_av, '  Meltmax', Meltmax, '   U', Umax, '   Tmax', Tmax
-    ! end if
+    if (par%primary) then
+      write( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, &
+        '  Dmean ', H_av, '  Meltmax', Meltmax, '   U', Umax, '   Tmax', Tmax
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)

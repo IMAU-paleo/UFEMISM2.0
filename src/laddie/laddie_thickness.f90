@@ -20,6 +20,9 @@ MODULE laddie_thickness
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   use mesh_utilities, only: average_over_domain
+  use mpi_distributed_shared_memory, only: allocate_dist_shared, deallocate_dist_shared, &
+    gather_dist_shared_to_all
+  use mpi_f08, only: MPI_WIN
 
   IMPLICIT NONE
 
@@ -49,32 +52,30 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Compute thickness divergence
+    CALL compute_divQH( mesh, laddie, npxref)
 
-    ! ! Compute thickness divergence
-    ! CALL compute_divQH( mesh, laddie, npxref)
+    ! Compute freezing temperature
+    CALL compute_freezing_temperature( mesh, ice, laddie, npxref)
 
-    ! ! Compute freezing temperature
-    ! CALL compute_freezing_temperature( mesh, ice, laddie, npxref)
+    ! Initialise ambient T and S
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
 
-    ! ! Initialise ambient T and S
-    ! CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
+    ! Compute buoyancy
+    CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
 
-    ! ! Compute buoyancy
-    ! CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
+    ! Compute melt rate
+    CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
 
-    ! ! Compute melt rate
-    ! CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
+    ! Compute entrainment
+    CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
 
-    ! ! Compute entrainment
-    ! CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
+    ! Do integration
+    CALL integrate_H( mesh, ice, laddie, npx, dt)
 
-    ! ! Do integration
-    ! CALL integrate_H( mesh, ice, laddie, npx, dt)
-
-    ! ! Map new values of H to b grid and c grid
-    ! CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
-    ! CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
+    ! Map new values of H to b grid and c grid
+    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
+    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -100,44 +101,42 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Loop over vertices
+    do vi = mesh%vi1, mesh%vi2
+      if (laddie%mask_a( vi)) then
 
-    ! ! Loop over vertices
-    ! do vi = mesh%vi1, mesh%vi2
-    !   if (laddie%mask_a( vi)) then
+        ! Get first guess at dHdt
+        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi)
 
-    !     ! Get first guess at dHdt
-    !     dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi)
+        ! First guess at H_n
+        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
 
-    !     ! First guess at H_n
-    !     npx%H( vi) = laddie%now%H( vi) + dHdt * dt
+        ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
+        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
 
-    !     ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
-    !     laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
+        ! If H_n > Hmax, suppress entrainment to ensure H_n <= available water column thickness
+        laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
 
-    !     ! If H_n > Hmax, suppress entrainment to ensure H_n <= available water column thickness
-    !     laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
+        ! Prevent strong entr_dmin and strong detrainment
+        if (laddie%entr_dmin(vi) > 0) then
+          laddie%entr( vi) = MAX(laddie%entr( vi), 0.0_dp)
+        end if
 
-    !     ! Prevent strong entr_dmin and strong detrainment
-    !     if (laddie%entr_dmin(vi) > 0) then
-    !       laddie%entr( vi) = MAX(laddie%entr( vi), 0.0_dp)
-    !     end if
+        ! Update detrainment. Shouldn't matter but just in case
+        laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
 
-    !     ! Update detrainment. Shouldn't matter but just in case
-    !     laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
+        ! Get actual dHdt
+        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
 
-    !     ! Get actual dHdt
-    !     dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
+        ! Get actual H_n
+        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
 
-    !     ! Get actual H_n
-    !     npx%H( vi) = laddie%now%H( vi) + dHdt * dt
+      end if !(laddie%mask_a( vi)) THEN
+    end do !vi = mesh%vi, mesh%v2
 
-    !   end if !(laddie%mask_a( vi)) THEN
-    ! end do !vi = mesh%vi, mesh%v2
-
-    ! ! DENK DROM
-    ! call average_over_domain( mesh, npx%H, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean npx%H = ', d_av
+    ! DENK DROM
+    call average_over_domain( mesh, npx%H, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%H = ', d_av
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -154,77 +153,96 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQH'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
+    real(dp), dimension(:), pointer                       :: U_c_tot => null()
+    real(dp), dimension(:), pointer                       :: V_c_tot => null()
+    real(dp), dimension(:), pointer                       :: H_tot   => null()
+    type(MPI_WIN)                                         :: wU_c_tot, wV_c_tot, wH_tot
+    ! REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
+    ! REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
     INTEGER                                               :: vi, ci, vj, ei
     REAL(dp)                                              :: u_perp
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
+    logical, dimension(:), pointer                        :: mask_gr_a_tot => null()
+    logical, dimension(:), pointer                        :: mask_oc_a_tot => null()
+    type(MPI_WIN)                                         :: wmask_gr_a_tot, wmask_oc_a_tot
+    ! LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
     real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Allocate hybrid distributed/shared memory
+    call allocate_dist_shared( U_c_tot      , wU_c_tot      , mesh%nE)
+    call allocate_dist_shared( V_c_tot      , wU_c_tot      , mesh%nE)
+    call allocate_dist_shared( H_tot        , wH_tot        , mesh%nV)
+    call allocate_dist_shared( mask_gr_a_tot, wmask_gr_a_tot, mesh%nV)
+    call allocate_dist_shared( mask_oc_a_tot, wmask_oc_a_tot, mesh%nV)
 
-    ! ! Calculate vertically averaged ice velocities on the edges
-    ! CALL gather_to_all( npx%U_c, U_c_tot)
-    ! CALL gather_to_all( npx%V_c, V_c_tot)
-    ! CALL gather_to_all( npx%H, H_tot)
-    ! CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
-    ! CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
+    ! Gather total layer velocities, layer thickness, and masks
+    CALL gather_dist_shared_to_all( npx%U_c, U_c_tot)
+    CALL gather_dist_shared_to_all( npx%V_c, V_c_tot)
+    CALL gather_dist_shared_to_all( npx%H, H_tot)
+    CALL gather_dist_shared_to_all( laddie%mask_gr_a, mask_gr_a_tot)
+    CALL gather_dist_shared_to_all( laddie%mask_oc_a, mask_oc_a_tot)
 
-    ! ! Initialise with zeros
-    ! laddie%divQH = 0.0_dp
+    ! Initialise with zeros
+    laddie%divQH( mesh%vi1:mesh%vi2) = 0.0_dp
 
-    ! ! == Loop over vertices ==
-    ! ! =========================
+    ! == Loop over vertices ==
+    ! =========================
 
-    ! DO vi = mesh%vi1, mesh%vi2
+    DO vi = mesh%vi1, mesh%vi2
 
-    !   IF (laddie%mask_a( vi)) THEN
-    !     ! Initialise
+      IF (laddie%mask_a( vi)) THEN
+        ! Initialise
 
-    !     ! Loop over all connections of vertex vi
-    !     DO ci = 1, mesh%nC( vi)
+        ! Loop over all connections of vertex vi
+        DO ci = 1, mesh%nC( vi)
 
-    !       ! Connection ci from vertex vi leads through edge ei to vertex vj
-    !       vj = mesh%C(  vi,ci)
+          ! Connection ci from vertex vi leads through edge ei to vertex vj
+          vj = mesh%C(  vi,ci)
 
-    !       ! Skip connection if neighbour is grounded. No flux across grounding line
-    !       ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-    !       IF (mask_gr_a_tot( vj)) CYCLE
+          ! Skip connection if neighbour is grounded. No flux across grounding line
+          ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
+          IF (mask_gr_a_tot( vj)) CYCLE
 
-    !       ! Get edge
-    !       ei = mesh%VE( vi,ci)
+          ! Get edge
+          ei = mesh%VE( vi,ci)
 
-    !       ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-    !       u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+          ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
+          u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
-    !       ! Calculate upwind momentum divergence
-    !       ! =============================
-    !       ! u_perp > 0: flow is exiting this vertex into vertex vj
-    !       IF (u_perp > 0) THEN
-    !         laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
-    !       ! u_perp < 0: flow is entering this vertex from vertex vj
-    !       ELSE
-    !         IF (mask_oc_a_tot( vj)) THEN
-    !           CYCLE ! No inflow
-    !           ! TODO fix boundary condition for inflow
-    !           ! laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
-    !         ELSE
-    !           laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
-    !         END IF
-    !       END IF
+          ! Calculate upwind momentum divergence
+          ! =============================
+          ! u_perp > 0: flow is exiting this vertex into vertex vj
+          IF (u_perp > 0) THEN
+            laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
+          ! u_perp < 0: flow is entering this vertex from vertex vj
+          ELSE
+            IF (mask_oc_a_tot( vj)) THEN
+              CYCLE ! No inflow
+              ! TODO fix boundary condition for inflow
+              ! laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
+            ELSE
+              laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
+            END IF
+          END IF
 
-    !     END DO ! DO ci = 1, mesh%nC( vi)
+        END DO ! DO ci = 1, mesh%nC( vi)
 
-    !   END IF ! (laddie%mask_a( vi))
+      END IF ! (laddie%mask_a( vi))
 
-    ! END DO ! DO vi = mesh%vi1, mesh%vi2
+    END DO ! DO vi = mesh%vi1, mesh%vi2
 
-    ! ! DENK DROM
-    ! call average_over_domain( mesh, laddie%divQH, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean divQH = ', d_av
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%divQH, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean divQH = ', d_av
+
+    ! Clean up after yourself
+    call deallocate_dist_shared( U_c_tot      , wU_c_tot      )
+    call deallocate_dist_shared( V_c_tot      , wU_c_tot      )
+    call deallocate_dist_shared( H_tot        , wH_tot        )
+    call deallocate_dist_shared( mask_gr_a_tot, wmask_gr_a_tot)
+    call deallocate_dist_shared( mask_oc_a_tot, wmask_oc_a_tot)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

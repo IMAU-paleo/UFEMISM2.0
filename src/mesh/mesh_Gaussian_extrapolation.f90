@@ -278,14 +278,10 @@ contains
     integer,  dimension(:), pointer        :: mask_tot => null()
     real(dp), dimension(:), pointer        :: d_tot => null()
     type(MPI_WIN)                          :: wmask_local, wmask_tot, wd_tot
-    ! integer,  dimension(mesh%vi1:mesh%vi2) :: mask_local
-    ! integer,  dimension(mesh%nV)           :: mask_tot
-    ! real(dp), dimension(mesh%nV)           :: d_tot
     integer                                :: it_floodfill
     integer                                :: vi
     logical,  dimension(:), pointer        :: do_fill_now => null()
     type(MPI_WIN)                          :: wdo_fill_now
-    ! logical,  dimension(mesh%vi1:mesh%vi2) :: do_fill_now
     integer                                :: n_do_fill_now
     LOGICAL                                :: has_filled_neighbour
     integer                                :: ci,vj

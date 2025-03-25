@@ -7,7 +7,7 @@ MODULE laddie_velocity
 
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
+  USE control_resources_and_error_messaging                  , ONLY: crash, warning, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
@@ -21,6 +21,9 @@ MODULE laddie_velocity
   USE laddie_physics                                         , ONLY: compute_buoyancy
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use mesh_utilities, only: average_over_domain
+  use mpi_f08, only: MPI_WIN
+  use mpi_distributed_shared_memory, only: allocate_dist_shared, deallocate_dist_shared, &
+    gather_dist_shared_to_all
 
   IMPLICIT NONE
 
@@ -41,153 +44,170 @@ CONTAINS
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
     REAL(dp),                               INTENT(IN)    :: dt
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%vi1_node:mesh%vi2_node), INTENT(IN)    :: Hstar
     LOGICAL,                                INTENT(IN)    :: include_viscosity_terms
-
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_npx'
     INTEGER                                               :: ti, ci, nfl, vj
     REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Hdrho_fl, Uabs
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: Hdrho_amb_tot
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
-    REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
+    logical, dimension(:), pointer                        :: mask_a_tot => null()
+    real(dp), dimension(:), pointer                       :: detr_b     => null()
+    real(dp), dimension(:), pointer                       :: Hstar_b    => null()
+    real(dp), dimension(:), pointer                       :: Hstar_c    => null()
+    type(MPI_WIN)                                         :: wmask_a_tot, wdetr_b, wHstar_b, wHstar_c
+    ! LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
+    ! REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: detr_b
+    ! REAL(dp), DIMENSION(mesh%ti1:mesh%ti2)                :: Hstar_b
+    ! REAL(dp), DIMENSION(mesh%ei1:mesh%ei2)                :: Hstar_c
     real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Allocate hybrid distributed/shared memory
+    call allocate_dist_shared( mask_a_tot, wmask_a_tot, mesh%nV)
+    call allocate_dist_shared( detr_b    , wdetr_b    , mesh%nTri_node)
+    call allocate_dist_shared( Hstar_b   , wHstar_b   , mesh%nTri_node)
+    call allocate_dist_shared( Hstar_c   , wHstar_c   , mesh%nE_node)
 
-    ! CALL gather_to_all( laddie%mask_a, mask_a_tot)
+    detr_b(  mesh%ti1_node:mesh%ti2_node) => detr_b
+    Hstar_b( mesh%ti1_node:mesh%ti2_node) => Hstar_b
+    Hstar_c( mesh%ei1_node:mesh%ei2_node) => Hstar_c
 
-    ! ! Initialise ambient T and S
-    ! ! TODO costly, see whether necessary to recompute with Hstar
-    ! CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
+    CALL gather_dist_shared_to_all( laddie%mask_a, mask_a_tot)
 
-    ! ! Compute buoyancy
-    ! CALL compute_buoyancy( mesh, ice, laddie, npx, Hstar)
+    ! Initialise ambient T and S
+    ! TODO costly, see whether necessary to recompute with Hstar
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
 
-    ! ! Bunch of mappings
-    ! CALL map_a_b_2D( mesh, laddie%detr, detr_b)
-    ! CALL map_H_a_b( mesh, laddie, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
-    ! CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
-    ! CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
+    ! Compute buoyancy
+    CALL compute_buoyancy( mesh, ice, laddie, npx, Hstar)
 
-    ! ! Bunch of derivatives
-    ! CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b)
-    ! CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b)
-    ! CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b)
-    ! CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b)
+    ! Bunch of mappings
+    CALL map_a_b_2D( mesh, laddie%detr, detr_b, d_a_is_hybrid = .true., d_b_is_hybrid = .true.)
+    CALL map_H_a_b( mesh, laddie, laddie%Hdrho_amb, laddie%Hdrho_amb_b)
+    CALL map_H_a_b( mesh, laddie, Hstar, Hstar_b)
+    CALL map_H_a_c( mesh, laddie, Hstar, Hstar_c)
 
-    ! ! Compute divergence of momentum
-    ! SELECT CASE(C%choice_laddie_momentum_advection)
-    !   CASE DEFAULT
-    !     CALL crash('unknown choice_laddie_momentum_advection "' // TRIM( C%choice_laddie_momentum_advection) // '"')
-    !   CASE ('none')
-    !     laddie%divQU = 0.0_dp
-    !     laddie%divQV = 0.0_dp
-    !   CASE ('upstream')
-    !     ! TODO figure out which of the below lines is best
-    !     !CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
-    !     CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
-    ! END SELECT
+    ! Bunch of derivatives
+    CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b, d_a_is_hybrid = .true., ddx_b_is_hybrid = .true.)
+    CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b, d_a_is_hybrid = .true., ddy_b_is_hybrid = .true.)
+    CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b, d_a_is_hybrid = .true., ddx_b_is_hybrid = .true.)
+    CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b, d_a_is_hybrid = .true., ddy_b_is_hybrid = .true.)
 
-    ! ! == Integrate U and V ==
-    ! ! =======================
+    ! Compute divergence of momentum
+    SELECT CASE(C%choice_laddie_momentum_advection)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_momentum_advection "' // TRIM( C%choice_laddie_momentum_advection) // '"')
+      CASE ('none')
+        laddie%divQU( mesh%ti1:mesh%ti2) = 0.0_dp
+        laddie%divQV( mesh%ti1:mesh%ti2) = 0.0_dp
+      CASE ('upstream')
+        ! TODO figure out which of the below lines is best
+        !CALL compute_divQUV_upstream( mesh, laddie, npx, Hstar_b)
+        CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
+    END SELECT
 
-    ! ! Loop over vertices
-    ! DO ti = mesh%ti1, mesh%ti2
-    !   IF (laddie%mask_b( ti)) THEN
+    ! == Integrate U and V ==
+    ! =======================
 
-    !     ! == pressure gradient force ==
-    !     ! =============================
+    ! Loop over vertices
+    DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
 
-    !     IF (laddie%mask_cf_b( ti) .OR. laddie%mask_gl_b( ti)) THEN
-    !       ! Assume dH/dx and ddrho/dx = 0
+        ! == pressure gradient force ==
+        ! =============================
 
-    !       ! Define PGF at calving front / grounding line
-    !       PGF_x = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
-    !               - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+        IF (laddie%mask_cf_b( ti) .OR. laddie%mask_gl_b( ti)) THEN
+          ! Assume dH/dx and ddrho/dx = 0
 
-    !       PGF_y = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
-    !               - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
-    !     ELSE
-    !       ! Regular full expression
-    !       PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
-    !               + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
-    !               - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
+          ! Define PGF at calving front / grounding line
+          PGF_x = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
-    !       PGF_y = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
-    !               + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
-    !               - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
-    !     END IF
+          PGF_y = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
+        ELSE
+          ! Regular full expression
+          PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
-    !     ! == time derivatives ==
-    !     ! ======================
+          PGF_y = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
+                  - 0.5*grav * Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
+        END IF
 
-    !     ! dHU_dt
-    !     dHUdt = - laddie%divQU( ti) &
-    !             + PGF_x &
-    !             + C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%V( ti) &
-    !             - C%laddie_drag_coefficient_mom * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
-    !             - detr_b( ti) * npxref%U( ti)
+        ! == time derivatives ==
+        ! ======================
 
-    !     IF (include_viscosity_terms) THEN
-    !       dHUdt = dHUdt + laddie%viscU( ti)
-    !     END IF
+        ! dHU_dt
+        dHUdt = - laddie%divQU( ti) &
+                + PGF_x &
+                + C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%V( ti) &
+                - C%laddie_drag_coefficient_mom * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
+                - detr_b( ti) * npxref%U( ti)
 
-    !     ! dHV_dt
-    !     dHVdt = - laddie%divQV( ti) &
-    !             + PGF_y &
-    !             - C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%U( ti) &
-    !             - C%laddie_drag_coefficient_mom * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
-    !             - detr_b( ti) * npxref%V( ti)
+        IF (include_viscosity_terms) THEN
+          dHUdt = dHUdt + laddie%viscU( ti)
+        END IF
 
-    !     IF (include_viscosity_terms) THEN
-    !       dHVdt = dHVdt + laddie%viscV( ti)
-    !     END IF
+        ! dHV_dt
+        dHVdt = - laddie%divQV( ti) &
+                + PGF_y &
+                - C%uniform_laddie_coriolis_parameter * Hstar_b( ti) * npxref%U( ti) &
+                - C%laddie_drag_coefficient_mom * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
+                - detr_b( ti) * npxref%V( ti)
 
-    !     ! == next time step ==
-    !     ! ====================
+        IF (include_viscosity_terms) THEN
+          dHVdt = dHVdt + laddie%viscV( ti)
+        END IF
 
-    !     ! HU_n = HU_n + dHU_dt * dt
-    !     HU_next = laddie%now%U( ti)*laddie%now%H_b( ti) + dHUdt * dt
-    !     HV_next = laddie%now%V( ti)*laddie%now%H_b( ti) + dHVdt * dt
+        ! == next time step ==
+        ! ====================
 
-    !     ! U_n = HU_n / H_n
-    !     npx%U( ti) = HU_next / npx%H_b( ti)
-    !     npx%V( ti) = HV_next / npx%H_b( ti)
+        ! HU_n = HU_n + dHU_dt * dt
+        HU_next = laddie%now%U( ti)*laddie%now%H_b( ti) + dHUdt * dt
+        HV_next = laddie%now%V( ti)*laddie%now%H_b( ti) + dHVdt * dt
 
-    !   END IF ! (laddie%mask_b( ti))
-    ! END DO !ti = mesh%ti1, mesh%ti2
+        ! U_n = HU_n / H_n
+        npx%U( ti) = HU_next / npx%H_b( ti)
+        npx%V( ti) = HV_next / npx%H_b( ti)
 
-    ! ! Cutoff velocities to ensure Uabs <= Uabs_max
-    ! DO ti = mesh%ti1, mesh%ti2
-    !   IF (laddie%mask_b( ti)) THEN
-    !     ! Get absolute velocity
-    !     Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
+      END IF ! (laddie%mask_b( ti))
+    END DO !ti = mesh%ti1, mesh%ti2
 
-    !     ! Scale U and V
-    !     IF (Uabs == 0) CYCLE ! Prevent division by zero
-    !     npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-    !     npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+    ! Cutoff velocities to ensure Uabs <= Uabs_max
+    DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
+        ! Get absolute velocity
+        Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
 
-    !   END IF ! (laddie%mask_b( ti))
-    ! END DO !ti = mesh%ti1, mesh%ti2
+        ! Scale U and V
+        IF (Uabs == 0) CYCLE ! Prevent division by zero
+        npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
 
-    ! ! Map velocities to a and c grid
-    ! CALL map_UV_b_c( mesh, laddie, npx%U, npx%V, npx%U_c, npx%V_c)
-    ! CALL map_b_a_2D( mesh, npx%U, npx%U_a)
-    ! CALL map_b_a_2D( mesh, npx%V, npx%V_a)
+      END IF ! (laddie%mask_b( ti))
+    END DO !ti = mesh%ti1, mesh%ti2
 
-    ! ! DENK DROM
-    ! call average_over_domain( mesh, npx%U_a, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean npx%U_a = ', d_av
-    ! call average_over_domain( mesh, npx%V_a, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean npx%V_a = ', d_av
+    ! Map velocities to a and c grid
+    CALL map_UV_b_c( mesh, laddie, npx%U, npx%V, npx%U_c, npx%V_c)
+    CALL map_b_a_2D( mesh, npx%U, npx%U_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
+    CALL map_b_a_2D( mesh, npx%V, npx%V_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
+
+    ! DENK DROM
+    call average_over_domain( mesh, npx%U_a, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%U_a = ', d_av
+    call average_over_domain( mesh, npx%V_a, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean npx%V_a = ', d_av
+
+    ! Clean up after yourself
+    call deallocate_dist_shared( mask_a_tot, wmask_a_tot)
+    call deallocate_dist_shared( detr_b    , wdetr_b    )
+    call deallocate_dist_shared( Hstar_b   , wHstar_b   )
+    call deallocate_dist_shared( Hstar_c   , wHstar_c   )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -208,67 +228,82 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_viscUV'
     INTEGER                                               :: ci, ti, tj, ei
     REAL(dp)                                              :: D_x, D_y, D, Ah, dUabs
-    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
-    REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
+    real(dp), dimension(:), pointer                       :: U_tot         => null()
+    real(dp), dimension(:), pointer                       :: V_tot         => null()
+    logical, dimension(:), pointer                        :: mask_oc_b_tot => null()
+    real(dp), dimension(:), pointer                       :: H_c_tot       => null()
+    type(MPI_WIN)                                         :: wU_tot, wV_tot, wmask_oc_b_tot, wH_c_tot
+    ! REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
+    ! LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
+    ! REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
     real(dp) :: d_av
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Allocate hybrid distributed/shared memory
+    call allocate_dist_shared( U_tot        , wU_tot        , mesh%nTri)
+    call allocate_dist_shared( V_tot        , wV_tot        , mesh%nTri)
+    call allocate_dist_shared( mask_oc_b_tot, wmask_oc_b_tot, mesh%nTri)
+    call allocate_dist_shared( H_c_tot      , wH_c_tot      , mesh%nE)
 
-    ! ! Gather
-    ! CALL gather_to_all( npxref%U, U_tot)
-    ! CALL gather_to_all( npxref%V, V_tot)
-    ! CALL gather_to_all( laddie%mask_oc_b, mask_oc_b_tot)
-    ! CALL gather_to_all( npxref%H_c, H_c_tot)
+    ! Gather
+    CALL gather_dist_shared_to_all( npxref%U, U_tot)
+    CALL gather_dist_shared_to_all( npxref%V, V_tot)
+    CALL gather_dist_shared_to_all( laddie%mask_oc_b, mask_oc_b_tot)
+    CALL gather_dist_shared_to_all( npxref%H_c, H_c_tot)
 
-    ! ! Loop over triangles
-    ! DO ti = mesh%ti1, mesh%ti2
-    !   IF (laddie%mask_b( ti)) THEN
+    ! Loop over triangles
+    DO ti = mesh%ti1, mesh%ti2
+      IF (laddie%mask_b( ti)) THEN
 
-    !     ! Initialise at 0
-    !     laddie%viscU( ti) = 0.0_dp
-    !     laddie%viscV( ti) = 0.0_dp
+        ! Initialise at 0
+        laddie%viscU( ti) = 0.0_dp
+        laddie%viscV( ti) = 0.0_dp
 
-    !     ! Loop over connected triangles
-    !     DO ci = 1, 3
-    !       tj = mesh%TriC( ti, ci)
-    !       ei = mesh%TriE( ti, ci)
+        ! Loop over connected triangles
+        DO ci = 1, 3
+          tj = mesh%TriC( ti, ci)
+          ei = mesh%TriE( ti, ci)
 
-    !       D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
-    !       D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
-    !       D   = SQRT( D_x**2 + D_y**2)
+          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
+          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
+          D   = SQRT( D_x**2 + D_y**2)
 
-    !       Ah = C%laddie_viscosity ! * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
+          Ah = C%laddie_viscosity ! * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
 
-    !       IF (tj==0) THEN
-    !         ! Border or corner. For now, assume no slip. If free slip: CYCLE
-    !         laddie%viscU( ti) = laddie%viscU( ti) - npxref%U( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
-    !         laddie%viscV( ti) = laddie%viscV( ti) - npxref%V( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
-    !       ELSE
-    !         ! Skip calving front - ocean connection: d/dx = d/dy = 0
-    !         IF (mask_oc_b_tot( tj)) CYCLE
+          IF (tj==0) THEN
+            ! Border or corner. For now, assume no slip. If free slip: CYCLE
+            laddie%viscU( ti) = laddie%viscU( ti) - npxref%U( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
+            laddie%viscV( ti) = laddie%viscV( ti) - npxref%V( ti) * Ah * npxref%H_b( ti) / mesh%TriA( ti)
+          ELSE
+            ! Skip calving front - ocean connection: d/dx = d/dy = 0
+            IF (mask_oc_b_tot( tj)) CYCLE
 
-    !         dUabs = SQRT((U_tot( tj) - U_tot( ti))**2 + (V_tot( tj) - V_tot( ti))**2)
-    !         Ah = C%laddie_viscosity * dUabs * mesh%triCw( ti, ci) / 100.0_dp
+            dUabs = SQRT((U_tot( tj) - U_tot( ti))**2 + (V_tot( tj) - V_tot( ti))**2)
+            Ah = C%laddie_viscosity * dUabs * mesh%triCw( ti, ci) / 100.0_dp
 
-    !         ! Add viscosity flux based on dU/dx and dV/dy.
-    !         ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-    !         laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
-    !         laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
-    !       END IF
-    !     END DO
+            ! Add viscosity flux based on dU/dx and dV/dy.
+            ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+          END IF
+        END DO
 
-    !   END IF !(laddie%mask_b( ti)
-    ! END DO !ti = mesh%ti1, mesh%ti2
+      END IF !(laddie%mask_b( ti)
+    END DO !ti = mesh%ti1, mesh%ti2
 
-    ! ! DENK DROM
-    ! call average_over_domain( mesh, laddie%viscU, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscU = ', d_av
-    ! call average_over_domain( mesh, laddie%viscV, d_av)
-    ! if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscV = ', d_av
+    ! DENK DROM
+    call average_over_domain( mesh, laddie%viscU, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscU = ', d_av
+    call average_over_domain( mesh, laddie%viscV, d_av, d_is_hybrid = .true.)
+    if (par%primary) write(0,'(A,F12.8)') ' mean laddie%viscV = ', d_av
+
+    ! Clean up after yourself
+    call deallocate_dist_shared( U_tot        , wU_tot        )
+    call deallocate_dist_shared( V_tot        , wV_tot        )
+    call deallocate_dist_shared( mask_oc_b_tot, wmask_oc_b_tot)
+    call deallocate_dist_shared( H_c_tot      , wH_c_tot      )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -282,85 +317,110 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
+    REAL(dp), DIMENSION(mesh%ti1_node:mesh%ti2_node), INTENT(IN)    :: Hstar_b
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV_upstream'
-    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
+    real(dp), dimension(:), pointer                       :: U_tot   => null()
+    real(dp), dimension(:), pointer                       :: V_tot   => null()
+    real(dp), dimension(:), pointer                       :: H_b_tot => null()
+    real(dp), dimension(:), pointer                       :: U_c_tot => null()
+    real(dp), dimension(:), pointer                       :: V_c_tot => null()
+    type(MPI_WIN)                                         :: wU_tot, wV_tot, wH_b_tot, wU_c_tot, wV_c_tot
     INTEGER                                               :: ti, tj, ci, ei
     REAL(dp)                                              :: D_x, D_y, D_c, u_perp_x, u_perp_y
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
+    logical, dimension(:), pointer                        :: mask_gl_b_tot => null()
+    logical, dimension(:), pointer                        :: mask_cf_b_tot => null()
+    logical, dimension(:), pointer                        :: mask_b_tot    => null()
+    type(MPI_WIN)                                         :: wmask_gl_b_tot, wmask_cf_b_tot, wmask_b_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    call crash('fixme!')
+    ! Allocate hybrid distributed/shared memory
+    call allocate_dist_shared( U_tot        , wU_tot        , mesh%nTri)
+    call allocate_dist_shared( V_tot        , wV_tot        , mesh%nTri)
+    call allocate_dist_shared( H_b_tot      , wH_b_tot      , mesh%nTri)
+    call allocate_dist_shared( U_c_tot      , wU_c_tot      , mesh%nE)
+    call allocate_dist_shared( V_c_tot      , wV_c_tot      , mesh%nE)
+    call allocate_dist_shared( mask_gl_b_tot, wmask_gl_b_tot, mesh%nTri)
+    call allocate_dist_shared( mask_cf_b_tot, wmask_cf_b_tot, mesh%nTri)
+    call allocate_dist_shared( mask_b_tot   , wmask_b_tot   , mesh%nTri)
 
-    ! ! Calculate vertically averaged ice velocities on the edges
-    ! CALL gather_to_all( laddie%mask_gl_b, mask_gl_b_tot)
-    ! CALL gather_to_all( laddie%mask_cf_b, mask_cf_b_tot)
-    ! CALL gather_to_all( laddie%mask_b, mask_b_tot)
-    ! CALL gather_to_all( npxref%U, U_tot)
-    ! CALL gather_to_all( npxref%V, V_tot)
-    ! CALL gather_to_all( npxref%U_c, U_c_tot)
-    ! CALL gather_to_all( npxref%V_c, V_c_tot)
-    ! CALL gather_to_all( Hstar_b, H_b_tot)
+    ! Calculate vertically averaged ice velocities on the edges
+    CALL gather_dist_shared_to_all( laddie%mask_gl_b, mask_gl_b_tot)
+    CALL gather_dist_shared_to_all( laddie%mask_cf_b, mask_cf_b_tot)
+    CALL gather_dist_shared_to_all( laddie%mask_b, mask_b_tot)
+    CALL gather_dist_shared_to_all( npxref%U, U_tot)
+    CALL gather_dist_shared_to_all( npxref%V, V_tot)
+    CALL gather_dist_shared_to_all( npxref%U_c, U_c_tot)
+    CALL gather_dist_shared_to_all( npxref%V_c, V_c_tot)
+    CALL gather_dist_shared_to_all( Hstar_b, H_b_tot)
 
-    ! ! Initialise with zeros
-    ! laddie%divQU = 0.0_dp
-    ! laddie%divQV = 0.0_dp
+    ! Initialise with zeros
+    laddie%divQU( mesh%ti1:mesh%ti2) = 0.0_dp
+    laddie%divQV( mesh%ti1:mesh%ti2) = 0.0_dp
 
-    ! ! == Loop over triangles ==
-    ! ! =========================
+    ! == Loop over triangles ==
+    ! =========================
 
-    ! DO ti = mesh%ti1, mesh%ti2
+    DO ti = mesh%ti1, mesh%ti2
 
-    !   IF (laddie%mask_b( ti)) THEN
+      IF (laddie%mask_b( ti)) THEN
 
-    !     ! Loop over all connections of triangle ti
-    !     DO ci = 1, 3
+        ! Loop over all connections of triangle ti
+        DO ci = 1, 3
 
-    !       tj = mesh%TriC( ti, ci)
-    !       ei = mesh%TriE( ti, ci)
+          tj = mesh%TriC( ti, ci)
+          ei = mesh%TriE( ti, ci)
 
-    !       ! Skip if no connecting triangle on this side
-    !       IF (tj == 0) CYCLE
+          ! Skip if no connecting triangle on this side
+          IF (tj == 0) CYCLE
 
-    !       ! Skip connection if neighbour is grounded. No flux across grounding line
-    !       IF (mask_gl_b_tot( tj)) CYCLE
+          ! Skip connection if neighbour is grounded. No flux across grounding line
+          IF (mask_gl_b_tot( tj)) CYCLE
 
-    !       ! The triangle-triangle vector from ti to tj
-    !       D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
-    !       D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
-    !       D_c = SQRT( D_x**2 + D_y**2)
+          ! The triangle-triangle vector from ti to tj
+          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
+          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
+          D_c = SQRT( D_x**2 + D_y**2)
 
-    !       ! Calculate vertically averaged water velocity component perpendicular to this edge
-    !       u_perp_x = U_c_tot( ei) * D_x/D_c
-    !       u_perp_y = V_c_tot( ei) * D_y/D_c
+          ! Calculate vertically averaged water velocity component perpendicular to this edge
+          u_perp_x = U_c_tot( ei) * D_x/D_c
+          u_perp_y = V_c_tot( ei) * D_y/D_c
 
-    !       ! Calculate upstream momentum divergence
-    !       ! =============================
-    !       ! u_perp > 0: flow is exiting this triangle into triangle tj
-    !       IF (u_perp_x > 0) THEN
-    !         laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * U_tot( ti)* u_perp_x / mesh%TriA( ti)
-    !       ! u_perp < 0: flow is entering this triangle into triangle tj
-    !       ELSE
-    !         laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * U_tot( tj)* u_perp_x / mesh%TriA( ti)
-    !       END IF
+          ! Calculate upstream momentum divergence
+          ! =============================
+          ! u_perp > 0: flow is exiting this triangle into triangle tj
+          IF (u_perp_x > 0) THEN
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * U_tot( ti)* u_perp_x / mesh%TriA( ti)
+          ! u_perp < 0: flow is entering this triangle into triangle tj
+          ELSE
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * U_tot( tj)* u_perp_x / mesh%TriA( ti)
+          END IF
 
-    !       ! V momentum
-    !       IF (u_perp_y > 0) THEN
-    !         laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * V_tot( ti)* u_perp_y / mesh%TriA( ti)
-    !       ELSE
-    !         laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp_y / mesh%TriA( ti)
-    !       END IF
+          ! V momentum
+          IF (u_perp_y > 0) THEN
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * V_tot( ti)* u_perp_y / mesh%TriA( ti)
+          ELSE
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp_y / mesh%TriA( ti)
+          END IF
 
-    !     END DO ! DO ci = 1, 3
+        END DO ! DO ci = 1, 3
 
-    !   END IF ! (laddie%mask_b( ti))
+      END IF ! (laddie%mask_b( ti))
 
-    ! END DO ! DO ti = mesh%ti1, mesh%ti2
+    END DO ! DO ti = mesh%ti1, mesh%ti2
+
+    ! Clean up after yourself
+    call deallocate_dist_shared( U_tot        , wU_tot        )
+    call deallocate_dist_shared( V_tot        , wV_tot        )
+    call deallocate_dist_shared( H_b_tot      , wH_b_tot      )
+    call deallocate_dist_shared( U_c_tot      , wU_c_tot      )
+    call deallocate_dist_shared( V_c_tot      , wV_c_tot      )
+    call deallocate_dist_shared( mask_gl_b_tot, wmask_gl_b_tot)
+    call deallocate_dist_shared( mask_cf_b_tot, wmask_cf_b_tot)
+    call deallocate_dist_shared( mask_b_tot   , wmask_b_tot   )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -375,10 +435,10 @@ CONTAINS
     ! In/output variables:
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(in)    :: laddie
-    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in)    :: U
-    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in)    :: V
-    real(dp), dimension(mesh%ei1:mesh%ei2), intent(out)   :: U_c
-    real(dp), dimension(mesh%ei1:mesh%ei2), intent(out)   :: V_c
+    real(dp), dimension(mesh%ti1_node:mesh%ti2_node), intent(in)    :: U
+    real(dp), dimension(mesh%ti1_node:mesh%ti2_node), intent(in)    :: V
+    real(dp), dimension(mesh%ei1_node:mesh%ei2_node), intent(out)   :: U_c
+    real(dp), dimension(mesh%ei1_node:mesh%ei2_node), intent(out)   :: V_c
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_UV_b_c'
@@ -386,10 +446,10 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call crash('fixme!')
-
-    ! call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, U, U_c)
-    ! call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, V, V_c)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, U, U_c, &
+      xx_is_hybrid = .true., yy_is_hybrid = .true.)
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, V, V_c, &
+      xx_is_hybrid = .true., yy_is_hybrid = .true.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
