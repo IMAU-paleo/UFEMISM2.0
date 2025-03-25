@@ -15,7 +15,8 @@ MODULE basal_inversion_H_dHdt_flowline
   USE ice_model_types                                        , ONLY: type_ice_model
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE basal_inversion_types                                  , ONLY: type_basal_inversion
-  USE mesh_utilities                                         , ONLY: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
+  use mesh_utilities, only: find_containing_vertex, find_containing_triangle
+  use mesh_Gaussian_extrapolation, only: extrapolate_Gaussian
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D

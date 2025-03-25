@@ -24,7 +24,7 @@ MODULE BMB_main
   USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model, remap_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use ice_geometry_basics, only: is_floating
-  USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  use mesh_Gaussian_extrapolation, only: extrapolate_Gaussian
   use netcdf_io_main
 
   IMPLICIT NONE

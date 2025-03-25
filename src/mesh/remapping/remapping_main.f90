@@ -7,7 +7,8 @@ module remapping_main
   use mesh_types, only: type_mesh
   use transect_types, only: type_transect
   use interpolation, only: remap_cons_2nd_order_1D
-  use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
+  use mesh_utilities, only: check_if_meshes_are_identical
+  use mesh_Gaussian_extrapolation, only: extrapolate_Gaussian
   use remapping_grid_to_mesh_vertices
   use remapping_grid_to_mesh_triangles
   use remapping_mesh_vertices_to_grid

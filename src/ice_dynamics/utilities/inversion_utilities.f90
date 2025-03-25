@@ -18,7 +18,8 @@ module inversion_utilities
   use plane_geometry, only: is_in_polygon
   use netcdf_io_main
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
-  use mesh_utilities, only: extrapolate_Gaussian, interpolate_to_point_dp_2D
+  use mesh_utilities, only: interpolate_to_point_dp_2D
+  use mesh_Gaussian_extrapolation, only: extrapolate_Gaussian
   use conservation_of_mass_main, only: calc_dHi_dt
   use mpi_distributed_memory, only: gather_to_all
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D

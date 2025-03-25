@@ -150,6 +150,7 @@ UFEMISM_source = \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
+  mesh/mesh_Gaussian_extrapolation.f90 \
   mesh/mesh_dummy_meshes.f90 \
   mesh/mesh_ROI_polygons.f90 \
   mesh/Delaunay/check_Delaunay_criterion.f90 \
