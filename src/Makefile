@@ -24,6 +24,16 @@ ifeq ($(DO_ASSERTIONS),yes)
   F90DEFINITIONS += -DDO_ASSERTIONS
 endif
 
+# Compile with the resource tracker: anything else than yes (no quotes) will
+# result in the model being compiled without it
+#
+# NOTE: this means warnings/crashes will no longer tell you from which
+# subroutine they originated!
+DO_RESOURCE_TRACKING = yes
+ifeq ($(DO_RESOURCE_TRACKING),yes)
+  F90DEFINITIONS += -DDO_RESOURCE_TRACKING
+endif
+
 # ========================================
 #       Building the UFEMISM_program
 # ========================================
@@ -120,6 +130,7 @@ UFEMISM_source = \
   basic/mpi_parallelisation/mpi_distributed_memory.f90 \
   basic/mpi_parallelisation/allocate_dist_shared_mod.f90 \
   basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
+  basic/mpi_parallelisation/reallocate_dist_shared_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
   basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
