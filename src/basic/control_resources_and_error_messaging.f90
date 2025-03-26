@@ -39,6 +39,8 @@ CONTAINS
 
     IMPLICIT NONE
 
+#if (DO_RESOURCE_TRACKING)
+
     ! Local variables:
     INTEGER                                                            :: i,n
 
@@ -52,6 +54,8 @@ CONTAINS
       resource_tracker( i)%tstart       = 0._dp
       resource_tracker( i)%tcomp        = 0._dp
     END DO
+
+#endif
 
     ! Initialise the routine path
     routine_path = 'UFEMISM_program'
@@ -67,6 +71,8 @@ CONTAINS
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: routine_name
     LOGICAL                                  , OPTIONAL, INTENT(IN)    :: do_track_resource_use
+
+#if (DO_RESOURCE_TRACKING)
 
     ! Local variables:
     INTEGER                                                            :: len_path_tot, len_path_used, len_name
@@ -112,6 +118,7 @@ CONTAINS
 
     END IF
 
+#endif
 
   END SUBROUTINE init_routine
 
@@ -123,6 +130,8 @@ CONTAINS
     ! In/output variables:
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: routine_name
+
+#if (DO_RESOURCE_TRACKING)
 
     ! Local variables:
     LOGICAL                                                            :: do_track_resource_use
@@ -177,6 +186,8 @@ CONTAINS
 
     END IF ! IF (do_track_resource_use) THEN
 
+#endif
+
   END SUBROUTINE finalise_routine
 
   SUBROUTINE find_subroutine_in_resource_tracker( i)
@@ -187,6 +198,8 @@ CONTAINS
     ! In/output variables:
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     INTEGER                                            , INTENT(OUT)   :: i
+
+#if (DO_RESOURCE_TRACKING)
 
     ! Local variables:
     INTEGER                                                            :: n
@@ -207,6 +220,8 @@ CONTAINS
     ! If we've reached this point, then the resource tracker is overflowing
     CALL crash('Resource tracker overflows! Allocate more memory for it in control_resources_and_error_messaging/initialise_control_and_resource_tracker!')
 
+#endif
+
   END SUBROUTINE find_subroutine_in_resource_tracker
 
   SUBROUTINE reset_resource_tracker
@@ -214,9 +229,12 @@ CONTAINS
 
     IMPLICIT NONE
 
+#if (DO_RESOURCE_TRACKING)
+
     ! Local variables:
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     INTEGER                                                            :: i,n
+
 
     n = SIZE( resource_tracker)
 
@@ -224,6 +242,8 @@ CONTAINS
       resource_tracker( i)%tstart      = 0._dp
       resource_tracker( i)%tcomp       = 0._dp
     END DO
+
+#endif
 
   END SUBROUTINE reset_resource_tracker
 
