@@ -656,8 +656,8 @@ contains
     call add_attribute_char( filename, ncid, transect%nc%id_var_Hib, 'units', 'm w.r.t. PD sea level')
 
     call create_variable(  filename, ncid, 'SL', NF90_DOUBLE, [n, t], transect%nc%id_var_SL)
-    call add_attribute_char( filename, ncid, transect%nc%id_var_Hs, 'long_name', 'Geoid elevation')
-    call add_attribute_char( filename, ncid, transect%nc%id_var_Hs, 'units', 'm w.r.t. PD sea level')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_SL, 'long_name', 'Geoid elevation')
+    call add_attribute_char( filename, ncid, transect%nc%id_var_SL, 'units', 'm w.r.t. PD sea level')
 
     call create_variable(  filename, ncid, 'Hi_eff', NF90_DOUBLE, [n, t], transect%nc%id_var_Hi)
     call add_attribute_char( filename, ncid, transect%nc%id_var_Hi, 'long_name', 'Effective ice thickness')
