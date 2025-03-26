@@ -32,8 +32,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Compile UFEMISM
-        #run: ./compile_clean_mac.csh
-        run: ./wut.csh
+        run: ./compile_performance.csh
 
       - name: Cache UFEMISM program            # TijnB: caching is quite slow, and not optimal here since
         uses: actions/cache/save@v3            # we assume the model code will be changed whenever this workflow
