@@ -447,18 +447,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_laddie_masks'
     INTEGER                                               :: vi, ti, i, no
-    logical, dimension(:), pointer                        :: mask_a_tot    => null()
-    logical, dimension(:), pointer                        :: mask_gr_a_tot => null()
-    logical, dimension(:), pointer                        :: mask_oc_a_tot => null()
-    type(MPI_WIN)                                         :: wmask_a_tot, wmask_gr_a_tot, wmask_oc_a_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    ! Allocate hybrid distributed/shared memory
-    call allocate_dist_shared( mask_a_tot   , wmask_a_tot   , mesh%nV)
-    call allocate_dist_shared( mask_gr_a_tot, wmask_gr_a_tot, mesh%nV)
-    call allocate_dist_shared( mask_oc_a_tot, wmask_oc_a_tot, mesh%nV)
 
     ! Mask on a grid
     DO vi = mesh%vi1, mesh%vi2
@@ -481,9 +472,9 @@ CONTAINS
     END DO
 
     ! Mask on b grid
-    call gather_dist_shared_to_all( laddie%mask_a, mask_a_tot)
-    call gather_dist_shared_to_all( laddie%mask_gr_a, mask_gr_a_tot)
-    call gather_dist_shared_to_all( laddie%mask_oc_a, mask_oc_a_tot)
+    call gather_dist_shared_to_all( laddie%mask_a   , laddie%mask_a_tot)
+    call gather_dist_shared_to_all( laddie%mask_gr_a, laddie%mask_gr_a_tot)
+    call gather_dist_shared_to_all( laddie%mask_oc_a, laddie%mask_oc_a_tot)
 
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
@@ -495,7 +486,7 @@ CONTAINS
       ! Define floating mask if any of the three vertices is floating
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
-        IF (mask_a_tot( vi)) THEN
+        IF (laddie%mask_a_tot( vi)) THEN
           ! Set true if any of the three vertices is floating
           laddie%mask_b( ti) = .true.
         END IF
@@ -505,7 +496,7 @@ CONTAINS
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
         ! Check if any connected vertex is grounded
-        IF (mask_gr_a_tot( vi)) THEN
+        IF (laddie%mask_gr_a_tot( vi)) THEN
           ! Omit triangle from floating mask. Adjust for no slip conditions
           laddie%mask_b( ti) = .false.
           ! Define as grounding line triangle
@@ -527,7 +518,7 @@ CONTAINS
         DO i = 1, 3
           vi = mesh%Tri( ti, i)
           ! Check if any vertex is icefree ocean
-          IF (mask_oc_a_tot( vi)) THEN
+          IF (laddie%mask_oc_a_tot( vi)) THEN
             ! Define as calving front triangle
             laddie%mask_cf_b( ti) = .true.
           END IF
@@ -539,7 +530,7 @@ CONTAINS
       DO i = 1, 3
         vi = mesh%Tri( ti, i)
         ! Check if vertex is icefree ocean
-        IF (mask_oc_a_tot( vi)) THEN
+        IF (laddie%mask_oc_a_tot( vi)) THEN
           no = no + 1
         END IF
       END DO
@@ -550,11 +541,6 @@ CONTAINS
       END IF
 
     END DO !ti = mesh%ti1, mesh%ti2
-
-    ! Clean up after yourself
-    call deallocate_dist_shared( mask_a_tot   , wmask_a_tot   )
-    call deallocate_dist_shared( mask_gr_a_tot, wmask_gr_a_tot)
-    call deallocate_dist_shared( mask_oc_a_tot, wmask_oc_a_tot)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

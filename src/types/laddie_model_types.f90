@@ -125,6 +125,31 @@ module laddie_model_types
     type(type_laddie_timestep)      :: np12                        !                   Timestep n plus 1/2
     type(type_laddie_timestep)      :: np13                        !                   Timestep n plus 1/3
 
+    ! Total versions of some of the data fields (so that shared memory need only be
+    ! allocated for these after mesh creation)
+    real(dp), dimension(:), pointer :: U_tot                       => null()
+    real(dp), dimension(:), pointer :: V_tot                       => null()
+    real(dp), dimension(:), pointer :: H_b_tot                     => null()
+    real(dp), dimension(:), pointer :: U_c_tot                     => null()
+    real(dp), dimension(:), pointer :: V_c_tot                     => null()
+    logical,  dimension(:), pointer :: mask_gl_b_tot               => null()
+    logical,  dimension(:), pointer :: mask_a_tot                  => null()
+    logical,  dimension(:), pointer :: mask_b_tot                  => null()
+    real(dp), dimension(:), pointer :: Hstar_b                     => null()
+    logical,  dimension(:), pointer :: mask_oc_b_tot               => null()
+    real(dp), dimension(:), pointer :: H_c_tot                     => null()
+    real(dp), dimension(:), pointer :: H_tot                       => null()
+    logical,  dimension(:), pointer :: mask_gr_a_tot               => null()
+    logical,  dimension(:), pointer :: mask_oc_a_tot               => null()
+    real(dp), dimension(:), pointer :: T_tot                       => null()
+    real(dp), dimension(:), pointer :: S_tot                       => null()
+    real(dp), dimension(:), pointer :: Hstar_tot                   => null()
+    type(MPI_WIN) :: wU_tot, wV_tot, wH_b_tot, wU_c_tot, wV_c_tot, wmask_gl_b_tot
+    type(MPI_WIN) :: wmask_a_tot, wmask_b_tot, wHstar_b
+    type(MPI_WIN) :: wmask_oc_b_tot, wH_c_tot, wH_tot
+    type(MPI_WIN) :: wmask_gr_a_tot, wmask_oc_a_tot
+    type(MPI_WIN) :: wT_tot, wS_tot, wHstar_tot
+
   end type type_laddie_model
 
 end module laddie_model_types

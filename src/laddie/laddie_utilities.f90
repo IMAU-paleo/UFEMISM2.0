@@ -246,6 +246,28 @@ CONTAINS
     laddie%mask_cf_b     (mesh%ti1_node:mesh%ti2_node) => laddie%mask_cf_b
     laddie%mask_oc_b     (mesh%ti1_node:mesh%ti2_node) => laddie%mask_oc_b
 
+    ! Total data fields
+    call allocate_dist_shared( laddie%U_tot        , laddie%wU_tot        , mesh%nTri)
+    call allocate_dist_shared( laddie%V_tot        , laddie%wV_tot        , mesh%nTri)
+    call allocate_dist_shared( laddie%H_b_tot      , laddie%wH_b_tot      , mesh%nTri)
+    call allocate_dist_shared( laddie%U_c_tot      , laddie%wU_c_tot      , mesh%nE)
+    call allocate_dist_shared( laddie%V_c_tot      , laddie%wV_c_tot      , mesh%nE)
+    call allocate_dist_shared( laddie%mask_gl_b_tot, laddie%wmask_gl_b_tot, mesh%nTri)
+    call allocate_dist_shared( laddie%mask_a_tot   , laddie%wmask_a_tot   , mesh%nV)
+    call allocate_dist_shared( laddie%mask_b_tot   , laddie%wmask_b_tot   , mesh%nTri)
+    call allocate_dist_shared( laddie%mask_oc_b_tot, laddie%wmask_oc_b_tot, mesh%nTri)
+    call allocate_dist_shared( laddie%H_c_tot      , laddie%wH_c_tot      , mesh%nE)
+    call allocate_dist_shared( laddie%H_tot        , laddie%wH_tot        , mesh%nV)
+    call allocate_dist_shared( laddie%mask_gr_a_tot, laddie%wmask_gr_a_tot, mesh%nV)
+    call allocate_dist_shared( laddie%mask_oc_a_tot, laddie%wmask_oc_a_tot, mesh%nV)
+    call allocate_dist_shared( laddie%T_tot        , laddie%wT_tot        , mesh%nV)
+    call allocate_dist_shared( laddie%S_tot        , laddie%wS_tot        , mesh%nV)
+    call allocate_dist_shared( laddie%Hstar_tot    , laddie%wHstar_tot    , mesh%nV)
+
+    call allocate_dist_shared( laddie%Hstar_b      , laddie%wHstar_b      , mesh%nTri_node)
+
+    laddie%Hstar_b( mesh%ti1_node:mesh%ti2_node) => laddie%Hstar_b
+
     ! == Initialise the matrix using the native UFEMISM CSR-matrix format
     ! ===================================================================
 
