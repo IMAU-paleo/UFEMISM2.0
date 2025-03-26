@@ -354,9 +354,11 @@ CONTAINS
     call init_routine( routine_name)
 
     call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, U, U_c, &
-      xx_is_hybrid = .true., yy_is_hybrid = .true.)
+      xx_is_hybrid = .true., yy_is_hybrid = .true., &
+      xx_tot_buf = mesh%d_b_tot)
     call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, V, V_c, &
-      xx_is_hybrid = .true., yy_is_hybrid = .true.)
+      xx_is_hybrid = .true., yy_is_hybrid = .true., &
+      xx_tot_buf = mesh%d_b_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

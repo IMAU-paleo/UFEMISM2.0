@@ -4,6 +4,7 @@ module mesh_types
 
   use precisions, only: dp
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use mpi_f08, only: MPI_WIN
 
   implicit none
 
@@ -250,6 +251,14 @@ module mesh_types
     type(type_sparse_matrix_CSR_dp)         :: M2_d2dy2_bk_bk
     type(type_sparse_matrix_CSR_dp)         :: M2_ddz_bk_bk
     type(type_sparse_matrix_CSR_dp)         :: M2_d2dz2_bk_bk
+
+    ! Some general-purpose shared memory; used for gathering data in mapping/derivative
+    ! operations, so shared memory doesn't have to be (de)allocated in every call to
+    ! map_XX_XX, ddx_XX_XX, etc., which is very slow.
+    real(dp), dimension(:), pointer :: d_a_tot  => null()
+    real(dp), dimension(:), pointer :: d_b_tot  => null()
+    real(dp), dimension(:), pointer :: d_c_tot  => null()
+    type(MPI_WIN) :: wd_a_tot, wd_b_tot, wd_c_tot
 
   end type type_mesh
 
