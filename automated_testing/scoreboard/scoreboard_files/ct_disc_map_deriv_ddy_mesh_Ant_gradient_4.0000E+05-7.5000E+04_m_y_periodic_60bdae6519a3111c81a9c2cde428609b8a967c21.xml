@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_y_periodic</name>
+    <category>component_tests/discretisation/mapping_and_derivatives/ddy</category>
+    <date_and_time>26-Mar-2025 13:03:57</date_and_time>
+    <git_hash_string>60bdae6519a3111c81a9c2cde428609b8a967c21</git_hash_string>
+    <cost_functions>
+        <name>max_err_ddy_a_a</name>
+        <definition>abs( ddy_a_a - ddy_a_ex) ./ max( abs( ddy_a_ex))</definition>
+        <value>0.060382</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_a_b</name>
+        <definition>abs( ddy_a_b - ddy_b_ex) ./ max( abs( ddy_b_ex))</definition>
+        <value>0.079253</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_a_c</name>
+        <definition>abs( ddy_a_c - ddy_c_ex) ./ max( abs( ddy_c_ex))</definition>
+        <value>0.064929</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_b_a</name>
+        <definition>abs( ddy_b_a - ddy_a_ex) ./ max( abs( ddy_a_ex))</definition>
+        <value>0.020341</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_b_b</name>
+        <definition>abs( ddy_b_b - ddy_b_ex) ./ max( abs( ddy_b_ex))</definition>
+        <value>0.082451</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_b_c</name>
+        <definition>abs( ddy_b_c - ddy_c_ex) ./ max( abs( ddy_c_ex))</definition>
+        <value>0.083059</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_c_a</name>
+        <definition>abs( ddy_c_a - ddy_a_ex) ./ max( abs( ddy_a_ex))</definition>
+        <value>0.012121</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_c_b</name>
+        <definition>abs( ddy_c_b - ddy_b_ex) ./ max( abs( ddy_b_ex))</definition>
+        <value>0.037515</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_c_c</name>
+        <definition>abs( ddy_c_c - ddy_c_ex) ./ max( abs( ddy_c_ex))</definition>
+        <value>0.097213</value>
+    </cost_functions>
+</single_run>
