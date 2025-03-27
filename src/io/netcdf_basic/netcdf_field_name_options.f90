@@ -22,7 +22,7 @@ module netcdf_field_name_options
     field_name_options_VorC, field_name_options_nVVor, field_name_options_VVor, field_name_options_TriGC, field_name_options_TriA, &
     field_name_options_A, field_name_options_R, field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, &
     field_name_options_SL, field_name_options_dHb, field_name_options_Ti, field_name_options_T_ocean, &
-    field_name_options_S_ocean, field_name_options_insolation
+    field_name_options_S_ocean, field_name_options_insolation, field_name_options_sealevel
 
   public :: inquire_dim_multopt, inquire_var_multopt, get_first_option_from_list
 
