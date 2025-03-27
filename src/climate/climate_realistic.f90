@@ -173,7 +173,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Sea level
-    IF (C%choice_sealevel_model_config == 'prescribed') call initialise_sealevel_record(C%start_time_of_run,forcing)
+    IF (C%choice_sealevel_model == 'prescribed') call initialise_sealevel_record(C%start_time_of_run,forcing)
 
     ! TODO: checks with what exactly we need to load here to know which global forcings need to be read
     ! e.g., insolation, CO2, d18O, etc...
@@ -493,7 +493,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_sealevel_at_model_time'
     INTEGER                                            :: ti0, ti1
-    REAL(dp)                                           :: time_applied, wt0,wt1
+    REAL(dp)                                           :: time_applied, wt0,wt1, dt_min
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -542,7 +542,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_sealevel_timeframes_from_curve'
-    INTEGER                                            :: ti0, ti1, ncid, nt
+    INTEGER                                            :: ti0, ti1, tii, ncid, nt
     CHARACTER(LEN=256)                                 :: str
 
     ! Add routine to path
@@ -551,7 +551,7 @@ CONTAINS
     
     ! Update sea level
     ! Find timeframe closest to desired time
-    nt = len(forcing%sea_level_time)
+    nt = size(forcing%sea_level_time)
     if (forcing%sea_level_time( 1) > time) then
       ! Desired time beyond lower limit
       call warning('desired timeframe at t = {dp_01} before start of sea level record time; reading data from t = {dp_02} instead!', &
@@ -578,18 +578,18 @@ CONTAINS
     end if
       
     
-    forcing%sl_t0 = forcing%seal_level_time(ti0)
+    forcing%sl_t0    = forcing%sea_level_time(ti0)
     forcing%sl_at_t0 = forcing%sea_level_record(ti0)
       
     ! if the desired time is after t0, we take one record after for t1
     if (time >= forcing%sl_t0) then
-      forcing%_sl_t1   = forcing%seal_level_time(ti0+1)
+      forcing%sl_t1    = forcing%sea_level_time(ti0+1)
       forcing%sl_at_t1 = forcing%sea_level_record(ti0+1)
     else
       ! otherwise we read one record before for t0, and that record is t1
-      forcing%_sl_t1   = forcing%seal_level_time(ti0)
+      forcing%sl_t1    = forcing%sea_level_time(ti0)
       forcing%sl_at_t1 = forcing%sea_level_record(ti0)
-      forcing%_sl_t0   = forcing%seal_level_time(ti0-1)
+      forcing%sl_t0    = forcing%sea_level_time(ti0-1)
       forcing%sl_at_t0 = forcing%sea_level_record(ti0-1)
     end if
 
