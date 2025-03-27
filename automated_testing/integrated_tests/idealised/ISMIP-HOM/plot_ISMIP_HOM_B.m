@@ -10,11 +10,14 @@ foldername_ensemble = '/Users/Beren017/Documents/GitHub/data/model_ensembles/ISM
 
 close all
 
-c_HO     = [0.1 ,0.5 ,0.2];
-c_FS     = [0.2 ,0.5 ,1.0];
-c_SIASSA = [1.0, 0.0, 0.0];
-c_DIVA   = [0.9, 0.7, 0.0];
-c_BPA    = [0.5, 0.2, 0.7];
+c_HO      = [0.1 ,0.5 ,0.2];
+c_FS      = [0.2 ,0.5 ,1.0];
+
+colors = crameri('hawaii',3);
+
+c_SIASSA = colors(1,:);
+c_DIVA   = colors(2,:);
+c_BPA    = colors(3,:);
 
 wa = 250;
 ha = 200;
@@ -52,9 +55,9 @@ patch( 'parent',H.Ax{ 2,3},'vertices',[],'faces',[],'facecolor',c_FS,...
   'edgecolor','none','facealpha',0.7);
 % line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_HO,'linewidth',2);
 % line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_FS,'linewidth',2);
-line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_SIASSA,'linewidth',2);
-line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_DIVA  ,'linewidth',2);
-line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'color',c_BPA   ,'linewidth',2);
+line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'linewidth',2,'color',c_SIASSA);
+line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'linewidth',2,'color',c_DIVA);
+line( 'parent',H.Ax{ 2,3},'xdata',[],'ydata',[],'linewidth',2,'color',c_BPA);
 
 set( H.Ax{ 1,1},'ylim',[0,30]);
 set( H.Ax{ 1,2},'ylim',[0,40]);
@@ -138,28 +141,23 @@ for Li = 1:6
     approx = approxs{ approxi};
 
     if strcmpi( approx,'SIASSA')
-      colour = c_SIASSA;
+      color = c_SIASSA;
     elseif strcmpi( approx,'DIVA')
-      colour = c_DIVA;
+      color = c_DIVA;
     elseif strcmpi( approx,'BPA')
-      colour = c_BPA;
+      color = c_BPA;
     end
 
     foldername = ['results_ISMIP_HOM_B_' num2str(L) '_' approx];
-    filename = [foldername '/main_output_ANT_00001.nc'];
-    mesh = read_mesh_from_file( filename);
-
-    % Calculate velocity transect
-    xt = HO.(ex).x * L*1e3;
-    yt = xt*0 + L*1e3 / 4;
-    A = calc_transect_matrix( mesh, xt, yt);
-    u_surf = ncread( filename,'u_surf');
-    u_surf = A * u_surf;
+    filename = [foldername '/transect_ISMIP-HOM.nc'];
+    V = ncread( filename,'V');
+    xt = fliplr(linspace(0,1,size(V,1)));
+    u_3D = ncread( filename,'u_par');
+    u_surf = u_3D(:,1);
 
     % Plot results
-    line('parent',ax,'xdata',HO.(ex).x,'ydata',u_surf,'color',colour,...
+    line('parent',ax,'xdata',xt,'ydata',u_surf,'color',color,...
       'linewidth',2)
-    drawnow('update')
 
   end
 end

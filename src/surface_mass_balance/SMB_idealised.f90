@@ -241,7 +241,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(*,"(a)") '   Initialising idealised SMB model "' // &
+    if (par%primary) write(*,"(a)") '   Initialising idealised SMB model "' // &
       colour_string( trim( C%choice_SMB_model_idealised),'light blue') // '"...'
 
     ! Run the chosen idealised SMB model

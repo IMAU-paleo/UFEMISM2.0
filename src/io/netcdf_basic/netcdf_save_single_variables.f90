@@ -3,21 +3,26 @@ module netcdf_save_single_variables
 
 #include <petsc/finclude/petscksp.h>
   use petscksp
-  use mpi
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use model_configuration, only: C
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist, &
-    gather_CSR_dist_to_master
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_matrix_basics, only: deallocate_matrix_CSR_dist, gather_CSR_dist_to_primary
   use petsc_basic, only: mat_petsc2CSR
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
   use netcdf, only: NF90_INT, NF90_DOUBLE
   use netcdf_inquire_grid_mesh
-  use netcdf_write_var_master
+  use netcdf_write_var_primary
   use netcdf_basic_wrappers
 
   implicit none
+
+  private
+
+  public :: write_CSR_matrix_to_NetCDF, write_PETSc_matrix_to_NetCDF, &
+    save_variable_as_netcdf_logical_1D, save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, &
+    save_variable_as_netcdf_dp_1D, save_variable_as_netcdf_dp_2D
 
 contains
 
@@ -67,8 +72,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Gather distributed matrix to the master
-    call gather_CSR_dist_to_master( AA, AA_tot)
+    ! Gather distributed matrix to the primary
+    call gather_CSR_dist_to_primary( AA, AA_tot)
 
     ! Append output directory to filename
     filename_applied = trim( C%output_dir) // '/' // trim( filename) // '.nc'
@@ -89,9 +94,9 @@ contains
     call create_variable( filename_applied, ncid, 'val', NF90_DOUBLE, [id_dim_nnz], id_var_val)
 
     ! Write to NetCDF
-    call write_var_master( filename_applied, ncid, id_var_ptr, AA_tot%ptr               )
-    call write_var_master( filename_applied, ncid, id_var_ind, AA_tot%ind( 1:AA_tot%nnz))
-    call write_var_master(  filename_applied, ncid, id_var_val, AA_tot%val( 1:AA_tot%nnz))
+    call write_var_primary( filename_applied, ncid, id_var_ptr, AA_tot%ptr               )
+    call write_var_primary( filename_applied, ncid, id_var_ind, AA_tot%ind( 1:AA_tot%nnz))
+    call write_var_primary(  filename_applied, ncid, id_var_val, AA_tot%val( 1:AA_tot%nnz))
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -160,14 +165,14 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions
@@ -177,7 +182,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_INT, (/ id_dim_n1 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -214,15 +219,15 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     n2        = size( d_partial,2)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot, n2))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions
@@ -233,7 +238,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_INT, (/ id_dim_n1, id_dim_n2 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -270,14 +275,14 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions
@@ -287,7 +292,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_DOUBLE, (/ id_dim_n1 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -324,15 +329,15 @@ contains
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename, ncid)
 
-    ! Gather data to the master
+    ! Gather data to the primary
     n_partial = size( d_partial,1)
     n2        = size( d_partial,2)
     call MPI_ALLREDUCE( n_partial, n_tot, 1, MPI_integer, MPI_SUM, MPI_COMM_WORLD, ierr)
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot( n_tot, n2))
-      call gather_to_master( d_partial, d_tot)
+      call gather_to_primary( d_partial, d_tot)
     else
-      call gather_to_master( d_partial)
+      call gather_to_primary( d_partial)
     end if
 
     ! Create dimensions
@@ -343,7 +348,7 @@ contains
     call create_variable( filename, ncid, field_name, NF90_DOUBLE, (/ id_dim_n1, id_dim_n2 /), id_var)
 
     ! Write data
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -361,7 +366,7 @@ contains
     ! Local variables:
     logical :: file_exists
 
-    if (par%master) then
+    if (par%primary) then
       inquire( exist = file_exists, file = trim( filename))
       if (file_exists) then
         call system('rm -f ' // filename)

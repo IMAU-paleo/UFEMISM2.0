@@ -6,14 +6,14 @@ module ut_petsc
 
 #include <petsc/finclude/petscksp.h>
   use petscksp
-  use mpi
   use precisions, only: dp
-  use mpi_basic, only: par, cerr, ierr, recv_status, sync
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine
   use model_configuration, only: C
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, deallocate_matrix_CSR_dist
-  use petsc_basic, only: perr, mat_CSR2petsc, multiply_CSR_matrix_with_vector_1D, &
-    multiply_petsc_matrix_with_vector_1D, MatDestroy, mat_petsc2CSR
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_matrix_basics, only: deallocate_matrix_CSR_dist
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use petsc_basic, only: mat_CSR2petsc, multiply_petsc_matrix_with_vector_1D, mat_petsc2CSR
   use tests_main
   use assertions_basic
   use ut_basic
@@ -174,6 +174,7 @@ contains
     type(type_sparse_matrix_CSR_dp)         :: AA
     type(tMat)                              :: A
     real(dp), dimension(:    ), allocatable :: xx, yy, yy_correct
+    integer                                 :: perr
 
     ! Add routine to call stack
     call init_routine( routine_name)

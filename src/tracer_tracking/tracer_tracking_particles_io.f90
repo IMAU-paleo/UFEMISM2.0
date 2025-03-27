@@ -4,7 +4,6 @@ module tracer_tracking_model_particles_io
   use assertions_basic
   use precisions, only: dp
   use mpi_basic, only: par
-  use mpi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
@@ -15,7 +14,7 @@ module tracer_tracking_model_particles_io
   use reallocate_mod, only: reallocate
   use netcdf, only: NF90_UNLIMITED, NF90_INT, NF90_DOUBLE
   use netcdf_io_main
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
 
   implicit none
 
@@ -54,8 +53,8 @@ contains
     call write_time_to_file( filename, ncid, time)
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
-    ! Gather all particles to the master
-    if (par%master) then
+    ! Gather all particles to the primary
+    if (par%primary) then
       allocate( id_tot      ( particles%n_max * par%n   ))
       allocate( r_tot       ( particles%n_max * par%n, 3))
       allocate( t_origin_tot( particles%n_max * par%n   ))
@@ -65,12 +64,12 @@ contains
       allocate( t_origin_tot( 0   ))
     end if
 
-    call gather_to_master( particles%id      , id_tot)
-    call gather_to_master( particles%r       , r_tot)
-    call gather_to_master( particles%t_origin, t_origin_tot)
+    call gather_to_primary( particles%id      , id_tot)
+    call gather_to_primary( particles%r       , r_tot)
+    call gather_to_primary( particles%t_origin, t_origin_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
 
       allocate( id_tot_with_time      ( particles%n_max * par%n,    1))
       allocate( r_tot_with_time       ( particles%n_max * par%n, 3, 1))
@@ -83,11 +82,11 @@ contains
     end if
 
     ! Write data
-    call write_var_master( filename, ncid, particles%nc%id_var_id       , id_tot_with_time      , &
+    call write_var_primary( filename, ncid, particles%nc%id_var_id       , id_tot_with_time      , &
       start = [1,ti], count = [particles%n_max * par%n,1])
-    call write_var_master( filename, ncid, particles%nc%id_var_r        , r_tot_with_time       , &
+    call write_var_primary( filename, ncid, particles%nc%id_var_r        , r_tot_with_time       , &
       start = [1,1,ti], count = [particles%n_max * par%n,3,1])
-    call write_var_master( filename, ncid, particles%nc%id_var_t_origin , t_tot_origin_with_time, &
+    call write_var_primary( filename, ncid, particles%nc%id_var_t_origin , t_tot_origin_with_time, &
       start = [1,ti], count = [particles%n_max * par%n,1])
 
     call close_netcdf_file( ncid)

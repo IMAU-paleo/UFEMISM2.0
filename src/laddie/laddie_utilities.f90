@@ -4,7 +4,7 @@ MODULE laddie_utilities
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -17,13 +17,13 @@ MODULE laddie_utilities
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
-  use petsc_basic                                            , only: multiply_CSR_matrix_with_vector_1D
-  use CSR_sparse_matrix_utilities                            , only: allocate_matrix_CSR_dist
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -42,7 +42,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_ambient_TS'
     INTEGER                                               :: vi
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -71,11 +71,11 @@ CONTAINS
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_H_a_b'
- 
+
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, H_a, H_b) 
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, H_a, H_b)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -94,11 +94,11 @@ CONTAINS
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_H_a_c'
- 
+
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, H_a, H_c) 
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, H_a, H_c)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -115,7 +115,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'allocate_laddie_model'
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -158,13 +158,13 @@ CONTAINS
     ! Horizontal fluxes
     ALLOCATE( laddie%divQH              ( mesh%vi1:mesh%vi2), source=0._dp) ! [m^3 s^-1]      Divergence of layer thickness
     ALLOCATE( laddie%divQU              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^4 s^-2]      Divergence of momentum
-    ALLOCATE( laddie%divQV              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^4 s^-2]   
+    ALLOCATE( laddie%divQV              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^4 s^-2]
     ALLOCATE( laddie%divQT              ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC m^3 s^-1] Divergence of heat
     ALLOCATE( laddie%divQS              ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU m^3 s^-1]  Divergence of salt
 
     ! Viscosities
     ALLOCATE( laddie%viscU              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^2 s^-2]      Horizontal viscosity term
-    ALLOCATE( laddie%viscV              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^2 s^-2]      
+    ALLOCATE( laddie%viscV              ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^2 s^-2]
 
     ! Diffusivities
     ALLOCATE( laddie%diffT              ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC m s^-1]   Horizontal diffusivity of heat
@@ -172,9 +172,9 @@ CONTAINS
 
     ! RHS terms
     ALLOCATE( laddie%ddrho_amb_dx_b     ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-1]          Horizontal derivative of buoyancy
-    ALLOCATE( laddie%ddrho_amb_dy_b     ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-1]          
+    ALLOCATE( laddie%ddrho_amb_dy_b     ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-1]
     ALLOCATE( laddie%dH_dx_b            ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-2]          Horizontal derivative of thickness
-    ALLOCATE( laddie%dH_dy_b            ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-2]          
+    ALLOCATE( laddie%dH_dy_b            ( mesh%ti1:mesh%ti2), source=0._dp) ! [m^-2]
     ALLOCATE( laddie%detr_b             ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]        Detrainment on b grid
 
     ! Masks
@@ -222,7 +222,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE allocate_laddie_model 
+  END SUBROUTINE allocate_laddie_model
 
   SUBROUTINE allocate_laddie_timestep( mesh, npx)
     ! Allocate variables of the laddie model
@@ -233,7 +233,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'allocate_laddie_timestep'
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -243,11 +243,11 @@ CONTAINS
     ALLOCATE( npx%U                  ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]        2D velocity
     ALLOCATE( npx%U_a                ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]        2D velocity on a grid
     ALLOCATE( npx%U_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m s^-1]        2D velocity on b grid
-    ALLOCATE( npx%V                  ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]  
-    ALLOCATE( npx%V_a                ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]  
-    ALLOCATE( npx%V_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m s^-1]  
+    ALLOCATE( npx%V                  ( mesh%ti1:mesh%ti2), source=0._dp) ! [m s^-1]
+    ALLOCATE( npx%V_a                ( mesh%vi1:mesh%vi2), source=0._dp) ! [m s^-1]
+    ALLOCATE( npx%V_c                ( mesh%ei1:mesh%ei2), source=0._dp) ! [m s^-1]
     ALLOCATE( npx%T                  ( mesh%vi1:mesh%vi2), source=0._dp) ! [degC]          Temperature
-    ALLOCATE( npx%S                  ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU]           Salinity   
+    ALLOCATE( npx%S                  ( mesh%vi1:mesh%vi2), source=0._dp) ! [PSU]           Salinity
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -263,13 +263,13 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'print_diagnostics'
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
       WRITE( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, '  Dmean ', SUM(laddie%now%H)/SIZE(laddie%now%H), '  Meltmax', MAXVAL(laddie%melt*sec_per_year), '   U', MAXVAL(SQRT(laddie%now%U**2+laddie%now%V**2)), '   Tmax', MAXVAL(laddie%now%T)
-    END IF     
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

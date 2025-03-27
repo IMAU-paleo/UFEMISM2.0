@@ -6,17 +6,23 @@ MODULE petsc_basic
 
 #include <petsc/finclude/petscksp.h>
   USE petscksp
-  USE mpi
   use assertions_basic
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE parameters
   USE reallocate_mod                                         , ONLY: reallocate
-  USE CSR_sparse_matrix_utilities                            , ONLY: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist, crop_matrix_CSR_dist
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
+    add_entry_CSR_dist, deallocate_matrix_CSR_dist, crop_matrix_CSR_dist
   use mpi_distributed_memory, only: partition_list, gather_to_all
 
   IMPLICIT NONE
+
+  private
+
+  public :: solve_matrix_equation_CSR_PETSc, vec_double2petsc, vec_petsc2double, &
+    mat_CSR2petsc, mat_petsc2CSR, multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D
 
   INTEGER :: perr    ! Error flag for PETSc routines
 
@@ -85,14 +91,14 @@ CONTAINS
       CALL crash('matrix and vector sub-sizes dont match!')
     END IF
 
-  ! == Set up right-hand side and solution vectors as PETSc data structures
-  ! =======================================================================
+    ! == Set up right-hand side and solution vectors as PETSc data structures
+    ! =======================================================================
 
     CALL vec_double2petsc( xx, x)
     CALL vec_double2petsc( bb, b)
 
-  ! Set up the solver
-  ! =================
+    ! Set up the solver
+    ! =================
 
     ! Set up the KSP solver
     CALL KSPcreate( PETSC_COMM_WORLD, KSP_solver, perr)
@@ -110,8 +116,8 @@ CONTAINS
     ! KSPSetFromOptions() is called _after_ any other customization routines.
     CALL KSPSetFromOptions( KSP_solver, perr)
 
-  ! == Solve Ax=b
-  ! =============
+    ! == Solve Ax=b
+    ! =============
 
     ! Solve the linear system
     CALL solve_matrix_equation_PETSc_KSPSolve( KSP_solver, b, x)
@@ -169,6 +175,7 @@ CONTAINS
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'vec_double2petsc'
+    integer                        :: ierr
     integer                        :: nF_loc
     integer, dimension(1:par%n)    :: nF_loc_all
     integer                        :: nF_glob, i1F_glob, i2F_glob, iF_loc
@@ -225,6 +232,7 @@ CONTAINS
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'vec_petsc2double'
+    integer                        :: ierr
     integer                        :: nF_loc
     integer, dimension(1:par%n)    :: nF_loc_all
     integer                        :: nF_glob, i1F_glob, i2F_glob, iF_loc
@@ -399,12 +407,12 @@ CONTAINS
     ptr_proc( AA%m_loc) = AA%ptr( AA%i2+1) - AA%ptr( AA%i1)
 
     ! Create PETSc matrix
-!    IF (AA%balanced) then
+    ! IF (AA%balanced) then
       CALL MatCreateMPIAIJWithArrays( PETSC_COMM_WORLD, AA%m_loc, AA%n_loc, AA%m, AA%n, ptr_proc, ind_proc, val_proc, A, perr)
-!    ELSE
-!      ! Special treatment if the rows are not partitioned according to PETSC
-!      CALL MatCreateMPIAIJWithArrays( PETSC_COMM_WORLD, nrows_proc, nrows_proc, AA%m, AA%n, ptr_proc, ind_proc, val_proc, A, perr)
-!    END IF
+    ! ELSE
+    !   ! Special treatment if the rows are not partitioned according to PETSC
+    !   CALL MatCreateMPIAIJWithArrays( PETSC_COMM_WORLD, nrows_proc, nrows_proc, AA%m, AA%n, ptr_proc, ind_proc, val_proc, A, perr)
+    ! END IF
 
     ! Assemble matrix and vectors, using the 2-step process:
     !   MatAssemblyBegin(), MatAssemblyEnd()
@@ -425,114 +433,6 @@ CONTAINS
   END SUBROUTINE mat_CSR2petsc
 
 ! == Matrix-vector multiplication
-  SUBROUTINE multiply_CSR_matrix_with_vector_1D( AA, xx, yy)
-    ! Multiply a CSR matrix with a FORTRAN vector: y = A*x
-    !
-    ! NOTE: A, x, and y are stored as distributed memory
-
-    IMPLICIT NONE
-
-    ! In- and output variables:
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: AA
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: xx
-    REAL(dp), DIMENSION(AA%i1:AA%i2),    INTENT(OUT)   :: yy
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'multiply_CSR_matrix_with_vector_1D'
-    INTEGER                                            :: nx_local, nx_global, ny_local, ny_global
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: xxv
-    INTEGER                                            :: i,k1,k2,k,j
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Get vector sizes
-    nx_local = SIZE( xx,1)
-    ny_local = SIZE( yy,1)
-
-    CALL MPI_ALLREDUCE( nx_local, nx_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( ny_local, ny_global, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-
-    ! Safety: check sizes
-    IF (ny_local /= (AA%m_loc) .OR. nx_global /= AA%n .OR. ny_global /= AA%m) THEN
-      CALL warning('nx_local = {int_01}, nx_global = {int_02}', int_01 = nx_local, int_02 = nx_global)
-      CALL warning('ny_local = {int_01}, ny_global = {int_02}', int_01 = ny_local, int_02 = ny_global)
-      CALL warning('A: m = {int_01}, n = {int_02}, i1 = {int_03}, i2 = {int_04}', int_01 = AA%m, int_02 = AA%n, int_03 = AA%i1, int_04 = AA%i2)
-      CALL crash('matrix and vector sizes dont match!')
-    END IF
-
-    ! Allocate memory for gathered vector x
-    ALLOCATE( xxv( nx_global))
-
-    ! Gather x
-    CALL gather_to_all( xx, xxv)
-
-    ! Perform CSR matrix multiplication
-    DO i = AA%i1, AA%i2
-
-      yy( i) = 0._dp
-
-      k1 = AA%ptr( i)
-      k2 = AA%ptr( i+1)-1
-
-      DO k = k1, k2
-        j = AA%ind( k)
-        yy( i) = yy( i) + AA%val( k) * xxv( j)
-      END DO
-
-    END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( xxv)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE multiply_CSR_matrix_with_vector_1D
-
-  SUBROUTINE multiply_CSR_matrix_with_vector_2D( AA, xx, yy)
-    ! Multiply a CSR matrix with a FORTRAN vector: y = A*x
-    !
-    ! NOTE: A, x, and y are stored as distributed memory
-
-    IMPLICIT NONE
-
-    ! In- and output variables:
-    TYPE(type_sparse_matrix_CSR_dp),     INTENT(IN)    :: AA
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: xx
-    REAL(dp), DIMENSION(AA%i1:AA%i2,SIZE(xx,2)),  INTENT(OUT)   :: yy
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'multiply_CSR_matrix_with_vector_2D'
-    INTEGER                                            :: n1,n2,j
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: xx_1D, yy_1D
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Vector sizes
-    n1 = SIZE( xx,1)
-    n2 = SIZE( xx,2)
-
-    ! Allocate memory
-    ALLOCATE( xx_1D( n1), source = 0._dp)
-    ALLOCATE( yy_1D( AA%i1:AA%i2), source = 0._dp)
-
-    ! Calculate each column separately
-    DO j = 1, n2
-      xx_1D = xx( :,j)
-      CALL multiply_CSR_matrix_with_vector_1D( AA, xx_1D, yy_1D)
-      yy( :,j) = yy_1D
-    END DO
-
-    ! Clean up after yourself
-    DEALLOCATE( xx_1D)
-    DEALLOCATE( yy_1D)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE multiply_CSR_matrix_with_vector_2D
 
   SUBROUTINE multiply_PETSc_matrix_with_vector_1D( A, xx, yy)
     ! Multiply a PETSc matrix with a FORTRAN vector: y = A*x
@@ -546,6 +446,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'multiply_PETSc_matrix_with_vector_1D'
+    integer                                            :: ierr
     TYPE(PetscInt)                                     :: nFx_loc
     INTEGER,  DIMENSION(1:par%n)                       :: nFx_loc_all
     TYPE(PetscInt)                                     :: nFx_glob, i1Fx_glob, i2Fx_glob
@@ -558,7 +459,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! == Determine local and global size and local ownership range of Fortran vectors
+    ! == Determine local and global size and local ownership range of Fortran vectors
 
     ! == x
 
@@ -586,7 +487,7 @@ CONTAINS
     i1Fy_glob = SUM( nFy_loc_all( 1:par%i)) + 1
     i2Fy_glob = i1Fy_glob + nFy_loc - 1
 
-  ! == Determine local and global size and local ownership range of PETSc matrix
+    ! == Determine local and global size and local ownership range of PETSc matrix
 
     CALL MatGetSize(      A, mA_glob, nA_glob, perr)
     CALL MatGetLocalSize( A, mA_loc , nA_loc , perr)

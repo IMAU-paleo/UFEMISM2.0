@@ -2,17 +2,18 @@ module conservation_of_mass_main
 
   ! Contains all the routines needed to calculate ice thickness rates of change (dH/dt)
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_MIN
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, duplicate_matrix_CSR_dist
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, duplicate_matrix_CSR_dist
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use ice_geometry_basics, only: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
   use mpi_distributed_memory, only: gather_to_all
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
-  use petsc_basic, only: multiply_CSR_matrix_with_vector_1D, solve_matrix_equation_CSR_PETSc
+  use petsc_basic, only: solve_matrix_equation_CSR_PETSc
 
   implicit none
 

@@ -16,7 +16,7 @@ MODULE GIA_ELRA
   USE region_types                                           , ONLY: type_model_region
   USE grid_basic                                             , ONLY: setup_square_grid
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  use mpi_distributed_memory_grid, only: gather_gridded_data_to_master, distribute_gridded_data_from_master
+  use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
   USE grid_types                                             , ONLY: type_grid
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   use ice_geometry_basics, only: is_floating
@@ -38,7 +38,7 @@ contains
   SUBROUTINE run_ELRA_model( region)
     ! Use the ELRA model to update bedrock elevation. Once every (dt_bedrock_ELRA) years,
     ! update deformation rates. In all other time steps, just incrementally add deformation.
-    
+
     ! In/output variables:
     TYPE(type_model_region),         INTENT(INOUT)     :: region
 
@@ -48,13 +48,13 @@ contains
 
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Calculate the bedrock deformation rate
     CALL calculate_ELRA_bedrock_deformation_rate( region%mesh, region%GIA%grid, region%ice, region%GIA, region%ELRA)
-        
+
     ! Update bedrock with last calculated deformation rate
     DO vi = region%mesh%vi1, region%mesh%vi2
-      region%ice%dHb_dt( vi) = (region%GIA%dHb_next( vi) - region%GIA%dHb_prev( vi)) / C%dt_GIA      
+      region%ice%dHb_dt( vi) = (region%GIA%dHb_next( vi) - region%GIA%dHb_prev( vi)) / C%dt_GIA
     END DO
 
     ! Finalise routine path
@@ -63,7 +63,7 @@ contains
   END SUBROUTINE run_ELRA_model
   SUBROUTINE calculate_ELRA_bedrock_deformation_rate( mesh, grid, ice, GIA, ELRA)
     ! Use the ELRA model to update bedrock deformation rates.
-    
+
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
@@ -83,7 +83,7 @@ contains
     Lr = (C%ELRA_lithosphere_flex_rigidity / (C%ELRA_mantle_density * grav))**0.25_dp
 
     ! Calculate the absolute and relative surface loads on the mesh
-    
+
     DO vi = mesh%vi1, mesh%vi2
 
       ! Absolute surface load
@@ -102,15 +102,15 @@ contains
 
     ! Map relative surface load to the GIA grid
     CALL map_from_mesh_to_xy_grid_2D( mesh, grid, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
-    
-    !! Gather data to master
-    call gather_gridded_data_to_master( grid, GIA%relative_surface_load_grid, ELRA%relative_surface_load_grid_tot)
-        
+
+    !! Gather data to primary
+    call gather_gridded_data_to_primary( grid, GIA%relative_surface_load_grid, ELRA%relative_surface_load_grid_tot)
+
     n = ELRA%flex_prof_rad
-    
-    ! Let the master do the actual work
-    if (par%master) then
-    
+
+    ! Let the primary do the actual work
+    if (par%primary) then
+
       do i = 1, grid%nx
       do j = 1, grid%ny
         ELRA%dHb_eq_grid( i, j) = 0._dp
@@ -124,36 +124,36 @@ contains
         end do
       end do
       end do
-          
-    end if ! if (par%master) then
-    
+
+    end if
+
     ! Map the actual bedrock deformation from the mesh to the grid
     call map_from_mesh_to_xy_grid_2D( mesh, grid, ice%dHb, ELRA%dHb_grid_partial)
-       
-    ! gather data from all processors to master, from partial grid vec to total 2D grid 
-    call gather_gridded_data_to_master( grid, ELRA%dHb_grid_partial, ELRA%dHb_grid_tot)    
 
-	! Let the master do the actual work
-    if (par%master) then
+    ! gather data from all processors to primary, from partial grid vec to total 2D grid
+    call gather_gridded_data_to_primary( grid, ELRA%dHb_grid_partial, ELRA%dHb_grid_tot)
+
+	  ! Let the primary do the actual work
+    if (par%primary) then
 
       ! Calculate the bedrock deformation rate from the difference between the current and the equilibrium deformation
-      DO i = 1, grid%nx    
+      DO i = 1, grid%nx
       DO j = 1, grid%ny
         ELRA%dHb_dt_grid( i,j) = (ELRA%dHb_eq_grid( i,j) - ELRA%dHb_grid_tot( i,j)) / C%ELRA_bedrock_relaxation_time
       END DO
       END DO
-    
-    end if ! if (par%master) then
-   
-    ! distribute from 2D grid data on master to vector grid data on all processors
-    call distribute_gridded_data_from_master( grid, ELRA%dHb_dt_grid, ELRA%dHb_dt_grid_partial)
+
+    end if
+
+    ! distribute from 2D grid data on primary to vector grid data on all processors
+    call distribute_gridded_data_from_primary( grid, ELRA%dHb_dt_grid, ELRA%dHb_dt_grid_partial)
 
     ! remap from partial grid vec data to mesh model
     call map_from_xy_grid_to_mesh_2D( grid, mesh, ELRA%dHb_dt_grid_partial, ELRA%dHb_dt_mesh)
-   
+
     ! multiply the GIA time-step to calculate the bedrock deformation
     GIA%dHb_next = GIA%dHb_prev + ELRA%dHb_dt_mesh * C%dt_GIA
-   
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -161,11 +161,11 @@ contains
 
   SUBROUTINE initialise_ELRA_model( mesh, grid, ELRA, refgeo_GIAeq)
     ! Allocate and initialise the ELRA GIA model
-    
+
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ELRA_model),               INTENT(INOUT) :: ELRA    
+    TYPE(type_ELRA_model),               INTENT(INOUT) :: ELRA
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
 
     ! Local variables:
@@ -176,7 +176,7 @@ contains
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%master) WRITE (0,*) '    Initialising ELRA GIA model...'
+    IF (par%primary) WRITE (0,*) '    Initialising ELRA GIA model...'
 
     ! Allocate memory
     ALLOCATE( ELRA%surface_load_GIAeq( mesh%vi1:mesh%vi2))
@@ -187,8 +187,8 @@ contains
     ALLOCATE( ELRA%dHb_grid_tot( grid%nx, grid%ny))
     ALLOCATE( ELRA%dHb_dt_grid( grid%nx, grid%ny))
     ALLOCATE( ELRA%dHb_dt_grid_partial( grid%n1:grid%n2))
-    ALLOCATE( ELRA%dHb_dt_mesh( mesh%vi1:mesh%vi2))    
-    
+    ALLOCATE( ELRA%dHb_dt_mesh( mesh%vi1:mesh%vi2))
+
     ! Fill in the 2D flexural profile (= Kelvin function), with which
     ! a surface load is convoluted to find the surface deformation
     ! ============================================================
@@ -197,11 +197,11 @@ contains
     Lr = (C%ELRA_lithosphere_flex_rigidity / (C%ELRA_mantle_density * grav))**0.25_dp
 
     ! Calculate radius (in number of grid cells) of the flexural profile
-       
-    IF (par%master) THEN
+
+    IF (par%primary) THEN
       ELRA%flex_prof_rad = MIN( CEILING(grid%dx/2._dp), MAX(1, INT(6._dp * Lr / grid%dx) - 1))
       n = 2 * ELRA%flex_prof_rad + 1
-      ALLOCATE( ELRA%flex_prof_grid( n, n))    
+      ALLOCATE( ELRA%flex_prof_grid( n, n))
 
       ! Calculate flexural profile
       DO i = -ELRA%flex_prof_rad, ELRA%flex_prof_rad
@@ -212,7 +212,7 @@ contains
         ELRA%flex_prof_grid( l,k) = kelvin(r / Lr)
       END DO
       END DO
-    END IF ! IF (par%master) THEN
+    END IF
 
     ! Calculate the reference load
     ! ===============================
@@ -224,11 +224,11 @@ contains
 
   END SUBROUTINE initialise_ELRA_model
   SUBROUTINE initialise_ELRA_reference_load( mesh, grid, ELRA, refgeo_GIAeq)
-  
+
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ELRA_model),                INTENT(INOUT) :: ELRA    
+    TYPE(type_ELRA_model),                INTENT(INOUT) :: ELRA
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
 
     ! Local variables:
@@ -237,7 +237,7 @@ contains
 
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Calculate PD reference load on the mesh
     DO vi = mesh%vi1, mesh%vi2
       IF (is_floating( refgeo_GIAeq%Hi( vi), refgeo_GIAeq%Hb( vi), 0._dp)) THEN
@@ -248,7 +248,7 @@ contains
         ELRA%surface_load_GIAeq( vi) = 0._dp
       END IF
     END DO
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

@@ -2,15 +2,14 @@ module create_maps_gridlonlat_mesh
 
   ! Create remapping objects between a lon/lat-grid and a mesh.
 
-#include <petsc/finclude/petscksp.h>
-  use petscksp
   use precisions, only: dp
-  use mpi_basic, only: par, sync
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use grid_types, only: type_grid_lonlat
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, &
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
     deallocate_matrix_CSR_dist, add_entry_CSR_dist
   use petsc_basic, only: mat_CSR2petsc
 
@@ -101,8 +100,7 @@ subroutine create_map_from_lonlat_grid_to_mesh( grid, mesh, map)
     call add_entry_CSR_dist( M_CSR, vi, grid%ij2n( iu,jl), wiu * wjl)
     call add_entry_CSR_dist( M_CSR, vi, grid%ij2n( iu,ju), wiu * wju)
 
-  end do ! do vi = mesh%vi1, mesh%vi2
-  call sync
+  end do
 
   ! Convert matrices from Fortran to PETSc types
   call mat_CSR2petsc( M_CSR, map%M)

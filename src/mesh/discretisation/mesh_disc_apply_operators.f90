@@ -2,25 +2,27 @@ module mesh_disc_apply_operators
 
   ! Apply the matrix operators to calculate gradients of functions on the mesh.
 
+  use assertions_basic, only: assert
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use mpi_distributed_memory, only: gather_to_all
-  use petsc_basic, only: multiply_CSR_matrix_with_vector_1D, &
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D, &
     multiply_CSR_matrix_with_vector_2D
 
   implicit none
 
 contains
 
-  subroutine ddx_a_a_2D( mesh, d_a, ddx_a)
+  subroutine ddx_a_a_2D( mesh, d_a, ddx_a, d_a_is_hybrid, ddx_a_is_hybrid)
     ! ddx a 2-D data field from the a-grid (vertices) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_a
     real(dp), dimension(:    ), intent(  out) :: ddx_a
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, ddx_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddx_a_a_2D'
@@ -28,26 +30,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddx_a,1) /= mesh%nV_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddxping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_a, d_a, ddx_a)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_a, d_a, ddx_a, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddx_a_a_2D
 
-  subroutine ddx_a_a_3D( mesh, d_a, ddx_a)
+  subroutine ddx_a_a_3D( mesh, d_a, ddx_a, d_a_is_hybrid, ddx_a_is_hybrid)
     ! ddx a 3-D data field from the a-grid (vertices) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:,:  ), intent(in   ) :: d_a
     real(dp), dimension(:,:  ), intent(out  ) :: ddx_a
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, ddx_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddx_a_a_3D'
@@ -55,26 +54,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddx_a,1) /= mesh%nV_loc .or. size( d_a,2) /= size( ddx_a,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddxping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_a_a, d_a, ddx_a)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_a_a, d_a, ddx_a, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddx_a_a_3D
 
-  subroutine ddy_a_a_2D( mesh, d_a, ddy_a)
+  subroutine ddy_a_a_2D( mesh, d_a, ddy_a, d_a_is_hybrid, ddy_a_is_hybrid)
     ! ddy a 2-D data field from the a-grid (vertices) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_a
     real(dp), dimension(:    ), intent(out  ) :: ddy_a
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, ddy_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddy_a_a_2D'
@@ -82,26 +78,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddy_a,1) /= mesh%nV_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddyping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_a, d_a, ddy_a)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_a, d_a, ddy_a, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddy_a_a_2D
 
-  subroutine ddy_a_a_3D( mesh, d_a, ddy_a)
+  subroutine ddy_a_a_3D( mesh, d_a, ddy_a, d_a_is_hybrid, ddy_a_is_hybrid)
     ! ddy a 3-D data field from the a-grid (vertices) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),              intent(in   ) :: mesh
     real(dp), dimension(:,:  ),   intent(in   ) :: d_a
     real(dp), dimension(:,:  ),   intent(out  ) :: ddy_a
+    logical, optional,            intent(in   ) :: d_a_is_hybrid, ddy_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddy_a_a_3D'
@@ -109,26 +102,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddy_a,1) /= mesh%nV_loc .or. size( d_a,2) /= size( ddy_a,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddyping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_a_a, d_a, ddy_a)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_a_a, d_a, ddy_a, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddy_a_a_3D
 
-  subroutine map_a_b_2D( mesh, d_a, d_b)
+  subroutine map_a_b_2D( mesh, d_a, d_b, d_a_is_hybrid, d_b_is_hybrid)
     ! Map a 2-D data field from the a-grid (vertices) to the b-grid (triangles)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_a
     real(dp), dimension(:    ), intent(out  ) :: d_b
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, d_b_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'map_a_b_2D'
@@ -136,53 +126,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_a_b, d_a, d_b)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_a_b, d_a, d_b, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = d_b_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine map_a_b_2D
 
-  subroutine map_b_c_2D( mesh, d_b, d_c)
-    ! Map a 2-D data field from the b-grid (triangles) to the c-grid (edges)
-
-    ! In/output variables:
-    type(type_mesh),            intent(in   ) :: mesh
-    real(dp), dimension(:    ), intent(in   ) :: d_b
-    real(dp), dimension(:    ), intent(out  ) :: d_c
-
-    ! Local variables:
-    character(len=256), parameter :: routine_name = 'map_b_c_2D'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_b,1) /= mesh%nTri_loc .or. size( d_c,1) /= mesh%nE_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
-    ! Perform the mapping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_b_c, d_b, d_c)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine map_b_c_2D
-
-  subroutine map_a_b_3D( mesh, d_a, d_b)
+  subroutine map_a_b_3D( mesh, d_a, d_b, d_a_is_hybrid, d_b_is_hybrid)
     ! Map a 3-D data field from the a-grid (vertices) to the b-grid (triangles)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:,:  ), intent(in   ) :: d_a
     real(dp), dimension(:,:  ), intent(out  ) :: d_b
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, d_b_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'map_a_b_3D'
@@ -190,26 +150,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc .or. size( d_a,2) /= size( d_b,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_map_a_b, d_a, d_b)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_map_a_b, d_a, d_b, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = d_b_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine map_a_b_3D
 
-  subroutine map_b_a_2D( mesh, d_b, d_a)
+  subroutine map_b_a_2D( mesh, d_b, d_a, d_b_is_hybrid, d_a_is_hybrid)
     ! Map a 2-D data field from the b-grid (triangles) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_b
     real(dp), dimension(:    ), intent(out  ) :: d_a
+    logical, optional,          intent(in   ) :: d_b_is_hybrid, d_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'map_b_a_2D'
@@ -217,26 +174,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_b_a, d_b, d_a)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_b_a, d_b, d_a, &
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = d_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine map_b_a_2D
 
-  subroutine map_b_a_3D( mesh, d_b, d_a)
+  subroutine map_b_a_3D( mesh, d_b, d_a, d_b_is_hybrid, d_a_is_hybrid)
     ! Map a 3-D data field from the b-grid (triangles) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:,:  ), intent(in   ) :: d_b
     real(dp), dimension(:,:  ), intent(out  ) :: d_a
+    logical, optional,          intent(in   ) :: d_b_is_hybrid, d_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'map_b_a_3D'
@@ -244,26 +198,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc .or. size( d_a,2) /= size( d_b,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_map_b_a, d_b, d_a)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_map_b_a, d_b, d_a, &
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = d_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine map_b_a_3D
 
-  subroutine ddx_a_b_2D( mesh, d_a, ddx_b)
+  subroutine ddx_a_b_2D( mesh, d_a, ddx_b, d_a_is_hybrid, ddx_b_is_hybrid)
     ! ddx a 2-D data field from the a-grid (vertices) to the b-grid (triangles)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_a
     real(dp), dimension(:    ), intent(out  ) :: ddx_b
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, ddx_b_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddx_a_b_2D'
@@ -271,26 +222,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddx_b,1) /= mesh%nTri_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddxping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_b, d_a, ddx_b)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_b, d_a, ddx_b, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_b_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddx_a_b_2D
 
-  subroutine ddx_a_b_3D( mesh, d_a, ddx_b)
+  subroutine ddx_a_b_3D( mesh, d_a, ddx_b, d_a_is_hybrid, ddx_b_is_hybrid)
     ! ddx a 3-D data field from the a-grid (vertices) to the b-grid (triangles)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:,:  ), intent(in   ) :: d_a
     real(dp), dimension(:,:  ), intent(out  ) :: ddx_b
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, ddx_b_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddx_a_b_3D'
@@ -298,26 +246,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddx_b,1) /= mesh%nTri_loc .or. size( d_a,2) /= size( ddx_b,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddxping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_a_b, d_a, ddx_b)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_a_b, d_a, ddx_b, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_b_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddx_a_b_3D
 
-  subroutine ddx_b_a_2D( mesh, d_b, ddx_a)
+  subroutine ddx_b_a_2D( mesh, d_b, ddx_a, d_b_is_hybrid, ddx_a_is_hybrid)
     ! ddx a 2-D data field from the b-grid (triangles) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_b
     real(dp), dimension(:    ), intent(out  ) :: ddx_a
+    logical, optional,          intent(in   ) :: d_b_is_hybrid, ddx_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddx_b_a_2D'
@@ -325,26 +270,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( ddx_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddxping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_b_a, d_b, ddx_a)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_b_a, d_b, ddx_a, &
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddx_b_a_2D
 
-  subroutine ddx_b_a_3D( mesh, d_b, ddx_a)
+  subroutine ddx_b_a_3D( mesh, d_b, ddx_a, d_b_is_hybrid, ddx_a_is_hybrid)
     ! ddx a 3-D data field from the b-grid (triangles) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:,:  ), intent(in   ) :: d_b
     real(dp), dimension(:,:  ), intent(out  ) :: ddx_a
+    logical, optional,          intent(in   ) :: d_b_is_hybrid, ddx_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddx_b_a_3D'
@@ -352,26 +294,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( ddx_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc .or. size( ddx_a,2) /= size( d_b,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddxping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_b_a, d_b, ddx_a)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddx_b_a, d_b, ddx_a, &
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddx_b_a_3D
 
-  subroutine ddy_a_b_2D( mesh, d_a, ddy_b)
+  subroutine ddy_a_b_2D( mesh, d_a, ddy_b, d_a_is_hybrid, ddy_b_is_hybrid)
     ! ddy a 2-D data field from the a-grid (vertices) to the b-grid (triangles)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_a
     real(dp), dimension(:    ), intent(out  ) :: ddy_b
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, ddy_b_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddy_a_b_2D'
@@ -379,26 +318,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddy_b,1) /= mesh%nTri_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddyping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_b, d_a, ddy_b)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_b, d_a, ddy_b, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_b_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddy_a_b_2D
 
-  subroutine ddy_a_b_3D( mesh, d_a, ddy_b)
+  subroutine ddy_a_b_3D( mesh, d_a, ddy_b, d_a_is_hybrid, ddy_b_is_hybrid)
     ! ddy a 3-D data field from the a-grid (vertices) to the b-grid (triangles)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:,:  ), intent(in   ) :: d_a
     real(dp), dimension(:,:  ), intent(out  ) :: ddy_b
+    logical, optional,          intent(in   ) :: d_a_is_hybrid, ddy_b_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddy_a_b_3D'
@@ -406,26 +342,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_a,1) /= mesh%nV_loc .or. size( ddy_b,1) /= mesh%nTri_loc .or. size( d_a,2) /= size( ddy_b,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddyping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_a_b, d_a, ddy_b)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_a_b, d_a, ddy_b, &
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_b_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddy_a_b_3D
 
-  subroutine ddy_b_a_2D( mesh, d_b, ddy_a)
+  subroutine ddy_b_a_2D( mesh, d_b, ddy_a, d_b_is_hybrid, ddy_a_is_hybrid)
     ! ddy a 2-D data field from the b-grid (triangles) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:    ), intent(in   ) :: d_b
     real(dp), dimension(:    ), intent(out  ) :: ddy_a
+    logical, optional,          intent(in   ) :: d_b_is_hybrid, ddy_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddy_b_a_2D'
@@ -433,26 +366,23 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( ddy_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddyping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_b_a, d_b, ddy_a)
+    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_b_a, d_b, ddy_a, &
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine ddy_b_a_2D
 
-  subroutine ddy_b_a_3D( mesh, d_b, ddy_a)
+  subroutine ddy_b_a_3D( mesh, d_b, ddy_a, d_b_is_hybrid, ddy_a_is_hybrid)
     ! ddy a 3-D data field from the b-grid (triangles) to the a-grid (vertices)
 
     ! In/output variables:
     type(type_mesh),            intent(in   ) :: mesh
     real(dp), dimension(:,:  ), intent(in   ) :: d_b
     real(dp), dimension(:,:  ), intent(out  ) :: ddy_a
+    logical, optional,          intent(in   ) :: d_b_is_hybrid, ddy_a_is_hybrid
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'ddy_b_a_3D'
@@ -460,13 +390,9 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( ddy_a,1) /= mesh%nV_loc .or. size( d_b,1) /= mesh%nTri_loc .or. size( ddy_a,2) /= size( d_b,2)) then
-      call crash('vector and matrix sizes dont match!')
-    end if
-
     ! Perform the ddyping operation as a matrix multiplication
-    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_b_a, d_b, ddy_a)
+    call multiply_CSR_matrix_with_vector_2D( mesh%M_ddy_b_a, d_b, ddy_a, &
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -498,7 +424,7 @@ contains
         AA%n     /= mesh%nTri     * mesh%nz .or. &
         size(      d_bk,1) /= mesh%nTri_loc .or. size(      d_bk,2) /= mesh%nz .or. &
         size( grad_d_ak,1) /= mesh%nV_loc   .or. size( grad_d_ak,2) /= mesh%nz) then
-      call crash('matrix and vector sizes dont match!')
+      call crash('matrix and vector sizes dont match')
     end if
 
     ! allocate memory for gathered vector x
@@ -569,7 +495,7 @@ contains
         AA%n     /= mesh%nV       * mesh%nz .or. &
         size(      d_ak,1) /= mesh%nV_loc   .or. size(      d_ak,2) /= mesh%nz .or. &
         size( grad_d_bk,1) /= mesh%nTri_loc .or. size( grad_d_bk,2) /= mesh%nz) then
-      call crash('matrix and vector sizes dont match!')
+      call crash('matrix and vector sizes dont match')
     end if
 
     ! allocate memory for gathered vector x
@@ -640,7 +566,7 @@ contains
         AA%n     /= mesh%nTri     *  mesh%nz    .or. &
         size(      d_bk ,1) /= mesh%nTri_loc .or. size(      d_bk ,2) /= mesh%nz .or. &
         size( grad_d_bks,1) /= mesh%nTri_loc .or. size( grad_d_bks,2) /= mesh%nz-1) then
-      call crash('matrix and vector sizes dont match!')
+      call crash('matrix and vector sizes dont match')
     end if
 
     ! allocate memory for gathered vector x
@@ -711,7 +637,7 @@ contains
         AA%n     /= mesh%nTri     * (mesh%nz-1) .or. &
         size(      d_bks,1) /= mesh%nTri_loc .or. size(      d_bks,2) /= mesh%nz-1 .or. &
         size( grad_d_bk ,1) /= mesh%nTri_loc .or. size( grad_d_bk ,2) /= mesh%nz) then
-      call crash('matrix and vector sizes dont match!')
+      call crash('matrix and vector sizes dont match')
     end if
 
     ! allocate memory for gathered vector x
@@ -782,7 +708,7 @@ contains
         AA%n     /= mesh%nTri     * (mesh%nz-1) .or. &
         size(      d_bks,1) /= mesh%nTri_loc .or. size(      d_bks,2) /= mesh%nz-1 .or. &
         size( grad_d_ak ,1) /= mesh%nV_loc   .or. size( grad_d_ak ,2) /= mesh%nz) then
-      call crash('matrix and vector sizes dont match!')
+      call crash('matrix and vector sizes dont match')
     end if
 
     ! allocate memory for gathered vector x
@@ -853,7 +779,7 @@ contains
         AA%n     /= mesh%nV       *  mesh%nz    .or. &
         size(      d_ak ,1) /= mesh%nV_loc   .or. size(      d_ak ,2) /= mesh%nz .or. &
         size( grad_d_bks,1) /= mesh%nTri_loc .or. size( grad_d_bks,2) /= mesh%nz-1) then
-      call crash('matrix and vector sizes dont match!')
+      call crash('matrix and vector sizes dont match')
     end if
 
     ! allocate memory for gathered vector x
@@ -924,7 +850,7 @@ contains
         AA%n     /= mesh%nTri     * mesh%nz .or. &
         size(      d_bk,1) /= mesh%nTri_loc .or. size(      d_bk,2) /= mesh%nz .or. &
         size( grad_d_bk,1) /= mesh%nTri_loc .or. size( grad_d_bk,2) /= mesh%nz) then
-      call crash('matrix and vector sizes dont match!')
+      call crash('matrix and vector sizes dont match')
     end if
 
     ! allocate memory for gathered vector x

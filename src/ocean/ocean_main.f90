@@ -119,7 +119,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising ocean model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising ocean model...'
 
     ! Determine which ocean model to initialise for this region
     IF     (region_name == 'NAM') THEN
@@ -240,7 +240,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to ocean restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to ocean restart file "' // &
       colour_string( TRIM( ocean%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -337,7 +337,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, ocean%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating ocean model restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating ocean model restart file "' // &
       colour_string( TRIM( ocean%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
@@ -383,7 +383,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping ocean model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping ocean model data to the new mesh...'
 
     ! Determine which ocean model to initialise for this region
     IF     (region_name == 'NAM') THEN

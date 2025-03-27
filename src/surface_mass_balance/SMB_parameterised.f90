@@ -78,7 +78,7 @@ contains
     call init_routine( routine_name)
 
     ! Print to terminal
-    if (par%master) write(*,"(a)") '   Initialising parameterised SMB model "' // &
+    if (par%primary) write(*,"(a)") '   Running parameterised SMB model "' // &
       colour_string( trim( C%choice_SMB_parameterised),'light blue') // '"...'
 
     ! Run the chosen parameterised SMB model
@@ -141,7 +141,10 @@ contains
       SMB%Refreezing_year( vi) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))), 0.25_dp * SUM(SMB%FirnDepth( vi,:)/12._dp)) ! version from IMAU-ICE dev branch
       !SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))) ! outdated version on main branch
       
-      IF (ice%mask_grounded_ice( vi) .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
+      IF (ice%mask_grounded_ice( vi)  .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
+      IF (ice%mask_icefree_ocean( vi) .eqv. .TRUE.)                                                SMB%AddedFirn( vi,:)     = 0._dp ! Does it make sense to add firn over the ocean?!
+      
+
 
       DO m = 1, 12
         SMB%Refreezing(  vi,m) = SMB%Refreezing_year( vi) / 12._dp
@@ -150,6 +153,7 @@ contains
       END DO
 
       SMB%SMB( vi) = SUM(SMB%SMB_monthly( vi,:))
+      !IF (ice%mask_icefree_ocean( vi) .eqv. .TRUE.) SMB%SMB( vi) = 0._dp ! should we limit SMB over open ocean?
 
       ! Calculate total melt over this year, to be used for determining next year's albedo
       SMB%MeltPreviousYear( vi) = SUM(SMB%Melt( vi,:))
@@ -184,7 +188,7 @@ contains
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising parameterised SMB model "' // &
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising parameterised SMB model "' // &
       colour_string( TRIM( C%choice_SMB_parameterised),'light blue') // '"...'
 
     ! Initialise the chosen parameterised SMB model
@@ -256,6 +260,9 @@ contains
     allocate( SMB%Albedo_year     (mesh%vi1:mesh%vi2))
     allocate( SMB%SMB_monthly     (mesh%vi1:mesh%vi2,12))
 
+    allocate( SMB%FirnDepth        (mesh%vi1:mesh%vi2,12))
+    allocate( SMB%MeltPreviousYear (mesh%vi1:mesh%vi2))
+
 
     ! Initialisation choice
     IF     (region_name == 'NAM') THEN
@@ -271,9 +278,6 @@ contains
     ! Initialise the firn layer
     IF     (choice_SMB_IMAUITM_init_firn == 'uniform') THEN
       ! Initialise with a uniform firn layer over the ice sheet
-
-      allocate( SMB%FirnDepth        (mesh%vi1:mesh%vi2, 12))
-      allocate( SMB%MeltPreviousYear (mesh%vi1:mesh%vi2))
 
       DO vi = mesh%vi1, mesh%vi2
         IF (ice%Hi( vi) > 0._dp) THEN
@@ -348,7 +352,7 @@ contains
     END SELECT
 
      ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising SMB-model firn layer from file "' // colour_string( TRIM(filename_restart_firn),'light blue') // '"...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising SMB-model firn layer from file "' // colour_string( TRIM(filename_restart_firn),'light blue') // '"...'
 
 
     ! Read firn layer from file

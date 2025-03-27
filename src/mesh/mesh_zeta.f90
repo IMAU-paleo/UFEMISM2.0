@@ -5,14 +5,13 @@ MODULE mesh_zeta
 ! ===== Preamble =====
 ! ====================
 
-  USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE reallocate_mod                                         , ONLY: reallocate
   USE mesh_types                                             , ONLY: type_mesh
-  USE CSR_sparse_matrix_utilities                            , ONLY: allocate_matrix_CSR_loc, add_entry_CSR_dist
+  USE CSR_matrix_basics                            , ONLY: allocate_matrix_CSR_loc, add_entry_CSR_dist
   use shape_functions, only: calc_shape_functions_1D_reg_2nd_order
 
   IMPLICIT NONE

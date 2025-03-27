@@ -103,7 +103,9 @@ CONTAINS
 
   END SUBROUTINE run_climate_model
 
-  SUBROUTINE initialise_climate_model( mesh, grid, climate, forcing, region_name, ice)
+! solved as
+  SUBROUTINE initialise_climate_model( mesh, grid, ice, climate, forcing, region_name)
+
     ! Initialise the climate model
 
     IMPLICIT NONE
@@ -111,10 +113,10 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     type(type_grid),                        intent(in)    :: grid
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
-    type(type_ice_model), optional,         intent(in)    :: ice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_climate_model'
@@ -124,7 +126,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising climate model...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising climate model...'
 
     ! Determine which climate model to initialise for this region
     IF     (region_name == 'NAM') THEN
@@ -160,7 +162,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL initialise_climate_model_idealised( mesh, climate)
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh, climate, forcing, region_name)
+      CALL initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
     ELSEIF (choice_climate_model == 'matrix') THEN
       call initialise_climate_matrix( mesh, grid, climate, region_name, ice%mask_noice, forcing)
     ELSE
@@ -244,7 +246,7 @@ CONTAINS
     END IF
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Writing to climate restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Writing to climate restart file "' // &
       colour_string( TRIM( climate%restart_filename), 'light blue') // '"...'
 
     ! Open the NetCDF file
@@ -341,7 +343,7 @@ CONTAINS
     CALL generate_filename_XXXXXdotnc( filename_base, climate%restart_filename)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,'(A)') '   Creating climate model restart file "' // &
+    IF (par%primary) WRITE(0,'(A)') '   Creating climate model restart file "' // &
       colour_string( TRIM( climate%restart_filename), 'light blue') // '"...'
 
     ! Create the NetCDF file
@@ -388,7 +390,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '    Remapping climate model data to the new mesh...'
+    IF (par%primary)  WRITE(*,"(A)") '    Remapping climate model data to the new mesh...'
 
     ! Determine which climate model to initialise for this region
     IF     (region_name == 'NAM') THEN

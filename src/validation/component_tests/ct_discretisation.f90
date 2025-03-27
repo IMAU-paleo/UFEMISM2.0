@@ -2,7 +2,7 @@ module ct_discretisation
 
   ! Test everything related to discretisation
 
-  use mpi
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
   use model_configuration, only: C
   use precisions, only: dp
   use mpi_basic, only: par
@@ -30,8 +30,8 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%master) write(0,*) '  Running discretisation component tests...'
-    if (par%master) write(0,*) ''
+    if (par%primary) write(0,*) '  Running discretisation component tests...'
+    if (par%primary) write(0,*) ''
 
     call create_discretisation_component_tests_output_folder( foldername_discretisation)
 
@@ -58,7 +58,7 @@ contains
 
     foldername_discretisation = trim(C%output_dir) // '/discretisation'
 
-    if (par%master) then
+    if (par%primary) then
 
       ! Remove existing folder if necessary
       inquire( file = trim( foldername_discretisation) // '/.', exist = ex)

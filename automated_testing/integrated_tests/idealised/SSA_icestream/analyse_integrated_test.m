@@ -45,15 +45,11 @@ foldernames = {...
 for fi = 1: length( foldernames)
   
   foldername = foldernames{ fi};
-  filename = [foldername '/main_output_ANT_00001.nc'];
-  mesh = read_mesh_from_file( filename);
-
-  % Calculate velocity transect
-  nt = 501;
-  xt = zeros( nt,1);
-  yt = linspace( mesh.ymin, mesh.ymax, nt)';
-  A = calc_transect_matrix( mesh, xt, yt);
-  u_surf = A * ncread( filename, 'u_surf');
+  filename = [foldername '/transect_southnorth.nc'];
+  V = ncread( filename,'V');
+  yt = V(:,2);
+  u_3D = ncread( filename,'u_ort_3D');
+  u_surf = u_3D(:,1);
 
   % Compare to analytical solution
   u_an = Schoof2006_icestream( 1e-18, 2000, -0.0003, 150e3, 1, yt);

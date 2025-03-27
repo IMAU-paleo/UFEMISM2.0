@@ -7,9 +7,8 @@ MODULE mesh_secondary
 
   use tests_main
   use assertions_basic
-  USE mpi
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
+  USE mpi_basic                                              , ONLY: par, sync
   USE mpi_distributed_memory                                 , ONLY: partition_list
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
@@ -21,6 +20,7 @@ MODULE mesh_secondary
   USE mesh_edges                                             , ONLY: construct_mesh_edges
   USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
   use mesh_Voronoi, only: construct_Voronoi_mesh
+  use mpi_f08, only: MPI_ALLREDUCE, MPI_INTEGER, MPI_MIN, MPI_MAX
 
   IMPLICIT NONE
 
@@ -176,7 +176,7 @@ CONTAINS
     A_tot_Vor = SUM( mesh%A)
     A_tot_ex  = (mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin)
     Aerr = ABS( 1._dp - A_tot_vor / A_tot_ex) / 100._dp
-    IF (Aerr > 0.0001_dp .AND. par%master) CALL warning('sum of Voronoi cell areas doesnt match square area of mesh! (error of {dp_01} %)', dp_01 = Aerr)
+    IF (Aerr > 0.0001_dp .AND. par%primary) CALL warning('sum of Voronoi cell areas doesnt match square area of mesh! (error of {dp_01} %)', dp_01 = Aerr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -477,31 +477,56 @@ CONTAINS
 
   END SUBROUTINE calc_lonlat
 
-  SUBROUTINE calc_mesh_parallelisation_ranges( mesh)
-    ! Calculate ranges of vertices, triangles, and edges "owned" by each process
-
-    IMPLICIT NONE
+  subroutine calc_mesh_parallelisation_ranges( mesh)
+    !< Calculate ranges of vertices, triangles, and edges "owned" by each process and node
 
     ! In/output variables:
-    TYPE(type_mesh),            INTENT(INOUT)     :: mesh
+    type(type_mesh), intent(inout) :: mesh
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_mesh_parallelisation_ranges'
+    character(len=1024), parameter :: routine_name = 'calc_mesh_parallelisation_ranges'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    CALL partition_list( mesh%nV  , par%i, par%n, mesh%vi1, mesh%vi2)
-    CALL partition_list( mesh%nTri, par%i, par%n, mesh%ti1, mesh%ti2)
-    CALL partition_list( mesh%nE  , par%i, par%n, mesh%ei1, mesh%ei2)
-
-    mesh%nV_loc   = mesh%vi2 +1 - mesh%vi1
-    mesh%nTri_loc = mesh%ti2 +1 - mesh%ti1
-    mesh%nE_loc   = mesh%ei2 +1 - mesh%ei1
+    call calc_parallelisation_range( mesh%nV, mesh%vi1, mesh%vi2, mesh%nV_loc, &
+      mesh%vi1_node, mesh%vi2_node, mesh%nV_node)
+    call calc_parallelisation_range( mesh%nTri, mesh%ti1, mesh%ti2, mesh%nTri_loc, &
+      mesh%ti1_node, mesh%ti2_node, mesh%nTri_node)
+    call calc_parallelisation_range( mesh%nE, mesh%ei1, mesh%ei2, mesh%nE_loc, &
+      mesh%ei1_node, mesh%ei2_node, mesh%nE_node)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE calc_mesh_parallelisation_ranges
+  end subroutine calc_mesh_parallelisation_ranges
+
+  subroutine calc_parallelisation_range( n, n1, n2, n_loc, n1_node, n2_node, n_node)
+    !< Calculate ranges of vertices/triangles/edges "owned" by each process and node
+
+    ! In/output variables:
+    integer, intent(in   ) :: n
+    integer, intent(  out) :: n1, n2, n_loc, n1_node, n2_node, n_node
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_parallelisation_range'
+    integer                        :: ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Range owned by this process
+    call partition_list( n, par%i, par%n, n1, n2)
+    n_loc = n2 + 1 - n1
+
+    ! Range owned by this node
+    call MPI_ALLREDUCE( n1, n1_node, 1, MPI_INTEGER, MPI_MIN, par%mpi_comm_node, ierr)
+    call MPI_ALLREDUCE( n2, n2_node, 1, MPI_INTEGER, MPI_MAX, par%mpi_comm_node, ierr)
+    n_node = n2_node + 1 - n1_node
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_parallelisation_range
 
 END MODULE mesh_secondary

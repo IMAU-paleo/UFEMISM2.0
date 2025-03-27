@@ -5,11 +5,8 @@ MODULE basal_hydrology
 ! ===== Preamble =====
 ! ====================
 
-#include <petsc/finclude/petscksp.h>
-  USE petscksp
-  USE mpi
+  use mpi_basic, only: par
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, cerr, ierr, recv_status, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
@@ -349,7 +346,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%master) WRITE(0,*) '  Initialising basal hydrology inversion model...'
+    IF (par%primary) WRITE(0,*) '  Initialising basal hydrology inversion model...'
 
     ! Allocate memory for main variables
     ! ==================================
@@ -1730,8 +1727,13 @@ CONTAINS
         CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
     END SELECT
 
+    if (index( filename_pore_water_fraction,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_pore_water_fraction)
+      call find_last_timeframe(   filename_pore_water_fraction, timeframe_pore_water_fraction)
+    end if
+
     ! Print to terminal
-    IF (par%master)  WRITE(*,"(A)") '   Initialising pore water fraction from file "' // colour_string( TRIM(filename_pore_water_fraction),'light blue') // '"...'
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising pore water fraction from file "' // colour_string( TRIM(filename_pore_water_fraction),'light blue') // '"...'
 
     ! Read pore water fraction from file
     IF (timeframe_pore_water_fraction == 1E9_dp) THEN

@@ -6,7 +6,7 @@ module netcdf_write_field_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use model_configuration, only: C
   use mesh_types, only: type_mesh
-  use mpi_distributed_memory, only: gather_to_master
+  use mpi_distributed_memory, only: gather_to_primary
   use netcdf_basic
 
   implicit none
@@ -58,12 +58,12 @@ contains
     call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,1))
       d_tot_with_time( :,1) = d_tot
     end if
@@ -72,7 +72,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -112,12 +112,12 @@ contains
     call check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,1))
       d_tot_with_time( :,1) = d_tot
     end if
@@ -126,7 +126,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nV, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -166,12 +166,12 @@ contains
     call check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nTri))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nTri,1))
       d_tot_with_time( :,1) = d_tot
     end if
@@ -180,7 +180,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nTri, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, ti /), count = (/ mesh%nTri, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -220,12 +220,12 @@ contains
     call check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, 12))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV, 12))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,12,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -234,7 +234,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, 12, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, 12, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -274,12 +274,12 @@ contains
     call check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,mesh%nz,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -288,7 +288,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, mesh%nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, mesh%nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -328,12 +328,12 @@ contains
     call check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nTri,mesh%nz,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -342,7 +342,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nTri, mesh%nz, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nTri, mesh%nz, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -382,12 +382,12 @@ contains
     call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .true.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, C%nz_ocean))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Add "pretend" time dimension
-    if (par%master) then
+    if (par%primary) then
       allocate( d_tot_with_time( mesh%nV,C%nz_ocean,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
@@ -396,7 +396,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, C%nz_ocean, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, C%nz_ocean, 1 /) )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -433,15 +433,15 @@ contains
     call check_mesh_field_int_2D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -478,15 +478,15 @@ contains
     call check_mesh_field_int_2D_b( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nTri))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -523,15 +523,15 @@ contains
     call check_mesh_field_int_2D_c( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nE))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nE))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -568,15 +568,15 @@ contains
     call check_mesh_field_dp_2D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -613,15 +613,15 @@ contains
     call check_mesh_field_dp_2D_b( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nTri))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -658,15 +658,15 @@ contains
     call check_mesh_field_dp_2D_c( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nE))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nE))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -703,15 +703,15 @@ contains
     call check_mesh_field_dp_2D_monthly( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, 12))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV, 12))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -748,15 +748,15 @@ contains
     call check_mesh_field_dp_3D( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV, mesh%nz))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -793,15 +793,15 @@ contains
     call check_mesh_field_dp_3D_b( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nTri, mesh%nz))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nTri, mesh%nz))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -838,15 +838,15 @@ contains
     call check_mesh_field_dp_3D_ocean( filename, ncid, var_name, should_have_time = .false.)
 #endif
 
-    ! Gather data to the master
-    if (par%master) allocate( d_tot( mesh%nV, C%nz_ocean))
-    call gather_to_master( d_partial, d_tot)
+    ! Gather data to the primary
+    if (par%primary) allocate( d_tot( mesh%nV, C%nz_ocean))
+    call gather_to_primary( d_partial, d_tot)
 
     ! Inquire length of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_master( filename, ncid, id_var, d_tot)
+    call write_var_primary( filename, ncid, id_var, d_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
