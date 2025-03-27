@@ -971,6 +971,7 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         !     Can be "fixed", "prescribed", "eustatic", or "SELEN"
     REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! [m] Fixed sea level value for the "fixed" choice
+    CHARACTER(LEN=256)  :: filename_prescribed_sealevel_config          = ''                              ! time series file containing the sea level record
 
   ! == SELEN
   ! ========
@@ -2052,6 +2053,7 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_sealevel_model
     REAL(dp)            :: fixed_sealevel
+    CHARACTER(LEN=256)  :: filename_prescribed_sealevel
 
   ! == SELEN
   ! ========
@@ -2998,6 +3000,7 @@ CONTAINS
       ELRA_mantle_density_config                                  , &
       choice_sealevel_model_config                                , &
       fixed_sealevel_config                                       , &
+      filename_prescribed_sealevel_config                         , &
       SELEN_run_at_t_start_config                                 , &
       SELEN_n_TDOF_iterations_config                              , &
       SELEN_n_recursion_iterations_config                         , &
@@ -4088,6 +4091,7 @@ CONTAINS
 
     C%choice_sealevel_model                                  = choice_sealevel_model_config
     C%fixed_sealevel                                         = fixed_sealevel_config
+    C%filename_prescribed_sealevel                           = filename_prescribed_sealevel_config
 
   ! == SELEN
   ! ========
