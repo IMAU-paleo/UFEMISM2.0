@@ -37,12 +37,7 @@ contains
   ! Read and map to mesh
   subroutine read_field_from_file_1D( filename, field_name_options, &
     d_out, time_to_read)
-    !< Read a data field from a NetCDF file, and map it to the model mesh.
-
-    ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
-    ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
-    ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
-    ! (increasing or decreasing) also does not matter any more.
+    !< Read a data point in a series from a NetCDF file.
 
     ! In/output variables:
     character(len=*),       intent(in   ) :: filename
@@ -52,10 +47,14 @@ contains
     real(dp), optional,     intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'read_field_from_file_1D'
-    character(len=256)                  :: var_name
-    logical                             :: file_exists
-    integer                             :: ncid, ti, id_var
+    character(len=1024), parameter         :: routine_name = 'read_field_from_file_1D'
+    character(len=1024)                    :: var_name
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    logical                                :: file_exists
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                :: ncid, ti, id_var, id_dim_time, ierr
+    real(dp), dimension(1)                 :: d_read
     
     
     ! Add routine to path
@@ -68,11 +67,26 @@ contains
     end if
 
     call open_existing_netcdf_file_for_reading( filename, ncid)
-    call close_netcdf_file( ncid)
-    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
 
+    ! Inquire variable ID and name
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    
+    ! Inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+    ! Inquire file time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+
+    ! Find timeframe for reading
     call find_timeframe( filename, ncid, time_to_read, ti)
-    call read_var_primary( filename, ncid, id_var, d_out, start = (/ ti /), count = (/ 1 /) )
+
+    ! Read data
+    call read_var_primary( filename, ncid, id_var, d_read, start = (/ ti /), count = (/ 1 /) )
+
+    if (par%primary) d_out = d_read( 1)
+
+    ! Broadcast to all processes
+    call MPI_BCAST( d_out, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
