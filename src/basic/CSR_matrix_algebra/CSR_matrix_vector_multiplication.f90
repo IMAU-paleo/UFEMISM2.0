@@ -264,6 +264,7 @@ contains
       end do
 
     end do
+    call sync
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -306,6 +307,7 @@ contains
       end do
 
     end do
+    call sync
 
     ! Finalise routine path
     call finalise_routine( routine_name)
