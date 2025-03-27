@@ -35,6 +35,51 @@ module read_and_remap_field_from_file
 contains
 
   ! Read and map to mesh
+  subroutine read_field_from_file_1D( filename, field_name_options, &
+    d_out, time_to_read)
+    !< Read a data field from a NetCDF file, and map it to the model mesh.
+
+    ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
+    ! a regional x/y-grid, or a regional mesh - it matters not, all shall be fine.
+    ! The order of dimensions ([x,y] or [y,x], [lon,lat] or [lat,lon]) and direction
+    ! (increasing or decreasing) also does not matter any more.
+
+    ! In/output variables:
+    character(len=*),       intent(in   ) :: filename
+    character(len=*),       intent(in   ) :: field_name_options
+    
+    real(dp),               intent(  out) :: d_out
+    real(dp), optional,     intent(in   ) :: time_to_read
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'read_field_from_file_1D'
+    character(len=256)                  :: var_name
+    logical                             :: file_exists
+    integer                             :: ncid, ti, id_var
+    
+    
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Check if this file actually exists
+    inquire( exist = file_exists, file = trim( filename))
+    if (.not. file_exists) then
+      call crash('file "' // trim( filename) // '" not found!')
+    end if
+
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+    call close_netcdf_file( ncid)
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+
+    call find_timeframe( filename, ncid, time_to_read, ti)
+    call read_var_primary( filename, ncid, id_var, d_out, start = (/ ti /), count = (/ 1 /) )
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_field_from_file_1D
+
+
   subroutine read_field_from_file_1D_monthly( filename, field_name_options, &
     mesh, d_partial, time_to_read)
     !< Read a data field from a NetCDF file, and map it to the model mesh.
