@@ -14,6 +14,7 @@ MODULE climate_realistic
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing
   USE netcdf_io_main
+  USE netcdf_basic
 
   IMPLICIT NONE
 
@@ -173,7 +174,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Sea level
-    IF (C%choice_sealevel_model == 'prescribed') call initialise_sealevel_record(C%start_time_of_run,forcing)
+    IF (C%choice_sealevel_model == 'prescribed') call initialise_sealevel_record(forcing, C%start_time_of_run)
 
     ! TODO: checks with what exactly we need to load here to know which global forcings need to be read
     ! e.g., insolation, CO2, d18O, etc...
@@ -493,7 +494,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_sealevel_at_model_time'
     INTEGER                                            :: ti0, ti1
-    REAL(dp)                                           :: time_applied, wt0,wt1, dt_min
+    REAL(dp)                                           :: time_applied, wt0,wt1
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -544,6 +545,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_sealevel_timeframes_from_curve'
     INTEGER                                            :: ti0, ti1, tii, ncid, nt
     CHARACTER(LEN=256)                                 :: str
+    REAL(dp)                                           :: dt_min 
 
     ! Add routine to path
     CALL init_routine( routine_name)
