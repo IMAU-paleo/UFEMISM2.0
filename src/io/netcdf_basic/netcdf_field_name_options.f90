@@ -90,6 +90,7 @@ module netcdf_field_name_options
 
   ! Global forcing variables
   character(len=1024), parameter :: field_name_options_insolation     = 'Q_TOA'
+  character(len=1024), parameter :: field_name_options_sealevel       = 'SL||sea_level||sl'
 
 contains
 
