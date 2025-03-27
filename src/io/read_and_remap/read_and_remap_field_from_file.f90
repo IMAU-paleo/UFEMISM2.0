@@ -30,7 +30,7 @@ module read_and_remap_field_from_file
   private
 
   public :: read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
-    read_field_from_file_3D_ocean, read_field_from_file_0D, read_field_from_file_1D_monthly
+    read_field_from_file_3D_ocean, read_field_from_file_0D, read_field_from_file_1D_monthly, read_field_from_file_1D
 
 contains
 
