@@ -785,9 +785,9 @@ contains
 
     ! == Sea level ==
     ! ===============
-    case ('SL')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%SL, d_grid_vec_partial_2D)
-        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL', d_grid_vec_partial_2D)
+    !case ('SL')
+    !    call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%SL, d_grid_vec_partial_2D)
+    !    call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL', d_grid_vec_partial_2D)
 
     ! == Tracer tracking ==
     ! =====================
@@ -1455,8 +1455,8 @@ contains
 
     ! == Sea level ==
     ! ===============
-    case ('SL')
-        call add_field_grid_dp_2D( filename, ncid, 'SL', long_name = 'Sea level change wrt present day', units = 'm')
+    !case ('SL')
+    !    call add_field_grid_dp_2D( filename, ncid, 'SL', long_name = 'Sea level change wrt present day', units = 'm')
 
     ! == Tracer tracking ==
     ! =====================
