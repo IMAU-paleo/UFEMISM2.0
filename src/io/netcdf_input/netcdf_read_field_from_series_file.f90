@@ -78,7 +78,7 @@ contains
     allocate(series (nt))
 
     ! Read the data
-    call read_var_primary( filename, ncid, id_var,      series,      start = (/ 1 /), count = (/ nt /))
+    call read_var_primary( filename, ncid, id_var, series, start = (/ 1 /), count = (/ nt /))
 
     ! Broadcast to all processes
     call MPI_BCAST(      series, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
