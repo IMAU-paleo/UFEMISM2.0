@@ -16,6 +16,7 @@ module ice_dynamics_main
   use BMB_model_types, only: type_BMB_model
   use LMB_model_types, only: type_LMB_model
   use AMB_model_types, only: type_AMB_model
+  use climate_model_types, only: type_global_forcing
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use remapping_main, only: Atlas
   use conservation_of_momentum_main, only: solve_stress_balance, remap_velocity_solver, &
@@ -127,7 +128,7 @@ contains
 
     ! Update sea level if necessary
     if  (C%choice_sealevel_model == 'prescribed') then
-      call update_sealevel_at_model_time(region%time,region%forcing,region%ice%SL)
+      call update_sealevel_at_model_time(region%forcing, region%time,region%ice%SL)
     end if
 
     do vi = region%mesh%vi1, region%mesh%vi2
@@ -195,7 +196,7 @@ contains
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
     type(type_reference_geometry), intent(in   ) :: refgeo_GIAeq
     type(type_GIA_model),          intent(in   ) :: GIA
-    type(type_global_forcing),     intent(in   ) :: forcing
+    type(type_global_forcing),     intent(inout) :: forcing
     character(len=3),              intent(in   ) :: region_name
 
     ! Local variables:
@@ -232,7 +233,7 @@ contains
     case ('prescribed')
       ! Sea-level prescribed from external record file
       !call crash('Sea level initialisation: prescribed method not implemented yet!')
-      call update_sealevel_at_model_time(C%start_time_of_run,forcing,ice%SL)
+      call update_sealevel_at_model_time(forcing,C%start_time_of_run,ice%SL)
       ! ice%SL = forcing%sealevel_obs
 
     case ('eustatic')

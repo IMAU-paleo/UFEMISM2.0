@@ -489,7 +489,7 @@ CONTAINS
 
     TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
     REAL(dp),                          INTENT(IN   )   :: time
-    REAL(dp), DIMENSION(:),            INTENT(  OUT)   :: SL
+    REAL(dp), DIMENSION(:),            INTENT(INOUT)   :: SL
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_sealevel_at_model_time'
