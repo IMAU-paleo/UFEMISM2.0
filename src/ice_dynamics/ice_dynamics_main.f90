@@ -44,6 +44,7 @@ module ice_dynamics_main
   use direct_scheme, only: run_ice_dynamics_model_direct
   use ice_model_memory, only: allocate_ice_model
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D
+  use climate_realistic, only: update_sealevel_at_model_time
 
   implicit none
 
@@ -124,6 +125,11 @@ contains
     ! Calculate all other ice geometry quantities
     ! ===========================================
 
+    ! Update sea level if necessary
+    if  (C%choice_sealevel_model == 'prescribed') then
+      call update_sealevel_at_model_time(region%time,region%forcing,region%ice%SL)
+    end if
+
     do vi = region%mesh%vi1, region%mesh%vi2
 
       ! Basic geometry
@@ -179,7 +185,7 @@ contains
 
   end subroutine run_ice_dynamics_model
 
-  subroutine initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name)
+  subroutine initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name, forcing)
     !< Initialise all data fields of the ice module
 
     ! In- and output variables
@@ -189,6 +195,7 @@ contains
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
     type(type_reference_geometry), intent(in   ) :: refgeo_GIAeq
     type(type_GIA_model),          intent(in   ) :: GIA
+    type(type_global_forcing),     intent(in   ) :: forcing
     character(len=3),              intent(in   ) :: region_name
 
     ! Local variables:
@@ -224,7 +231,8 @@ contains
 
     case ('prescribed')
       ! Sea-level prescribed from external record file
-      call crash('Sea level initialisation: prescribed method not implemented yet!')
+      !call crash('Sea level initialisation: prescribed method not implemented yet!')
+      call update_sealevel_at_model_time(C%start_time_of_run,forcing,ice%SL)
       ! ice%SL = forcing%sealevel_obs
 
     case ('eustatic')
