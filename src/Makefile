@@ -279,6 +279,10 @@ UFEMISM_source = \
   \
   artificial_mass_balance/AMB_main.f90 \
   \
+  climate/climate_idealised.f90 \
+  climate/climate_realistic.f90 \
+  climate/climate_main.f90 \
+  \
   ice_dynamics/utilities/ice_model_memory.f90 \
   ice_dynamics/utilities/bedrock_cumulative_density_functions.f90 \
   ice_dynamics/utilities/subgrid_grounded_fractions_bilin_TAF.f90 \
@@ -310,10 +314,6 @@ UFEMISM_source = \
   thermodynamics/thermodynamics_utilities.f90 \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \
   thermodynamics/thermodynamics_main.f90 \
-  \
-  climate/climate_idealised.f90 \
-  climate/climate_realistic.f90 \
-  climate/climate_main.f90 \
   \
   glacial_isostatic_adjustment/kelvin_function.f90 \
   glacial_isostatic_adjustment/GIA_ELRA.f90 \

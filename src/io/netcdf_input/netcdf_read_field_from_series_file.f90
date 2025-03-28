@@ -28,16 +28,16 @@ contains
     character(len=*),                     intent( in) :: filename
     character(len=*),                     intent( in) :: field_name_options
     real(dp), dimension(:), allocatable,  intent(out) :: series
-    real(dp), dimension(:),               intent(out) :: series_time
+    real(dp), dimension(:), allocatable,  intent(out) :: series_time
 
     ! Local variables
     character(len=1024), parameter         :: routine_name = 'read_field_from_series_file'
     integer                                :: ncid, ierr
     integer                                :: id_var, id_var_time, id_dim_time
-    character(len=1024)                    :: var_name
-    integer                                :: var_type
-    integer                                :: ndims_of_var
-    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    character(len=1024)                    :: var_name, var_name_time
+    integer                                :: var_type, var_type_time
+    integer                                :: ndims_of_var, ndims_of_var_time
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var, dims_of_var_time
     integer                                :: nt
 
 
@@ -48,7 +48,8 @@ contains
     ! ======================
 
     ! Read time
-    call read_time_from_file(filename, series_time)
+    !call read_time_from_file(filename, series_time)
+    !if (par%primary) WRITE(0,*) '     Successfully read time.'
     
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_reading( filename, ncid)
@@ -56,32 +57,31 @@ contains
     ! Look for the specified variable in the file
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
     if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
+    call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time, var_name = var_name_time)
+    if (id_var_time == -1) call crash('couldnt find any of the options "' // trim( field_name_options_time) // '" in file "' // trim( filename)  // '"!')
 
-    
     ! Inquire variable info (incl. time)
     call inquire_var_info(    filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
-
+    call inquire_var_info(    filename, ncid, id_var_time, var_type = var_type_time, ndims_of_var = ndims_of_var_time, dims_of_var = dims_of_var_time)
 
     ! Inquire file time dimension
-    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
-
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
 
     ! Check if the variable has time as a dimension
     if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     if (.not. ANY( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-    ! Inquire length of time dimension
-    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
-
     ! allocate memory for the time series and time axis
-    ! TODO: should this be done here or out of the function?
     allocate(series (nt))
+    allocate(series_time (nt))
 
     ! Read the data
-    call read_var_primary( filename, ncid, id_var,      series,      start = (/ 1 /), count = (/ nt /))
+    call read_var_primary( filename, ncid, id_var, series, start = (/ 1 /), count = (/ nt /))
+    call read_var_primary( filename, ncid, id_var_time, series_time, start = (/ 1 /), count = (/ nt /))
 
     ! Broadcast to all processes
-    call MPI_BCAST(      series, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(      series, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(      series_time, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
@@ -220,13 +220,13 @@ contains
 
     ! In/output variables:
     character(len=*),               intent(in   )  :: filename
-    real(dp), dimension(:),         intent(out   ) :: time
+    real(dp), dimension(:), allocatable, intent(out   ) :: time
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'read_time_from_file'
     integer                             :: ncid
     integer                             :: nt, id_dim_time, id_var_time
-    real(dp), dimension(:), allocatable :: time_from_file
+    !real(dp), dimension(:), allocatable :: time_from_file
     integer                             :: ierr
 
     ! Add routine to path
@@ -246,14 +246,14 @@ contains
     call inquire_var_multopt( filename, ncid, field_name_options_time, id_var_time)
 
     ! allocate memory
-    allocate( time_from_file( nt))
+    allocate( time( nt))
 
     ! Read time from file
-    if (par%primary) WRITE(0,*) '     Reading variable...'
-    call read_var_primary( filename, ncid, id_var_time, time_from_file)
-    if (par%primary) WRITE(0,*) '     MPI broadcasting...'
-    call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    time = time_from_file
+    !if (par%primary) WRITE(0,*) '     Reading variable...'
+    call read_var_primary( filename, ncid, id_var_time, time)
+    !if (par%primary) WRITE(0,*) '     MPI broadcasting...'
+    call MPI_BCAST( time, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    !time = time_from_file
     !deallocate(time)
 
     ! Finalise routine path

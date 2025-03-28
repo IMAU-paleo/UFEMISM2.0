@@ -616,6 +616,11 @@ contains
       case ('dHb_next')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHb_next', region%GIA%dHb_next)
 
+    ! == Sea level ==
+    ! ===============
+    !case ('SL')
+    !    call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SL', region%ice%SL)
+
     ! == Tracer tracking ==
     ! =====================
 
@@ -1198,6 +1203,11 @@ contains
       ! Main GIA variables
       case ('dHb_next')
         call add_field_mesh_dp_2D( filename, ncid, 'dHb_next', long_name = 'Bedrock elevation difference from ELRA', units = 'm')
+
+    ! == Sea level ==
+    ! ===============
+    !case ('SL')
+    !    call add_field_mesh_dp_2D( filename, ncid, 'SL', long_name = 'Sea level change wrt present day', units = 'm')
 
     ! == Tracer tracking ==
     ! =====================
