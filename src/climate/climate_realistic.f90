@@ -173,9 +173,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Sea level
-    IF (C%choice_sealevel_model == 'prescribed') call initialise_sealevel_record(forcing, C%start_time_of_run)
-
     ! TODO: checks with what exactly we need to load here to know which global forcings need to be read
     ! e.g., insolation, CO2, d18O, etc...
     ! read and load the insolation data only if needed (i.e., we are using IMAU-ITM)
@@ -184,6 +181,9 @@ CONTAINS
     ! CO2 record - not yet implemented
     
     ! d18O record - not yet implemented
+
+    ! Sea level
+    IF (C%choice_sealevel_model == 'prescribed') call initialise_sealevel_record(forcing, C%start_time_of_run)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -197,7 +197,7 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_global_forcing),           INTENT(OUT) :: forcing
+    TYPE(type_global_forcing),         INTENT(INOUT) :: forcing
     TYPE(type_mesh),                      INTENT(IN) :: mesh
 
     ! Local variables:
@@ -470,11 +470,19 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Allocating timeframe variables; the series itself is allocated in the read function below
+    allocate(forcing%sl_t0)
+    allocate(forcing%sl_t1)
+    allocate(forcing%sl_at_t0)
+    allocate(forcing%sl_at_t1)
+
     select case (C%choice_sealevel_model)
     case default
         call crash('Unknown choice of sea level!')
       case ('prescribed')
         call read_field_from_series_file( C%filename_prescribed_sealevel, field_name_options_sealevel, forcing%sea_level_record, forcing%sea_level_time)
+        call update_sealevel_timeframes_from_curve( forcing, time)
+        
     end select
 
      ! Finalise routine path
@@ -495,45 +503,44 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_sealevel_at_model_time'
     INTEGER                                            :: ti0, ti1, vi
-    REAL(dp)                                           :: time_applied, wt0,wt1
+    REAL(dp)                                           :: time_applied, wt0,wt1, computed_sea_level
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    time_applied = time
     
-
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time_applied < forcing%sl_t0 .OR. time_applied > forcing%sl_t1) THEN
+    IF (time < forcing%sl_t0 .OR. time > forcing%sl_t1) THEN
       IF (par%primary)  WRITE(0,*) '   Model time is out of the current sea level timeframes. Updating timeframes...'
-      CALL update_sealevel_timeframes_from_curve( forcing, time_applied)
+      CALL update_sealevel_timeframes_from_curve( forcing, time)
     END IF
 
     ! Calculate timeframe interpolation weights (plus safety checks for when the extend beyond the record)
+    IF (par%primary)  WRITE(0,*) '   Calculating interpolation weights...'
     if (forcing%sl_t1 == forcing%sl_t0) then
       wt0 = 0._dp
       wt1 = 1._dp
     else
-      if (time_applied > forcing%sl_t1) then
+      if (time > forcing%sl_t1) then
         wt0 = 0._dp
-      elseif (time_applied < forcing%sl_t0) then
+      elseif (time < forcing%sl_t0) then
         wt0 = 1._dp
       else
-        wt0 = (forcing%sl_t1 - time_applied) / (forcing%sl_t1 - forcing%sl_t0)
+        wt0 = (forcing%sl_t1 - time) / (forcing%sl_t1 - forcing%sl_t0)
       end if
       wt1 = 1._dp - wt0
     end if
 
+    computed_sea_level = wt0 * forcing%sl_at_t0 + wt1 * forcing%sl_at_t1
+
     ! Interpolate the two timeframes - constant sea level over the entire region
+    IF (par%primary)  WRITE(0,*) '   Interpolating between the two timeframes...'
     do vi = mesh%vi1, mesh%vi2
-      ice%SL( vi) = wt0 * forcing%sl_at_t0 + wt1 * forcing%sl_at_t1
+      ice%SL( vi) = computed_sea_level
     end do
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-
-
 
   END SUBROUTINE update_sealevel_at_model_time
 
@@ -589,15 +596,30 @@ CONTAINS
       
     ! if the desired time is after t0, we take one record after for t1
     if (time >= forcing%sl_t0) then
-      forcing%sl_t1    = forcing%sea_level_time(ti0+1)
-      forcing%sl_at_t1 = forcing%sea_level_record(ti0+1)
+      if (ti0 == size(forcing%sea_level_time)) then
+        call warning('desired timeframe is at or beyond the last record. Using last available value for both timeframes...')
+        forcing%sl_t1    = forcing%sea_level_time(ti0)
+        forcing%sl_at_t1 = forcing%sea_level_record(ti0)
+      else
+        forcing%sl_t1    = forcing%sea_level_time(ti0+1)
+        forcing%sl_at_t1 = forcing%sea_level_record(ti0+1)
+      end if
     else
       ! otherwise we read one record before for t0, and that record is t1
-      forcing%sl_t1    = forcing%sea_level_time(ti0)
-      forcing%sl_at_t1 = forcing%sea_level_record(ti0)
-      forcing%sl_t0    = forcing%sea_level_time(ti0-1)
-      forcing%sl_at_t0 = forcing%sea_level_record(ti0-1)
+      if (ti0 == 1) then
+        call warning('desired timeframe is at or before the first record. Using first available value for both timeframes...')
+        forcing%sl_t1    = forcing%sea_level_time(ti0)
+        forcing%sl_at_t1 = forcing%sea_level_record(ti0)
+      else
+        forcing%sl_t1    = forcing%sea_level_time(ti0)
+        forcing%sl_at_t1 = forcing%sea_level_record(ti0)
+        forcing%sl_t0    = forcing%sea_level_time(ti0-1)
+        forcing%sl_at_t0 = forcing%sea_level_record(ti0-1)
+      end if
     end if
+
+    call warning('timeframes: sl_t0={dp_01} and sl_t1={dp_02}', dp_01 = forcing%sl_t0, dp_02 = forcing%sl_t0)
+    call warning('values: sl_at_t0={dp_01} and sl_at_t1={dp_02}', dp_01 = forcing%sl_at_t0, dp_02 = forcing%sl_at_t0)
 
 
     ! Finalise routine path

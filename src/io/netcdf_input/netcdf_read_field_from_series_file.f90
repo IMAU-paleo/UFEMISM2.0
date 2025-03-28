@@ -91,9 +91,9 @@ contains
     
 
     ! Broadcast to all processes
-    if (par%primary) WRITE(0,*) '     Broadcasting variable...'
-    call MPI_BCAST(      series, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(      series_time, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    if (par%primary) WRITE(0,*) '     Broadcasting time and time series variables...'
+    call MPI_BCAST(      series, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST(      series_time, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Close the NetCDF file
     call close_netcdf_file( ncid)
