@@ -636,7 +636,7 @@ contains
         call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Precip', d_grid_vec_partial_2D_monthly)
       CASE ('Q_TOA')
         call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%climate%Q_TOA, d_grid_vec_partial_2D_monthly)
-        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%Q_TOA)
+        call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Q_TOA', d_grid_vec_partial_2D_monthly)
 
     ! == Ocean ==
     ! ==========================
@@ -1337,7 +1337,7 @@ contains
       case ('Precip')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
       CASE ('Q_TOA')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')  
+        CALL add_field_grid_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')  
 
     ! == Ocean ==
     ! ==========================
@@ -1355,11 +1355,11 @@ contains
       case ('SMB')
         call add_field_grid_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
       case ('Albedo')
-        call add_field_mesh_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')  
+        call add_field_grid_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')  
       case ('FirnDepth')
-        call add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Monthly firn layer depth', units = 'm')
+        call add_field_grid_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Monthly firn layer depth', units = 'm')
       case ('MeltPreviousYear')  
-        call add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')
+        call add_field_grid_dp_2D_monthly( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================
