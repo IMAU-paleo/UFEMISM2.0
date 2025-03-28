@@ -482,24 +482,26 @@ CONTAINS
 
   END SUBROUTINE initialise_sealevel_record
 
-  SUBROUTINE update_sealevel_at_model_time(forcing, time, SL)
+  SUBROUTINE update_sealevel_at_model_time(forcing, mesh, time, ice)
   ! Update the current sea level based on the loaded sea level curve
 
     IMPLICIT NONE
 
     TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
+    TYPE(type_mesh),                   INTENT(IN   )   :: mesh
     REAL(dp),                          INTENT(IN   )   :: time
-    REAL(dp), DIMENSION(:),            INTENT(INOUT)   :: SL
+    TYPE(type_ice_model),              INTENT(INOUT)   :: ice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_sealevel_at_model_time'
-    INTEGER                                            :: ti0, ti1
+    INTEGER                                            :: ti0, ti1, vi
     REAL(dp)                                           :: time_applied, wt0,wt1
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     time_applied = time
+    
 
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
@@ -523,8 +525,10 @@ CONTAINS
       wt1 = 1._dp - wt0
     end if
 
-    ! Interpolate the two timeframes
-    SL = wt0 * forcing%sl_at_t0 + wt1 * forcing%sl_at_t1
+    ! Interpolate the two timeframes - constant sea level over the entire region
+    do vi = mesh%vi1, mesh%vi2
+      ice%SL( vi) = wt0 * forcing%sl_at_t0 + wt1 * forcing%sl_at_t1
+    end do
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
