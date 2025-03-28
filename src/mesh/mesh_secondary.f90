@@ -21,6 +21,7 @@ MODULE mesh_secondary
   USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
   use mesh_Voronoi, only: construct_Voronoi_mesh
   use mpi_f08, only: MPI_ALLREDUCE, MPI_INTEGER, MPI_MIN, MPI_MAX
+  use mpi_distributed_shared_memory, only: allocate_dist_shared
 
   IMPLICIT NONE
 
@@ -61,6 +62,7 @@ CONTAINS
     CALL calc_lonlat(                           mesh, lambda_M, phi_M, beta_stereo)
     CALL calc_mesh_parallelisation_ranges(      mesh)
     CALL initialise_scaled_vertical_coordinate( mesh)
+    call allocate_total_fields_buffer_memory(   mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -528,5 +530,30 @@ CONTAINS
     call finalise_routine( routine_name)
 
   end subroutine calc_parallelisation_range
+
+  subroutine allocate_total_fields_buffer_memory( mesh)
+    !< Allocate buffer memory for storing gathered total data fields
+
+    ! User for gathering data in mapping/derivative operations,
+    ! so shared memory doesn't have to be (de)allocated in every call to
+    ! map_XX_XX, ddx_XX_XX, etc., which is very slow.
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'allocate_total_fields_buffer_memory'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call allocate_dist_shared( mesh%d_a_tot, mesh%wd_a_tot, mesh%nV)
+    call allocate_dist_shared( mesh%d_b_tot, mesh%wd_b_tot, mesh%nTri)
+    call allocate_dist_shared( mesh%d_c_tot, mesh%wd_c_tot, mesh%nE)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine allocate_total_fields_buffer_memory
 
 END MODULE mesh_secondary

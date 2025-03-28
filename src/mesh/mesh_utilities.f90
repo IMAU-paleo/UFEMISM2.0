@@ -1649,64 +1649,177 @@ CONTAINS
 
   END SUBROUTINE interpolate_to_point_dp_3D
 
-  SUBROUTINE integrate_over_domain( mesh, d, int_d)
+  subroutine integrate_over_domain( mesh, d, int_d, d_is_hybrid)
     ! Calculate the integral int_d over the model domain of a 2-D data field d
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                         INTENT(IN)          :: mesh
-    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(IN)          :: d
-    REAL(dp),                                INTENT(OUT)         :: int_d
+    type(type_mesh),        intent(in   ) :: mesh
+    real(dp), dimension(:), intent(in   ) :: d
+    real(dp),               intent(  out) :: int_d
+    logical, optional,      intent(in   ) :: d_is_hybrid
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'integrate_over_domain'
-    INTEGER                                                      :: vi, ierr
+    character(len=1024), parameter :: routine_name = 'integrate_over_domain'
+    logical                        :: d_is_hybrid_
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
+
+    if (present( d_is_hybrid)) then
+      d_is_hybrid_ = d_is_hybrid
+    else
+      d_is_hybrid_ = .false.
+    end if
+
+    if (d_is_hybrid_) then
+      call integrate_over_domain_hybrid( mesh, d, int_d)
+    else
+      call integrate_over_domain_dist( mesh, d, int_d)
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine integrate_over_domain
+
+  subroutine integrate_over_domain_dist( mesh, d, int_d)
+    ! Calculate the integral int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),                         intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1:mesh%vi2), intent(in   ) :: d
+    real(dp),                                intent(  out) :: int_d
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'integrate_over_domain_dist'
+    integer                        :: vi, ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Integrate over process domain
     int_d = 0._dp
-    DO vi = mesh%vi1, mesh%vi2
+    do vi = mesh%vi1, mesh%vi2
       int_d = int_d + d( vi) * mesh%A( vi)
-    END DO
-
-    ! Reduce over processes to find total domain integral
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    end do
+    call MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE integrate_over_domain
+  END SUBROUTINE integrate_over_domain_dist
 
-  SUBROUTINE average_over_domain( mesh, d, av_d)
-    ! Calculate the average int_d over the model domain of a 2-D data field d
-
-    IMPLICIT NONE
+  subroutine integrate_over_domain_hybrid( mesh, d, int_d)
+    ! Calculate the integral int_d over the model domain of a 2-D data field d
 
     ! In/output variables:
-    TYPE(type_mesh),                         INTENT(IN)          :: mesh
-    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(IN)          :: d
-    REAL(dp),                                INTENT(OUT)         :: av_d
+    type(type_mesh),                                   intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1_node:mesh%vi2_node), intent(in   ) :: d
+    real(dp),                                          intent(  out) :: int_d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'average_over_domain'
-    REAL(dp)                                                     :: int_d
+    character(len=1024), parameter :: routine_name = 'integrate_over_domain_hybrid'
+    integer                        :: vi, ierr
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
+
+    ! Integrate over process domain
+    int_d = 0._dp
+    do vi = mesh%vi1, mesh%vi2
+      int_d = int_d + d( vi) * mesh%A( vi)
+    end do
+    call MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  END SUBROUTINE integrate_over_domain_hybrid
+
+  subroutine average_over_domain( mesh, d, av_d, d_is_hybrid)
+    !< Calculate the average int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),        intent(in   ) :: mesh
+    real(dp), dimension(:), intent(in   ) :: d
+    real(dp),               intent(  out) :: av_d
+    logical, optional,      intent(in   ) :: d_is_hybrid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'average_over_domain'
+    logical                        :: d_is_hybrid_
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (present( d_is_hybrid)) then
+      d_is_hybrid_ = d_is_hybrid
+    else
+      d_is_hybrid_ = .false.
+    end if
+
+    if (d_is_hybrid_) then
+      call average_over_domain_hybrid( mesh, d, av_d)
+    else
+      call average_over_domain_dist( mesh, d, av_d)
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine average_over_domain
+
+  subroutine average_over_domain_dist( mesh, d, av_d)
+    !< Calculate the average int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),                         intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1:mesh%vi2), intent(in   ) :: d
+    real(dp),                                intent(  out) :: av_d
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'average_over_domain_dist'
+    real(dp)                       :: int_d
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Integrate over the domain
-    CALL integrate_over_domain( mesh, d, int_d)
+    call integrate_over_domain( mesh, d, int_d, d_is_hybrid = .false.)
 
     ! Divide by domain area to find the average
     av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE average_over_domain
+  end subroutine average_over_domain_dist
+
+  subroutine average_over_domain_hybrid( mesh, d, av_d)
+    !< Calculate the average int_d over the model domain of a 2-D data field d
+
+    ! In/output variables:
+    type(type_mesh),                                   intent(in   ) :: mesh
+    real(dp), dimension( mesh%vi1_node:mesh%vi2_node), intent(in   ) :: d
+    real(dp),                                          intent(  out) :: av_d
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'average_over_domain_hybrid'
+    real(dp)                       :: int_d
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Integrate over the domain
+    call integrate_over_domain( mesh, d, int_d, d_is_hybrid = .true.)
+
+    ! Divide by domain area to find the average
+    av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine average_over_domain_hybrid
 
 ! == Set values of border vertices to mean of interior neighbours
 
@@ -1990,221 +2103,6 @@ CONTAINS
     END DO ! DO i = 1, n
 
   END SUBROUTINE extend_group_single_iteration_c
-
-  SUBROUTINE extrapolate_Gaussian( mesh, mask_partial, d_partial, sigma)
-    ! Extrapolate the data field d into the area designated by the mask,
-    ! using Gaussian extrapolation of sigma
-    !
-    ! Note about the mask:
-    !    2 = data provided
-    !    1 = no data provided, fill allowed
-    !    0 = no fill allowed
-    !
-    ! (so basically this routine extrapolates data from the area
-    !  where mask == 2 into the area where mask == 1)
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: mask_partial
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(INOUT) :: d_partial
-    REAL(dp),                               INTENT(IN)    :: sigma
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extrapolate_Gaussian'
-    integer                                               :: ierr
-    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask_local
-    INTEGER,  DIMENSION(mesh%nV)                          :: mask_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: d_tot
-    INTEGER                                               :: it_floodfill
-    INTEGER                                               :: vi
-    LOGICAL,  DIMENSION(mesh%vi1:mesh%vi2)                :: do_fill_now
-    INTEGER                                               :: n_do_fill_now
-    LOGICAL                                               :: has_filled_neighbour
-    INTEGER                                               :: ci,vj
-    INTEGER,  DIMENSION(mesh%nV)                          :: map_neighbourhood_of_vi
-    INTEGER,  DIMENSION(mesh%nV)                          :: stack_front_around_vi
-    INTEGER                                               :: stackN_front_around_vi
-    INTEGER,  DIMENSION(mesh%nV)                          :: stack_neighbourhood_of_vi
-    INTEGER                                               :: stackN_neighbourhood_of_vi
-    INTEGER                                               :: it_floodfill2
-    INTEGER                                               :: cj,vk
-    INTEGER                                               :: i
-    REAL(dp)                                              :: wj, w_sum, d_sum, d_av_of_neighbourhood
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Initialise
-    map_neighbourhood_of_vi    = 0
-    stack_front_around_vi      = 0
-    stackN_front_around_vi     = 0
-    stack_neighbourhood_of_vi  = 0
-    stackN_neighbourhood_of_vi = 0
-
-    ! Copy mask to local, changeable array
-    mask_local = mask_partial
-
-    ! Gather complete fill mask and data to all processes
-    CALL gather_to_all( mask_local, mask_tot)
-    CALL gather_to_all(  d_partial , d_tot   )
-
-    ! == Flood-fill iteration
-    ! =======================
-
-    it_floodfill = 0
-
-    iterate_floodfill: DO WHILE (.TRUE.)
-
-      ! Safety
-      it_floodfill = it_floodfill + 1
-      IF (it_floodfill > mesh%nV) CALL crash('main flood-fill iteration got stuck!')
-
-    ! == Mark all vertices that should be filled now
-    !    (defined as those that are allowed to be filled,
-    !    and are next to at least one filled vertex).
-    ! ===============================================
-
-      n_do_fill_now = 0
-      do_fill_now = .FALSE.
-
-      DO vi = mesh%vi1, mesh%vi2
-        IF (mask_tot( vi) == 1) THEN
-          ! Vertex vi is allowed to be filled
-
-          has_filled_neighbour = .FALSE.
-          DO ci = 1, mesh%nC( vi)
-            vj = mesh%C( vi,ci)
-            IF (mask_tot( vj) == 2) THEN
-              has_filled_neighbour = .TRUE.
-              EXIT
-            END IF ! IF (mask_tot( vj) == 2) THEN
-          END DO ! DO ci = 1, mesh%nC( vi)
-
-          IF (has_filled_neighbour) THEN
-            ! Vertex vi is allowed to be filled and has at least one filled neighbour,
-            ! so it should be filled in this flood-fill iteration
-            do_fill_now( vi) = .TRUE.
-            n_do_fill_now = n_do_fill_now + 1
-          END IF ! IF (has_filled_neighbour) THEN
-
-        END IF ! IF (mask_tot( vi) == 1) THEN
-      END DO ! DO vi = mesh%vi1, mesh%vi2
-
-      ! If no vertices can be filled anymore, end the flood-fill iteration
-      CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_do_fill_now, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
-      IF (n_do_fill_now == 0) EXIT iterate_floodfill
-
-    ! == Fill all vertices that can be filled now
-    ! ===========================================
-
-      DO vi = mesh%vi1, mesh%vi2
-        IF (do_fill_now( vi)) THEN
-          ! Fill vertex vi
-
-        ! == Find all filled vertices within 3*sigma of vertex vi
-        ! =======================================================
-
-          ! Initialise the front with all filled neighbours of vi
-          stackN_front_around_vi = 0
-          DO ci = 1, mesh%nC( vi)
-            vj = mesh%C( vi,ci)
-            IF (mask_tot( vj) == 2) THEN
-              stackN_front_around_vi = stackN_front_around_vi + 1
-              stack_front_around_vi( stackN_front_around_vi) = vj
-              map_neighbourhood_of_vi( vj) = 1
-            END IF ! IF (mask_tot( vj) == 2) THEN
-          END DO ! DO ci = 1, mesh%nC( vi)
-
-          ! Expand the front outward, flood-fill style
-          it_floodfill2 = 0
-          iterate_floodfill_around_vi: DO WHILE (stackN_front_around_vi > 0)
-
-            ! Safety
-            it_floodfill2 = it_floodfill2 + 1
-            IF (it_floodfill2 > mesh%nV) CALL crash('secondary flood-fill iteration got stuck!')
-
-            ! Take the last vertex vj from the front stack
-            vj = stack_front_around_vi( stackN_front_around_vi)
-            stackN_front_around_vi = stackN_front_around_vi - 1
-
-            ! Add vj to the neighbourhood list
-            stackN_neighbourhood_of_vi = stackN_neighbourhood_of_vi + 1
-            stack_neighbourhood_of_vi( stackN_neighbourhood_of_vi) = vj
-            map_neighbourhood_of_vi( vj) = 2
-
-            ! Add all remaining filled neighbours of vj to the front stack
-            DO cj = 1, mesh%nC( vj)
-              vk = mesh%C( vj,cj)
-              IF (map_neighbourhood_of_vi( vk) == 0 .AND. mask_tot( vk) == 2 .AND. &
-                  NORM2( mesh%V( vi,:) - mesh%V( vk,:)) < (3._dp * sigma)) THEN
-                ! Vertex vk is not yet marked as part of the neighbourhood of vi, not
-                ! yet marked as part of the front stack, is filled, and lies within
-                ! 3*sigma of vertex vi. Add it to the front stack.
-                stackN_front_around_vi = stackN_front_around_vi + 1
-                stack_front_around_vi( stackN_front_around_vi) = vk
-                map_neighbourhood_of_vi( vk) = 1
-              END IF
-            END DO ! DO cj = 1, mesh%nC( vj)
-
-          END DO iterate_floodfill_around_vi
-
-          ! Safety
-          IF (stackN_neighbourhood_of_vi == 0) CALL crash('couldnt find neighbourhood of vi!')
-
-        ! == Extrapolate data to vi
-        ! =========================
-
-          ! Calculate Gaussian distance-weighted average of d over the filled neighbourhood of vi
-          w_sum = 0._dp
-          d_sum = 0._dp
-          DO i = 1, stackN_neighbourhood_of_vi
-            vj = stack_neighbourhood_of_vi( i)
-            wj = EXP( -0.5_dp * (NORM2( mesh%V( vj,:) - mesh%V( vi,:)) / sigma)**2)
-            w_sum = w_sum + wj
-            d_sum = d_sum + wj * d_tot( vj)
-          END DO ! DO i = 1, stackN_neighbourhood_of_vi
-          d_av_of_neighbourhood = d_sum / w_sum
-
-          ! Fill into data field
-          d_partial( vi) = d_av_of_neighbourhood
-
-        ! == Clean up lists for the neighbourhood of vi
-        ! =============================================
-
-          DO i = 1, stackN_neighbourhood_of_vi
-            vj = stack_neighbourhood_of_vi( i)
-            map_neighbourhood_of_vi( vj) = 0
-          END DO ! DO i = 1, stackN_neighbourhood_of_vi
-          stackN_neighbourhood_of_vi = 0
-          stackN_front_around_vi     = 0
-
-        END IF ! IF (do_fill_now( vi)) THEN
-      END DO ! DO vi = mesh%vi1, mesh%vi2
-
-    ! Mark newly filled vertices in the mask, so they
-    ! can contribute to the next extrapolation iteration
-    ! ==================================================
-
-      DO vi = mesh%vi1, mesh%vi2
-        IF (do_fill_now( vi)) THEN
-          mask_local( vi) = 2
-        END IF ! IF (do_fill_now( vi)) THEN
-      END DO ! DO vi = mesh%vi1, mesh%vi2
-
-    ! Exchange newly filled mask and data between the processes
-    ! =========================================================
-
-      CALL gather_to_all( mask_local, mask_tot)
-      CALL gather_to_all(  d_partial , d_tot   )
-
-    END DO iterate_floodfill
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE extrapolate_Gaussian
 
 ! == Contours and polygons for mesh generation
 
