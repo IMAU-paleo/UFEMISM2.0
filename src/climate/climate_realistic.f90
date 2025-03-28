@@ -576,17 +576,23 @@ CONTAINS
     IF (par%primary) THEN
 
       WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+!    END IF
 ! check this?!
-      OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
+! I added field_name_options_CO2 in netcdf field list
+! from the funciton 3rd and 4th are outputs
+      call read_field_from_series_file( C%filename_CO2_record, field_name_options_CO2, forcing%CO2_record, forcing%CO2_time)
 
-      DO i = 1, C%CO2_record_length
-        READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time( i), forcing%CO2_record( i)
-        IF (ios /= 0) THEN
-          CALL crash('length of text file "' // TRIM(C%filename_CO2_record) // '" does not match C%CO2_record_length!')
-        END IF
-      END DO
+!      OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
 
-      CLOSE( UNIT  = 1337)
+!      DO i = 1, C%CO2_record_length
+!        READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time( i), forcing%CO2_record( i)
+!        IF (ios /= 0) THEN
+!          CALL crash('length of text file "' // TRIM(C%filename_CO2_record) // '" does not match C%CO2_record_length!')
+!        END IF
+!      END DO
+
+!      CLOSE( UNIT  = 1337)
+!    IF (par%primary) THEN
 
       IF (C%start_time_of_run/1000._dp < forcing%CO2_time(1)) THEN
          CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
