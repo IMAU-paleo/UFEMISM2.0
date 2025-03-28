@@ -238,26 +238,24 @@ CONTAINS
       forcing%ins_Q_TOA1 = 0._dp
       
       ! Read the fields at ins_t0
-      if (par%primary) WRITE(0,*) '     Reading Q_TOA0...'
       call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA0, time_to_read = forcing%ins_t0)
       
       ! if the start time is after the closest t0, we read one record after for t1
       call read_field_from_file_1D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = forcing%ins_t0)
 
       if (C%start_time_of_run >= closest_t0) then
-        if (par%primary) WRITE(0,*) '     start time is after closest ins_t0, reading one step further...'
+        !if (par%primary) WRITE(0,*) '     start time is after closest ins_t0, reading one step further...'
         call read_field_from_file_1D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
       else
         ! otherwise we read one record before for t1
-        if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier...'
+        !if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier...'
         call read_field_from_file_1D( C%filename_insolation, field_name_options_time, forcing%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
       end if
 
       if (forcing%ins_t1 == closest_t0) then
-        if (par%primary) WRITE(0,*) '     Closest insolation time frames are the same, insolation will be constant from now on...'
+        !if (par%primary) WRITE(0,*) '     Closest insolation time frames are the same, insolation will be constant from now on...'
         forcing%ins_Q_TOA1 = forcing%ins_Q_TOA0
       else
-        if (par%primary) WRITE(0,*) '     Reading Q_TOA1...'
         call read_field_from_file_1D_monthly( C%filename_insolation, field_name_options_insolation, mesh, forcing%ins_Q_TOA1, time_to_read = forcing%ins_t1)
       end if
 
