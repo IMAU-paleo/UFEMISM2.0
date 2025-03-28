@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>L040</name>
+    <category>integrated_tests/idealised/ISMIP_HOM/experiment_C/SIASSA</category>
+    <date_and_time>27-Mar-2025 18:39:01</date_and_time>
+    <git_hash_string>746b0e13646687192f96513df348fab1c7ed49ef</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (u_surf - u_ensemble).^2 ))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>0</value>
+    </cost_functions>
+</single_run>
