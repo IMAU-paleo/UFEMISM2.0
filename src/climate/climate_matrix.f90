@@ -4,12 +4,14 @@ module climate_matrix
 ! ====================
 
   USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par, sync, ierr
+  USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE parameters
+  use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, MPI_INTEGER
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
+  USE grid_types                                             , ONLY: type_grid
   USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing, type_climate_model_matrix, type_climate_snapshot
   use SMB_model_types, only: type_SMB_model
 !  USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
@@ -368,13 +370,14 @@ contains
 
   END SUBROUTINE run_climate_model_matrix_precipitation
   !!! CHECK mask_noice, in UFE1.x was on region%mask_noice (:)
-  SUBROUTINE initialise_climate_matrix( mesh, grid, climate, region_name, mask_noice, forcing)
+  SUBROUTINE initialise_climate_matrix( mesh, grid, ice, climate, region_name, mask_noice, forcing)
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     type(type_grid),                     intent(in)    :: grid !used to smooth later on, check if grid is called during initialise
+    type(type_ice_model),                intent(in)    :: ice
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     LOGICAL,  DIMENSION(:),          INTENT(IN)    :: mask_noice
@@ -445,7 +448,7 @@ contains
 
     ! Initialise applied climate with present-day observations
 ! initialise climate model for realistic climate, just for now, so I will have all allocate from the realistic climate
-   call initialise_climate_model_realistic( mesh, climate, forcing, region_name)
+   call initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
    ! this will also initialise the insolation and CO2 routine
 
     DO vi = mesh%vi1, mesh%vi2
@@ -538,7 +541,7 @@ contains
     CALL init_routine( routine_name)
 
     ! Write message to screen
-    IF (par%master) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
+    IF (par%primary) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
 
     ! here in IMAU-ICE it check the name variable of the wind. In UFEMISM2.0 the subroutine is called as inquire_var_multopt
     ! to use it would need to have ncid this means open the netcdf file and it will be a lot of code writing that do not look nice
@@ -651,6 +654,7 @@ contains
     REAL(dp)                                            :: dT_mean_nonice
     INTEGER                                             :: n_nonice, n_ice
     REAL(dp)                                            :: lambda_mean_ice
+    integer                               :: ierr
 
     REAL(dp), PARAMETER                                 :: lambda_min = 0.002_dp
     REAL(dp), PARAMETER                                 :: lambda_max = 0.05_dp
@@ -689,7 +693,7 @@ contains
       END IF
     END DO
     END DO
-    
+
 !! this call still work? or is different now? check
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT_mean_nonice, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_nonice,       1, MPI_INTEGER,          MPI_SUM, MPI_COMM_WORLD, ierr)
@@ -838,7 +842,7 @@ contains
 !    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Q,        SMB_dummy%wC_abl_Q       )
 !    CALL allocate_shared_dp_0D( SMB_dummy%C_refr,         SMB_dummy%wC_refr        )
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
       IF     (region_name == 'NAM') THEN
         SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_NAM
         SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_NAM
@@ -860,7 +864,7 @@ contains
         SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_ANT
         SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_ANT
       END IF
-    END IF ! IF (par%master) THEN
+    END IF ! IF (par%primary) THEN
 
     ! Run the SMB model for 10 years for this particular climate
     ! (experimentally determined to be long enough to converge)
@@ -946,7 +950,7 @@ contains
       CALL sync
 
     ELSE
-      IF (par%master) THEN
+      IF (par%primary) THEN
         CALL crash('ERROR - adapt_precip_CC should only be used for Greenland and Antarctica!')
       END IF
     END IF

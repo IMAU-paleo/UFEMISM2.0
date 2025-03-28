@@ -491,7 +491,7 @@ CONTAINS
       CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
     END IF
 
-    IF (par%master) THEN
+    IF (par%primary) THEN
 
       IF     (time < MINVAL( forcing%CO2_time)) THEN
         ! Model time before start of CO2 record; using constant extrapolation
@@ -573,7 +573,7 @@ CONTAINS
     !CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )
 
     ! Read CO2 record (time and values) from specified text file
-    IF (par%master) THEN
+    IF (par%primary) THEN
 
       WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
 ! check this?!
@@ -598,7 +598,7 @@ CONTAINS
       ! Convert from kyr to yr
       forcing%CO2_time = forcing%CO2_time * 1000._dp
 
-    END IF ! IF (par%master)
+    END IF ! IF (par%primary)
 
     ! Set the value for the current (starting) model time
     CALL update_CO2_at_model_time( C%start_time_of_run, forcing)

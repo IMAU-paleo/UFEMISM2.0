@@ -13,6 +13,7 @@ MODULE climate_main
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   use SMB_model_types                                        , only: type_SMB_model
+  use grid_types                                             , ONLY: type_grid
   USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
@@ -164,7 +165,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
     ELSEIF (choice_climate_model == 'matrix') THEN
-      call initialise_climate_matrix( mesh, grid, climate, region_name, ice%mask_noice, forcing)
+      call initialise_climate_matrix( mesh, grid, ice, climate, region_name, ice%mask_noice, forcing)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
