@@ -128,7 +128,7 @@ contains
 
     ! Update sea level if necessary
     if  (C%choice_sealevel_model == 'prescribed') then
-      call update_sealevel_at_model_time(region%forcing, region%time,region%ice%SL)
+      call update_sealevel_at_model_time(region%forcing, region%mesh, region%time,region%ice)
     end if
 
     do vi = region%mesh%vi1, region%mesh%vi2
@@ -214,6 +214,7 @@ contains
 
     ! allocate memory
     call allocate_ice_model( mesh, ice)
+    if (par%primary) write(*,"(A)") '   Allocated memory for ice dynamics model.'
 
     ! === Value initialisation ===
     ! ============================
@@ -233,7 +234,8 @@ contains
     case ('prescribed')
       ! Sea-level prescribed from external record file
       !call crash('Sea level initialisation: prescribed method not implemented yet!')
-      call update_sealevel_at_model_time(forcing,C%start_time_of_run,ice%SL)
+      if (par%primary) write(*,"(A)") '   First update of sea level curve...'
+      call update_sealevel_at_model_time(forcing,mesh,C%start_time_of_run,ice)
       ! ice%SL = forcing%sealevel_obs
 
     case ('eustatic')
