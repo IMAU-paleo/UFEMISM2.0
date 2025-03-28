@@ -29,6 +29,8 @@ contains
     ! Input variables:
     real(dp), intent(in   ) :: time
 
+#if (DO_RESOURCE_TRACKING)
+
     ! Local variables:
     character(len=256), parameter         :: routine_name = 'write_to_resource_tracking_file'
     integer                               :: n_routines, length_routine_name, i
@@ -83,6 +85,8 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
+#endif
+
   end subroutine write_to_resource_tracking_file
 
   subroutine create_resource_tracking_file
@@ -93,6 +97,8 @@ contains
     integer                       :: ncid
     integer                       :: id_dim_n_routines, id_dim_time, id_dim_name_length
     integer                       :: id_var_time, id_var_names, id_var_tcomp
+
+#if (DO_RESOURCE_TRACKING)
 
     ! Add routine to path
     call init_routine( routine_name, do_track_resource_use = .FALSE.)
@@ -135,6 +141,8 @@ contains
 
     ! Finalise routine path
     call finalise_routine( routine_name)
+
+#endif
 
   end subroutine create_resource_tracking_file
 

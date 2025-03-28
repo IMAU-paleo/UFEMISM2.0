@@ -5,7 +5,7 @@ module mesh_disc_calc_matrix_operators_2D
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
-  use CSR_sparse_matrix_utilities, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, &
     crop_matrix_CSR_dist
   use mesh_utilities, only: extend_group_single_iteration_a, extend_group_single_iteration_b, &
     extend_group_single_iteration_c
