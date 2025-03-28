@@ -516,7 +516,6 @@ CONTAINS
     END IF
 
     ! Calculate timeframe interpolation weights (plus safety checks for when the extend beyond the record)
-    IF (par%primary)  WRITE(0,*) '   Calculating interpolation weights...'
     if (forcing%sl_t1 == forcing%sl_t0) then
       wt0 = 0._dp
       wt1 = 1._dp
@@ -534,7 +533,6 @@ CONTAINS
     computed_sea_level = wt0 * forcing%sl_at_t0 + wt1 * forcing%sl_at_t1
 
     ! Interpolate the two timeframes - constant sea level over the entire region
-    IF (par%primary)  WRITE(0,*) '   Interpolating between the two timeframes...'
     do vi = mesh%vi1, mesh%vi2
       ice%SL( vi) = computed_sea_level
     end do
@@ -617,10 +615,6 @@ CONTAINS
         forcing%sl_at_t0 = forcing%sea_level_record(ti0-1)
       end if
     end if
-
-    call warning('timeframes: sl_t0={dp_01} and sl_t1={dp_02}', dp_01 = forcing%sl_t0, dp_02 = forcing%sl_t0)
-    call warning('values: sl_at_t0={dp_01} and sl_at_t1={dp_02}', dp_01 = forcing%sl_at_t0, dp_02 = forcing%sl_at_t0)
-
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

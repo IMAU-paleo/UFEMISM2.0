@@ -53,7 +53,6 @@ contains
     
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_reading( filename, ncid)
-    if (par%primary) WRITE(0,*) '     Opened netcdf file.'
 
     ! Look for the specified variable in the file
     call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
@@ -64,34 +63,23 @@ contains
     ! Inquire variable info (incl. time)
     call inquire_var_info(    filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
     call inquire_var_info(    filename, ncid, id_var_time, var_type = var_type_time, ndims_of_var = ndims_of_var_time, dims_of_var = dims_of_var_time)
-    if (par%primary) WRITE(0,*) '     Inquired variable info.'
-
 
     ! Inquire file time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
-    if (par%primary) WRITE(0,*) '     Inquired time dimension.'
-
 
     ! Check if the variable has time as a dimension
     if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
     if (.not. ANY( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
-
-    ! Inquire length of time dimension
-    !call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
 
     ! allocate memory for the time series and time axis
     allocate(series (nt))
     allocate(series_time (nt))
 
     ! Read the data
-    if (par%primary) WRITE(0,*) '     Reading variable.'
     call read_var_primary( filename, ncid, id_var, series, start = (/ 1 /), count = (/ nt /))
     call read_var_primary( filename, ncid, id_var_time, series_time, start = (/ 1 /), count = (/ nt /))
-    if (par%primary) WRITE(0,*) '     Variable read..'
-    
 
     ! Broadcast to all processes
-    if (par%primary) WRITE(0,*) '     Broadcasting time and time series variables...'
     call MPI_BCAST(      series, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     call MPI_BCAST(      series_time, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 

@@ -214,7 +214,6 @@ contains
 
     ! allocate memory
     call allocate_ice_model( mesh, ice)
-    if (par%primary) write(*,"(A)") '   Allocated memory for ice dynamics model.'
 
     ! === Value initialisation ===
     ! ============================
@@ -233,8 +232,6 @@ contains
 
     case ('prescribed')
       ! Sea-level prescribed from external record file
-      !call crash('Sea level initialisation: prescribed method not implemented yet!')
-      if (par%primary) write(*,"(A)") '   First update of sea level curve...'
       call update_sealevel_at_model_time(forcing,mesh,C%start_time_of_run,ice)
       ! ice%SL = forcing%sealevel_obs
 
