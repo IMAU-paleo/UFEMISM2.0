@@ -6,7 +6,12 @@ module mesh_output_files
   use model_configuration, only: C
   use grid_basic, only: type_grid
   use region_types, only: type_model_region
+  use mesh_types, only: type_mesh
+  use ice_model_types, only: type_ice_model
   use netcdf_io_main
+  use netcdf, only: NF90_DOUBLE
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_signaling_nan
+  use mesh_contour, only: calc_mesh_contour
 
   implicit none
 
@@ -200,6 +205,14 @@ contains
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hi_eff', region%ice%Hi_eff)
       case ('Hs_slope')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hs_slope', region%ice%Hs_slope)
+      case ('grounding_line')
+        call write_grounding_line_to_file( filename, ncid, region%mesh, region%ice)
+      case ('ice_margin')
+        call write_ice_margin_to_file( filename, ncid, region%mesh, region%ice)
+      case ('calving_front')
+        call write_calving_front_to_file( filename, ncid, region%mesh, region%ice)
+      case ('coastline')
+        call write_coastline_to_file( filename, ncid, region%mesh, region%ice)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -749,6 +762,11 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_main_regional_output_file_mesh_field'
+    integer                        :: int_dummy, id_dim_ei, id_dim_two, id_dim_time
+    integer                        :: id_var_grounding_line
+    integer                        :: id_var_calving_front
+    integer                        :: id_var_ice_margin
+    integer                        :: id_var_coastline
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -826,6 +844,38 @@ contains
         call add_field_mesh_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
       case ('Hs_slope')
         call add_field_mesh_dp_2D( filename, ncid, 'Hs_slope', long_name = 'Absolute surface gradient', units = '-')
+      case ('grounding_line')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'grounding_line', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_grounding_line)
+        call add_attribute_char( filename, ncid, id_var_grounding_line, 'long_name', 'Grounding-line coordinates')
+        call add_attribute_char( filename, ncid, id_var_grounding_line, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_grounding_line, 'format', 'Matlab contour format')
+      case ('ice_margin')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'ice_margin', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_ice_margin)
+        call add_attribute_char( filename, ncid, id_var_ice_margin, 'long_name', 'Ice margin coordinates')
+        call add_attribute_char( filename, ncid, id_var_ice_margin, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_ice_margin, 'format', 'Matlab contour format')
+      case ('calving_front')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'calving_front', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_calving_front)
+        call add_attribute_char( filename, ncid, id_var_calving_front, 'long_name', 'Calving-front coordinates')
+        call add_attribute_char( filename, ncid, id_var_calving_front, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_calving_front, 'format', 'Matlab contour format')
+      case ('coastline')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'coastline', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_coastline)
+        call add_attribute_char( filename, ncid, id_var_coastline, 'long_name', 'Coastline coordinates')
+        call add_attribute_char( filename, ncid, id_var_coastline, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_coastline, 'format', 'Matlab contour format')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -1195,5 +1245,194 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine create_main_regional_output_file_mesh_field
+
+  subroutine write_grounding_line_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_grounding_line_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: TAF_for_GL
+    integer                                 :: vi
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Replace thickness above floatation with NaN in ice-free vertices so GL wont be found there
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%Hi( vi) > 0.1_dp) then
+        TAF_for_GL( vi) = ice%TAF( vi)
+      else
+        TAF_for_GL( vi) = NaN
+      end if
+    end do
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, TAF_for_GL, 0._dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'grounding_line')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_grounding_line_to_file
+
+  subroutine write_calving_front_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_calving_front_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: Hi_for_GL
+    integer                                 :: vi
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Replace ice thickness with NaN in grounded vertices so CF wont be found there
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%TAF( vi) < 0._dp) then
+        Hi_for_GL( vi) = ice%Hi( vi)
+      else
+        Hi_for_GL( vi) = NaN
+      end if
+    end do
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, Hi_for_GL, 0.05_dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'calving_front')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_calving_front_to_file
+
+  subroutine write_ice_margin_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_ice_margin_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, ice%Hi, 0.05_dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'ice_margin')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_ice_margin_to_file
+
+  subroutine write_coastline_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_coastline_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: water_depth_for_coastline
+    integer                                 :: vi
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Replace water depth with NaN in ice-covered vertices so coastline wont be found there
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%Hi( vi) > 0.05_dp) then
+        water_depth_for_coastline( vi) = NaN
+      else
+        water_depth_for_coastline( vi) = ice%SL( vi) - ice%Hb( vi)
+      end if
+    end do
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, water_depth_for_coastline, 0._dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'coastline')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_coastline_to_file
+
+  subroutine write_contour_to_file( filename, ncid, mesh, CC, var_name)
+
+    ! In/output variables:
+    character(len=*),         intent(in   ) :: filename
+    integer,                  intent(in   ) :: ncid
+    type(type_mesh),          intent(in   ) :: mesh
+    real(dp), dimension(:,:), intent(in   ) :: CC
+    character(len=*),         intent(in   ) :: var_name
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_contour_to_file'
+    real(dp), dimension(:,:,:), allocatable :: CC_with_time
+    integer                                 :: id_dim_time, ti, id_var
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Add "pretend" time dimension
+    if (par%primary) then
+      allocate( CC_with_time( mesh%nE,2,1))
+      CC_with_time( :,:,1) = CC
+    end if
+
+    ! Inquire length of time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write to NetCDF
+    call inquire_var( filename, ncid, var_name, id_var)
+    call write_var_primary( filename, ncid, id_var, CC_with_time, &
+      start = (/ 1, 1, ti /), count = (/ mesh%nE, 2, 1 /) )
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_contour_to_file
 
 end module mesh_output_files
