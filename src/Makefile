@@ -24,6 +24,16 @@ ifeq ($(DO_ASSERTIONS),yes)
   F90DEFINITIONS += -DDO_ASSERTIONS
 endif
 
+# Compile with the resource tracker: anything else than yes (no quotes) will
+# result in the model being compiled without it
+#
+# NOTE: this means warnings/crashes will no longer tell you from which
+# subroutine they originated!
+DO_RESOURCE_TRACKING = yes
+ifeq ($(DO_RESOURCE_TRACKING),yes)
+  F90DEFINITIONS += -DDO_RESOURCE_TRACKING
+endif
+
 # ========================================
 #       Building the UFEMISM_program
 # ========================================
@@ -269,6 +279,11 @@ UFEMISM_source = \
   \
   artificial_mass_balance/AMB_main.f90 \
   \
+  climate/climate_idealised.f90 \
+  climate/climate_realistic.f90 \
+  climate/climate_matrix.f90 \
+  climate/climate_main.f90 \
+  \
   ice_dynamics/utilities/ice_model_memory.f90 \
   ice_dynamics/utilities/bedrock_cumulative_density_functions.f90 \
   ice_dynamics/utilities/subgrid_grounded_fractions_bilin_TAF.f90 \
@@ -300,11 +315,6 @@ UFEMISM_source = \
   thermodynamics/thermodynamics_utilities.f90 \
   thermodynamics/thermodynamics_3D_heat_equation.f90 \
   thermodynamics/thermodynamics_main.f90 \
-  \
-  climate/climate_idealised.f90 \
-  climate/climate_realistic.f90 \
-  climate/climate_matrix.f90 \
-  climate/climate_main.f90 \
   \
   glacial_isostatic_adjustment/kelvin_function.f90 \
   glacial_isostatic_adjustment/GIA_ELRA.f90 \

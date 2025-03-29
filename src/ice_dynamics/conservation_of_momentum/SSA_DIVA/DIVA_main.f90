@@ -738,6 +738,8 @@ contains
       call read_field_from_mesh_file_dp_2D_b( filename, 'tau_bx_b', DIVA%tau_bx_b, time_to_read = timeframe)
       call read_field_from_mesh_file_dp_2D_b( filename, 'tau_by_b', DIVA%tau_by_b, time_to_read = timeframe)
       call read_field_from_mesh_file_dp_3D_b( filename, 'eta_3D_b', DIVA%eta_3D_b, time_to_read = timeframe)
+      call read_field_from_mesh_file_dp_2D_b( filename, 'u_base_b', DIVA%u_base_b, time_to_read = timeframe)
+      call read_field_from_mesh_file_dp_2D_b( filename, 'v_base_b', DIVA%v_base_b, time_to_read = timeframe)
     end if
 
     ! Finalise routine path
@@ -838,6 +840,8 @@ contains
     call write_to_field_multopt_mesh_dp_2D_b( mesh, DIVA%restart_filename, ncid, 'tau_bx_b', DIVA%tau_bx_b)
     call write_to_field_multopt_mesh_dp_2D_b( mesh, DIVA%restart_filename, ncid, 'tau_by_b', DIVA%tau_by_b)
     call write_to_field_multopt_mesh_dp_3D_b( mesh, DIVA%restart_filename, ncid, 'eta_3D_b', DIVA%eta_3D_b)
+    call write_to_field_multopt_mesh_dp_2D_b( mesh, DIVA%restart_filename, ncid, 'u_base_b', DIVA%u_base_b)
+    call write_to_field_multopt_mesh_dp_2D_b( mesh, DIVA%restart_filename, ncid, 'v_base_b', DIVA%v_base_b)
 
     ! Close the file
     call close_netcdf_file( ncid)
@@ -895,6 +899,8 @@ contains
     call add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'tau_bx_b', long_name = 'Basal shear stress in the x-direction', units = 'Pa')
     call add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'tau_by_b', long_name = 'Basal shear stress in the y-direction', units = 'Pa')
     call add_field_mesh_dp_3D_b( DIVA%restart_filename, ncid, 'eta_3D_b', long_name = '3-D effective viscosity')
+    call add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'u_base_b', long_name = 'Basal ice velocity in the x-direction', units = 'm/yr')
+    call add_field_mesh_dp_2D_b( DIVA%restart_filename, ncid, 'v_base_b', long_name = 'Basal ice velocity in the y-direction', units = 'm/yr')
 
     ! Close the file
     call close_netcdf_file( ncid)

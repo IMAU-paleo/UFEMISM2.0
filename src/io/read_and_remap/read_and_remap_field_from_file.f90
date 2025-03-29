@@ -30,11 +30,70 @@ module read_and_remap_field_from_file
   private
 
   public :: read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
-    read_field_from_file_3D_ocean, read_field_from_file_0D, read_field_from_file_1D_monthly
+    read_field_from_file_3D_ocean, read_field_from_file_0D, read_field_from_file_1D_monthly, read_field_from_file_1D
 
 contains
 
   ! Read and map to mesh
+  subroutine read_field_from_file_1D( filename, field_name_options, &
+    d_out, time_to_read)
+    !< Read a data point in a series from a NetCDF file.
+
+    ! In/output variables:
+    character(len=*),       intent(in   ) :: filename
+    character(len=*),       intent(in   ) :: field_name_options
+    
+    real(dp),               intent(  out) :: d_out
+    real(dp), optional,     intent(in   ) :: time_to_read
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'read_field_from_file_1D'
+    character(len=1024)                    :: var_name
+    integer                                :: var_type
+    integer                                :: ndims_of_var
+    logical                                :: file_exists
+    integer, dimension( NF90_MAX_VAR_DIMS) :: dims_of_var
+    integer                                :: ncid, ti, id_var, id_dim_time, ierr
+    real(dp), dimension(1)                 :: d_read
+    
+    
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Check if this file actually exists
+    inquire( exist = file_exists, file = trim( filename))
+    if (.not. file_exists) then
+      call crash('file "' // trim( filename) // '" not found!')
+    end if
+
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Inquire variable ID and name
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    
+    ! Inquire variable info
+    call inquire_var_info( filename, ncid, id_var, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+
+    ! Inquire file time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time)
+
+    ! Find timeframe for reading
+    call find_timeframe( filename, ncid, time_to_read, ti)
+
+    ! Read data
+    call read_var_primary( filename, ncid, id_var, d_read, start = (/ ti /), count = (/ 1 /) )
+
+    if (par%primary) d_out = d_read( 1)
+
+    ! Broadcast to all processes
+    call MPI_BCAST( d_out, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_field_from_file_1D
+
+
   subroutine read_field_from_file_1D_monthly( filename, field_name_options, &
     mesh, d_partial, time_to_read)
     !< Read a data field from a NetCDF file, and map it to the model mesh.

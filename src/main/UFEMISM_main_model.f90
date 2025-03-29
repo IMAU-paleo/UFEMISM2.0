@@ -51,6 +51,7 @@ MODULE UFEMISM_main_model
   use tracer_tracking_model_main, only: initialise_tracer_tracking_model, run_tracer_tracking_model, &
     remap_tracer_tracking_model
   use transects_main, only: initialise_transects, write_to_transect_netcdf_output_files
+  use climate_realistic, only: initialise_global_forcings
 
   IMPLICIT NONE
 
@@ -482,10 +483,14 @@ CONTAINS
        dx_grid_smooth, region%grid_smooth, &
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
+    ! ===== Global forcings =====
+    ! ===========================
+    call initialise_global_forcings(region%mesh, region%forcing)
+    
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name)
+    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, region%forcing)
 
     ! ===== Climate =====
     ! ===================
