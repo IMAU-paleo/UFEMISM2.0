@@ -25,6 +25,7 @@ function mesh = read_mesh_from_file( filename)
   mesh.VE             = ncread(filename,'VE');
   mesh.EV             = ncread(filename,'EV');
   mesh.ETri           = ncread(filename,'ETri');
+  mesh.TriE           = ncread(filename,'TriE');
   mesh.EBI            = ncread(filename,'EBI');
   mesh.nE             = size( mesh.E,1);
 

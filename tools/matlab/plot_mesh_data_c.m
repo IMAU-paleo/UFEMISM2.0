@@ -1,4 +1,4 @@
-function plot_mesh_data_c( mesh, d)
+function H = plot_mesh_data_c( mesh, d)
 
 % Axes and figure size
 xw = mesh.xmax - mesh.xmin;
