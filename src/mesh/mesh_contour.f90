@@ -214,7 +214,7 @@ module mesh_contour
       integer,                        intent(  out) :: n_sub
 
       ! Local variables:
-      character(len=1024), parameter :: routine_name = 'find_edges_crossing_contour'
+      character(len=1024), parameter :: routine_name = 'trace_linear_contour'
       integer, dimension(mesh%nE)    :: E_C
       integer                        :: n_C
       integer                        :: ei, ei_prev, nit, ei_next, ti, tj, n, ej, i, vi, vj
@@ -268,8 +268,7 @@ module mesh_contour
             ! Couldnt find the next edge, but the current one is not marked as an end edge; impossibru!
             call crash('whaa!')
           elseif (ei == ei_start) then
-            ! Couldnt find the next edge, but we're still at the first one
-            call crash('whaaa!')
+            reached_end = .true.
           else
             reached_end = .true.
           end if
