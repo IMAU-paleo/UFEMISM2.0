@@ -5,7 +5,7 @@ function C = calc_mesh_contour( mesh, d, level)
 C  = zeros( mesh.nE,2);
 nC = 0;
 
-d_scaled = scale_d( d, level);
+d_centred = centre_d_around_zero( d, level);
 
 % Mark all edges that cross the contour, and
 % count number of contoour-crossing edges per triangle
@@ -14,7 +14,7 @@ nT_cross_C = zeros( mesh.nTri,1);
 for ei = 1: mesh.nE
   vi = mesh.EV( ei,1);
   vj = mesh.EV( ei,2);
-  if (d_scaled( vi) * d_scaled( vj) < 0)
+  if (d_centred( vi) * d_centred( vj) < 0)
     E_cross_C( ei) = true;
     ti = mesh.ETri( ei,1);
     tj = mesh.ETri( ei,2);
@@ -54,7 +54,7 @@ end
 for ei = 1: mesh.nE
   if (E_end( ei))
     [C_sub, n_sub, E_end, E_cross_C] = trace_linear_contour( ...
-      mesh, d_scaled, E_end, E_cross_C, ei);
+      mesh, d_centred, E_end, E_cross_C, ei);
     % Add to total contour list (native Matlab format)
     C( nC+1,:) = [n_sub, NaN];
     C( nC+2: nC+n_sub+1,:) = C_sub( 1:n_sub,:);
@@ -66,7 +66,7 @@ end
 for ei = 1: mesh.nE
   if (E_cross_C( ei))
     [C_sub, n_sub, E_cross_C] = trace_circular_contour( ...
-      mesh, d_scaled, E_cross_C, ei);
+      mesh, d_centred, E_cross_C, ei);
     % Add to total contour list (native Matlab format)
     C( nC+1,:) = [n_sub, NaN];
     C( nC+2: nC+n_sub+1,:) = C_sub( 1:n_sub,:);
@@ -76,20 +76,18 @@ end
 
 C = C( 1:nC,:);
   
-  function d_scaled = scale_d( d, level)
-    % Scale d so that it runs from -1 to 1, with 0 corresponding to level
-    d_scaled = d - level;
-    d_scaled( d_scaled > 0) =  d_scaled( d_scaled > 0) / max( d_scaled( d_scaled > 0));
-    d_scaled( d_scaled < 0) = -d_scaled( d_scaled < 0) / min( d_scaled( d_scaled < 0));
+  function d_centred = centre_d_around_zero( d, level)
+    d_centred = d - level;
   end
   
   function [C_sub, n_sub, E_end, E_cross_C] = trace_linear_contour( ...
-    mesh, d_scaled, E_end, E_cross_C, ei)
+    mesh, d_centred, E_end, E_cross_C, ei_start)
   
     E_C = zeros( mesh.nE,1);
     n_C = 0;
     
     ei_prev = 0;
+    ei = ei_start;
     
     nit = 0;
     while (nit < mesh.nE)
@@ -128,8 +126,8 @@ C = C( 1:nC,:);
       if (ei_next == 0)
         if (~E_end( ei))
           error('whaa!')
-        elseif (ei_prev == 0)
-          error('whaa!')
+        elseif (ei == ei_start)
+          reached_end = true;
         else
           reached_end = true;
         end
@@ -163,13 +161,13 @@ C = C( 1:nC,:);
       vi = mesh.EV( ei,1);
       vj = mesh.EV( ei,2);
       C_sub( i,:) = linint_points( mesh.V( vi,:), mesh.V( vj,:), ...
-        d_scaled( vi), d_scaled( vj), 0);
+        d_centred( vi), d_centred( vj), 0);
     end
   
   end
     
   function [C_sub, n_sub, E_cross_C] = trace_circular_contour( ...
-    mesh, d_scaled, E_cross_C, ei_start)
+    mesh, d_centred, E_cross_C, ei_start)
   
     E_C = zeros( mesh.nE,1);
     n_C = 0;
@@ -239,7 +237,7 @@ C = C( 1:nC,:);
       vi = mesh.EV( ei,1);
       vj = mesh.EV( ei,2);
       C_sub( i,:) = linint_points( mesh.V( vi,:), mesh.V( vj,:), ...
-        d_scaled( vi), d_scaled( vj), 0);
+        d_centred( vi), d_centred( vj), 0);
     end
   
   end
