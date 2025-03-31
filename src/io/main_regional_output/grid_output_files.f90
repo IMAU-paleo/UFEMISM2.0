@@ -337,6 +337,14 @@ contains
       case ('Hs_slope')
         call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hs_slope, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_slope', d_grid_vec_partial_2D)
+      case ('grounding_line')
+        ! Do nothing; only written to mesh files
+      case ('ice_margin')
+        ! Do nothing; only written to mesh files
+      case ('calving_front')
+        ! Do nothing; only written to mesh files
+      case ('coastline')
+        ! Do nothing; only written to mesh files
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -1091,6 +1099,14 @@ contains
         call add_field_grid_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
       case ('Hs_slope')
         call add_field_grid_dp_2D( filename, ncid, 'Hs_slope', long_name = 'Absolute surface gradient', units = '-')
+      case ('grounding_line')
+        ! Do nothing; only written to mesh files
+      case ('ice_margin')
+        ! Do nothing; only written to mesh files
+      case ('calving_front')
+        ! Do nothing; only written to mesh files
+      case ('coastline')
+        ! Do nothing; only written to mesh files
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
