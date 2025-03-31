@@ -15,6 +15,7 @@ module remapping_main
   use remapping_transects
   use remapping_mesh_to_mesh
   use apply_maps
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_signaling_nan
 
   implicit none
 
@@ -772,7 +773,7 @@ contains
     call init_routine( routine_name)
 
     ! Initialise
-    NaN = -0.1234_dp
+    NaN = ieee_value( NaN, ieee_signaling_nan)
 
     ! allocate mask for valid points in a data column
     allocate( z_mask_old( size( vert_src)))
@@ -793,7 +794,6 @@ contains
         ! This grid cell isn't ocean at all
         z_mask_old = 0
         z_floor    = 0._dp
-        NaN = d_src_partial( vi,1)
 
       else
 
@@ -804,7 +804,6 @@ contains
           z_mask_old( k) = 0
           z_floor = vert_src( k)
           k = k - 1
-          NaN = d_src_partial( vi,k)
         end do
 
       end if
