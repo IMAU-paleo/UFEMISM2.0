@@ -10,7 +10,7 @@ module ct_discretisation_mapping_derivatives
   use mpi_basic, only: par, sync
   use mesh_types, only: type_mesh
   use netcdf_io_main
-  use petsc_basic, only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use assertions_basic
   use tests_main
 

@@ -26,7 +26,6 @@ PROGRAM UFEMISM_program
   USE petscksp
   USE precisions                                             , ONLY: dp
   use mpi_basic, only: par, initialise_parallelisation
-  USE petsc_basic                                            , ONLY: perr
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &
                                                                      initialise_control_and_resource_tracker, reset_resource_tracker, &
                                                                      print_UFEMISM_start, print_UFEMISM_end
@@ -59,7 +58,7 @@ PROGRAM UFEMISM_program
   ! Input argument
   character(len=1024)                    :: input_argument
 
-  integer :: ierr
+  integer :: ierr, perr
 
 ! ===== START =====
 ! =================

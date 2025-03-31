@@ -6,7 +6,7 @@ module mesh_disc_calc_matrix_operators_3D
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
-  use CSR_sparse_matrix_utilities, only: deallocate_matrix_CSR_dist, allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: deallocate_matrix_CSR_dist, allocate_matrix_CSR_dist, &
     read_single_row_CSR_dist, add_entry_CSR_dist, crop_matrix_CSR_dist
 
   implicit none

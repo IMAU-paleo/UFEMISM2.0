@@ -24,6 +24,16 @@ ifeq ($(DO_ASSERTIONS),yes)
   F90DEFINITIONS += -DDO_ASSERTIONS
 endif
 
+# Compile with the resource tracker: anything else than yes (no quotes) will
+# result in the model being compiled without it
+#
+# NOTE: this means warnings/crashes will no longer tell you from which
+# subroutine they originated!
+DO_RESOURCE_TRACKING = yes
+ifeq ($(DO_RESOURCE_TRACKING),yes)
+  F90DEFINITIONS += -DDO_RESOURCE_TRACKING
+endif
+
 # ========================================
 #       Building the UFEMISM_program
 # ========================================
@@ -120,6 +130,7 @@ UFEMISM_source = \
   basic/mpi_parallelisation/mpi_distributed_memory.f90 \
   basic/mpi_parallelisation/allocate_dist_shared_mod.f90 \
   basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
+  basic/mpi_parallelisation/reallocate_dist_shared_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
   basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
@@ -140,7 +151,8 @@ UFEMISM_source = \
   basic/math_utilities/shape_functions.f90 \
   \
   basic/analytical_solutions.f90 \
-  basic/CSR_sparse_matrix_utilities.f90 \
+  basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
+  basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
   basic/petsc_basic.f90 \
   \
   basic/grid/grid_basic.f90 \
@@ -149,6 +161,7 @@ UFEMISM_source = \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
+  mesh/mesh_contour.f90 \
   mesh/mesh_dummy_meshes.f90 \
   mesh/mesh_ROI_polygons.f90 \
   mesh/Delaunay/check_Delaunay_criterion.f90 \
@@ -352,6 +365,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
   validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
   validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
+  validation/unit_tests/ut_mpi_multiply_CSR_matrix_vector.f90 \
   validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
   validation/unit_tests/unit_tests_multinode.f90 \
   \

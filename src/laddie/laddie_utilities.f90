@@ -17,8 +17,8 @@ MODULE laddie_utilities
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
-  use petsc_basic                                            , only: multiply_CSR_matrix_with_vector_1D
-  use CSR_sparse_matrix_utilities                            , only: allocate_matrix_CSR_dist
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
 
   IMPLICIT NONE
 

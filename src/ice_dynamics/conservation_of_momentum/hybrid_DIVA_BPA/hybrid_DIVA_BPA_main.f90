@@ -39,8 +39,9 @@ module hybrid_DIVA_BPA_main
   use plane_geometry, only: is_in_polygon, is_in_polygons
   use mpi_distributed_memory, only: gather_to_all
   use zeta_gradients, only: calc_zeta_gradients
-  use CSR_sparse_matrix_utilities, only: type_sparse_matrix_CSR_dp, allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
-    deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
+  use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, &
+    read_single_row_CSR_dist, deallocate_matrix_CSR_dist, add_empty_row_CSR_dist
   use grid_basic, only: type_grid, calc_grid_mask_as_polygons
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary
   use netcdf_io_main
