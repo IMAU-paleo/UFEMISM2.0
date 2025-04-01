@@ -67,11 +67,30 @@ contains
           knn = knn + 1
           if (knn == C%nz_ocean) exit
         end do
-
         ! Check whether non-NaN available at all
         if (knn < C%nz_ocean) then
           ! Fill top values with top non-NaN
           do k = 1, knn
+            d_partial( vi, k) = d_partial( vi, knn)
+          end do
+        end if
+      end if
+    end do
+
+    ! Extrapolate into bedrock
+    do vi = mesh%vi1, mesh%vi2
+      ! Check whether NaN in bottom cell
+      if (d_partial( vi, C%nz_ocean) /= d_partial( vi, C%nz_ocean)) then
+        ! Look for last non-NaN
+        knn = C%nz_ocean
+        do while (d_partial( vi, knn) /= d_partial( vi, knn))
+          knn = knn - 1
+          if (knn == 1) exit
+        end do
+        ! Check whether non-NaN available at all
+        if (knn > 1) then
+          ! Fill bottom values with bottom non-NaN
+          do k = knn, C%nz_ocean
             d_partial( vi, k) = d_partial( vi, knn)
           end do
         end if
