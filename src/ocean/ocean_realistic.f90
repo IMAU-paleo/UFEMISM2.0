@@ -62,7 +62,7 @@ contains
 
   end subroutine run_ocean_model_realistic
 
-  subroutine initialise_ocean_model_realistic( mesh, ocean, region_name)
+  subroutine initialise_ocean_model_realistic( mesh, ice, ocean, region_name)
     ! Initialise the ocean model
     !
     ! Use an realistic ocean scheme
@@ -71,6 +71,7 @@ contains
 
     ! In- and output variables
     type(type_mesh),                        intent(in)    :: mesh
+    type(type_ice_model),                   intent(in)    :: ice
     type(type_ocean_model),                 intent(inout) :: ocean
     character(len=3),                       intent(in)    :: region_name
 
@@ -110,8 +111,8 @@ contains
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)
           case('initialisation')
-            call extrapolate_ocean_forcing( mesh, ocean%T)
-            call extrapolate_ocean_forcing( mesh, ocean%S) 
+            call extrapolate_ocean_forcing( mesh, ice, ocean%T)
+            call extrapolate_ocean_forcing( mesh, ice, ocean%S) 
           case default
             call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
         end select
