@@ -27,7 +27,7 @@ contains
     character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing'
     integer                               :: vi, k, knn
     integer, dimension(mesh%vi1:mesh%vi2) :: mask_fill
-    real(dp), parameter                   :: sigma = 4e4
+    real(dp), parameter                   :: sigma = 12e3
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -100,19 +100,19 @@ contains
     ! == Step 3: extrapolate horizontally everywhere ==
 
     ! Extrapolate into NaN areas independently for each layer
-   ! do k = 1, C%nz_ocean
+    do k = 1, C%nz_ocean
       ! Initialise assuming there's valid data everywhere
-   !   mask_fill = 2
+      mask_fill = 2
       ! Check this mesh layer for NaNs
-   !   do vi = mesh%vi1, mesh%vi2
-   !     if (d_partial( vi,k) /= d_partial( vi,k)) then
+      do vi = mesh%vi1, mesh%vi2
+        if (d_partial( vi,k) /= d_partial( vi,k)) then
           ! if NaN, allow extrapolation here
-   !       mask_fill( vi) = 1
-   !     end if
-   !   end do
+          mask_fill( vi) = 1
+        end if
+      end do
       ! Fill NaN vertices within this layer
-   !   call extrapolate_Gaussian( mesh, mask_fill, d_partial(:,k), sigma)
-   ! end do
+      call extrapolate_Gaussian( mesh, mask_fill, d_partial(:,k), sigma)
+    end do
 
     ! Finalise routine path
     call finalise_routine( routine_name)
