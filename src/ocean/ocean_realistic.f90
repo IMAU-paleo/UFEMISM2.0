@@ -14,6 +14,7 @@ module ocean_realistic
   use ice_model_types                                        , only: type_ice_model
   use ocean_model_types                                      , only: type_ocean_model
   use netcdf_io_main
+  use ocean_extrapolation                                    , only: extrapolate_ocean_forcing
 
   implicit none
 
@@ -47,7 +48,7 @@ contains
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)
           case('initialisation')
-            ! TODO 
+            ! nothing to do here 
           case default
             call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
         end select
@@ -109,7 +110,8 @@ contains
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)
           case('initialisation')
-            ! TODO 
+            call extrapolate_ocean_forcing( mesh, ocean%T)
+            call extrapolate_ocean_forcing( mesh, ocean%S) 
           case default
             call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
         end select

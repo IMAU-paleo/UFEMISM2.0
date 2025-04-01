@@ -7,7 +7,7 @@ module remapping_main
   use mesh_types, only: type_mesh
   use transect_types, only: type_transect
   use interpolation, only: remap_cons_2nd_order_1D
-  use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
+  use mesh_utilities, only: check_if_meshes_are_identical
   use remapping_grid_to_mesh_vertices
   use remapping_grid_to_mesh_triangles
   use remapping_mesh_vertices_to_grid
@@ -765,10 +765,9 @@ contains
     character(len=1024), parameter     :: routine_name = 'map_from_vertical_to_vertical_2D_ocean'
     integer                            :: vi, k
     logical                            :: got_ocean
-    integer, dimension(:), allocatable :: z_mask_old, z_mask_new, mask_fill
+    integer, dimension(:), allocatable :: z_mask_old, z_mask_new
     real(dp)                           :: z_floor, z_ceil
     real(dp)                           :: NaN
-    real(dp), parameter                :: sigma = 4e4
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -868,28 +867,9 @@ contains
 
     end do
 
-    ! allocate mask for extrapolation
-    !allocate( mask_fill( mesh%vi1:mesh%vi2))
-
-    ! Extrapolate into NaN areas independently for each layer
-    !do k = 1, size(vert_dst)
-      ! Initialise assuming there's valid data everywhere
-    !  mask_fill = 2
-      ! Check this mesh layer for NaNs
-    !  do vi = mesh%vi1, mesh%vi2
-    !    if (d_dst_partial( vi,k) /= d_dst_partial( vi,k)) then
-          ! if NaN, allow extrapolation here
-    !      mask_fill( vi) = 1
-    !    end if
-    !  end do
-      ! Fill NaN vertices within this layer
-    !  call extrapolate_Gaussian( mesh, mask_fill, d_dst_partial(:,k), sigma)
-    !end do
-
     ! Clean up after yourself
     deallocate( z_mask_old)
     deallocate( z_mask_new)
-    !deallocate( mask_fill)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -256,6 +256,7 @@ UFEMISM_source = \
   surface_mass_balance/SMB_main.f90 \
   \
   ocean/ocean_utilities.f90 \
+  ocean/ocean_extrapolation.f90 \
   ocean/ocean_idealised.f90 \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
