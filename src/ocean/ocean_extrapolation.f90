@@ -25,7 +25,7 @@ contains
 
     ! Local variables
     character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing'
-    integer                               :: vi, k
+    integer                               :: vi, k, knn
     integer, dimension(mesh%vi1:mesh%vi2) :: mask_fill
     real(dp), parameter                   :: sigma = 4e4
 
@@ -56,6 +56,27 @@ contains
     end do
 
     ! == Step 2: extrapolate vertically into ice shelf and bedrock ==
+
+    ! Extrapolate into ice shelf
+    do vi = mesh%vi1, mesh%vi2
+      ! Check whether NaN in top cell
+      if (d_partial( vi, 1) /= d_partial( vi, 1)) then
+        ! Look for first non-NaN
+        knn = 1
+        do while (d_partial( vi, knn) /= d_partial( vi, knn))
+          knn = knn + 1
+          if (knn == C%nz_ocean) exit
+        end do
+
+        ! Check whether non-NaN available at all
+        if (knn < C%nz_ocean) then
+          ! Fill top values with top non-NaN
+          do k = 1, knn
+            d_partial( vi, k) = d_partial( vi, knn)
+          end do
+        end if
+      end if
+    end do
 
     ! == Step 3: extrapolate horizontally everywhere ==
 
