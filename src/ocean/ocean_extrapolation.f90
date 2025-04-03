@@ -19,9 +19,9 @@ contains
     ! Extrapolate offshore ocean properties into full domain
 
     ! In/output variables
-    type(type_mesh),                                   intent(in)  :: mesh
-    type(type_ice_model),                              intent(in)  :: ice
-    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz_ocean), intent(out) :: d
+    type(type_mesh),                                   intent(in)    :: mesh
+    type(type_ice_model),                              intent(in)    :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz_ocean), intent(inout) :: d
 
     ! Local variables
     character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing'
