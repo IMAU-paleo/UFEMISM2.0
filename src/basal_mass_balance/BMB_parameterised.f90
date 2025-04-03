@@ -43,6 +43,8 @@ CONTAINS
     SELECT CASE (C%choice_BMB_model_parameterised)
       CASE ('Favier2019')
         CALL run_BMB_model_parameterised_Favier2019( mesh, ice, ocean, BMB)
+      CASE ('Favier2019slope')
+        CALL run_BMB_model_parameterised_Favier2019slope( mesh, ice, ocean, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_parameterised "' // TRIM( C%choice_BMB_model_parameterised) // '"')
     END SELECT
@@ -176,6 +178,8 @@ CONTAINS
     ! Initialise the chosen parameterised BMB model
     SELECT CASE (C%choice_BMB_model_parameterised)
       CASE ('Favier2019')
+        ! No need to do anything
+      CASE ('Favier2019slope')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_parameterised "' // TRIM( C%choice_BMB_model_parameterised) // '"')
