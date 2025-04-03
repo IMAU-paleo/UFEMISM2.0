@@ -10,7 +10,7 @@ module tracer_tracking_model_particles_main
   use tracer_tracking_model_particles_basic, only: update_particle_velocity, create_particle_at_ice_surface
   use SMB_model_types, only: type_SMB_model
   use grid_basic, only: setup_square_grid
-  use remapping_main, only: map_from_mesh_to_xy_grid_2D
+  use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D
   use mpi_distributed_memory, only: gather_to_all
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_all
   use tracer_tracking_model_particles_io, only: create_particles_netcdf_file, write_to_particles_netcdf_file
@@ -177,9 +177,9 @@ contains
     allocate( SMB_grid_vec_partial( particles%grid_new_particles%n1: particles%grid_new_particles%n2))
 
     ! Map ice thickness and SMB to the particle creation grid
-    call map_from_mesh_to_xy_grid_2D( mesh, particles%grid_new_particles, &
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, particles%grid_new_particles, &
       ice%Hi , Hi_grid_vec_partial)
-    call map_from_mesh_to_xy_grid_2D( mesh, particles%grid_new_particles, &
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, particles%grid_new_particles, &
       SMB%SMB, SMB_grid_vec_partial)
 
     ! Gather data to all processes, so they can be interpolated to the particle positions

@@ -7,7 +7,7 @@ module grid_output_files
   use region_types, only: type_model_region
   use grid_types, only: type_grid
   use netcdf_io_main
-  use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, map_from_mesh_to_xy_grid_2D_minval
+  use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D, map_from_mesh_vertices_to_xy_grid_3D, map_from_mesh_vertices_to_xy_grid_2D_minval
 
   implicit none
 
@@ -260,7 +260,7 @@ contains
 
       case ('resolution')
         d_mesh_vec_partial_2D = region%mesh%R( region%mesh%vi1:region%mesh%vi2)
-        call map_from_mesh_to_xy_grid_2D_minval( region%mesh, grid, d_mesh_vec_partial_2D, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D_minval( region%mesh, grid, d_mesh_vec_partial_2D, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'resolution', d_grid_vec_partial_2D)
 
     ! ===== Reference geometries =====
@@ -268,72 +268,72 @@ contains
 
       ! Initial ice-sheet geometry
       case ('Hi_init')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hi, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hi, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hi_init', d_grid_vec_partial_2D)
       case ('Hb_init')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hb, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hb, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hb_init', d_grid_vec_partial_2D)
       case ('Hs_init')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hs, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%Hs, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hs_init', d_grid_vec_partial_2D)
       case ('SL_init')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%SL, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_init%SL, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'SL_init', d_grid_vec_partial_2D)
 
       ! Present-day ice-sheet geometry
       case ('Hi_PD')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hi, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hi, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hi_PD', d_grid_vec_partial_2D)
       case ('Hb_PD')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hb, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hb, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hb_PD', d_grid_vec_partial_2D)
       case ('Hs_PD')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hs, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%Hs, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hs_PD', d_grid_vec_partial_2D)
       case ('SL_PD')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%SL, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_PD%SL, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'SL_PD', d_grid_vec_partial_2D)
 
       ! GIA equilibrium ice-sheet geometry
       case ('Hi_GIAeq')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hi, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hi, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hi_GIAeq', d_grid_vec_partial_2D)
       case ('Hb_GIAeq')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hb, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hb, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hb_GIAeq', d_grid_vec_partial_2D)
       case ('Hs_GIAeq')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hs, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%Hs, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'Hs_GIAeq', d_grid_vec_partial_2D)
       case ('SL_GIAeq')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%SL, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%refgeo_GIAeq%SL, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D_notime( grid, filename, ncid, 'SL_GIAeq', d_grid_vec_partial_2D)
 
     ! ===== Basic ice-sheet geometry =====
     ! ====================================
 
       case ('Hi')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hi, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%Hi, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi', d_grid_vec_partial_2D)
       case ('Hb')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hb, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%Hb, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hb', d_grid_vec_partial_2D)
       case ('Hs')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hs, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%Hs, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs', d_grid_vec_partial_2D)
       case ('Hib')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hib, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%Hib, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hib', d_grid_vec_partial_2D)
       case ('SL')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%SL, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%SL, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL', d_grid_vec_partial_2D)
       case ('TAF')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%TAF, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%TAF, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'TAF', d_grid_vec_partial_2D)
       case ('Hi_eff')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hi_eff, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%Hi_eff, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hi_eff', d_grid_vec_partial_2D)
       case ('Hs_slope')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Hs_slope, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%Hs_slope, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Hs_slope', d_grid_vec_partial_2D)
       case ('grounding_line')
         ! Do nothing; only written to mesh files
@@ -348,49 +348,49 @@ contains
     ! =============================================
 
       case ('dHi')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHi, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi', d_grid_vec_partial_2D)
       case ('dHb')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHb, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHb, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb', d_grid_vec_partial_2D)
       case ('dHs')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHs, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHs, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHs', d_grid_vec_partial_2D)
       case ('dHib')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHib, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHib, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHib', d_grid_vec_partial_2D)
 
     ! ===== Geometry rates of change =====
     ! ====================================
 
       case ('dHi_dt')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt', d_grid_vec_partial_2D)
       case ('dHb_dt')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHb_dt, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHb_dt, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_dt', d_grid_vec_partial_2D)
       case ('dHs_dt')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHs_dt, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHs_dt, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHs_dt', d_grid_vec_partial_2D)
       case ('dHib_dt')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHib_dt, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHib_dt, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHib_dt', d_grid_vec_partial_2D)
       case ('dHi_dt_raw')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_raw, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_raw, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_raw', d_grid_vec_partial_2D)
       case ('dHi_dt_residual')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_residual, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_residual, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_residual', d_grid_vec_partial_2D)
 
     ! ===== Target quantities =====
     ! =============================
 
       case ('dHi_dt_target')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_target', d_grid_vec_partial_2D)
 
       case ('uabs_surf_target')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf_target, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf_target, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_surf_target', d_grid_vec_partial_2D)
 
     ! ===== Masks =====
@@ -429,28 +429,28 @@ contains
     ! ===================================
 
       case ('Ti')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ti, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%Ti, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ti', d_grid_vec_partial_3D)
       case ('Ti_pmp')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ti_pmp, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%Ti_pmp, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ti_pmp', d_grid_vec_partial_3D)
       case ('Ti_hom')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%Ti_hom, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%Ti_hom, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'Ti_hom', d_grid_vec_partial_2D)
       case ('Cpi')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Cpi, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%Cpi, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Cpi', d_grid_vec_partial_3D)
       case ('Ki')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%Ki, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%Ki, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'Ki', d_grid_vec_partial_3D)
       case ('internal_heating')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%internal_heating, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%internal_heating, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'internal_heating', d_grid_vec_partial_3D)
       case ('frictional_heating')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%frictional_heating, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%frictional_heating, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'frictional_heating', d_grid_vec_partial_2D)
       case ('A_flow')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%A_flow, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%A_flow, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'A_flow', d_grid_vec_partial_3D)
 
     ! === Ice velocities ===
@@ -458,72 +458,72 @@ contains
 
       ! 3-D
       case ('u_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%u_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%u_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'u_3D', d_grid_vec_partial_3D)
       case ('v_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%v_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%v_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'v_3D', d_grid_vec_partial_3D)
       case ('u_3D_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('v_3D_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('w_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%w_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%w_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'w_3D', d_grid_vec_partial_3D)
 
       ! Vertically integrated
       case ('u_vav')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%u_vav, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%u_vav, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_vav', d_grid_vec_partial_2D)
       case ('v_vav')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%v_vav, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%v_vav, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_vav', d_grid_vec_partial_2D)
       case ('u_vav_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('v_vav_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('uabs_vav')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_vav, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_vav, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_vav', d_grid_vec_partial_2D)
       case ('uabs_vav_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
 
       ! Surface
       case ('u_surf')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%u_surf, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%u_surf, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_surf', d_grid_vec_partial_2D)
       case ('v_surf')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%v_surf, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%v_surf, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_surf', d_grid_vec_partial_2D)
       case ('u_surf_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('v_surf_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('w_surf')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%w_surf, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%w_surf, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'w_surf', d_grid_vec_partial_2D)
       case ('uabs_surf')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_surf', d_grid_vec_partial_2D)
       case ('uabs_surf_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
 
       ! Base
       case ('u_base')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%u_base, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%u_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_base', d_grid_vec_partial_2D)
       case ('v_base')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%v_base, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%v_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_base', d_grid_vec_partial_2D)
       case ('u_base_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('v_base_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('w_base')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%w_base, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%w_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'w_base', d_grid_vec_partial_2D)
       case ('uabs_base')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_base, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_base', d_grid_vec_partial_2D)
       case ('uabs_base_b')
         ! notE: mapping from mesh triangles to square grid is not (yet) available!
@@ -532,48 +532,48 @@ contains
     ! ====================
 
       case ('du_dx_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%du_dx_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%du_dx_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'du_dx_3D', d_grid_vec_partial_3D)
       case ('du_dy_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%du_dy_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%du_dy_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'du_dy_3D', d_grid_vec_partial_3D)
       case ('du_dz_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%du_dz_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%du_dz_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'du_dz_3D', d_grid_vec_partial_3D)
       case ('dv_dx_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dx_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dx_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dv_dx_3D', d_grid_vec_partial_3D)
       case ('dv_dy_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dy_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dy_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dv_dy_3D', d_grid_vec_partial_3D)
       case ('dv_dz_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dz_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%dv_dz_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dv_dz_3D', d_grid_vec_partial_3D)
       case ('dw_dx_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dx_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dx_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dw_dx_3D', d_grid_vec_partial_3D)
       case ('dw_dy_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dy_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dy_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dw_dy_3D', d_grid_vec_partial_3D)
       case ('dw_dz_3D')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dz_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%dw_dz_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'dw_dz_3D', d_grid_vec_partial_3D)
 
     ! == Ice flow regime ==
     ! =====================
 
       case ('divQ')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%divQ, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%divQ, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQ', d_grid_vec_partial_2D)
       case ('R_shear')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%R_shear, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%R_shear, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'R_shear', d_grid_vec_partial_2D)
 
     ! == Ice P/C time stepping ==
     ! ===========================
 
       case ('pc_truncation_error')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pc%tau_np1, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%pc%tau_np1, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pc_truncation_error', d_grid_vec_partial_2D)
       case ('pc_untolerated_events')
         ! DENK DROM : not gridable
@@ -582,19 +582,19 @@ contains
     ! =====================
 
       case ('pore_water_pressure')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_pressure, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_pressure, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pore_water_pressure', d_grid_vec_partial_2D)
       case ('overburden_pressure')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%overburden_pressure, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%overburden_pressure, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'overburden_pressure', d_grid_vec_partial_2D)
       case ('effective_pressure')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%effective_pressure, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%effective_pressure, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'effective_pressure', d_grid_vec_partial_2D)
       case ('pore_water_likelihood')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_likelihood, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_likelihood, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pore_water_likelihood', d_grid_vec_partial_2D)
       case ('pore_water_fraction')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_fraction, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%pore_water_fraction, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'pore_water_fraction', d_grid_vec_partial_2D)
 
     ! == Basal sliding ==
@@ -602,34 +602,34 @@ contains
 
       ! Sliding law coefficients
       case ('till_friction_angle')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_friction_angle', d_grid_vec_partial_2D)
       case ('bed_roughness')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%bed_roughness, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%bed_roughness, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness', d_grid_vec_partial_2D)
       case ('till_yield_stress')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_yield_stress', d_grid_vec_partial_2D)
       case ('slid_alpha_sq')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%slid_alpha_sq, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%slid_alpha_sq, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'slid_alpha_sq', d_grid_vec_partial_2D)
       case ('slid_beta_sq')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%slid_beta_sq, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%slid_beta_sq, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'slid_beta_sq', d_grid_vec_partial_2D)
 
       ! Basal friction and shear stress
       case ('basal_friction_coefficient')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%basal_friction_coefficient, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%basal_friction_coefficient, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'basal_friction_coefficient', d_grid_vec_partial_2D)
       case ('basal_shear_stress')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%basal_shear_stress, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%basal_shear_stress, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'basal_shear_stress', d_grid_vec_partial_2D)
 
     ! == Geothermal heat ==
     ! =====================
 
       case ('geothermal_heat_flux')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%geothermal_heat_flux, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%geothermal_heat_flux, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'geothermal_heat_flux', d_grid_vec_partial_2D)
 
     ! == Climate ==
@@ -637,10 +637,10 @@ contains
 
       ! Main climate variables
       case ('T2m')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%climate%T2m, d_grid_vec_partial_2D_monthly)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%climate%T2m, d_grid_vec_partial_2D_monthly)
         call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'T2m', d_grid_vec_partial_2D_monthly)
       case ('Precip')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%climate%Precip, d_grid_vec_partial_2D_monthly)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%climate%Precip, d_grid_vec_partial_2D_monthly)
         call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Precip', d_grid_vec_partial_2D_monthly)
 
     ! == Ocean ==
@@ -648,10 +648,10 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ocean%T, d_grid_vec_partial_3D_ocean)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ocean%T, d_grid_vec_partial_3D_ocean)
         call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'T_ocean', d_grid_vec_partial_3D_ocean)
       case ('S_ocean')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%ocean%S, d_grid_vec_partial_3D_ocean)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ocean%S, d_grid_vec_partial_3D_ocean)
         call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'S_ocean', d_grid_vec_partial_3D_ocean)
       case ('T_draft')
         call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ocean%T_draft, d_grid_vec_partial_2D)
@@ -665,7 +665,7 @@ contains
 
       ! Main SMB variables
       case ('SMB')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%SMB%SMB, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%SMB%SMB, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SMB', d_grid_vec_partial_2D)
 
     ! == Basal mass balance ==
@@ -673,16 +673,16 @@ contains
 
       ! Main BMB variables
       case ('BMB')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB', d_grid_vec_partial_2D)
       case ('BMB_inv')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_inv, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_inv, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_inv', d_grid_vec_partial_2D)
       case ('BMB_transition_phase')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_transition_phase, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_transition_phase, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_transition_phase', d_grid_vec_partial_2D)
       case ('BMB_modelled')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_modelled, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%BMB_modelled, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'BMB_modelled', d_grid_vec_partial_2D)
 
     ! == LADDIE ==
@@ -690,67 +690,67 @@ contains
 
       ! Main laddie variables
       case ('H_lad')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%H, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%H, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'H_lad', d_grid_vec_partial_2D)
       case ('U_lad')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%U_a, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%U_a, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'U_lad', d_grid_vec_partial_2D)
       case ('V_lad')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%V_a, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%V_a, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'V_lad', d_grid_vec_partial_2D)
       case ('T_lad')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%T, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%T, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_lad', d_grid_vec_partial_2D)
       case ('S_lad')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%S, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%S, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'S_lad', d_grid_vec_partial_2D)
 
       ! Useful laddie fields
       case ('drho_amb')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_amb, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_amb, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'drho_amb', d_grid_vec_partial_2D)
       case ('drho_base')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_base, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%drho_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'drho_base', d_grid_vec_partial_2D)
       case ('entr')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'entr', d_grid_vec_partial_2D)
       case ('entr_dmin')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr_dmin, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%entr_dmin, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'entr_dmin', d_grid_vec_partial_2D)
       case ('melt')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%melt, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%melt, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'melt', d_grid_vec_partial_2D)
       case ('divQH')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQH, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQH, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQH', d_grid_vec_partial_2D)
       case ('divQT')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQT, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQT, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQT', d_grid_vec_partial_2D)
       case ('divQS')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQS, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQS, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQS', d_grid_vec_partial_2D)
       case ('diffT')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffT, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffT, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'diffT', d_grid_vec_partial_2D)
       case ('diffS')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffS, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffS, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'diffS', d_grid_vec_partial_2D)
       case ('viscU')
         ! not implemented
       case ('viscV')
         ! not implemented
       case ('T_base')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_base, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_base', d_grid_vec_partial_2D)
       case ('T_amb')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_amb, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_amb, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_amb', d_grid_vec_partial_2D)
       case ('u_star')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%u_star, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%u_star, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_star', d_grid_vec_partial_2D)
       case ('gamma_T')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%gamma_T, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%gamma_T, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'gamma_T', d_grid_vec_partial_2D)
       case ('divQU')
         ! not implemented
@@ -766,7 +766,7 @@ contains
 
       ! Main LMB variables
       case ('LMB')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%LMB%LMB, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%LMB%LMB, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'LMB', d_grid_vec_partial_2D)
 
     ! == Artificial mass balance ==
@@ -774,7 +774,7 @@ contains
 
       ! Main AMB variables
       case ('AMB')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%AMB%AMB, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%AMB%AMB, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'AMB', d_grid_vec_partial_2D)
 
     ! == Glacial isostatic adjustment ==
@@ -782,14 +782,14 @@ contains
 
       ! Main GIA variables
       case ('dHb_next')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_next', d_grid_vec_partial_2D)
 
     ! == Tracer tracking ==
     ! =====================
 
       case ('age')
-        call map_from_mesh_to_xy_grid_3D( region%mesh, grid, region%tracer_tracking%age, d_grid_vec_partial_3D)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%tracer_tracking%age, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'age', d_grid_vec_partial_3D)
 
     end select
