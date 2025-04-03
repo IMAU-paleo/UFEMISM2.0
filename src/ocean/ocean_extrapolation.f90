@@ -25,14 +25,44 @@ contains
 
     ! Local variables
     character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing'
-    integer                               :: vi, k, knn
-    integer, dimension(mesh%vi1:mesh%vi2) :: mask_fill
     real(dp), parameter                   :: sigma = 12e3
 
     ! Add routine to path
     call init_routine( routine_name)
 
     ! == Step 1: extrapolate horizontally into cavity ==
+
+    call extrapolate_ocean_forcing_horizontal_cavity( mesh, ice, d, sigma)
+
+    ! == Step 2: extrapolate vertically into ice shelf and bedrock ==
+
+    call extrapolate_ocean_forcing_vertical( mesh, d)
+
+    ! == Step 3: extrapolate horizontally everywhere ==
+
+    call extrapolate_ocean_forcing_horizontal_everywhere( mesh, d, sigma)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine extrapolate_ocean_forcing
+
+  subroutine extrapolate_ocean_forcing_horizontal_cavity( mesh, ice, d, sigma)
+    ! Extrapolate offshore ocean properties into cavities
+
+    ! In/output variables
+    type(type_mesh),                                   intent(in)    :: mesh
+    type(type_ice_model),                              intent(in)    :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz_ocean), intent(inout) :: d
+    real(dp),                                          intent(in)    :: sigma
+
+    ! Local variables
+    character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing_horizontal_cavity'
+    integer                               :: vi, k
+    integer, dimension(mesh%vi1:mesh%vi2) :: mask_fill
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     do k = 1, C%nz_ocean
       ! Initialise assuming there's valid data everywhere
@@ -55,7 +85,25 @@ contains
       call extrapolate_Gaussian( mesh, mask_fill, d(:,k), sigma)
     end do
 
-    ! == Step 2: extrapolate vertically into ice shelf and bedrock ==
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine extrapolate_ocean_forcing_horizontal_cavity
+
+  subroutine extrapolate_ocean_forcing_vertical( mesh, d)
+    ! Extrapolate non-NaN ocean properties upward into ice shelves
+    ! and downward into bedrock
+
+    ! In/output variables
+    type(type_mesh),                                   intent(in)    :: mesh
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz_ocean), intent(inout) :: d
+
+    ! Local variables
+    character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing_vertical'
+    integer                               :: vi, k, knn
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Extrapolate into ice shelf
     do vi = mesh%vi1, mesh%vi2
@@ -97,7 +145,29 @@ contains
       end if
     end do
 
-    ! == Step 3: extrapolate horizontally everywhere ==
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine extrapolate_ocean_forcing_vertical
+
+  subroutine extrapolate_ocean_forcing_horizontal_everywhere( mesh, d, sigma)
+    ! Extrapolate ocean properties horizontally into full domain
+    ! including into grounded ice and bedrock below
+
+    ! TODO this should be performed per IMBIE basin to be fully compliant with ISMIP6
+
+    ! In/output variables
+    type(type_mesh),                                   intent(in)    :: mesh
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz_ocean), intent(inout) :: d
+    real(dp),                                          intent(in)    :: sigma
+
+    ! Local variables
+    character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing_horizontal_everywhere'
+    integer                               :: vi, k
+    integer, dimension(mesh%vi1:mesh%vi2) :: mask_fill
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Extrapolate into NaN areas independently for each layer
     do k = 1, C%nz_ocean
@@ -117,6 +187,6 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine extrapolate_ocean_forcing
+  end subroutine extrapolate_ocean_forcing_horizontal_everywhere
 
 end module ocean_extrapolation
