@@ -174,6 +174,7 @@ contains
     integer :: id_var_ETri
     integer :: id_var_TriE
     integer :: id_var_EBI
+    integer :: id_var_EA
 
     integer :: id_var_vi2vori
     integer :: id_var_ti2vori
@@ -323,6 +324,10 @@ contains
     call create_variable( filename, ncid, get_first_option_from_list( field_name_options_EBI           ), NF90_INT   , (/ id_dim_ei               /), id_var_EBI           )
     call add_attribute_char( filename, ncid, id_var_EBI, 'long_name'  , 'Edge boundary index')
     call add_attribute_char( filename, ncid, id_var_EBI, 'orientation', '1 = N, 2 = NE, 3 = E, 4 = SE, 5 = S, 6 = SW, 7 = W, 8 = NW')
+    ! EA
+    call create_variable( filename, ncid, get_first_option_from_list( field_name_options_EA), NF90_DOUBLE, (/ id_dim_ei /), id_var_EA)
+    call add_attribute_char( filename, ncid, id_var_EA, 'long_name'  , 'Edge area')
+    call add_attribute_char( filename, ncid, id_var_EA, 'units', 'm^2')
 
     ! == Create mesh variables - Voronoi mesh data
     ! ============================================
@@ -419,6 +424,7 @@ contains
     call write_var_primary( filename, ncid, id_var_ETri, mesh%ETri)
     call write_var_primary( filename, ncid, id_var_TriE, mesh%TriE)
     call write_var_primary( filename, ncid, id_var_EBI , mesh%EBI )
+    call write_var_primary( filename, ncid, id_var_EA  , mesh%EA  )
 
     ! Voronoi mesh data
     call write_var_primary( filename, ncid, id_var_vi2vori, mesh%vi2vori)
