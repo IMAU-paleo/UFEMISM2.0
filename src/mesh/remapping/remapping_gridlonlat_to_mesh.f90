@@ -1,4 +1,4 @@
-module create_maps_gridlonlat_mesh
+module remapping_gridlonlat_to_mesh
 
   ! Create remapping objects between a lon/lat-grid and a mesh.
 
@@ -113,4 +113,4 @@ subroutine create_map_from_lonlat_grid_to_mesh( grid, mesh, map)
 
 end subroutine create_map_from_lonlat_grid_to_mesh
 
-end module create_maps_gridlonlat_mesh
+end module remapping_gridlonlat_to_mesh
