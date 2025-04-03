@@ -27,7 +27,8 @@ module remapping_mesh_vertices_to_grid
 
   private
 
-  public :: create_map_from_mesh_vertices_to_xy_grid
+  public :: create_map_from_mesh_vertices_to_xy_grid, calc_approximate_overlaps, calc_A_matrices, &
+    calc_w_matrices, dump_grid_and_mesh_to_netcdf, delete_grid_and_mesh_netcdf_dump_files
 
 contains
 
