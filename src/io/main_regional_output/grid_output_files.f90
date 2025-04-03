@@ -7,7 +7,9 @@ module grid_output_files
   use region_types, only: type_model_region
   use grid_types, only: type_grid
   use netcdf_io_main
-  use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D, map_from_mesh_vertices_to_xy_grid_3D, map_from_mesh_vertices_to_xy_grid_2D_minval
+  use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D, &
+    map_from_mesh_vertices_to_xy_grid_3D, map_from_mesh_vertices_to_xy_grid_2D_minval, &
+    map_from_mesh_triangles_to_xy_grid_2D, map_from_mesh_triangles_to_xy_grid_3D
 
   implicit none
 
@@ -458,75 +460,53 @@ contains
 
       ! 3-D
       case ('u_3D')
-        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%u_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_triangles_to_xy_grid_3D( region%mesh, grid, region%ice%u_3D_b, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'u_3D', d_grid_vec_partial_3D)
       case ('v_3D')
-        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%v_3D, d_grid_vec_partial_3D)
+        call map_from_mesh_triangles_to_xy_grid_3D( region%mesh, grid, region%ice%v_3D_b, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'v_3D', d_grid_vec_partial_3D)
-      case ('u_3D_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
-      case ('v_3D_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('w_3D')
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ice%w_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'w_3D', d_grid_vec_partial_3D)
 
       ! Vertically integrated
       case ('u_vav')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%u_vav, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%u_vav_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_vav', d_grid_vec_partial_2D)
       case ('v_vav')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%v_vav, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%v_vav_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_vav', d_grid_vec_partial_2D)
-      case ('u_vav_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
-      case ('v_vav_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('uabs_vav')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_vav, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_vav_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_vav', d_grid_vec_partial_2D)
-      case ('uabs_vav_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
 
       ! Surface
       case ('u_surf')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%u_surf, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%u_surf_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_surf', d_grid_vec_partial_2D)
       case ('v_surf')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%v_surf, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%v_surf_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_surf', d_grid_vec_partial_2D)
-      case ('u_surf_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
-      case ('v_surf_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('w_surf')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%w_surf, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'w_surf', d_grid_vec_partial_2D)
       case ('uabs_surf')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_surf', d_grid_vec_partial_2D)
-      case ('uabs_surf_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
 
       ! Base
       case ('u_base')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%u_base, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%u_base_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_base', d_grid_vec_partial_2D)
       case ('v_base')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%v_base, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%v_base_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_base', d_grid_vec_partial_2D)
-      case ('u_base_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
-      case ('v_base_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
       case ('w_base')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%w_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'w_base', d_grid_vec_partial_2D)
       case ('uabs_base')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_base, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_base_b, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_base', d_grid_vec_partial_2D)
-      case ('uabs_base_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
 
     ! === Strain rates ===
     ! ====================
@@ -687,10 +667,10 @@ contains
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%H, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'H_lad', d_grid_vec_partial_2D)
       case ('U_lad')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%U_a, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%U, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'U_lad', d_grid_vec_partial_2D)
       case ('V_lad')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%V_a, d_grid_vec_partial_2D)
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%V, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'V_lad', d_grid_vec_partial_2D)
       case ('T_lad')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%now%T, d_grid_vec_partial_2D)
@@ -731,9 +711,11 @@ contains
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%diffS, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'diffS', d_grid_vec_partial_2D)
       case ('viscU')
-        ! not implemented
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%viscU, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'viscU', d_grid_vec_partial_2D)
       case ('viscV')
-        ! not implemented
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%viscV, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'viscV', d_grid_vec_partial_2D)
       case ('T_base')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%T_base, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_base', d_grid_vec_partial_2D)
@@ -747,13 +729,15 @@ contains
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%gamma_T, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'gamma_T', d_grid_vec_partial_2D)
       case ('divQU')
-        ! not implemented
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQU, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQU', d_grid_vec_partial_2D)
       case ('divQV')
-        ! not implemented
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%divQV, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'divQV', d_grid_vec_partial_2D)
       case ('HU_lad')
-        ! not implemented
+        ! Not implemented
       case ('HV_lad')
-        ! not implemented
+        ! Not implemented
 
     ! == Lateral mass balance ==
     ! ==========================
