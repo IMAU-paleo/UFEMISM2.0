@@ -40,7 +40,7 @@ contains
       ! Check for NaNs in cavity
       do vi = mesh%vi1, mesh%vi2
         ! Check for NaNs
-        if (d_partial( vi, k) /= d_partial( vi, k)) then
+        if (isnan(d_partial( vi, k))) then
           ! Check whether in cavity
           if ((C%z_ocean( k) > -ice%Hib( vi)) .and. (C%z_ocean( k) < -ice%Hb( vi))) then
             ! In cavity, so extrapolate here
@@ -60,10 +60,10 @@ contains
     ! Extrapolate into ice shelf
     do vi = mesh%vi1, mesh%vi2
       ! Check whether NaN in top cell
-      if (d_partial( vi, 1) /= d_partial( vi, 1)) then
+      if (isnan(d_partial( vi, 1))) then
         ! Look for first non-NaN
         knn = 1
-        do while (d_partial( vi, knn) /= d_partial( vi, knn))
+        do while (isnan(d_partial( vi, knn)))
           knn = knn + 1
           if (knn == C%nz_ocean) exit
         end do
@@ -80,10 +80,10 @@ contains
     ! Extrapolate into bedrock
     do vi = mesh%vi1, mesh%vi2
       ! Check whether NaN in bottom cell
-      if (d_partial( vi, C%nz_ocean) /= d_partial( vi, C%nz_ocean)) then
+      if (isnan(d_partial( vi, C%nz_ocean))) then
         ! Look for last non-NaN
         knn = C%nz_ocean
-        do while (d_partial( vi, knn) /= d_partial( vi, knn))
+        do while (isnan(d_partial( vi, knn)))
           knn = knn - 1
           if (knn == 1) exit
         end do
@@ -105,7 +105,7 @@ contains
       mask_fill = 2
       ! Check this mesh layer for NaNs
       do vi = mesh%vi1, mesh%vi2
-        if (d_partial( vi,k) /= d_partial( vi,k)) then
+        if (isnan(d_partial( vi,k))) then
           ! if NaN, allow extrapolation here
           mask_fill( vi) = 1
         end if

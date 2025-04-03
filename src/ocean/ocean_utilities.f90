@@ -189,13 +189,13 @@ CONTAINS
     END DO ! DO WHILE (.NOT. foundit)
 
     ! Get interpolated value
-    if ((f_ocean( k_hi) /= f_ocean( k_hi)) .and. (f_ocean( k_lo) /= f_ocean( k_lo))) then
+    if (isnan(f_ocean( k_hi)) .and. isnan(f_ocean( k_lo))) then
       ! Both NaNs, so output NaN
       f_query = f_ocean( k_hi)
-    elseif (f_ocean( k_hi) /= f_ocean( k_hi)) then
+    elseif (isnan(f_ocean( k_hi))) then
       ! Only deeper value is NaN, output non-NaN value
       f_query = f_ocean( k_lo)
-    elseif (f_ocean( k_lo) /= f_ocean( k_lo)) then
+    elseif (isnan(f_ocean( k_lo))) then
       ! Only shallower value is NaN, output non-NaN value
       f_query = f_ocean( k_hi)
     else

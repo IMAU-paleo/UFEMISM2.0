@@ -797,8 +797,7 @@ contains
         z_mask_old = 1
 
         ! Check depth of ocean floor and set mask to 0 below bedrock
-        if (d_src_partial( vi, size( vert_src)) == &
-            d_src_partial( vi, size( vert_src))) then
+        if (.not. isnan(d_src_partial( vi, size( vert_src)))) then
 
           ! Ocean floor lies below vertical limit of provided data
           z_floor = vert_src( size( vert_src)) + (vert_src( 2) - vert_src( 1))
@@ -808,7 +807,7 @@ contains
           ! Track from bottom upwards until ocean data found
           k = size( vert_src)
 
-          do while (d_src_partial( vi,k) /= d_src_partial( vi,k))
+          do while (isnan(d_src_partial( vi,k)))
             ! Set level to bedrock (unavailable ocean)
             z_mask_old( k) = 0
             z_floor = vert_src( k)
@@ -818,8 +817,7 @@ contains
         end if
 
         ! Check depth of ocean ceil and set mask to 0 above ice shelf draft
-        if (d_src_partial( vi, 1) == &
-            d_src_partial( vi, 1)) then
+        if (.not. isnan(d_src_partial( vi, 1))) then
 
           ! Ocean ceil is at surface
           z_ceil = -1._dp
@@ -829,7 +827,7 @@ contains
           ! Track from top downards until ocean data found
           k = 1
 
-          do while (d_src_partial( vi,k) /= d_src_partial( vi,k))
+          do while (isnan(d_src_partial( vi,k)))
             ! Set level to ice shelf (unavailable ocean)
             z_mask_old( k) = 0
             z_ceil = vert_src( k)
