@@ -7,6 +7,7 @@ module mesh_edges
   use control_resources_and_error_messaging, only: warning, crash, init_routine, finalise_routine
   use model_configuration, only: C
   use mesh_types, only: type_mesh
+  use plane_geometry, only: triangle_area
 
   implicit none
 
@@ -68,6 +69,7 @@ contains
     allocate( mesh%ETri( mesh%nE,   2          ), source = 0    )
     allocate( mesh%TriE( mesh%nTri, 3          ), source = 0    )
     allocate( mesh%EBI(  mesh%nE               ), source = 0    )
+    allocate( mesh%EA(   mesh%nE               ), source = 0._dp)
 
     ei = 0
     do vi = 1, mesh%nV
@@ -185,6 +187,8 @@ contains
       end do
     end do
 
+    call calc_edge_areas( mesh)
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -223,5 +227,48 @@ contains
     end if
 
   end function edge_border_index
+
+  subroutine calc_edge_areas( mesh)
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'construct_mesh_edges'
+    integer                       :: ei, vi, vj, til, tir
+    real(dp), dimension(2)        :: p,q,r
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do ei = 1, mesh%nE
+
+      vi  = mesh%EV( ei,1)
+      vj  = mesh%EV( ei,2)
+      til = mesh%ETri( ei,1)
+      tir = mesh%ETri( ei,2)
+
+      mesh%EA( ei) = 0._dp
+
+      if (til > 0) then
+        p = mesh%V( vi,:)
+        q = mesh%V( vj,:)
+        r = mesh%Tricc( til,:)
+        mesh%EA( ei) = mesh%EA( ei) + triangle_area( p,q,r)
+      end if
+
+      if (tir > 0) then
+        p = mesh%V( vj,:)
+        q = mesh%V( vi,:)
+        r = mesh%Tricc( tir,:)
+        mesh%EA( ei) = mesh%EA( ei) + triangle_area( p,q,r)
+      end if
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_edge_areas
 
 end module mesh_edges
