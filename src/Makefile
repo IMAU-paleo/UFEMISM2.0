@@ -229,6 +229,7 @@ UFEMISM_source = \
   mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
   mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
   mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
+  mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
   mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
   mesh/remapping/remapping_mesh_to_mesh.f90 \
   mesh/remapping/remapping_transects.f90 \
