@@ -405,7 +405,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid,Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -460,7 +460,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid,Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -517,7 +517,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid,Atlas( mi))
           mi_valid = mi
           exit
         end if
