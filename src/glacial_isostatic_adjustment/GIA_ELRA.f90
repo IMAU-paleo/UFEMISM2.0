@@ -20,7 +20,7 @@ MODULE GIA_ELRA
   USE grid_types                                             , ONLY: type_grid
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   use ice_geometry_basics, only: is_floating
-  use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_xy_grid_to_mesh_2D
+  use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D, map_from_xy_grid_to_mesh_2D
   use kelvin_function, only: kelvin
 
   implicit none
@@ -101,7 +101,7 @@ contains
     END DO
 
     ! Map relative surface load to the GIA grid
-    CALL map_from_mesh_to_xy_grid_2D( mesh, grid, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
+    CALL map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
 
     !! Gather data to primary
     call gather_gridded_data_to_primary( grid, GIA%relative_surface_load_grid, ELRA%relative_surface_load_grid_tot)
@@ -128,7 +128,7 @@ contains
     end if
 
     ! Map the actual bedrock deformation from the mesh to the grid
-    call map_from_mesh_to_xy_grid_2D( mesh, grid, ice%dHb, ELRA%dHb_grid_partial)
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, ice%dHb, ELRA%dHb_grid_partial)
 
     ! gather data from all processors to primary, from partial grid vec to total 2D grid
     call gather_gridded_data_to_primary( grid, ELRA%dHb_grid_partial, ELRA%dHb_grid_tot)
