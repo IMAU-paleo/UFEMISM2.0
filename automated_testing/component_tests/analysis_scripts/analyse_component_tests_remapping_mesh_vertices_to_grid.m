@@ -1,10 +1,10 @@
-function analyse_component_tests_remapping_mesh_to_grid( foldername_automated_testing, do_print_figures)
+function analyse_component_tests_remapping_mesh_vertices_to_grid( foldername_automated_testing, do_print_figures)
 % Analyse the results of all the mesh-to-grid remapping component tests
 
-disp('    Analysing grid-to-mesh remapping component tests...')
+disp('    Analysing mesh-vertices-to-grid remapping component tests...')
 disp('')
 
-foldername_results = [foldername_automated_testing '/component_tests/results/remapping/mesh_to_grid'];
+foldername_results = [foldername_automated_testing '/component_tests/results/remapping/mesh_vertices_to_grid'];
 foldername_figures = [foldername_automated_testing '/component_tests/figures'];
 
 % List all the test results
@@ -95,7 +95,7 @@ function write_to_scoreboard_file( filename_short, mesh, d_mesh_ex, grid, d_grid
   % Set up a scoreboard results structure
   test_name = filename_short(5:end-3);
   single_run = initialise_single_test_run( test_name, ...
-    'component_tests/remapping/mesh_to_grid');
+    'component_tests/remapping/mesh_vertices_to_grid');
 
   % Calculate cost functions
   rmse = sqrt( mean( (d_grid(:) - d_grid_ex(:)).^2));
