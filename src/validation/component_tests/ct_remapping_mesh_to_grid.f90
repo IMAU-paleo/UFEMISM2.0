@@ -12,7 +12,7 @@ module ct_remapping_mesh_to_grid
   use mesh_types, only: type_mesh
   use netcdf_io_main
   use apply_maps, only: clear_all_maps_involving_this_mesh
-  use remapping_main, only: map_from_mesh_to_xy_grid_2D
+  use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D
   use analytical_solutions, only: Halfar_dome
   use ct_remapping_basic, only: calc_test_function_on_grid, calc_test_function_on_mesh
 
@@ -141,7 +141,7 @@ contains
 
     ! Map gridded data to the mesh
     allocate( d_grid( grid%n_loc))
-    call map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_ex, d_grid)
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, d_mesh_ex, d_grid)
 
     ! Write results to NetCDF
     call create_new_netcdf_file_for_writing( filename, ncid)
