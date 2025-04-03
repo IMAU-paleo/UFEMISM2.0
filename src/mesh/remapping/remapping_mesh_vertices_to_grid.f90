@@ -27,11 +27,11 @@ module remapping_mesh_vertices_to_grid
 
   private
 
-  public :: create_map_from_mesh_triangles_to_xy_grid
+  public :: create_map_from_mesh_vertices_to_xy_grid
 
 contains
 
-  subroutine create_map_from_mesh_triangles_to_xy_grid( mesh, grid, map)
+  subroutine create_map_from_mesh_vertices_to_xy_grid( mesh, grid, map)
     !< Create a new mapping object from a mesh to an x/y-grid.
 
     ! By default uses 2nd-order conservative remapping.
@@ -79,7 +79,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine create_map_from_mesh_triangles_to_xy_grid
+  end subroutine create_map_from_mesh_vertices_to_xy_grid
 
   subroutine calc_approximate_overlaps( mesh, grid, &
     overlaps_with_small_triangle, containing_triangle)
