@@ -28,8 +28,6 @@ contains
     !
     ! Use an realistic ocean scheme
 
-    implicit none
-
     ! In/output variables:
     type(type_mesh),                        intent(in)    :: mesh
     type(type_ice_model),                   intent(in)    :: ice
@@ -66,8 +64,6 @@ contains
     ! Initialise the ocean model
     !
     ! Use an realistic ocean scheme
-
-    implicit none
 
     ! In- and output variables
     type(type_mesh),                        intent(in)    :: mesh
