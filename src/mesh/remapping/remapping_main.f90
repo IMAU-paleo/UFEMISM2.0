@@ -558,7 +558,7 @@ contains
     ! Browse the Atlas to see if an appropriate mapping object already exists.
     found_map = .false.
     do mi = 1, size( Atlas, 1)
-      if (Atlas( mi)%name_src == trim(mesh%name)//'_tri' .and. Atlas( mi)%name_dst == grid%name) then
+      if (Atlas( mi)%name_src == trim(mesh%name)//'_triangles' .and. Atlas( mi)%name_dst == grid%name) then
         ! if so specified, look for a mapping object with the correct method
         if (present( method)) then
           if (Atlas( mi)%method /= method) cycle
@@ -613,7 +613,7 @@ contains
     ! Browse the Atlas to see if an appropriate mapping object already exists.
     found_map = .false.
     do mi = 1, size( Atlas, 1)
-      if (Atlas( mi)%name_src == trim(mesh%name)//'_tri' .and. Atlas( mi)%name_dst == grid%name) then
+      if (Atlas( mi)%name_src == trim(mesh%name)//'_triangles' .and. Atlas( mi)%name_dst == grid%name) then
         ! if so specified, look for a mapping object with the correct method
         if (present( method)) then
           if (Atlas( mi)%method /= method) cycle

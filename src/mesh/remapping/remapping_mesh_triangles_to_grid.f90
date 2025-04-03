@@ -47,7 +47,7 @@ contains
     ! Initialise map metadata
     if (map%is_in_use) call crash('this map is already in use!')
     map%is_in_use = .true.
-    map%name_src  = mesh%name
+    map%name_src  = trim(mesh%name) // '_triangles'
     map%name_dst  = grid%name
     map%method    = '2nd_order_conservative'
 
