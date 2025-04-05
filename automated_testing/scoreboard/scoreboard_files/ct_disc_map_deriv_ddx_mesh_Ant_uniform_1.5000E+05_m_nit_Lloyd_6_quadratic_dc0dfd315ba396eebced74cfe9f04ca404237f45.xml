@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6_quadratic</name>
+    <category>component_tests/discretisation/mapping_and_derivatives/ddx</category>
+    <date_and_time>01-Apr-2025 14:20:44</date_and_time>
+    <git_hash_string>dc0dfd315ba396eebced74cfe9f04ca404237f45</git_hash_string>
+    <cost_functions>
+        <name>max_err_ddx_a_a</name>
+        <definition>abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))</definition>
+        <value>0.0051684</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_a_b</name>
+        <definition>abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))</definition>
+        <value>0.018071</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_a_c</name>
+        <definition>abs( ddx_a_c - ddx_c_ex) ./ max( abs( ddx_c_ex))</definition>
+        <value>0.022321</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_b_a</name>
+        <definition>abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))</definition>
+        <value>0.0040893</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_b_b</name>
+        <definition>abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))</definition>
+        <value>0.017803</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_b_c</name>
+        <definition>abs( ddx_b_c - ddx_c_ex) ./ max( abs( ddx_c_ex))</definition>
+        <value>0.015601</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_c_a</name>
+        <definition>abs( ddx_c_a - ddx_a_ex) ./ max( abs( ddx_a_ex))</definition>
+        <value>0.0025803</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_c_b</name>
+        <definition>abs( ddx_c_b - ddx_b_ex) ./ max( abs( ddx_b_ex))</definition>
+        <value>0.0090354</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_c_c</name>
+        <definition>abs( ddx_c_c - ddx_c_ex) ./ max( abs( ddx_c_ex))</definition>
+        <value>0.0060147</value>
+    </cost_functions>
+</single_run>

@@ -101,13 +101,14 @@ CONTAINS
 
   END SUBROUTINE run_ocean_model
 
-  SUBROUTINE initialise_ocean_model( mesh, ocean, region_name)
+  SUBROUTINE initialise_ocean_model( mesh, ice, ocean, region_name)
     ! Initialise the ocean model
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(OUT)   :: ocean
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
@@ -158,7 +159,7 @@ CONTAINS
     ELSEIF (choice_ocean_model == 'idealised') THEN
       CALL initialise_ocean_model_idealised( mesh, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
-      CALL initialise_ocean_model_realistic( mesh, ocean, region_name)
+      CALL initialise_ocean_model_realistic( mesh, ice, ocean, region_name)
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
