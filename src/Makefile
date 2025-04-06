@@ -184,6 +184,7 @@ UFEMISM_source = \
   mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
   mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
   mesh/discretisation/mesh_disc_apply_operators.f90 \
+  mesh/mesh_parallelisation.f90 \
   mesh/mesh_secondary.f90 \
   mesh/creation/reduce_ice_geometry.f90 \
   mesh/creation/mesh_creation_refine_in_ROIs.f90 \
