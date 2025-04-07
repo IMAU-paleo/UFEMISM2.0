@@ -181,33 +181,18 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
 
   do vi = mesh%vi1, mesh%vi2
     if (vi == 5) then
-      do k = 1, C%nz_ocean
-        write( 0,*) k, C%z_ocean( k), ocean%T(vi, k)
-      end do
 
       ! Ice shelf should still be NaN 
-      if (.not. isnan(ocean%T( vi, 1))) then 
-        test_result = .false.
-        write (0,*) 'a', ocean%T( vi, 1)
-      end if
+      if (.not. isnan(ocean%T( vi, 1))) test_result = .false.
 
       ! Bedrock below cavity should still be NaN 
-      if (.not. isnan(ocean%T( vi, C%nz_ocean))) then
-        test_result = .false.
-        write (0,*) 'b', ocean%T( vi, C%nz_ocean)
-      end if
+      if (.not. isnan(ocean%T( vi, C%nz_ocean))) test_result = .false.
 
       ! Shallow cavity should be in between offshore values
-      if ((ocean%T(vi, 6) <= 0._dp) .or. (ocean%T(vi, 6) >= 0.5_dp)) then
-        test_result = .false.
-        write (0,*) 'c', ocean%T( vi, 6)
-      end if
+      if ((ocean%T(vi, 6) <= 0._dp) .or. (ocean%T(vi, 6) >= 0.5_dp)) test_result = .false.
 
       ! Deep cavity should be equal to coldest offshore value
-      if (.not. (ocean%T(vi, 13) == 0.0_dp)) then
-        test_result = .false.
-        write (0,*) 'd', ocean%T( vi, 13)
-      end if
+      if (.not. (ocean%T(vi, 13) == 0.0_dp)) test_result = .false.
     end if
   end do
 
@@ -223,6 +208,25 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
   ! Apply extrapolation vertical
   call extrapolate_ocean_forcing_vertical( mesh, ocean%T)
 
+  do vi = mesh%vi1, mesh%vi2
+    if ((vi == 1) .or. (vi == 2)) then
+
+      ! Check whether bedrock is filled
+      if (isnan( ocean%T( vi, C%nz_ocean))) test_result = .false.
+    elseif (vi == 5) then
+
+      ! Ice shelf should be equal to first non-NaN 
+      if (.not. (ocean%T( vi, 1) == ocean%T( vi, 4))) test_result = .false.
+
+      ! Bedrock should be equal to cold water 
+      if (.not. (ocean%T( vi, C%nz_ocean) == 0._dp)) test_result = .false.
+    else
+      ! All other values should still be NaN
+      do k = 1, C%nz_ocean
+        if (.not. isnan( ocean%T( vi, k))) test_result = .false.
+      end do
+    end if
+  end do
 
   call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
 
@@ -236,6 +240,13 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
   ! Apply extrapolation everywhere
   call extrapolate_ocean_forcing_horizontal_everywhere( mesh, ocean%T, sigma)
 
+  do vi = mesh%vi1, mesh%vi2
+    if (vi == 3) then
+      do k = 1, C%nz_ocean
+        write( 0,*) k, C%z_ocean( k), ocean%T(vi, k)
+      end do
+    end if
+  end do
 
   call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
 
