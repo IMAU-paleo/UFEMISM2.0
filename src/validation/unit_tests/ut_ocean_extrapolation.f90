@@ -52,6 +52,7 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
   type(type_ocean_model)         :: ocean
   logical                        :: test_result
   real(dp), parameter            :: sigma = 12e3
+  real(dp), parameter            :: a_tol = 1e-4
 
   ! Add routine to call stack
   call init_routine( routine_name)
@@ -73,10 +74,6 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
   call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
   call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
   call calc_field_to_vector_form_translation_tables( mesh)
-
-  do vi = mesh%vi1, mesh%vi2
-    write (0,*) vi, mesh%V( vi, :)
-  end do
 
   ! Set up ice and bed geometry
   ! ========
@@ -241,10 +238,15 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
   call extrapolate_ocean_forcing_horizontal_everywhere( mesh, ocean%T, sigma)
 
   do vi = mesh%vi1, mesh%vi2
-    if (vi == 3) then
-      do k = 1, C%nz_ocean
-        write( 0,*) k, C%z_ocean( k), ocean%T(vi, k)
-      end do
+    if ((vi == 3) .or. (vi == 4)) then
+      ! Check whether top value appropriately filled
+      if (.not. (ocean%T( vi, 1) > 0._dp)) test_result = .false.
+
+      ! Check whether cold water appropriately extrapolated
+      if (abs(ocean%T( vi, 13) - 0._dp) > a_tol) test_result = .false.
+
+      ! Check whether bottom value appropriately filled
+      if (abs(ocean%T( vi, C%nz_ocean) - 0._dp) > a_tol) test_result = .false.
     end if
   end do
 
