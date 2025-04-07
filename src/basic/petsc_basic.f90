@@ -300,8 +300,10 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'mat_petsc2CSR'
     INTEGER                                            :: m_glob, n_glob, m_loc, n_loc, istart, iend, row_glob, row_loc
     INTEGER                                            :: ncols
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals
+    INTEGER,  DIMENSION(:    ), pointer                :: cols_
+    REAL(dp), DIMENSION(:    ), pointer                :: vals_
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE, target    :: cols
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE, target    :: vals
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: nnz_row_loc
     INTEGER                                            :: nnz_loc
     INTEGER                                            :: k
@@ -319,11 +321,14 @@ CONTAINS
     ALLOCATE( cols(        n_glob))
     ALLOCATE( vals(        n_glob))
 
+    cols_ => cols
+    vals_ => vals
+
     DO row_glob = istart+1, iend ! +1 because PETSc indexes from 0
       row_loc = row_glob - istart
-      CALL MatGetRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatGetRow( A, row_glob-1, ncols, cols_, vals_, perr)
       nnz_row_loc( row_loc) = ncols
-      CALL MatRestoreRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatRestoreRow( A, row_glob-1, ncols, cols_, vals_, perr)
     END DO
 
     nnz_loc = SUM( nnz_row_loc)
@@ -333,11 +338,11 @@ CONTAINS
 
     ! Copy data from the PETSc matrix to the CSR arrays
     DO row_glob = istart+1, iend ! +1 because PETSc indexes from 0
-      CALL MatGetRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatGetRow( A, row_glob-1, ncols, cols_, vals_, perr)
       DO k = 1, ncols
-        CALL add_entry_CSR_dist( AA, row_glob, cols( k)+1, vals( k))
+        CALL add_entry_CSR_dist( AA, row_glob, cols_( k)+1, vals_( k))
       END DO
-      CALL MatRestoreRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatRestoreRow( A, row_glob-1, ncols, cols_, vals_, perr)
     END DO
 
     ! Crop memory

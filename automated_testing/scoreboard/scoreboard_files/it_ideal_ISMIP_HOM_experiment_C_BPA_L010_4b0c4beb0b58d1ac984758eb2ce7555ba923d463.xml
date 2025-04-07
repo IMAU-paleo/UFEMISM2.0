@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>L010</name>
+    <category>integrated_tests/idealised/ISMIP_HOM/experiment_C/BPA</category>
+    <date_and_time>05-Apr-2025 01:10:41</date_and_time>
+    <git_hash_string>4b0c4beb0b58d1ac984758eb2ce7555ba923d463</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (u_surf - u_ensemble).^2 ))</definition>
+        <value>1.4175</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>0</value>
+    </cost_functions>
+</single_run>
