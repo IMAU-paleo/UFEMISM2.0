@@ -6,12 +6,9 @@ module ocean_extrapolation
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use mesh_utilities, only: extrapolate_Gaussian
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_signaling_nan
 
   implicit none
-
-  private
-
-  public :: extrapolate_ocean_forcing
 
 contains
 
@@ -30,6 +27,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    ! == Step 0: set values below bedrock to NaN
+
+    call extrapolate_ocean_forcing_preparation( mesh, ice, d)
+
     ! == Step 1: extrapolate horizontally into cavity ==
 
     call extrapolate_ocean_forcing_horizontal_cavity( mesh, ice, d, sigma)
@@ -46,6 +47,39 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine extrapolate_ocean_forcing
+
+  subroutine extrapolate_ocean_forcing_preparation( mesh, ice, d)
+    ! Prepare extrapolation procedure
+
+    ! In/output variables
+    type(type_mesh),                                   intent(in)    :: mesh
+    type(type_ice_model),                              intent(in)    :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2,C%nz_ocean), intent(inout) :: d
+
+    ! Local variables
+    character(len=1024), parameter        :: routine_name = 'extrapolate_ocean_forcing_preparation'
+    integer                               :: vi, k
+    real(dp)                              :: NaN
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Define NaN
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Set values below bedrock to NaN
+    do vi = mesh%vi1, mesh%vi2
+      do k = 1, C%nz_ocean
+        if (C%z_ocean( k) > -ice%Hb( vi)) then
+          d( vi, k) = NaN 
+        end if
+      end do
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine extrapolate_ocean_forcing_preparation
 
   subroutine extrapolate_ocean_forcing_horizontal_cavity( mesh, ice, d, sigma)
     ! Extrapolate offshore ocean properties into cavities
