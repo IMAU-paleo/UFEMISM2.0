@@ -361,6 +361,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf_mesh.f90 \
   validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
+  validation/unit_tests/ut_ocean_extrapolation.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
   validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \
