@@ -14,7 +14,7 @@ MODULE BMB_parameterised
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
-
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   IMPLICIT NONE
 
 CONTAINS
