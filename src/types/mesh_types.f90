@@ -120,19 +120,19 @@ module mesh_types
     integer :: ti1, ti2, nTri_loc            ! Each process "owns" nTri_loc  triangles ti1      - ti2     , so that nTri_loc  = ti2      + 1 - ti1
     integer :: ei1, ei2, nE_loc              ! Each process "owns" nE_loc    edges     ei1      - ei2     , so that nE_loc    = ei2      + 1 - ei1
 
-    integer :: vi1_nih, vi2_nih              ! nih = "node including halo" - this is the size of memory that should be allocated for an a-grid field, e.g. d( mesh%vi1_nih:mesh%vi2_nih)
+    integer :: vi1_nih, vi2_nih, nV_nih      ! nih = "node including halo" - this is the size of memory that should be allocated for an a-grid field, e.g. d( mesh%vi1_nih:mesh%vi2_nih)
     integer :: vi1_hle, vi2_hle, nV_hle      ! hlo = "halo left  exterior"
     integer :: vi1_hli, vi2_hli, nV_hli      ! hli = "halo left  interior"
     integer :: vi1_hre, vi2_hre, nV_hre      ! hro = "halo right exterior"
     integer :: vi1_hri, vi2_hri, nV_hri      ! hri = "halo right interior"
 
-    integer :: ti1_nih, ti2_nih              ! nih = "node including halo" - this is the size of memory that should be allocated for a  b-grid field, e.g. d( mesh%ti1_nih:mesh%ti2_nih)
+    integer :: ti1_nih, ti2_nih, nTri_nih    ! nih = "node including halo" - this is the size of memory that should be allocated for a  b-grid field, e.g. d( mesh%ti1_nih:mesh%ti2_nih)
     integer :: ti1_hle, ti2_hle, nTri_hle    ! hlo = "halo left  exterior"
     integer :: ti1_hli, ti2_hli, nTri_hli    ! hli = "halo left  interior"
     integer :: ti1_hre, ti2_hre, nTri_hre    ! hro = "halo right exterior"
     integer :: ti1_hri, ti2_hri, nTri_hri    ! hri = "halo right interior"
 
-    integer :: ei1_nih, ei2_nih              ! nih = "node including halo" - this is the size of memory that should be allocated for a  c-grid field, e.g. d( mesh%ei1_nih:mesh%ei2_nih)
+    integer :: ei1_nih, ei2_nih, nE_nih      ! nih = "node including halo" - this is the size of memory that should be allocated for a  c-grid field, e.g. d( mesh%ei1_nih:mesh%ei2_nih)
     integer :: ei1_hle, ei2_hle, nE_hle      ! hlo = "halo left  exterior"
     integer :: ei1_hli, ei2_hli, nE_hli      ! hli = "halo left  interior"
     integer :: ei1_hre, ei2_hre, nE_hre      ! hro = "halo right exterior"

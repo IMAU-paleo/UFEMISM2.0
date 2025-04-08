@@ -187,6 +187,7 @@ UFEMISM_source = \
   mesh/discretisation/mesh_disc_apply_operators.f90 \
   mesh/mesh_parallelisation.f90 \
   mesh/mesh_secondary.f90 \
+  mesh/mesh_halo_exchange.f90 \
   mesh/creation/reduce_ice_geometry.f90 \
   mesh/creation/mesh_creation_refine_in_ROIs.f90 \
   mesh/creation/mesh_creation_from_reduced_geometry.f90 \
@@ -374,6 +375,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_mpi_multiply_CSR_matrix_vector.f90 \
   validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
   validation/unit_tests/ut_halo_exchange.f90 \
+  validation/unit_tests/ut_halo_exchange_mesh.f90 \
   validation/unit_tests/unit_tests_multinode.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \
