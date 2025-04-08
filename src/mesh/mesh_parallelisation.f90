@@ -253,6 +253,10 @@ contains
 
     end if
 
+    mesh%nV_nih   = mesh%vi2_nih + 1 - mesh%vi1_nih
+    mesh%nTri_nih = mesh%ti2_nih + 1 - mesh%ti1_nih
+    mesh%nE_nih   = mesh%ei2_nih + 1 - mesh%ei1_nih
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
