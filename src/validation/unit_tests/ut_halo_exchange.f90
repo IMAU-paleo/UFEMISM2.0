@@ -9,7 +9,7 @@ module ut_halo_exchange
   use mpi_basic, only: par, sync, sync_node
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use mpi_f08, only: MPI_WIN, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD
-  use mpi_distributed_shared_memory, only: allocate_dist_shared, deallocate_dist_shared, exchange_halos
+  use mpi_distributed_shared_memory, only: allocate_dist_shared, deallocate_dist_shared, basic_halo_exchange
 
   implicit none
 
@@ -175,7 +175,7 @@ subroutine test_halo_exchange_logical_1D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri)
 
   ! Verify results
@@ -312,7 +312,7 @@ subroutine test_halo_exchange_logical_2D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz)
 
   ! Verify results
@@ -454,7 +454,7 @@ subroutine test_halo_exchange_logical_3D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz, nl)
 
   ! Verify results
@@ -592,7 +592,7 @@ subroutine test_halo_exchange_int_1D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri)
 
   ! Verify results
@@ -729,7 +729,7 @@ subroutine test_halo_exchange_int_2D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz)
 
   ! Verify results
@@ -871,7 +871,7 @@ subroutine test_halo_exchange_int_3D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz, nl)
 
   ! Verify results
@@ -1009,7 +1009,7 @@ subroutine test_halo_exchange_dp_1D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri)
 
   ! Verify results
@@ -1146,7 +1146,7 @@ subroutine test_halo_exchange_dp_2D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz)
 
   ! Verify results
@@ -1288,7 +1288,7 @@ subroutine test_halo_exchange_dp_3D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz, nl)
 
   ! Verify results
@@ -1426,7 +1426,7 @@ subroutine test_halo_exchange_complex_1D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri)
 
   ! Verify results
@@ -1563,7 +1563,7 @@ subroutine test_halo_exchange_complex_2D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz)
 
   ! Verify results
@@ -1706,7 +1706,7 @@ subroutine test_halo_exchange_complex_3D( test_name_parent)
   call sync_node
 
   ! Exchange halos
-  call exchange_halos( d_nih, i1_nih, i2_nih, &
+  call basic_halo_exchange( d_nih, i1_nih, i2_nih, &
     i1_hle, i2_hle, i1_hli, i2_hli, i1_hre, i2_hre, i1_hri, i2_hri, nz, nl)
 
   ! Verify results

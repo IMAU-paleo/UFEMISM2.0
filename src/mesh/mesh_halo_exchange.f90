@@ -6,39 +6,158 @@ module mesh_halo_exchange
   use mesh_types, only: type_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mpi_basic, only: par, sync
-  use halo_exchange_mod, only: exchange_halos
+  use halo_exchange_mod, only: basic_halo_exchange
 
   implicit none
 
   private
 
-  public :: exchange_halos_a, exchange_halos_b, exchange_halos_c
+  public :: exchange_halos
 
-  interface exchange_halos_a
-    procedure :: exchange_halos_a_logical
-    procedure :: exchange_halos_a_int
-    procedure :: exchange_halos_a_int_3D
-    procedure :: exchange_halos_a_dp
-    procedure :: exchange_halos_a_dp_3D
-  end interface exchange_halos_a
-
-  interface exchange_halos_b
-    procedure :: exchange_halos_b_logical
-    procedure :: exchange_halos_b_int
-    procedure :: exchange_halos_b_int_3D
-    procedure :: exchange_halos_b_dp
-    procedure :: exchange_halos_b_dp_3D
-  end interface exchange_halos_b
-
-  interface exchange_halos_c
-    procedure :: exchange_halos_c_logical
-    procedure :: exchange_halos_c_int
-    procedure :: exchange_halos_c_int_3D
-    procedure :: exchange_halos_c_dp
-    procedure :: exchange_halos_c_dp_3D
-  end interface exchange_halos_c
+  interface exchange_halos
+    procedure :: exchange_halos_logical
+    procedure :: exchange_halos_int
+    procedure :: exchange_halos_int_3D
+    procedure :: exchange_halos_dp
+    procedure :: exchange_halos_dp_3D
+  end interface exchange_halos
 
 contains
+
+  subroutine exchange_halos_logical( mesh, d_nih)
+
+    ! In/output variables:
+    type(type_mesh),       intent(in   ) :: mesh
+    logical, dimension(:), intent(inout) :: d_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'exchange_halos_logical'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh%nV_nih) then
+      call exchange_halos_a_logical( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nTri_nih) then
+      call exchange_halos_b_logical( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nE_nih) then
+      call exchange_halos_c_logical( mesh, d_nih)
+    else
+      call crash('unexpected array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine exchange_halos_logical
+
+  subroutine exchange_halos_int( mesh, d_nih)
+
+    ! In/output variables:
+    type(type_mesh),       intent(in   ) :: mesh
+    integer, dimension(:), intent(inout) :: d_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'exchange_halos_int'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh%nV_nih) then
+      call exchange_halos_a_int( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nTri_nih) then
+      call exchange_halos_b_int( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nE_nih) then
+      call exchange_halos_c_int( mesh, d_nih)
+    else
+      call crash('unexpected array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine exchange_halos_int
+
+  subroutine exchange_halos_int_3D( mesh, d_nih)
+
+    ! In/output variables:
+    type(type_mesh),         intent(in   ) :: mesh
+    integer, dimension(:,:), intent(inout) :: d_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'exchange_halos_int_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh%nV_nih) then
+      call exchange_halos_a_int_3D( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nTri_nih) then
+      call exchange_halos_b_int_3D( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nE_nih) then
+      call exchange_halos_c_int_3D( mesh, d_nih)
+    else
+      call crash('unexpected array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine exchange_halos_int_3D
+
+  subroutine exchange_halos_dp( mesh, d_nih)
+
+    ! In/output variables:
+    type(type_mesh),        intent(in   ) :: mesh
+    real(dp), dimension(:), intent(inout) :: d_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'exchange_halos_dp'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh%nV_nih) then
+      call exchange_halos_a_dp( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nTri_nih) then
+      call exchange_halos_b_dp( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nE_nih) then
+      call exchange_halos_c_dp( mesh, d_nih)
+    else
+      call crash('unexpected array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine exchange_halos_dp
+
+  subroutine exchange_halos_dp_3D( mesh, d_nih)
+
+    ! In/output variables:
+    type(type_mesh),          intent(in   ) :: mesh
+    real(dp), dimension(:,:), intent(inout) :: d_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'exchange_halos_dp_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh%nV_nih) then
+      call exchange_halos_a_dp_3D( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nTri_nih) then
+      call exchange_halos_b_dp_3D( mesh, d_nih)
+    elseif (size( d_nih,1) == mesh%nE_nih) then
+      call exchange_halos_c_dp_3D( mesh, d_nih)
+    else
+      call crash('unexpected array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine exchange_halos_dp_3D
 
   ! == a-grid
 
@@ -55,7 +174,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
+    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
       mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
       mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri)
 
@@ -77,7 +196,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
+    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
       mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
       mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri)
 
@@ -99,7 +218,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
+    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
       mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
       mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri, size( d_a_nih,2))
 
@@ -121,7 +240,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
+    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
       mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
       mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri)
 
@@ -143,7 +262,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
+    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
       mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
       mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri, size( d_a_nih,2))
 
@@ -167,7 +286,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
+    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
       mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
       mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri)
 
@@ -189,7 +308,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
+    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
       mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
       mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri)
 
@@ -211,7 +330,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
+    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
       mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
       mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri, size( d_b_nih,2))
 
@@ -233,7 +352,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
+    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
       mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
       mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri)
 
@@ -255,7 +374,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
+    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
       mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
       mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri, size( d_b_nih,2))
 
@@ -279,7 +398,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
+    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
       mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
       mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri)
 
@@ -301,7 +420,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
+    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
       mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
       mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri)
 
@@ -323,7 +442,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
+    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
       mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
       mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri, size( d_c_nih,2))
 
@@ -345,7 +464,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
+    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
       mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
       mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri)
 
@@ -367,7 +486,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call exchange_halos( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
+    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
       mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
       mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri, size( d_c_nih,2))
 

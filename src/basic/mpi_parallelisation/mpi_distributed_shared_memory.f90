@@ -6,7 +6,7 @@ module mpi_distributed_shared_memory
   use gather_dist_shared_to_primary_mod, only: gather_dist_shared_to_primary
   use gather_dist_shared_to_all_mod, only: gather_dist_shared_to_all
   use distribute_dist_shared_from_primary_mod, only: distribute_dist_shared_from_primary
-  use halo_exchange_mod, only: exchange_halos
+  use halo_exchange_mod, only: basic_halo_exchange
 
   implicit none
 
@@ -14,7 +14,7 @@ module mpi_distributed_shared_memory
 
   public :: allocate_dist_shared, deallocate_dist_shared, reallocate_dist_shared, &
     gather_dist_shared_to_primary, gather_dist_shared_to_all, distribute_dist_shared_from_primary, &
-    exchange_halos
+    basic_halo_exchange
 
 contains
 

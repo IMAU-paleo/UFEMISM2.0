@@ -11,9 +11,9 @@ module halo_exchange_mod
 
   private
 
-  public :: exchange_halos
+  public :: basic_halo_exchange
 
-  interface exchange_halos
+  interface basic_halo_exchange
     procedure :: exchange_halos_logical_1D
     procedure :: exchange_halos_logical_2D
     procedure :: exchange_halos_logical_3D
@@ -26,7 +26,7 @@ module halo_exchange_mod
     procedure :: exchange_halos_complex_1D
     procedure :: exchange_halos_complex_2D
     procedure :: exchange_halos_complex_3D
-  end interface exchange_halos
+  end interface basic_halo_exchange
 
 contains
 
