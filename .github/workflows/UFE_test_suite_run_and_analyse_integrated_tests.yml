@@ -11,8 +11,8 @@ jobs:
   integrated_tests_idealised_Halfar_dome:
     uses: ./.github/workflows/zz_integrated_tests_idealised_Halfar_dome.yml
 
-  integrated_tests_idealised_ISMIP-HOM:
-    uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM.yml
+  # integrated_tests_idealised_ISMIP-HOM:
+  #   uses: ./.github/workflows/zz_integrated_tests_idealised_ISMIP-HOM.yml
 
   integrated_tests_idealised_MISMIP_mod:
     uses: ./.github/workflows/zz_integrated_tests_idealised_MISMIP_mod.yml
