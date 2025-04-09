@@ -634,10 +634,10 @@ contains
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ocean%S, d_grid_vec_partial_3D_ocean)
         call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'S_ocean', d_grid_vec_partial_3D_ocean)
       case ('T_draft')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ocean%T_draft, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ocean%T_draft, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_draft', d_grid_vec_partial_2D)
       case ('T_freezing_point')
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ocean%T_freezing_point, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ocean%T_freezing_point, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_freezing_point', d_grid_vec_partial_2D)
 
     ! == Surface mass balance ==
