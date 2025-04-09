@@ -7,7 +7,7 @@ module remapping_main
   use mesh_types, only: type_mesh
   use transect_types, only: type_transect
   use interpolation, only: remap_cons_2nd_order_1D
-  use mesh_utilities, only: extrapolate_Gaussian, check_if_meshes_are_identical
+  use mesh_utilities, only: check_if_meshes_are_identical
   use remapping_grid_to_mesh_vertices
   use remapping_grid_to_mesh_triangles
   use remapping_mesh_vertices_to_grid
@@ -16,6 +16,7 @@ module remapping_main
   use remapping_transects
   use remapping_mesh_to_mesh
   use apply_maps
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_signaling_nan
 
   implicit none
 
@@ -874,17 +875,17 @@ contains
 
     ! Local variables:
     character(len=1024), parameter     :: routine_name = 'map_from_vertical_to_vertical_2D_ocean'
-    integer                            :: vi,k
-    integer, dimension(:), allocatable :: z_mask_old, z_mask_new, mask_fill
-    real(dp)                           :: z_floor
+    integer                            :: vi, k
+    logical                            :: got_ocean
+    integer, dimension(:), allocatable :: z_mask_old, z_mask_new
+    real(dp)                           :: z_floor, z_ceil
     real(dp)                           :: NaN
-    real(dp), parameter                :: sigma = 4e4
 
     ! Add routine to path
     call init_routine( routine_name)
 
     ! Initialise
-    NaN = -0.1234_dp
+    NaN = ieee_value( NaN, ieee_signaling_nan)
 
     ! allocate mask for valid points in a data column
     allocate( z_mask_old( size( vert_src)))
@@ -892,46 +893,80 @@ contains
 
     do vi = mesh%vi1, mesh%vi2
 
-      ! Determine local depth of the ocean floor, fill in both data masks
-      if (d_src_partial( vi, size( vert_src)) == &
-          d_src_partial( vi, size( vert_src))) then
+      ! Initialise logical to check whether any ocean values available
+      got_ocean = .false.
 
-        ! Ocean floor lies below the vertical limit of the provided data
-        z_mask_old = 1
-        z_floor = vert_src( size( vert_src)) + (vert_src( 2) - vert_src( 1))
-
-      elseif (d_src_partial( vi,1) /= d_src_partial( vi,1)) then
-
-        ! This grid cell isn't ocean at all
-        z_mask_old = 0
-        z_floor    = 0._dp
-        NaN = d_src_partial( vi,1)
-
-      else
-
-        z_mask_old = 1
-        k = size( vert_src)
-
-        do while (d_src_partial( vi,k) /= d_src_partial( vi,k))
-          z_mask_old( k) = 0
-          z_floor = vert_src( k)
-          k = k - 1
-          NaN = d_src_partial( vi,k)
-        end do
-
-      end if
-
-      z_mask_new = 0
-
-      do k = 1, size(vert_dst)
-        if (vert_dst( k) < z_floor) then
-          z_mask_new = 1
+      ! Check whether ocean present
+      do k = 1, size(vert_src)
+        if (d_src_partial( vi, k) == d_src_partial( vi, k)) then
+          got_ocean = .true.
         end if
       end do
 
-      ! Regrid vertical column
-      call remap_cons_2nd_order_1D( vert_src, z_mask_old, d_src_partial( vi,:), &
-                                    vert_dst, z_mask_new, d_dst_partial( vi,:))
+      if (got_ocean) then
+
+        ! Initialise full column as available ocean
+        z_mask_old = 1
+
+        ! Check depth of ocean floor and set mask to 0 below bedrock
+        if (.not. isnan(d_src_partial( vi, size( vert_src)))) then
+
+          ! Ocean floor lies below vertical limit of provided data
+          z_floor = vert_src( size( vert_src)) + (vert_src( 2) - vert_src( 1))
+
+        else
+
+          ! Track from bottom upwards until ocean data found
+          k = size( vert_src)
+
+          do while (isnan(d_src_partial( vi,k)))
+            ! Set level to bedrock (unavailable ocean)
+            z_mask_old( k) = 0
+            z_floor = vert_src( k)
+            k = k - 1
+          end do
+
+        end if
+
+        ! Check depth of ocean ceil and set mask to 0 above ice shelf draft
+        if (.not. isnan(d_src_partial( vi, 1))) then
+
+          ! Ocean ceil is at surface
+          z_ceil = -1._dp
+
+        else
+
+          ! Track from top downards until ocean data found
+          k = 1
+
+          do while (isnan(d_src_partial( vi,k)))
+            ! Set level to ice shelf (unavailable ocean)
+            z_mask_old( k) = 0
+            z_ceil = vert_src( k)
+            k = k + 1
+          end do
+
+        end if
+
+        ! Determine new vertical mask 
+        z_mask_new = 0
+
+        do k = 1, size(vert_dst)
+          if ((vert_dst( k) < z_floor) .and. (vert_dst( k) > z_ceil)) then
+            z_mask_new( k) = 1
+          end if
+        end do
+
+        ! Regrid vertical column
+        call remap_cons_2nd_order_1D( vert_src, z_mask_old, d_src_partial( vi,:), &
+                                      vert_dst, z_mask_new, d_dst_partial( vi,:))
+
+      else
+
+        ! This grid cell isn't ocean at all
+        z_mask_new = 0
+
+      end if
 
       ! Fill masked values with NaN
       do k = 1, size( vert_dst)
@@ -942,28 +977,9 @@ contains
 
     end do
 
-    ! allocate mask for extrapolation
-    allocate( mask_fill( mesh%vi1:mesh%vi2))
-
-    ! Extrapolate into NaN areas independently for each layer
-    do k = 1, size(vert_dst)
-      ! Initialise assuming there's valid data everywhere
-      mask_fill = 2
-      ! Check this mesh layer for NaNs
-      do vi = mesh%vi1, mesh%vi2
-        if (d_dst_partial( vi,k) /= d_dst_partial( vi,k)) then
-          ! if NaN, allow extrapolation here
-          mask_fill( vi) = 1
-        end if
-      end do
-      ! Fill NaN vertices within this layer
-      call extrapolate_Gaussian( mesh, mask_fill, d_dst_partial(:,k), sigma)
-    end do
-
     ! Clean up after yourself
     deallocate( z_mask_old)
     deallocate( z_mask_new)
-    deallocate( mask_fill)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
