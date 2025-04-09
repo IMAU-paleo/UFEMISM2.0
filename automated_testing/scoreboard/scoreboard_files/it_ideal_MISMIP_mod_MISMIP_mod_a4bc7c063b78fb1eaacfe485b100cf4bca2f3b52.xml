@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>MISMIP_mod</name>
+    <category>integrated_tests/idealised/MISMIP_mod</category>
+    <date_and_time>09-Apr-2025 10:34:48</date_and_time>
+    <git_hash_string>a4bc7c063b78fb1eaacfe485b100cf4bca2f3b52</git_hash_string>
+    <cost_functions>
+        <name>GL_hyst_east</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>1076.7848</value>
+    </cost_functions>
+    <cost_functions>
+        <name>GL_hyst_northeast</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>321.9995</value>
+    </cost_functions>
+    <cost_functions>
+        <name>GL_hyst_north</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>11513.7493</value>
+    </cost_functions>
+    <cost_functions>
+        <name>GL_hyst_northwest</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>2625.6873</value>
+    </cost_functions>
+    <cost_functions>
+        <name>GL_hyst_west</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>2944.2135</value>
+    </cost_functions>
+    <cost_functions>
+        <name>GL_hyst_southwest</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>1060.0763</value>
+    </cost_functions>
+    <cost_functions>
+        <name>GL_hyst_south</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>4877.3734</value>
+    </cost_functions>
+    <cost_functions>
+        <name>GL_hyst_southeast</name>
+        <definition>abs( rGL_retreat(end) - rGL_spinup(end) )</definition>
+        <value>2051.3998</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>5932</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>6027</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>343301</value>
+    </cost_functions>
+</single_run>
