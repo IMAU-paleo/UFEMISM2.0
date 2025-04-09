@@ -232,7 +232,8 @@ UFEMISM_source = \
   mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
   mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
   mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
-  mesh/remapping/create_maps_gridlonlat_mesh.f90 \
+  mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
+  mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
   mesh/remapping/remapping_mesh_to_mesh.f90 \
   mesh/remapping/remapping_transects.f90 \
   mesh/remapping/apply_maps.f90 \
@@ -260,6 +261,7 @@ UFEMISM_source = \
   surface_mass_balance/SMB_main.f90 \
   \
   ocean/ocean_utilities.f90 \
+  ocean/ocean_extrapolation.f90 \
   ocean/ocean_idealised.f90 \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
@@ -363,6 +365,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf_mesh.f90 \
   validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
+  validation/unit_tests/ut_ocean_extrapolation.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
   validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \

@@ -52,49 +52,57 @@ CONTAINS
 
   END SUBROUTINE run_BMB_model_parameterised
 
-  SUBROUTINE run_BMB_model_parameterised_Favier2019( mesh, ice, ocean, BMB)
+  subroutine run_BMB_model_parameterised_Favier2019( mesh, ice, ocean, BMB)
     ! The basal melt parameterisation used in Favier et al. (2019)
 
     ! In/output variables
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_ocean_model),              INTENT(IN)    :: ocean
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    type(type_mesh),                     intent(in)    :: mesh
+    type(type_ice_model),                intent(in)    :: ice
+    type(type_ocean_model),              intent(in)    :: ocean
+    type(type_BMB_model),                intent(inout) :: BMB
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model_parameterised_Favier2019'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: dT
+    character(len=256), parameter                      :: routine_name = 'run_BMB_model_parameterised_Favier2019'
+    integer                                            :: vi
+    real(dp)                                           :: dT
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Initialise
     BMB%BMB_shelf = 0._dp
 
-    DO vi = mesh%vi1, mesh%vi2
+    do vi = mesh%vi1, mesh%vi2
 
-      ! Temperature forcing
-      dT = ocean%T_draft( vi) - ocean%T_freezing_point( vi)
+      if ((ocean%T_draft( vi) == ocean%T_draft( vi)) .and. (ocean%T_freezing_point( vi) == ocean%T_freezing_point( vi))) then
+        ! Both parameters are non-NaN
 
-      ! Favier et al. (2019), Eq. 4
-      ! Altered to allow for negative basal melt (i.e. refreezing) when dT < 0
-      BMB%BMB_shelf( vi) =  -1._dp * sec_per_year * C%BMB_Favier2019_gamma * SIGN(dT,1._dp) * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
+        ! Temperature forcing
+        dT = ocean%T_draft( vi) - ocean%T_freezing_point( vi)
 
-      ! Apply grounded fractions
-      IF (ice%mask_gl_gr( vi) .AND. ice%Hib(vi) < ice%SL(vi)) THEN
-        ! Subgrid basal melt rate
-        ! BMB%BMB_shelf( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
-        ! Limit it to only melt (refreezing is tricky)
-        BMB%BMB_shelf( vi) = MAX( BMB%BMB_shelf( vi), 0._dp)
-      END IF
+        ! Favier et al. (2019), Eq. 4
+        ! Altered to allow for negative basal melt (i.e. refreezing) when dT < 0
+        BMB%BMB_shelf( vi) =  -1._dp * sec_per_year * C%BMB_Favier2019_gamma * sign(dT,1._dp) * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
 
-    END DO
+        ! Apply grounded fractions
+        if (ice%mask_gl_gr( vi) .and. ice%Hib(vi) < ice%SL(vi)) then
+          ! Subgrid basal melt rate
+          ! BMB%BMB_shelf( vi) = (1._dp - ice%fraction_gr( vi)) * BMB%BMB_shelf( vi)
+          ! Limit it to only melt (refreezing is tricky)
+          BMB%BMB_shelf( vi) = max( BMB%BMB_shelf( vi), 0._dp)
+        end if
+      else
+        ! Either parameter is NaN, output zero BMB
+        BMB%BMB_shelf( vi) = 0._dp
+
+      end if
+
+    end do
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE run_BMB_model_parameterised_Favier2019
+  end subroutine run_BMB_model_parameterised_Favier2019
 
   SUBROUTINE initialise_BMB_model_parameterised( mesh, BMB)
     ! Initialise the BMB model

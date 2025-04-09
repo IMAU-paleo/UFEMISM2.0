@@ -80,9 +80,9 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_R              = 'R'
 
   ! Ice model variables
-  character(len=1024), parameter :: field_name_options_Hi             = 'Hi||thickness||lithk'
-  character(len=1024), parameter :: field_name_options_Hb             = 'Hb||bed||topg'
-  character(len=1024), parameter :: field_name_options_Hs             = 'Hs||surface||orog'
+  character(len=1024), parameter :: field_name_options_Hi             = 'Hi||thickness||lithk||ice_thickness'
+  character(len=1024), parameter :: field_name_options_Hb             = 'Hb||bed||topg||bed_topography'
+  character(len=1024), parameter :: field_name_options_Hs             = 'Hs||surface||orog||surface_topography'
   character(len=1024), parameter :: field_name_options_SL             = 'SL'
   character(len=1024), parameter :: field_name_options_dHb            = 'dHb'
   character(len=1024), parameter :: field_name_options_Ti             = 'Ti'
