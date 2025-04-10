@@ -197,7 +197,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_viscUV'
     INTEGER                                               :: ci, ti, tj, ei
-    REAL(dp)                                              :: D_x, D_y, D, Ah, dUabs
+    REAL(dp)                                              :: Ah, dUabs
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
     REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
@@ -224,10 +224,6 @@ CONTAINS
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
-          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
-          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
-          D   = SQRT( D_x**2 + D_y**2)
-
           Ah = C%laddie_viscosity ! * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
 
           IF (tj==0) THEN
@@ -243,8 +239,8 @@ CONTAINS
 
             ! Add viscosity flux based on dU/dx and dV/dy.
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
-            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / mesh%TriD( ti, ci)
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / mesh%TriD( ti, ci)
           END IF
         END DO
 
@@ -270,7 +266,7 @@ CONTAINS
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
     REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
     INTEGER                                               :: ti, tj, ci, ei
-    REAL(dp)                                              :: D_x, D_y, D_c, u_perp_x, u_perp_y
+    REAL(dp)                                              :: u_perp_x, u_perp_y
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
 
     ! Add routine to path
@@ -309,14 +305,9 @@ CONTAINS
           ! Skip connection if neighbour is grounded. No flux across grounding line
           IF (mask_gl_b_tot( tj)) CYCLE
 
-          ! The triangle-triangle vector from ti to tj
-          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
-          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
-          D_c = SQRT( D_x**2 + D_y**2)
-
           ! Calculate vertically averaged water velocity component perpendicular to this edge
-          u_perp_x = U_c_tot( ei) * D_x/D_c
-          u_perp_y = V_c_tot( ei) * D_y/D_c
+          u_perp_x = U_c_tot( ei) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci)
+          u_perp_y = V_c_tot( ei) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
 
           ! Calculate upstream momentum divergence
           ! =============================
