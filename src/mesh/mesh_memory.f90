@@ -239,6 +239,9 @@ CONTAINS
     IF (ALLOCATED( mesh%TriBI           )) DEALLOCATE( mesh%TriBI           )
     IF (ALLOCATED( mesh%TriGC           )) DEALLOCATE( mesh%TriGC           )
     IF (ALLOCATED( mesh%TriA            )) DEALLOCATE( mesh%TriA            )
+    IF (ALLOCATED( mesh%TriD_x          )) DEALLOCATE( mesh%TriD_x          )
+    IF (ALLOCATED( mesh%TriD_y          )) DEALLOCATE( mesh%TriD_y          )
+    IF (ALLOCATED( mesh%TriD            )) DEALLOCATE( mesh%TriD            )
 
     ! lon/lat coordinates
     IF (ALLOCATED( mesh%lat             )) DEALLOCATE( mesh%lat             )

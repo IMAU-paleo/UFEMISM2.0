@@ -303,7 +303,7 @@ CONTAINS
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'calc_connection_lengths'
-    integer                        :: vi, vj, ci
+    integer                        :: vi, vj, ci, ti, tj
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -312,10 +312,17 @@ CONTAINS
     if (allocated( mesh%D_x)) deallocate( mesh%D_x)
     if (allocated( mesh%D_y)) deallocate( mesh%D_y)
     if (allocated( mesh%D)) deallocate( mesh%D)
+    if (allocated( mesh%TriD_x)) deallocate( mesh%TriD_x)
+    if (allocated( mesh%TriD_y)) deallocate( mesh%TriD_y)
+    if (allocated( mesh%TriD)) deallocate( mesh%TriD)
     allocate( mesh%D_x( mesh%nV, mesh%nC_mem), source = 0._dp)
     allocate( mesh%D_y( mesh%nV, mesh%nC_mem), source = 0._dp)
     allocate( mesh%D( mesh%nV, mesh%nC_mem), source = 0._dp)
+    allocate( mesh%TriD_x( mesh%nTri, 3), source = 0._dp)
+    allocate( mesh%TriD_y( mesh%nTri, 3), source = 0._dp)
+    allocate( mesh%TriD( mesh%nTri, 3), source = 0._dp)
 
+    ! Vertex-vertex connections
     do vi = 1, mesh%nV
       do ci = 1, mesh%nC( vi)
 
@@ -328,6 +335,25 @@ CONTAINS
 
       ! Get absolute distance
       mesh%D( vi, ci)   = sqrt( mesh%D_x( vi, ci)**2 + mesh%D_y( vi, ci)**2)
+
+      end do
+    end do
+
+    ! Triangle-triangle connections
+    do ti = 1, mesh%nTri
+      do ci = 1, 3
+
+        ! Connection ci from triangle ti to triangle tj
+        tj = mesh%TriC( ti, ci)
+
+        if (tj == 0) cycle
+
+        ! Get x and y components
+        mesh%TriD_x( ti, ci) = mesh%Tricc( tj, 1) - mesh%Tricc( ti, 1)
+        mesh%TriD_y( ti, ci) = mesh%Tricc( tj, 2) - mesh%Tricc( ti, 2)
+
+        ! Get absolute distance
+        mesh%TriD( ti, ci) = sqrt( mesh%TriD_x( ti, ci)**2 + mesh%TriD_y( ti, ci)**2)
 
       end do
     end do
