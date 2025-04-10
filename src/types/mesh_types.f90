@@ -77,6 +77,9 @@ module mesh_types
     integer,  dimension(:    ), allocatable :: TriBI                         ! [0-8]     Each triangle's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
     real(dp), dimension(:,:  ), allocatable :: TriGC                         ! [m]       The X,Y-coordinates of each triangle's geometric centre
     real(dp), dimension(:    ), allocatable :: TriA                          ! [m^2]     The area of each triangle
+    real(dp), dimension(:,:  ), allocatable :: TriD_x                        ! [m]       x-component of triangle-triangle connections
+    real(dp), dimension(:,:  ), allocatable :: TriD_y                        ! [m]       y-component of triangle-triangle connections
+    real(dp), dimension(:,:  ), allocatable :: TriD                          ! [m]       absolute distance of triangle-triangle connections
 
     ! lon/lat coordinates
     real(dp), dimension(:    ), allocatable :: lat                           ! [degrees north] Latitude  of each vertex
