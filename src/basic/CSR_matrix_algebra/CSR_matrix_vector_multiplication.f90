@@ -21,9 +21,9 @@ contains
     !< Multiply a CSR matrix with a FORTRAN vector: yy = AA*xx
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp), intent(in   ) :: AA
-    real(dp), dimension(:),          intent(in   ) :: xx
-    real(dp), dimension(:),          intent(  out) :: yy
+    type(type_sparse_matrix_CSR_dp),  intent(in   ) :: AA
+    real(dp), dimension(AA%j1:AA%j2), intent(in   ) :: xx
+    real(dp), dimension(AA%i1:AA%i2), intent(  out) :: yy
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'multiply_CSR_matrix_with_vector_1D'
