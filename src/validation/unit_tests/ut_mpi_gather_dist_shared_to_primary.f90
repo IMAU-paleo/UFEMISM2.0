@@ -17,7 +17,7 @@ module ut_mpi_gather_dist_shared_to_primary
 
   private
 
-  public :: test_gather_dist_shared_to_primary
+  public :: test_gather_dist_shared_to_primary, simple_nih_sizes
 
 contains
 
