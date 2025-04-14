@@ -266,7 +266,7 @@ CONTAINS
     real(dp), dimension(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
     real(dp), dimension(mesh%nE)                          :: U_c_tot, V_c_tot
     integer                                               :: ti, tj, ci, ei
-    real(dp)                                              :: u_perp_x, u_perp_y, u_perp
+    real(dp)                                              :: u_perp
     logical, dimension(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
 
     ! Add routine to path
@@ -306,10 +306,8 @@ CONTAINS
           if (mask_gl_b_tot( tj)) cycle
 
           ! Calculate vertically averaged water velocity component perpendicular to this edge
-          u_perp_x = U_c_tot( ei) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci)
-          u_perp_y = V_c_tot( ei) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
-
-          u_perp = u_perp_x + u_perp_y
+          u_perp = U_c_tot( ei) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci) &
+                 + V_c_tot( ei) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
 
           ! Calculate upstream momentum divergence
           ! =============================
