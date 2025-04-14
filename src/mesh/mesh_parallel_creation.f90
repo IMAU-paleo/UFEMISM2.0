@@ -84,17 +84,17 @@ CONTAINS
     CALL MPI_BCAST( mesh%beta_stereo, 1                , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Vertex data
-    CALL MPI_BCAST( mesh%V          , nV_mem   * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%nC         , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%C          , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%niTri      , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%iTri       , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%VBI        , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%V(:,:)          , nV_mem   * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%nC(:)         , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%C(:,:)          , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%niTri(:)      , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%iTri(:,:)       , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%VBI(:)        , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
 
     ! Triangle data
-    CALL MPI_BCAST( mesh%Tri        , nTri_mem * 3     , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%TriC       , nTri_mem * 3     , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%Tricc      , nTri_mem * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%Tri(:,:)        , nTri_mem * 3     , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%TriC(:,:)       , nTri_mem * 3     , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%Tricc(:,:)      , nTri_mem * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

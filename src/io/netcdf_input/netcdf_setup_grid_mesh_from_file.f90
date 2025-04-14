@@ -4,8 +4,8 @@ module netcdf_setup_grid_mesh_from_file
   use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_DOUBLE_PRECISION
   use precisions, only: dp
   use mpi_basic, only: par
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
-  use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use grid_types, only: type_grid, type_grid_lonlat
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_parallel_creation, only: broadcast_mesh
@@ -21,7 +21,7 @@ module netcdf_setup_grid_mesh_from_file
   private
 
   public :: setup_xy_grid_from_file, setup_lonlat_grid_from_file, setup_mesh_from_file, &
-    setup_zeta_from_file, setup_depth_from_file, setup_lonlat_grid_from_lat_file
+    setup_zeta_from_file, setup_depth_from_file
 
 contains
 
@@ -67,8 +67,8 @@ contains
     call read_var_primary(  filename, ncid, id_var_y, grid%y)
 
     ! Broadcast x and y from the primary to the other processes
-    call MPI_BCAST( grid%x, grid%nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST( grid%y, grid%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( grid%x(:), grid%nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( grid%y(:), grid%ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Calculate secondary grid geometry data
     call calc_secondary_grid_data( grid)
@@ -119,8 +119,8 @@ contains
     call read_var_primary( filename, ncid, id_var_lat, grid%lat)
 
     ! Broadcast x and y from the primary to the other processes
-    call MPI_BCAST( grid%lon, grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST( grid%lat, grid%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( grid%lon(:), grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( grid%lat(:), grid%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Secondary data
     call calc_lonlat_field_to_vector_form_translation_tables( grid)
@@ -274,7 +274,7 @@ contains
     call read_var_primary( filename, ncid, id_var_zeta, zeta)
 
     ! Broadcast zeta from primary to all other processes
-    call MPI_BCAST( zeta, nzeta, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( zeta(:), nzeta, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -314,75 +314,11 @@ contains
     call read_var_primary( filename, ncid, id_var_depth, depth)
 
     ! Broadcast depth from primary to all other processes
-    call MPI_BCAST( depth, ndepth, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( depth(:), ndepth, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine setup_depth_from_file
-
-  subroutine setup_lonlat_grid_from_lat_file( filename, ncid, grid, vec)
-    !< Set up a lat-only and a lon/lat-grid from a NetCDF file
-
-    ! In/output variables:
-    character(len=*),       intent(in   ) :: filename
-    integer,                intent(in   ) :: ncid
-    type(type_grid_lonlat), intent(  out) :: grid
-    type(type_grid_lat),    intent(  out) :: vec
-
-    ! Local variables:
-    character(len=1024), parameter       :: routine_name = 'setup_lonlat_grid_from_lat_file'
-    integer                              :: id_dim_lat
-    integer                              :: id_var_lat
-    integer                              :: ierr, i
-    integer, parameter                   :: nlon = 360
-    real(dp), parameter                  :: dlon = 1.0
-    real(dp), allocatable, dimension(:)  :: lon
-    CHARACTER(LEN=256)                   :: str
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-  ! Give the grid a nice name
-    grid%name = 'lonlat_grid_from_file_"' // trim( filename) // '"'
-
-    ! Generate the vector of longitudes - hardcoded to be at 1 degree resolution
-    grid%nlon = nlon
-    allocate( grid%lon( grid%nlon))
-    do i=1, nlon
-        !lon(i) = -180 + 360 * (i - 1) / (nlon - 1) ! longitude going from -180 to + 180
-        grid%lon(i) = i*dlon                             ! longitude going from 0 to 360
-    end do
-
-    ! Check latitude grid dimension and variables for validity
-    call check_lat( filename, ncid)
-
-    ! Inquire lat dimension
-    call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat, dim_length = grid%nlat)
-    vec%nlat  = grid%nlat
-
-    ! allocate memory for lat
-    allocate( grid%lat( grid%nlat))
-    allocate(  vec%lat(  vec%nlat))
-
-    ! Inquire lat variable
-    call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
-
-    ! Read and assign y
-    call read_var_primary( filename, ncid, id_var_lat, vec%lat)
-    grid%lat  = vec%lat
-
-    ! Broadcast x and y from the master to the other processes
-    call MPI_BCAST( grid%lon, grid%nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST( grid%lat, grid%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST(  vec%lat,  vec%nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-
-    ! Secondary data
-    call calc_lonlat_field_to_vector_form_translation_tables( grid)
-
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-  end subroutine setup_lonlat_grid_from_lat_file
 
 end module netcdf_setup_grid_mesh_from_file
