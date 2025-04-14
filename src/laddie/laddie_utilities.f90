@@ -18,7 +18,7 @@ MODULE laddie_utilities
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use CSR_matrix_basics, only: allocate_matrix_CSR_dist
-  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
 
   IMPLICIT NONE
 
@@ -75,7 +75,9 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, H_a, H_b)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_b, &
+      mesh%pai_V, H_a, mesh%pai_Tri, H_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -98,7 +100,9 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, H_a, H_c)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_c, &
+      mesh%pai_V, H_a, mesh%pai_E, H_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

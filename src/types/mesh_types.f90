@@ -4,6 +4,7 @@ module mesh_types
 
   use precisions, only: dp
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use parallel_array_info_type, only: type_par_arr_info
 
   implicit none
 
@@ -106,6 +107,10 @@ module mesh_types
     integer,  dimension(:,:  ), allocatable :: VVor                          !           For each regular vertex, the indices of the Voronoi vertices spanning its Voronoi cell
 
     ! Parallelisation ranges
+    integer                                 :: vi1, vi2, nV_loc              ! Each process "owns" nV_loc    vertices  vi1      - vi2     , so that nV_loc    = vi2      + 1 - vi1
+    integer                                 :: ti1, ti2, nTri_loc            ! Each process "owns" nTri_loc  triangles ti1      - ti2     , so that nTri_loc  = ti2      + 1 - ti1
+    integer                                 :: ei1, ei2, nE_loc              ! Each process "owns" nE_loc    edges     ei1      - ei2     , so that nE_loc    = ei2      + 1 - ei1
+
     integer,  dimension(:    ), allocatable :: V_owning_process              !           Which process owns each vertex
     integer,  dimension(:    ), allocatable :: Tri_owning_process            !           Which process owns each triangle
     integer,  dimension(:    ), allocatable :: E_owning_process              !           Which process owns each edge
@@ -113,30 +118,9 @@ module mesh_types
     integer,  dimension(:    ), allocatable :: Tri_owning_node               !           Which node owns each triangle
     integer,  dimension(:    ), allocatable :: E_owning_node                 !           Which node owns each edge
 
-    integer :: vi1_node, vi2_node, nV_node   ! Each node    "owns" nV_node   vertices  vi1_node - vi2_node, so that nV_node   = vi2_node + 1 - vi1_node
-    integer :: ti1_node, ti2_node, nTri_node ! Each node    "owns" nTri_node triangles ti1_node - ti2_node, so that nTri_node = ti2_node + 1 - ti1_node
-    integer :: ei1_node, ei2_node, nE_node   ! Each node    "owns" nE_node   edges     ei1_node - ei2_node, so that nE_node   = ei2_node + 1 - ei1_node
-    integer :: vi1, vi2, nV_loc              ! Each process "owns" nV_loc    vertices  vi1      - vi2     , so that nV_loc    = vi2      + 1 - vi1
-    integer :: ti1, ti2, nTri_loc            ! Each process "owns" nTri_loc  triangles ti1      - ti2     , so that nTri_loc  = ti2      + 1 - ti1
-    integer :: ei1, ei2, nE_loc              ! Each process "owns" nE_loc    edges     ei1      - ei2     , so that nE_loc    = ei2      + 1 - ei1
-
-    integer :: vi1_nih, vi2_nih, nV_nih      ! nih = "node including halo" - this is the size of memory that should be allocated for an a-grid field, e.g. d( mesh%vi1_nih:mesh%vi2_nih)
-    integer :: vi1_hle, vi2_hle, nV_hle      ! hlo = "halo left  exterior"
-    integer :: vi1_hli, vi2_hli, nV_hli      ! hli = "halo left  interior"
-    integer :: vi1_hre, vi2_hre, nV_hre      ! hro = "halo right exterior"
-    integer :: vi1_hri, vi2_hri, nV_hri      ! hri = "halo right interior"
-
-    integer :: ti1_nih, ti2_nih, nTri_nih    ! nih = "node including halo" - this is the size of memory that should be allocated for a  b-grid field, e.g. d( mesh%ti1_nih:mesh%ti2_nih)
-    integer :: ti1_hle, ti2_hle, nTri_hle    ! hlo = "halo left  exterior"
-    integer :: ti1_hli, ti2_hli, nTri_hli    ! hli = "halo left  interior"
-    integer :: ti1_hre, ti2_hre, nTri_hre    ! hro = "halo right exterior"
-    integer :: ti1_hri, ti2_hri, nTri_hri    ! hri = "halo right interior"
-
-    integer :: ei1_nih, ei2_nih, nE_nih      ! nih = "node including halo" - this is the size of memory that should be allocated for a  c-grid field, e.g. d( mesh%ei1_nih:mesh%ei2_nih)
-    integer :: ei1_hle, ei2_hle, nE_hle      ! hlo = "halo left  exterior"
-    integer :: ei1_hli, ei2_hli, nE_hli      ! hli = "halo left  interior"
-    integer :: ei1_hre, ei2_hre, nE_hre      ! hro = "halo right exterior"
-    integer :: ei1_hri, ei2_hri, nE_hri      ! hri = "halo right interior"
+    type(type_par_arr_info)                 :: pai_V                         ! Parallelisation info for vertex-based fields
+    type(type_par_arr_info)                 :: pai_Tri                       ! Parallelisation info for triangle-based fields
+    type(type_par_arr_info)                 :: pai_E                         ! Parallelisation info for edge-based fields
 
   ! Matrix operators
   ! ================

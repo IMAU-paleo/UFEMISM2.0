@@ -13,8 +13,8 @@ module laddie_operators
   use ice_model_types                                        , only: type_ice_model
   use laddie_model_types                                     , only: type_laddie_model, type_laddie_timestep
   use mpi_distributed_memory                                 , only: gather_to_all
-  use CSR_matrix_basics                            , only: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
-                                                                     add_entry_CSR_dist, add_empty_row_CSR_dist, crop_matrix_CSR_dist
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
+    add_entry_CSR_dist, add_empty_row_CSR_dist, finalise_matrix_CSR_dist
 
   implicit none
 
@@ -211,9 +211,9 @@ contains
     end do
 
     ! Crop matrix memory
-    call crop_matrix_CSR_dist( laddie%M_map_H_a_b)
-    call crop_matrix_CSR_dist( laddie%M_map_H_a_c)
-    call crop_matrix_CSR_dist( laddie%M_map_UV_b_c)
+    call finalise_matrix_CSR_dist( laddie%M_map_H_a_b)
+    call finalise_matrix_CSR_dist( laddie%M_map_H_a_c)
+    call finalise_matrix_CSR_dist( laddie%M_map_UV_b_c)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
