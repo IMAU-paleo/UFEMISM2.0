@@ -898,7 +898,7 @@ contains
 
       ! Check whether ocean present
       do k = 1, size(vert_src)
-        if (d_src_partial( vi, k) == d_src_partial( vi, k)) then
+        if (.not. isnan(d_src_partial( vi, k))) then
           got_ocean = .true.
         end if
       end do
