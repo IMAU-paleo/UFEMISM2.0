@@ -266,7 +266,7 @@ CONTAINS
     real(dp), dimension(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
     real(dp), dimension(mesh%nE)                          :: U_c_tot, V_c_tot
     integer                                               :: ti, tj, ci, ei
-    real(dp)                                              :: u_perp_x, u_perp_y
+    real(dp)                                              :: u_perp_x, u_perp_y, u_perp
     logical, dimension(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
 
     ! Add routine to path
@@ -309,21 +309,23 @@ CONTAINS
           u_perp_x = U_c_tot( ei) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci)
           u_perp_y = V_c_tot( ei) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
 
+          u_perp = u_perp_x + u_perp_y
+
           ! Calculate upstream momentum divergence
           ! =============================
           ! u_perp > 0: flow is exiting this triangle into triangle tj
-          if (u_perp_x > 0) then
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * U_tot( ti)* u_perp_x / mesh%TriA( ti)
+          if (u_perp > 0) then
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * U_tot( ti)* u_perp / mesh%TriA( ti)
           ! u_perp < 0: flow is entering this triangle into triangle tj
           else
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * U_tot( tj)* u_perp_x / mesh%TriA( ti)
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * U_tot( tj)* u_perp / mesh%TriA( ti)
           end if
 
           ! V momentum
-          if (u_perp_y > 0) then
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * V_tot( ti)* u_perp_y / mesh%TriA( ti)
+          if (u_perp > 0) then
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * V_tot( ti)* u_perp / mesh%TriA( ti)
           else
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp_y / mesh%TriA( ti)
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp / mesh%TriA( ti)
           end if
 
         end do ! do ci = 1, 3
