@@ -27,6 +27,9 @@ module CSR_sparse_matrix_type
     integer :: n_loc,  j1,      j2      ! Columns owned by each process
     integer :: n_node, j1_node, j2_node ! Columns owned by each node
 
+    logical :: is_finalised = .false.
+    integer :: j_min_node, j_max_node   ! Range of rows of x needed by this node to compute y = A*x
+
   end type type_sparse_matrix_CSR_dp
 
 contains

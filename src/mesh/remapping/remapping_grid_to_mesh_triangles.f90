@@ -9,7 +9,7 @@ module remapping_grid_to_mesh_triangles
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     deallocate_matrix_CSR_dist, add_entry_CSR_dist, add_empty_row_CSR_dist
   use remapping_types, only: type_single_row_mapping_matrices, type_map
   use plane_geometry, only: is_in_triangle
@@ -223,6 +223,10 @@ contains
       end if
 
     end do
+
+    call finalise_matrix_CSR_dist( A_xdy_b_g_CSR)
+    call finalise_matrix_CSR_dist( A_mxydx_b_g_CSR)
+    call finalise_matrix_CSR_dist( A_xydy_b_g_CSR)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -486,6 +490,10 @@ contains
       end if
 
     end do
+
+    call finalise_matrix_CSR_dist( w0_CSR )
+    call finalise_matrix_CSR_dist( w1x_CSR)
+    call finalise_matrix_CSR_dist( w1y_CSR)
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( w0_CSR , w0 )

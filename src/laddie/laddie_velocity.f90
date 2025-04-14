@@ -19,7 +19,7 @@ MODULE laddie_velocity
   USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
-  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
 
   IMPLICIT NONE
 
@@ -365,8 +365,12 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, U, U_c)
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, V, V_c)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_UV_b_c, &
+      mesh%pai_Tri, U, mesh%pai_E, U_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false.)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_UV_b_c, &
+      mesh%pai_Tri, V, mesh%pai_E, V_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
