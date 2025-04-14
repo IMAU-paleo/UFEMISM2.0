@@ -11,6 +11,7 @@ module unit_tests_multinode
   use ut_mpi_dist_shared_memory, only: unit_tests_mpi_hybrid_distributed_shared_memory_main
   use ut_halo_exchange, only: test_halo_exchange_main
   use ut_halo_exchange_mesh, only: test_mesh_halo_exchange_main
+  use ut_mpi_CSR_matrix_algebra, only: test_CSR_matrix_algebra_main
 
   implicit none
 
@@ -44,6 +45,7 @@ contains
     call unit_tests_mpi_hybrid_distributed_shared_memory_main( test_name)
     call test_halo_exchange_main( test_name)
     call test_mesh_halo_exchange_main( test_name)
+    call test_CSR_matrix_algebra_main( test_name)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
