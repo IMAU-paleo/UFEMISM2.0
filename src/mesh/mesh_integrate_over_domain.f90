@@ -93,7 +93,7 @@ contains
     character(len=1024), parameter :: routine_name = 'calc_and_print_min_mean_max'
     real(dp)                       :: d_min, d_max, d_av
     integer                        :: ierr
-    character(len=40)              :: name_
+    character(len=20)              :: name_
 
     ! Add routine to path
     call init_routine( routine_name)

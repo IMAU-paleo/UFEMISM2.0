@@ -4,7 +4,7 @@ MODULE laddie_thickness
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -19,11 +19,12 @@ MODULE laddie_thickness
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
+  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -43,7 +44,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_npx'
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -61,8 +62,8 @@ CONTAINS
 
     ! Compute melt rate
     CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
-     
-    ! Compute entrainment                                    
+
+    ! Compute entrainment
     CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
 
     ! Do integration
@@ -71,6 +72,8 @@ CONTAINS
     ! Map new values of H to b grid and c grid
     CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
     CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
+    call calc_and_print_min_mean_max( mesh, npx%H_b, 'npx%H_b')
+    call calc_and_print_min_mean_max( mesh, npx%H_c, 'npx%H_c')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -127,6 +130,10 @@ CONTAINS
 
       end if !(laddie%mask_a( vi)) THEN
     end do !vi = mesh%vi, mesh%v2
+    call calc_and_print_min_mean_max( mesh, laddie%entr_dmin, 'laddie%entr_dmin')
+    call calc_and_print_min_mean_max( mesh, laddie%entr, 'laddie%entr')
+    call calc_and_print_min_mean_max( mesh, laddie%detr, 'laddie%detr')
+    call calc_and_print_min_mean_max( mesh, npx%H, 'npx%H')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -203,10 +210,11 @@ CONTAINS
           END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)
-       
+
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+    call calc_and_print_min_mean_max( mesh, laddie%divQH, 'laddie%divQH')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -19,6 +19,7 @@ MODULE laddie_utilities
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use CSR_matrix_basics, only: allocate_matrix_CSR_dist
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
+  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
 
@@ -53,6 +54,8 @@ CONTAINS
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
+    call calc_and_print_min_mean_max( mesh, laddie%T_amb, 'laddie%T_amb')
+    call calc_and_print_min_mean_max( mesh, laddie%S_amb, 'laddie%S_amb')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
