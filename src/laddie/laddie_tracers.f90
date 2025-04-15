@@ -4,7 +4,7 @@ MODULE laddie_tracers
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -16,11 +16,12 @@ MODULE laddie_tracers
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -42,7 +43,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_TS_npx'
     INTEGER                                               :: vi
     REAL(dp)                                              :: dHTdt, dHSdt, HT_next, HS_next
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -85,6 +86,8 @@ CONTAINS
         npx%S( vi) = HS_next / npx%H( vi)
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
+    call calc_and_print_min_mean_max( mesh, npx%T, 'npx%T')
+    call calc_and_print_min_mean_max( mesh, npx%S, 'npx%S')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -135,7 +138,7 @@ CONTAINS
           IF (mask_a_tot( vj)) THEN
             ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
 
-            Kh = C%laddie_diffusivity 
+            Kh = C%laddie_diffusivity
 
             laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
             laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
@@ -144,6 +147,8 @@ CONTAINS
 
       END IF
     END DO
+    call calc_and_print_min_mean_max( mesh, laddie%diffT, 'laddie%diffT')
+    call calc_and_print_min_mean_max( mesh, laddie%diffS, 'laddie%diffS')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -229,10 +234,12 @@ CONTAINS
           END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)
-       
+
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+    call calc_and_print_min_mean_max( mesh, laddie%divQT, 'laddie%divQT')
+    call calc_and_print_min_mean_max( mesh, laddie%divQS, 'laddie%divQS')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

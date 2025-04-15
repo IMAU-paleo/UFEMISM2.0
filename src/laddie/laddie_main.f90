@@ -26,6 +26,7 @@ MODULE laddie_main
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
 
@@ -119,6 +120,8 @@ CONTAINS
 
       ! Display or save fields
       CALL print_diagnostics( laddie, tl)
+
+      call crash('whoopsiedaisy')
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
@@ -294,6 +297,7 @@ CONTAINS
 
     ! Compute Hstar
     laddie%Hstar = C%laddie_fbrk3_beta1 * laddie%np13%H + (1-C%laddie_fbrk3_beta1) * laddie%now%H
+    call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
@@ -313,6 +317,7 @@ CONTAINS
 
     ! Compute new Hstar
     laddie%Hstar = C%laddie_fbrk3_beta2 * laddie%np12%H + (1-C%laddie_fbrk3_beta2) * laddie%now%H
+    call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
@@ -332,6 +337,7 @@ CONTAINS
 
     ! Compute new Hstar
     laddie%Hstar = C%laddie_fbrk3_beta3 * laddie%np1%H + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H + C%laddie_fbrk3_beta3 * laddie%now%H
+    call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)

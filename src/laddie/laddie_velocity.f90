@@ -20,6 +20,7 @@ MODULE laddie_velocity
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
+  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
 
@@ -179,6 +180,13 @@ CONTAINS
     CALL map_b_a_2D( mesh, npx%U, npx%U_a)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a)
 
+    call calc_and_print_min_mean_max( mesh, npx%U, 'npx%U')
+    call calc_and_print_min_mean_max( mesh, npx%V, 'npx%V')
+    call calc_and_print_min_mean_max( mesh, npx%U_c, 'npx%U_c')
+    call calc_and_print_min_mean_max( mesh, npx%V_c, 'npx%V_c')
+    call calc_and_print_min_mean_max( mesh, npx%U_a, 'npx%U_a')
+    call calc_and_print_min_mean_max( mesh, npx%V_a, 'npx%V_a')
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -246,6 +254,8 @@ CONTAINS
 
       END IF !(laddie%mask_b( ti)
     END DO !ti = mesh%ti1, mesh%ti2
+    call calc_and_print_min_mean_max( mesh, laddie%viscU, 'laddie%viscU')
+    call calc_and_print_min_mean_max( mesh, laddie%viscV, 'laddie%viscV')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -331,6 +341,8 @@ CONTAINS
       end if ! (laddie%mask_b( ti))
 
     end do ! do ti = mesh%ti1, mesh%ti2
+    call calc_and_print_min_mean_max( mesh, laddie%divQU, 'laddie%divQU')
+    call calc_and_print_min_mean_max( mesh, laddie%divQV, 'laddie%divQV')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
