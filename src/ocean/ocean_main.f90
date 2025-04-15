@@ -414,7 +414,7 @@ CONTAINS
       CALL initialise_ocean_model_idealised( mesh_new, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
         IF     (C%choice_ocean_model_realistic == 'snapshot') THEN
-          CALL initialise_ocean_model_realistic( mesh_new, ocean, region_name)
+          CALL initialise_ocean_model_realistic( mesh_new, ice, ocean, region_name)
         ELSE
           CALL crash('Remapping after mesh update for realistic ocean is only implemented for a snapshot!')
         END IF
