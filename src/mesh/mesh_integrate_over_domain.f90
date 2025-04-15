@@ -27,28 +27,28 @@ contains
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'integrate_over_domain'
-    real(dp), dimension(:), pointer :: d_loc
+    real(dp), dimension(:), pointer :: d_nih, d_loc
 
     ! Add routine to path
     call init_routine( routine_name)
 
     if     (size( d,1) == mesh%pai_V%n_loc) then
-      d_loc( mesh%pai_V%i1:mesh%pai_V%i2) => d
-      call integrate_over_domain_a( mesh, d_loc, int_d)
+      call integrate_over_domain_a( mesh, d, int_d)
     elseif (size( d,1) == mesh%pai_V%n_nih) then
-      d_loc( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d
+      d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d
+      d_loc => d_nih( mesh%pai_V%i1:mesh%pai_V%i2)
       call integrate_over_domain_a( mesh, d_loc, int_d)
     elseif (size( d,1) == mesh%pai_Tri%n_loc) then
-      d_loc( mesh%pai_Tri%i1:mesh%pai_Tri%i2) => d
-      call integrate_over_domain_b( mesh, d_loc, int_d)
+      call integrate_over_domain_b( mesh, d, int_d)
     elseif (size( d,1) == mesh%pai_Tri%n_nih) then
-      d_loc( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d
+      d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d
+      d_loc => d_nih( mesh%pai_Tri%i1:mesh%pai_Tri%i2)
       call integrate_over_domain_b( mesh, d_loc, int_d)
     elseif (size( d,1) == mesh%pai_E%n_loc) then
-      d_loc( mesh%pai_E%i1:mesh%pai_E%i2) => d
-      call integrate_over_domain_c( mesh, d_loc, int_d)
+      call integrate_over_domain_c( mesh, d, int_d)
     elseif (size( d,1) == mesh%pai_E%n_nih) then
-      d_loc( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d
+      d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d
+      d_loc => d_nih( mesh%pai_E%i1:mesh%pai_E%i2)
       call integrate_over_domain_c( mesh, d_loc, int_d)
     else
       call crash('invalid vector size')
