@@ -84,24 +84,27 @@ contains
       mesh%V_owning_process, mesh%V_owning_node)
     mesh%pai_V%i1 = mesh%vi1
     mesh%pai_V%i2 = mesh%vi2
+    mesh%pai_V%n_loc = mesh%nV_loc
 
     ! b-grid (triangles)
     allocate( mesh%Tri_owning_process( mesh%nTri))
     allocate( mesh%Tri_owning_node   ( mesh%nTri))
     call determine_ownership_ranges( mesh%nTri, mesh%ti1, mesh%ti2, mesh%nTri_loc, &
-      mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node, mesh%pai_Tri%n_node, &
-      mesh%Tri_owning_process, mesh%Tri_owning_node)
+    mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node, mesh%pai_Tri%n_node, &
+    mesh%Tri_owning_process, mesh%Tri_owning_node)
     mesh%pai_Tri%i1 = mesh%ti1
     mesh%pai_Tri%i2 = mesh%ti2
+    mesh%pai_Tri%n_loc = mesh%nTri_loc
 
     ! c-grid (edges)
     allocate( mesh%E_owning_process  ( mesh%nE))
     allocate( mesh%E_owning_node     ( mesh%nE))
     call determine_ownership_ranges( mesh%nE, mesh%ei1, mesh%ei2, mesh%nE_loc, &
-      mesh%pai_E%i1_node, mesh%pai_E%i2_node, mesh%pai_E%n_node, &
-      mesh%E_owning_process, mesh%E_owning_node)
+    mesh%pai_E%i1_node, mesh%pai_E%i2_node, mesh%pai_E%n_node, &
+    mesh%E_owning_process, mesh%E_owning_node)
     mesh%pai_E%i1 = mesh%ei1
     mesh%pai_E%i2 = mesh%ei2
+    mesh%pai_E%n_loc = mesh%nE_loc
 
     ! Determine all halos
     call determine_halos( mesh)

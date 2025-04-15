@@ -4,17 +4,117 @@ module mesh_integrate_over_domain
 
   use precisions, only: dp
   use mesh_types, only: type_mesh
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine
-  use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
+  use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, &
+    MPI_MIN, MPI_MAX
+  use mpi_basic, only: par, sync
 
   implicit none
 
   private
 
-  public :: integrate_over_domain_a, integrate_over_domain_b, integrate_over_domain_c, &
-    average_over_domain_a, average_over_domain_b, average_over_domain_c
+  public :: integrate_over_domain, average_over_domain, calc_and_print_min_mean_max
 
 contains
+
+  subroutine integrate_over_domain( mesh, d, int_d)
+    !< Integrate a function defined on the mesh over the domain
+
+    ! In/output variables:
+    type(type_mesh),                intent(in   ) :: mesh
+    real(dp), dimension(:), target, intent(in   ) :: d
+    real(dp),                       intent(  out) :: int_d
+
+    ! Local variables:
+    character(len=1024), parameter  :: routine_name = 'integrate_over_domain'
+    real(dp), dimension(:), pointer :: d_loc
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if     (size( d,1) == mesh%pai_V%n_loc) then
+      d_loc( mesh%pai_V%i1:mesh%pai_V%i2) => d
+      call integrate_over_domain_a( mesh, d_loc, int_d)
+    elseif (size( d,1) == mesh%pai_V%n_nih) then
+      d_loc( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d
+      call integrate_over_domain_a( mesh, d_loc, int_d)
+    elseif (size( d,1) == mesh%pai_Tri%n_loc) then
+      d_loc( mesh%pai_Tri%i1:mesh%pai_Tri%i2) => d
+      call integrate_over_domain_b( mesh, d_loc, int_d)
+    elseif (size( d,1) == mesh%pai_Tri%n_nih) then
+      d_loc( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d
+      call integrate_over_domain_b( mesh, d_loc, int_d)
+    elseif (size( d,1) == mesh%pai_E%n_loc) then
+      d_loc( mesh%pai_E%i1:mesh%pai_E%i2) => d
+      call integrate_over_domain_c( mesh, d_loc, int_d)
+    elseif (size( d,1) == mesh%pai_E%n_nih) then
+      d_loc( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d
+      call integrate_over_domain_c( mesh, d_loc, int_d)
+    else
+      call crash('invalid vector size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine integrate_over_domain
+
+  subroutine average_over_domain( mesh, d, av_d)
+    !< Average a function defined on the mesh vertices over the domain
+
+    ! In/output variables:
+    type(type_mesh),        intent(in   ) :: mesh
+    real(dp), dimension(:), intent(in   ) :: d
+    real(dp),               intent(  out) :: av_d
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'average_over_domain'
+    real(dp)                       :: int_d
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call integrate_over_domain( mesh, d, int_d)
+    av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine average_over_domain
+
+  subroutine calc_and_print_min_mean_max( mesh, d, name)
+
+    ! In/output variables:
+    type(type_mesh),                intent(in   ) :: mesh
+    real(dp), dimension(:), target, intent(in   ) :: d
+    character(len=*),               intent(in   ) :: name
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_and_print_min_mean_max'
+    real(dp)                       :: d_min, d_max, d_av
+    integer                        :: ierr
+    character(len=40)              :: name_
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    d_min = minval( d)
+    d_max = maxval( d)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, d_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, d_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    call average_over_domain( mesh, d, d_av)
+
+    name_ = ' '
+    name_( len( name_)-len_trim( name)+1:len( name_)) = name( 1:len_trim( name))
+
+    if (par%primary) call warning( name_ // ': [{dp_01} - {dp_02} - {dp_03}]', &
+      dp_01 = d_min, dp_02 = d_av, dp_03 = d_max)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_and_print_min_mean_max
 
   subroutine integrate_over_domain_a( mesh, d, int_d)
     !< Integrate a function defined on the mesh vertices over the domain
@@ -93,74 +193,5 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine integrate_over_domain_c
-
-  subroutine average_over_domain_a( mesh, d, av_d)
-    !< Average a function defined on the mesh vertices over the domain
-
-    ! In/output variables:
-    type(type_mesh),                         intent(in   ) :: mesh
-    real(dp), dimension( mesh%vi1:mesh%vi2), intent(in   ) :: d
-    real(dp),                                intent(  out) :: av_d
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'average_over_domain_a'
-    real(dp)                       :: int_d
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call integrate_over_domain_a( mesh, d, int_d)
-    av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine average_over_domain_a
-
-  subroutine average_over_domain_b( mesh, d, av_d)
-    !< Average a function defined on the mesh triangles over the domain
-
-    ! In/output variables:
-    type(type_mesh),                         intent(in   ) :: mesh
-    real(dp), dimension( mesh%ti1:mesh%ti2), intent(in   ) :: d
-    real(dp),                                intent(  out) :: av_d
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'average_over_domain_b'
-    real(dp)                       :: int_d
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call integrate_over_domain_b( mesh, d, int_d)
-    av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine average_over_domain_b
-
-  subroutine average_over_domain_c( mesh, d, av_d)
-    !< Average a function defined on the mesh edges over the domain
-
-    ! In/output variables:
-    type(type_mesh),                         intent(in   ) :: mesh
-    real(dp), dimension( mesh%ei1:mesh%ei2), intent(in   ) :: d
-    real(dp),                                intent(  out) :: av_d
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'average_over_domain_c'
-    real(dp)                       :: int_d
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call integrate_over_domain_c( mesh, d, int_d)
-    av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine average_over_domain_c
 
 end module mesh_integrate_over_domain
