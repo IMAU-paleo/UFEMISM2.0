@@ -117,13 +117,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nV_nih)
-    d_nih( mesh%vi1_nih:mesh%vi2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih)
+    d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = .false.
-      do vi = mesh%vi1_node, mesh%vi2_node
+      do vi = mesh%pai_V%i1_node, mesh%pai_V%i2_node
         d_nih( vi) = .true.
       end do
     end if
@@ -134,7 +134,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do vi = mesh%vi1_nih, mesh%vi2_nih
+    do vi = mesh%pai_V%i1_nih, mesh%pai_V%i2_nih
       test_result = test_result .and. d_nih( vi)
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -175,13 +175,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nV_nih)
-    d_nih( mesh%vi1_nih:mesh%vi2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih)
+    d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do vi = mesh%vi1_node, mesh%vi2_node
+      do vi = mesh%pai_V%i1_node, mesh%pai_V%i2_node
         d_nih( vi) = 1
       end do
     end if
@@ -192,7 +192,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do vi = mesh%vi1_nih, mesh%vi2_nih
+    do vi = mesh%pai_V%i1_nih, mesh%pai_V%i2_nih
       test_result = test_result .and. d_nih( vi) == 1
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -234,13 +234,13 @@ contains
 
     ! Allocate some node-shared memory
     nz = 13
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nV_nih, nz)
-    d_nih( mesh%vi1_nih:mesh%vi2_nih,1:nz) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih, nz)
+    d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih,1:nz) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do vi = mesh%vi1_node, mesh%vi2_node
+      do vi = mesh%pai_V%i1_node, mesh%pai_V%i2_node
         do k = 1, nz
           d_nih( vi,k) = k
         end do
@@ -253,7 +253,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do vi = mesh%vi1_nih, mesh%vi2_nih
+    do vi = mesh%pai_V%i1_nih, mesh%pai_V%i2_nih
       do k = 1, nz
         test_result = test_result .and. d_nih( vi,k) == k
       end do
@@ -296,13 +296,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nV_nih)
-    d_nih( mesh%vi1_nih:mesh%vi2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih)
+    d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do vi = mesh%vi1_node, mesh%vi2_node
+      do vi = mesh%pai_V%i1_node, mesh%pai_V%i2_node
         d_nih( vi) = 1._dp
       end do
     end if
@@ -313,7 +313,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do vi = mesh%vi1_nih, mesh%vi2_nih
+    do vi = mesh%pai_V%i1_nih, mesh%pai_V%i2_nih
       test_result = test_result .and. d_nih( vi) == 1._dp
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -355,13 +355,13 @@ contains
 
     ! Allocate some node-shared memory
     nz = 13
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nV_nih, nz)
-    d_nih( mesh%vi1_nih:mesh%vi2_nih,1:nz) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih, nz)
+    d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih,1:nz) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do vi = mesh%vi1_node, mesh%vi2_node
+      do vi = mesh%pai_V%i1_node, mesh%pai_V%i2_node
         do k = 1, nz
           d_nih( vi,k) = real( k,dp)
         end do
@@ -374,7 +374,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do vi = mesh%vi1_nih, mesh%vi2_nih
+    do vi = mesh%pai_V%i1_nih, mesh%pai_V%i2_nih
       do k = 1, nz
         test_result = test_result .and. d_nih( vi,k) == real( k,dp)
       end do
@@ -419,13 +419,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nTri_nih)
-    d_nih( mesh%ti1_nih:mesh%ti2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_Tri%n_nih)
+    d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = .false.
-      do ti = mesh%ti1_node, mesh%ti2_node
+      do ti = mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node
         d_nih( ti) = .true.
       end do
     end if
@@ -436,7 +436,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ti = mesh%ti1_nih, mesh%ti2_nih
+    do ti = mesh%pai_Tri%i1_nih, mesh%pai_Tri%i2_nih
       test_result = test_result .and. d_nih( ti)
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -477,13 +477,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nTri_nih)
-    d_nih( mesh%ti1_nih:mesh%ti2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_Tri%n_nih)
+    d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ti = mesh%ti1_node, mesh%ti2_node
+      do ti = mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node
         d_nih( ti) = 1
       end do
     end if
@@ -494,7 +494,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ti = mesh%ti1_nih, mesh%ti2_nih
+    do ti = mesh%pai_Tri%i1_nih, mesh%pai_Tri%i2_nih
       test_result = test_result .and. d_nih( ti) == 1
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -536,13 +536,13 @@ contains
 
     ! Allocate some node-shared memory
     nz = 13
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nTri_nih, nz)
-    d_nih( mesh%ti1_nih:mesh%ti2_nih,1:nz) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_Tri%n_nih, nz)
+    d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih,1:nz) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ti = mesh%ti1_node, mesh%ti2_node
+      do ti = mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node
         do k = 1, nz
           d_nih( ti,k) = k
         end do
@@ -555,7 +555,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ti = mesh%ti1_nih, mesh%ti2_nih
+    do ti = mesh%pai_Tri%i1_nih, mesh%pai_Tri%i2_nih
       do k = 1, nz
         test_result = test_result .and. d_nih( ti,k) == k
       end do
@@ -598,13 +598,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nTri_nih)
-    d_nih( mesh%ti1_nih:mesh%ti2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_Tri%n_nih)
+    d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ti = mesh%ti1_node, mesh%ti2_node
+      do ti = mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node
         d_nih( ti) = 1._dp
       end do
     end if
@@ -615,7 +615,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ti = mesh%ti1_nih, mesh%ti2_nih
+    do ti = mesh%pai_Tri%i1_nih, mesh%pai_Tri%i2_nih
       test_result = test_result .and. d_nih( ti) == 1._dp
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -657,13 +657,13 @@ contains
 
     ! Allocate some node-shared memory
     nz = 13
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nTri_nih, nz)
-    d_nih( mesh%ti1_nih:mesh%ti2_nih,1:nz) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_Tri%n_nih, nz)
+    d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih,1:nz) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ti = mesh%ti1_node, mesh%ti2_node
+      do ti = mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node
         do k = 1, nz
           d_nih( ti,k) = real( k,dp)
         end do
@@ -676,7 +676,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ti = mesh%ti1_nih, mesh%ti2_nih
+    do ti = mesh%pai_Tri%i1_nih, mesh%pai_Tri%i2_nih
       do k = 1, nz
         test_result = test_result .and. d_nih( ti,k) == real( k,dp)
       end do
@@ -721,13 +721,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nE_nih)
-    d_nih( mesh%ei1_nih:mesh%ei2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_E%n_nih)
+    d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = .false.
-      do ei = mesh%ei1_node, mesh%ei2_node
+      do ei = mesh%pai_E%i1_node, mesh%pai_E%i2_node
         d_nih( ei) = .true.
       end do
     end if
@@ -738,7 +738,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ei = mesh%ei1_nih, mesh%ei2_nih
+    do ei = mesh%pai_E%i1_nih, mesh%pai_E%i2_nih
       test_result = test_result .and. d_nih( ei)
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -779,13 +779,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nE_nih)
-    d_nih( mesh%ei1_nih:mesh%ei2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_E%n_nih)
+    d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ei = mesh%ei1_node, mesh%ei2_node
+      do ei = mesh%pai_E%i1_node, mesh%pai_E%i2_node
         d_nih( ei) = 1
       end do
     end if
@@ -796,7 +796,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ei = mesh%ei1_nih, mesh%ei2_nih
+    do ei = mesh%pai_E%i1_nih, mesh%pai_E%i2_nih
       test_result = test_result .and. d_nih( ei) == 1
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -838,13 +838,13 @@ contains
 
     ! Allocate some node-shared memory
     nz = 13
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nE_nih, nz)
-    d_nih( mesh%ei1_nih:mesh%ei2_nih,1:nz) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_E%n_nih, nz)
+    d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih,1:nz) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ei = mesh%ei1_node, mesh%ei2_node
+      do ei = mesh%pai_E%i1_node, mesh%pai_E%i2_node
         do k = 1, nz
           d_nih( ei,k) = k
         end do
@@ -857,7 +857,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ei = mesh%ei1_nih, mesh%ei2_nih
+    do ei = mesh%pai_E%i1_nih, mesh%pai_E%i2_nih
       do k = 1, nz
         test_result = test_result .and. d_nih( ei,k) == k
       end do
@@ -900,13 +900,13 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Allocate some node-shared memory
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nE_nih)
-    d_nih( mesh%ei1_nih:mesh%ei2_nih) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_E%n_nih)
+    d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ei = mesh%ei1_node, mesh%ei2_node
+      do ei = mesh%pai_E%i1_node, mesh%pai_E%i2_node
         d_nih( ei) = 1._dp
       end do
     end if
@@ -917,7 +917,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ei = mesh%ei1_nih, mesh%ei2_nih
+    do ei = mesh%pai_E%i1_nih, mesh%pai_E%i2_nih
       test_result = test_result .and. d_nih( ei) == 1._dp
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
@@ -959,13 +959,13 @@ contains
 
     ! Allocate some node-shared memory
     nz = 13
-    call allocate_dist_shared( d_nih, wd_nih, mesh%nE_nih, nz)
-    d_nih( mesh%ei1_nih:mesh%ei2_nih,1:nz) => d_nih
+    call allocate_dist_shared( d_nih, wd_nih, mesh%pai_E%n_nih, nz)
+    d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih,1:nz) => d_nih
 
     ! Fill in data
     if (par%node_primary) then
       d_nih = 0
-      do ei = mesh%ei1_node, mesh%ei2_node
+      do ei = mesh%pai_E%i1_node, mesh%pai_E%i2_node
         do k = 1, nz
           d_nih( ei,k) = real( k,dp)
         end do
@@ -978,7 +978,7 @@ contains
 
     ! Verify results
     test_result = .true.
-    do ei = mesh%ei1_nih, mesh%ei2_nih
+    do ei = mesh%pai_E%i1_nih, mesh%pai_E%i2_nih
       do k = 1, nz
         test_result = test_result .and. d_nih( ei,k) == real( k,dp)
       end do

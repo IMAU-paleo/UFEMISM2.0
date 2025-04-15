@@ -15,7 +15,7 @@ module grid_basic
   use projections, only: inverse_oblique_sg_projection
   use mpi_distributed_memory, only: partition_list
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
 
@@ -310,6 +310,9 @@ contains
       M_ddy_CSR%ptr( row+1) = M_ddy_CSR%ptr( row) + 2
 
     end do ! DO row = grid%n1, grid%n2
+
+    call finalise_matrix_CSR_dist( M_ddx_CSR)
+    call finalise_matrix_CSR_dist( M_ddy_CSR)
 
     ! Convert to PETSc format
     call mat_CSR2petsc( M_ddx_CSR, M_ddx)

@@ -76,20 +76,34 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    ! a-grid (vertices)
     allocate( mesh%V_owning_process  ( mesh%nV))
     allocate( mesh%V_owning_node     ( mesh%nV))
+    call determine_ownership_ranges( mesh%nV, mesh%vi1, mesh%vi2, mesh%nV_loc, &
+      mesh%pai_V%i1_node, mesh%pai_V%i2_node, mesh%pai_V%n_node, &
+      mesh%V_owning_process, mesh%V_owning_node)
+    mesh%pai_V%i1 = mesh%vi1
+    mesh%pai_V%i2 = mesh%vi2
+
+    ! b-grid (triangles)
     allocate( mesh%Tri_owning_process( mesh%nTri))
     allocate( mesh%Tri_owning_node   ( mesh%nTri))
+    call determine_ownership_ranges( mesh%nTri, mesh%ti1, mesh%ti2, mesh%nTri_loc, &
+      mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node, mesh%pai_Tri%n_node, &
+      mesh%Tri_owning_process, mesh%Tri_owning_node)
+    mesh%pai_Tri%i1 = mesh%ti1
+    mesh%pai_Tri%i2 = mesh%ti2
+
+    ! c-grid (edges)
     allocate( mesh%E_owning_process  ( mesh%nE))
     allocate( mesh%E_owning_node     ( mesh%nE))
-
-    call determine_ownership_ranges( mesh%nV, mesh%vi1, mesh%vi2, mesh%nV_loc, &
-      mesh%vi1_node, mesh%vi2_node, mesh%nV_node, mesh%V_owning_process, mesh%V_owning_node)
-    call determine_ownership_ranges( mesh%nTri, mesh%ti1, mesh%ti2, mesh%nTri_loc, &
-      mesh%ti1_node, mesh%ti2_node, mesh%nTri_node, mesh%Tri_owning_process, mesh%Tri_owning_node)
     call determine_ownership_ranges( mesh%nE, mesh%ei1, mesh%ei2, mesh%nE_loc, &
-      mesh%ei1_node, mesh%ei2_node, mesh%nE_node, mesh%E_owning_process, mesh%E_owning_node)
+      mesh%pai_E%i1_node, mesh%pai_E%i2_node, mesh%pai_E%n_node, &
+      mesh%E_owning_process, mesh%E_owning_node)
+    mesh%pai_E%i1 = mesh%ei1
+    mesh%pai_E%i2 = mesh%ei2
 
+    ! Determine all halos
     call determine_halos( mesh)
 
     ! call print_parallelisation_info( mesh)
@@ -155,50 +169,50 @@ contains
     if (par%node_ID == 0) then
       ! There is no node to the left
 
-      mesh%vi1_nih  = mesh%vi1_node
-      mesh%nV_hle   = 0
-      mesh%vi1_hle  =  0
-      mesh%vi2_hle  = -1
-      mesh%nV_hli   = 0
-      mesh%vi1_hli  =  0
-      mesh%vi2_hli  = -1
+      mesh%pai_V%i1_nih  = mesh%pai_V%i1_node
+      mesh%pai_V%n_hle   = 0
+      mesh%pai_V%i1_hle  =  0
+      mesh%pai_V%i2_hle  = -1
+      mesh%pai_V%n_hli   = 0
+      mesh%pai_V%i1_hli  =  0
+      mesh%pai_V%i2_hli  = -1
 
-      mesh%ti1_nih  = mesh%ti1_node
-      mesh%nTri_hle = 0
-      mesh%ti1_hle  =  0
-      mesh%ti2_hle  = -1
-      mesh%nTri_hli = 0
-      mesh%ti1_hli  =  0
-      mesh%ti2_hli  = -1
+      mesh%pai_Tri%i1_nih  = mesh%pai_Tri%i1_node
+      mesh%pai_Tri%n_hle = 0
+      mesh%pai_Tri%i1_hle  =  0
+      mesh%pai_Tri%i2_hle  = -1
+      mesh%pai_Tri%n_hli = 0
+      mesh%pai_Tri%i1_hli  =  0
+      mesh%pai_Tri%i2_hli  = -1
 
-      mesh%ei1_nih  = mesh%ei1_node
-      mesh%nE_hle   = 0
-      mesh%ei1_hle  =  0
-      mesh%ei2_hle  = -1
-      mesh%nE_hli   = 0
-      mesh%ei1_hli  =  0
-      mesh%ei2_hli  = -1
+      mesh%pai_E%i1_nih  = mesh%pai_E%i1_node
+      mesh%pai_E%n_hle   = 0
+      mesh%pai_E%i1_hle  =  0
+      mesh%pai_E%i2_hle  = -1
+      mesh%pai_E%n_hli   = 0
+      mesh%pai_E%i1_hli  =  0
+      mesh%pai_E%i2_hli  = -1
 
     else
       node_ID_left = par%node_ID - 1
 
-      call determine_halo_range_a( mesh, node_ID_left, par%node_ID , mesh%vi1_hle, mesh%vi2_hle)
-      call determine_halo_range_a( mesh, par%node_ID , node_ID_left, mesh%vi1_hli, mesh%vi2_hli)
-      mesh%nV_hle = mesh%vi2_hle + 1 - mesh%vi1_hle
-      mesh%nV_hli = mesh%vi2_hli + 1 - mesh%vi1_hli
-      mesh%vi1_nih = mesh%vi1_hle
+      call determine_halo_range_a( mesh, node_ID_left, par%node_ID , mesh%pai_V%i1_hle, mesh%pai_V%i2_hle)
+      call determine_halo_range_a( mesh, par%node_ID , node_ID_left, mesh%pai_V%i1_hli, mesh%pai_V%i2_hli)
+      mesh%pai_V%n_hle = mesh%pai_V%i2_hle + 1 - mesh%pai_V%i1_hle
+      mesh%pai_V%n_hli = mesh%pai_V%i2_hli + 1 - mesh%pai_V%i1_hli
+      mesh%pai_V%i1_nih = mesh%pai_V%i1_hle
 
-      call determine_halo_range_b( mesh, node_ID_left, par%node_ID , mesh%ti1_hle, mesh%ti2_hle)
-      call determine_halo_range_b( mesh, par%node_ID , node_ID_left, mesh%ti1_hli, mesh%ti2_hli)
-      mesh%nTri_hle = mesh%ti2_hle + 1 - mesh%ti1_hle
-      mesh%nTri_hli = mesh%ti2_hli + 1 - mesh%ti1_hli
-      mesh%ti1_nih = mesh%ti1_hle
+      call determine_halo_range_b( mesh, node_ID_left, par%node_ID , mesh%pai_Tri%i1_hle, mesh%pai_Tri%i2_hle)
+      call determine_halo_range_b( mesh, par%node_ID , node_ID_left, mesh%pai_Tri%i1_hli, mesh%pai_Tri%i2_hli)
+      mesh%pai_Tri%n_hle = mesh%pai_Tri%i2_hle + 1 - mesh%pai_Tri%i1_hle
+      mesh%pai_Tri%n_hli = mesh%pai_Tri%i2_hli + 1 - mesh%pai_Tri%i1_hli
+      mesh%pai_Tri%i1_nih = mesh%pai_Tri%i1_hle
 
-      call determine_halo_range_c( mesh, node_ID_left, par%node_ID , mesh%ei1_hle, mesh%ei2_hle)
-      call determine_halo_range_c( mesh, par%node_ID , node_ID_left, mesh%ei1_hli, mesh%ei2_hli)
-      mesh%nE_hle = mesh%ei2_hle + 1 - mesh%ei1_hle
-      mesh%nE_hli = mesh%ei2_hli + 1 - mesh%ei1_hli
-      mesh%ei1_nih = mesh%ei1_hle
+      call determine_halo_range_c( mesh, node_ID_left, par%node_ID , mesh%pai_E%i1_hle, mesh%pai_E%i2_hle)
+      call determine_halo_range_c( mesh, par%node_ID , node_ID_left, mesh%pai_E%i1_hli, mesh%pai_E%i2_hli)
+      mesh%pai_E%n_hle = mesh%pai_E%i2_hle + 1 - mesh%pai_E%i1_hle
+      mesh%pai_E%n_hli = mesh%pai_E%i2_hli + 1 - mesh%pai_E%i1_hli
+      mesh%pai_E%i1_nih = mesh%pai_E%i1_hle
 
     end if
 
@@ -206,56 +220,56 @@ contains
     if (par%node_ID == par%n_nodes-1) then
       ! There is no node to the right
 
-      mesh%vi2_nih  = mesh%vi2_node
-      mesh%nV_hre   = 0
-      mesh%vi1_hre  =  0
-      mesh%vi2_hre  = -1
-      mesh%nV_hri   = 0
-      mesh%vi1_hri  =  0
-      mesh%vi2_hri  = -1
+      mesh%pai_V%i2_nih  = mesh%pai_V%i2_node
+      mesh%pai_V%n_hre   = 0
+      mesh%pai_V%i1_hre  =  0
+      mesh%pai_V%i2_hre  = -1
+      mesh%pai_V%n_hri   = 0
+      mesh%pai_V%i1_hri  =  0
+      mesh%pai_V%i2_hri  = -1
 
-      mesh%ti2_nih  = mesh%ti2_node
-      mesh%nTri_hre = 0
-      mesh%ti1_hre  =  0
-      mesh%ti2_hre  = -1
-      mesh%nTri_hri = 0
-      mesh%ti1_hri  =  0
-      mesh%ti2_hri  = -1
+      mesh%pai_Tri%i2_nih  = mesh%pai_Tri%i2_node
+      mesh%pai_Tri%n_hre = 0
+      mesh%pai_Tri%i1_hre  =  0
+      mesh%pai_Tri%i2_hre  = -1
+      mesh%pai_Tri%n_hri = 0
+      mesh%pai_Tri%i1_hri  =  0
+      mesh%pai_Tri%i2_hri  = -1
 
-      mesh%ei2_nih  = mesh%ei2_node
-      mesh%nE_hre   = 0
-      mesh%ei1_hre  =  0
-      mesh%ei2_hre  = -1
-      mesh%nE_hri   = 0
-      mesh%ei1_hri  =  0
-      mesh%ei2_hri  = -1
+      mesh%pai_E%i2_nih  = mesh%pai_E%i2_node
+      mesh%pai_E%n_hre   = 0
+      mesh%pai_E%i1_hre  =  0
+      mesh%pai_E%i2_hre  = -1
+      mesh%pai_E%n_hri   = 0
+      mesh%pai_E%i1_hri  =  0
+      mesh%pai_E%i2_hri  = -1
 
     else
       node_ID_right = par%node_ID + 1
 
-      call determine_halo_range_a( mesh, node_ID_right, par%node_ID  , mesh%vi1_hre, mesh%vi2_hre)
-      call determine_halo_range_a( mesh, par%node_ID  , node_ID_right, mesh%vi1_hri, mesh%vi2_hri)
-      mesh%nV_hre = mesh%vi2_hre + 1 - mesh%vi1_hre
-      mesh%nV_hri = mesh%vi2_hri + 1 - mesh%vi1_hri
-      mesh%vi2_nih = mesh%vi2_hre
+      call determine_halo_range_a( mesh, node_ID_right, par%node_ID  , mesh%pai_V%i1_hre, mesh%pai_V%i2_hre)
+      call determine_halo_range_a( mesh, par%node_ID  , node_ID_right, mesh%pai_V%i1_hri, mesh%pai_V%i2_hri)
+      mesh%pai_V%n_hre = mesh%pai_V%i2_hre + 1 - mesh%pai_V%i1_hre
+      mesh%pai_V%n_hri = mesh%pai_V%i2_hri + 1 - mesh%pai_V%i1_hri
+      mesh%pai_V%i2_nih = mesh%pai_V%i2_hre
 
-      call determine_halo_range_b( mesh, node_ID_right, par%node_ID  , mesh%ti1_hre, mesh%ti2_hre)
-      call determine_halo_range_b( mesh, par%node_ID  , node_ID_right, mesh%ti1_hri, mesh%ti2_hri)
-      mesh%nTri_hre = mesh%ti2_hre + 1 - mesh%ti1_hre
-      mesh%nTri_hri = mesh%ti2_hri + 1 - mesh%ti1_hri
-      mesh%ti2_nih = mesh%ti2_hre
+      call determine_halo_range_b( mesh, node_ID_right, par%node_ID  , mesh%pai_Tri%i1_hre, mesh%pai_Tri%i2_hre)
+      call determine_halo_range_b( mesh, par%node_ID  , node_ID_right, mesh%pai_Tri%i1_hri, mesh%pai_Tri%i2_hri)
+      mesh%pai_Tri%n_hre = mesh%pai_Tri%i2_hre + 1 - mesh%pai_Tri%i1_hre
+      mesh%pai_Tri%n_hri = mesh%pai_Tri%i2_hri + 1 - mesh%pai_Tri%i1_hri
+      mesh%pai_Tri%i2_nih = mesh%pai_Tri%i2_hre
 
-      call determine_halo_range_c( mesh, node_ID_right, par%node_ID  , mesh%ei1_hre, mesh%ei2_hre)
-      call determine_halo_range_c( mesh, par%node_ID  , node_ID_right, mesh%ei1_hri, mesh%ei2_hri)
-      mesh%nE_hre = mesh%ei2_hre + 1 - mesh%ei1_hre
-      mesh%nE_hri = mesh%ei2_hri + 1 - mesh%ei1_hri
-      mesh%ei2_nih = mesh%ei2_hre
+      call determine_halo_range_c( mesh, node_ID_right, par%node_ID  , mesh%pai_E%i1_hre, mesh%pai_E%i2_hre)
+      call determine_halo_range_c( mesh, par%node_ID  , node_ID_right, mesh%pai_E%i1_hri, mesh%pai_E%i2_hri)
+      mesh%pai_E%n_hre = mesh%pai_E%i2_hre + 1 - mesh%pai_E%i1_hre
+      mesh%pai_E%n_hri = mesh%pai_E%i2_hri + 1 - mesh%pai_E%i1_hri
+      mesh%pai_E%i2_nih = mesh%pai_E%i2_hre
 
     end if
 
-    mesh%nV_nih   = mesh%vi2_nih + 1 - mesh%vi1_nih
-    mesh%nTri_nih = mesh%ti2_nih + 1 - mesh%ti1_nih
-    mesh%nE_nih   = mesh%ei2_nih + 1 - mesh%ei1_nih
+    mesh%pai_V%n_nih   = mesh%pai_V%i2_nih   + 1 - mesh%pai_V%i1_nih
+    mesh%pai_Tri%n_nih = mesh%pai_Tri%i2_nih + 1 - mesh%pai_Tri%i1_nih
+    mesh%pai_E%n_nih   = mesh%pai_E%i2_nih   + 1 - mesh%pai_E%i1_nih
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -498,60 +512,61 @@ contains
 
     call MPI_ALLGATHER( mesh%vi1     , 1, MPI_INTEGER, vi1     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
     call MPI_ALLGATHER( mesh%vi2     , 1, MPI_INTEGER, vi2     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi1_node, 1, MPI_INTEGER, vi1_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi2_node, 1, MPI_INTEGER, vi2_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi1_nih , 1, MPI_INTEGER, vi1_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi2_nih , 1, MPI_INTEGER, vi2_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nV_hle  , 1, MPI_INTEGER, nV_hle  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi1_hle , 1, MPI_INTEGER, vi1_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi2_hle , 1, MPI_INTEGER, vi2_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nV_hli  , 1, MPI_INTEGER, nV_hli  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi1_hli , 1, MPI_INTEGER, vi1_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi2_hli , 1, MPI_INTEGER, vi2_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nV_hre  , 1, MPI_INTEGER, nV_hre  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi1_hre , 1, MPI_INTEGER, vi1_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi2_hre , 1, MPI_INTEGER, vi2_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nV_hri  , 1, MPI_INTEGER, nV_hri  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi1_hri , 1, MPI_INTEGER, vi1_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%vi2_hri , 1, MPI_INTEGER, vi2_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
 
-    call MPI_ALLGATHER( mesh%ti1     , 1, MPI_INTEGER, ti1     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti2     , 1, MPI_INTEGER, ti2     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti1_node, 1, MPI_INTEGER, ti1_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti2_node, 1, MPI_INTEGER, ti2_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti1_nih , 1, MPI_INTEGER, ti1_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti2_nih , 1, MPI_INTEGER, ti2_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nTri_hle, 1, MPI_INTEGER, nTri_hle, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti1_hle , 1, MPI_INTEGER, ti1_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti2_hle , 1, MPI_INTEGER, ti2_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nTri_hli, 1, MPI_INTEGER, nTri_hli, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti1_hli , 1, MPI_INTEGER, ti1_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti2_hli , 1, MPI_INTEGER, ti2_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nTri_hre, 1, MPI_INTEGER, nTri_hre, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti1_hre , 1, MPI_INTEGER, ti1_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti2_hre , 1, MPI_INTEGER, ti2_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nTri_hri, 1, MPI_INTEGER, nTri_hri, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti1_hri , 1, MPI_INTEGER, ti1_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ti2_hri , 1, MPI_INTEGER, ti2_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i1_node, 1, MPI_INTEGER, vi1_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i2_node, 1, MPI_INTEGER, vi2_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i1_nih , 1, MPI_INTEGER, vi1_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i2_nih , 1, MPI_INTEGER, vi2_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%n_hle  , 1, MPI_INTEGER, nV_hle  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i1_hle , 1, MPI_INTEGER, vi1_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i2_hle , 1, MPI_INTEGER, vi2_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%n_hli  , 1, MPI_INTEGER, nV_hli  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i1_hli , 1, MPI_INTEGER, vi1_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i2_hli , 1, MPI_INTEGER, vi2_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%n_hre  , 1, MPI_INTEGER, nV_hre  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i1_hre , 1, MPI_INTEGER, vi1_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i2_hre , 1, MPI_INTEGER, vi2_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%n_hri  , 1, MPI_INTEGER, nV_hri  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i1_hri , 1, MPI_INTEGER, vi1_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_V%i2_hri , 1, MPI_INTEGER, vi2_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
 
-    call MPI_ALLGATHER( mesh%ei1     , 1, MPI_INTEGER, ei1     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei2     , 1, MPI_INTEGER, ei2     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei1_node, 1, MPI_INTEGER, ei1_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei2_node, 1, MPI_INTEGER, ei2_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei1_nih , 1, MPI_INTEGER, ei1_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei2_nih , 1, MPI_INTEGER, ei2_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nE_hle  , 1, MPI_INTEGER, nE_hle  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei1_hle , 1, MPI_INTEGER, ei1_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei2_hle , 1, MPI_INTEGER, ei2_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nE_hli  , 1, MPI_INTEGER, nE_hli  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei1_hli , 1, MPI_INTEGER, ei1_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei2_hli , 1, MPI_INTEGER, ei2_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nE_hre  , 1, MPI_INTEGER, nE_hre  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei1_hre , 1, MPI_INTEGER, ei1_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei2_hre , 1, MPI_INTEGER, ei2_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%nE_hri  , 1, MPI_INTEGER, nE_hri  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei1_hri , 1, MPI_INTEGER, ei1_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
-    call MPI_ALLGATHER( mesh%ei2_hri , 1, MPI_INTEGER, ei2_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i1     , 1, MPI_INTEGER, ti1     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i2     , 1, MPI_INTEGER, ti2     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i1_node, 1, MPI_INTEGER, ti1_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i2_node, 1, MPI_INTEGER, ti2_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i1_nih , 1, MPI_INTEGER, ti1_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i2_nih , 1, MPI_INTEGER, ti2_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%n_hle  , 1, MPI_INTEGER, nTri_hle, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i1_hle , 1, MPI_INTEGER, ti1_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i2_hle , 1, MPI_INTEGER, ti2_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%n_hli  , 1, MPI_INTEGER, nTri_hli, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i1_hli , 1, MPI_INTEGER, ti1_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i2_hli , 1, MPI_INTEGER, ti2_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%n_hre  , 1, MPI_INTEGER, nTri_hre, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i1_hre , 1, MPI_INTEGER, ti1_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i2_hre , 1, MPI_INTEGER, ti2_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%n_hri  , 1, MPI_INTEGER, nTri_hri, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i1_hri , 1, MPI_INTEGER, ti1_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_Tri%i2_hri , 1, MPI_INTEGER, ti2_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+
+    call MPI_ALLGATHER( mesh%pai_E%i1     , 1, MPI_INTEGER, ei1     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i2     , 1, MPI_INTEGER, ei2     , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i1_node, 1, MPI_INTEGER, ei1_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i2_node, 1, MPI_INTEGER, ei2_node, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i1_nih , 1, MPI_INTEGER, ei1_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i2_nih , 1, MPI_INTEGER, ei2_nih , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%n_hle  , 1, MPI_INTEGER, nE_hle  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i1_hle , 1, MPI_INTEGER, ei1_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i2_hle , 1, MPI_INTEGER, ei2_hle , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%n_hli  , 1, MPI_INTEGER, nE_hli  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i1_hli , 1, MPI_INTEGER, ei1_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i2_hli , 1, MPI_INTEGER, ei2_hli , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%n_hre  , 1, MPI_INTEGER, nE_hre  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i1_hre , 1, MPI_INTEGER, ei1_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i2_hre , 1, MPI_INTEGER, ei2_hre , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%n_hri  , 1, MPI_INTEGER, nE_hri  , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i1_hri , 1, MPI_INTEGER, ei1_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLGATHER( mesh%pai_E%i2_hri , 1, MPI_INTEGER, ei2_hri , 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
 
     if (par%primary) then
       write(0,'(A,7I8)') 'Node     :', node
@@ -561,82 +576,82 @@ contains
       write(0,*) ''
       write(0,'(A,I8)')  'nV = ', mesh%nV
       write(0,*) ''
-      write(0,'(A,7I8)') 'vi1      :', vi1
-      write(0,'(A,7I8)') 'vi2      :', vi2
-      write(0,'(A,7I8)') 'vi1_node :', vi1_node
-      write(0,'(A,7I8)') 'vi2_node :', vi2_node
-      write(0,'(A,7I8)') 'vi1_nih  :', vi1_nih
-      write(0,'(A,7I8)') 'vi2_nih  :', vi2_nih
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nV_hle   :', nV_hle
-      write(0,'(A,7I8)') 'vi1_hle  :', vi1_hle
-      write(0,'(A,7I8)') 'vi2_hle  :', vi2_hle
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nV_hli   :', nV_hli
-      write(0,'(A,7I8)') 'vi1_hli  :', vi1_hli
-      write(0,'(A,7I8)') 'vi2_hli  :', vi2_hli
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nV_hre   :', nV_hre
-      write(0,'(A,7I8)') 'vi1_hre  :', vi1_hre
-      write(0,'(A,7I8)') 'vi2_hre  :', vi2_hre
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nV_hri   :', nV_hri
-      write(0,'(A,7I8)') 'vi1_hri  :', vi1_hri
-      write(0,'(A,7I8)') 'vi2_hri  :', vi2_hri
-      write(0,*) ''
-      write(0,*) '-= TRIANGLES =-'
-      write(0,*) ''
-      write(0,'(A,I8)')  'nTri = ', mesh%nTri
-      write(0,*) ''
-      write(0,'(A,7I8)') 'ti1      :', ti1
-      write(0,'(A,7I8)') 'ti2      :', ti2
-      write(0,'(A,7I8)') 'ti1_node :', ti1_node
-      write(0,'(A,7I8)') 'ti2_node :', ti2_node
-      write(0,'(A,7I8)') 'ti1_nih  :', ti1_nih
-      write(0,'(A,7I8)') 'ti2_nih  :', ti2_nih
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nTri_hle :', nTri_hle
-      write(0,'(A,7I8)') 'ti1_hle  :', ti1_hle
-      write(0,'(A,7I8)') 'ti2_hle  :', ti2_hle
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nTri_hli :', nTri_hli
-      write(0,'(A,7I8)') 'ti1_hli  :', ti1_hli
-      write(0,'(A,7I8)') 'ti2_hli  :', ti2_hli
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nTri_hre :', nTri_hre
-      write(0,'(A,7I8)') 'ti1_hre  :', ti1_hre
-      write(0,'(A,7I8)') 'ti2_hre  :', ti2_hre
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nTri_hri :', nTri_hri
-      write(0,'(A,7I8)') 'ti1_hri  :', ti1_hri
-      write(0,'(A,7I8)') 'ti2_hri  :', ti2_hri
-      write(0,*) ''
-      write(0,*) '-= EDGES =-'
-      write(0,*) ''
-      write(0,'(A,I8)')  'nE = ', mesh%nE
-      write(0,*) ''
-      write(0,'(A,7I8)') 'ei1      :', ei1
-      write(0,'(A,7I8)') 'ei2      :', ei2
-      write(0,'(A,7I8)') 'ei1_node :', ei1_node
-      write(0,'(A,7I8)') 'ei2_node :', ei2_node
-      write(0,'(A,7I8)') 'ei1_nih  :', ei1_nih
-      write(0,'(A,7I8)') 'ei2_nih  :', ei2_nih
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nE_hle   :', nE_hle
-      write(0,'(A,7I8)') 'ei1_hle  :', ei1_hle
-      write(0,'(A,7I8)') 'ei2_hle  :', ei2_hle
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nE_hli   :', nE_hli
-      write(0,'(A,7I8)') 'ei1_hli  :', ei1_hli
-      write(0,'(A,7I8)') 'ei2_hli  :', ei2_hli
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nE_hre   :', nE_hre
-      write(0,'(A,7I8)') 'ei1_hre  :', ei1_hre
-      write(0,'(A,7I8)') 'ei2_hre  :', ei2_hre
-      write(0,*) ''
-      write(0,'(A,7I8)') 'nE_hri   :', nE_hri
-      write(0,'(A,7I8)') 'ei1_hri  :', ei1_hri
-      write(0,'(A,7I8)') 'ei2_hri  :', ei2_hri
+    !   write(0,'(A,7I8)') 'vi1      :', vi1
+    !   write(0,'(A,7I8)') 'vi2      :', vi2
+    !   write(0,'(A,7I8)') 'vi1_node :', vi1_node
+    !   write(0,'(A,7I8)') 'vi2_node :', vi2_node
+    !   write(0,'(A,7I8)') 'vi1_nih  :', vi1_nih
+    !   write(0,'(A,7I8)') 'vi2_nih  :', vi2_nih
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nV_hle   :', nV_hle
+    !   write(0,'(A,7I8)') 'vi1_hle  :', vi1_hle
+    !   write(0,'(A,7I8)') 'vi2_hle  :', vi2_hle
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nV_hli   :', nV_hli
+    !   write(0,'(A,7I8)') 'vi1_hli  :', vi1_hli
+    !   write(0,'(A,7I8)') 'vi2_hli  :', vi2_hli
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nV_hre   :', nV_hre
+    !   write(0,'(A,7I8)') 'vi1_hre  :', vi1_hre
+    !   write(0,'(A,7I8)') 'vi2_hre  :', vi2_hre
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nV_hri   :', nV_hri
+    !   write(0,'(A,7I8)') 'vi1_hri  :', vi1_hri
+    !   write(0,'(A,7I8)') 'vi2_hri  :', vi2_hri
+    !   write(0,*) ''
+    !   write(0,*) '-= TRIANGLES =-'
+    !   write(0,*) ''
+    !   write(0,'(A,I8)')  'nTri = ', mesh%nTri
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'ti1      :', ti1
+    !   write(0,'(A,7I8)') 'ti2      :', ti2
+    !   write(0,'(A,7I8)') 'ti1_node :', ti1_node
+    !   write(0,'(A,7I8)') 'ti2_node :', ti2_node
+    !   write(0,'(A,7I8)') 'ti1_nih  :', ti1_nih
+    !   write(0,'(A,7I8)') 'ti2_nih  :', ti2_nih
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nTri_hle :', nTri_hle
+    !   write(0,'(A,7I8)') 'ti1_hle  :', ti1_hle
+    !   write(0,'(A,7I8)') 'ti2_hle  :', ti2_hle
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nTri_hli :', nTri_hli
+    !   write(0,'(A,7I8)') 'ti1_hli  :', ti1_hli
+    !   write(0,'(A,7I8)') 'ti2_hli  :', ti2_hli
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nTri_hre :', nTri_hre
+    !   write(0,'(A,7I8)') 'ti1_hre  :', ti1_hre
+    !   write(0,'(A,7I8)') 'ti2_hre  :', ti2_hre
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nTri_hri :', nTri_hri
+    !   write(0,'(A,7I8)') 'ti1_hri  :', ti1_hri
+    !   write(0,'(A,7I8)') 'ti2_hri  :', ti2_hri
+    !   write(0,*) ''
+    !   write(0,*) '-= EDGES =-'
+    !   write(0,*) ''
+    !   write(0,'(A,I8)')  'nE = ', mesh%nE
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'ei1      :', ei1
+    !   write(0,'(A,7I8)') 'ei2      :', ei2
+    !   write(0,'(A,7I8)') 'ei1_node :', ei1_node
+    !   write(0,'(A,7I8)') 'ei2_node :', ei2_node
+    !   write(0,'(A,7I8)') 'ei1_nih  :', ei1_nih
+    !   write(0,'(A,7I8)') 'ei2_nih  :', ei2_nih
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nE_hle   :', nE_hle
+    !   write(0,'(A,7I8)') 'ei1_hle  :', ei1_hle
+    !   write(0,'(A,7I8)') 'ei2_hle  :', ei2_hle
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nE_hli   :', nE_hli
+    !   write(0,'(A,7I8)') 'ei1_hli  :', ei1_hli
+    !   write(0,'(A,7I8)') 'ei2_hli  :', ei2_hli
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nE_hre   :', nE_hre
+    !   write(0,'(A,7I8)') 'ei1_hre  :', ei1_hre
+    !   write(0,'(A,7I8)') 'ei2_hre  :', ei2_hre
+    !   write(0,*) ''
+    !   write(0,'(A,7I8)') 'nE_hri   :', nE_hri
+    !   write(0,'(A,7I8)') 'ei1_hri  :', ei1_hri
+    !   write(0,'(A,7I8)') 'ei2_hri  :', ei2_hri
     end if
     call sync
 

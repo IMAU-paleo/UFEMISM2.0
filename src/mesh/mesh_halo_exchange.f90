@@ -36,12 +36,18 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (size( d_nih,1) == mesh%nV_nih) then
-      call exchange_halos_a_logical( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nTri_nih) then
-      call exchange_halos_b_logical( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nE_nih) then
-      call exchange_halos_c_logical( mesh, d_nih)
+    ! If running on one node, do nothing
+    if (par%n_nodes == 1) then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    if (size( d_nih,1) == mesh%pai_V%n_nih) then
+      call basic_halo_exchange( mesh%pai_V, d_nih)
+    elseif (size( d_nih,1) == mesh%pai_Tri%n_nih) then
+      call basic_halo_exchange( mesh%pai_Tri, d_nih)
+    elseif (size( d_nih,1) == mesh%pai_E%n_nih) then
+      call basic_halo_exchange( mesh%pai_E, d_nih)
     else
       call crash('unexpected array size')
     end if
@@ -63,12 +69,18 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (size( d_nih,1) == mesh%nV_nih) then
-      call exchange_halos_a_int( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nTri_nih) then
-      call exchange_halos_b_int( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nE_nih) then
-      call exchange_halos_c_int( mesh, d_nih)
+    ! If running on one node, do nothing
+    if (par%n_nodes == 1) then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    if (size( d_nih,1) == mesh%pai_V%n_nih) then
+      call basic_halo_exchange( mesh%pai_V, d_nih)
+    elseif (size( d_nih,1) == mesh%pai_Tri%n_nih) then
+      call basic_halo_exchange( mesh%pai_Tri, d_nih)
+    elseif (size( d_nih,1) == mesh%pai_E%n_nih) then
+      call basic_halo_exchange( mesh%pai_E, d_nih)
     else
       call crash('unexpected array size')
     end if
@@ -90,12 +102,18 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (size( d_nih,1) == mesh%nV_nih) then
-      call exchange_halos_a_int_3D( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nTri_nih) then
-      call exchange_halos_b_int_3D( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nE_nih) then
-      call exchange_halos_c_int_3D( mesh, d_nih)
+    ! If running on one node, do nothing
+    if (par%n_nodes == 1) then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    if (size( d_nih,1) == mesh%pai_V%n_nih) then
+      call basic_halo_exchange( mesh%pai_V, size( d_nih,2), d_nih)
+    elseif (size( d_nih,1) == mesh%pai_Tri%n_nih) then
+      call basic_halo_exchange( mesh%pai_Tri, size( d_nih,2), d_nih)
+    elseif (size( d_nih,1) == mesh%pai_E%n_nih) then
+      call basic_halo_exchange( mesh%pai_E, size( d_nih,2), d_nih)
     else
       call crash('unexpected array size')
     end if
@@ -117,12 +135,18 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (size( d_nih,1) == mesh%nV_nih) then
-      call exchange_halos_a_dp( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nTri_nih) then
-      call exchange_halos_b_dp( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nE_nih) then
-      call exchange_halos_c_dp( mesh, d_nih)
+    ! If running on one node, do nothing
+    if (par%n_nodes == 1) then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    if (size( d_nih,1) == mesh%pai_V%n_nih) then
+      call basic_halo_exchange( mesh%pai_V, d_nih)
+    elseif (size( d_nih,1) == mesh%pai_Tri%n_nih) then
+      call basic_halo_exchange( mesh%pai_Tri, d_nih)
+    elseif (size( d_nih,1) == mesh%pai_E%n_nih) then
+      call basic_halo_exchange( mesh%pai_E, d_nih)
     else
       call crash('unexpected array size')
     end if
@@ -144,12 +168,18 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    if (size( d_nih,1) == mesh%nV_nih) then
-      call exchange_halos_a_dp_3D( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nTri_nih) then
-      call exchange_halos_b_dp_3D( mesh, d_nih)
-    elseif (size( d_nih,1) == mesh%nE_nih) then
-      call exchange_halos_c_dp_3D( mesh, d_nih)
+    ! If running on one node, do nothing
+    if (par%n_nodes == 1) then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    if (size( d_nih,1) == mesh%pai_V%n_nih) then
+      call basic_halo_exchange( mesh%pai_V, size( d_nih,2), d_nih)
+    elseif (size( d_nih,1) == mesh%pai_Tri%n_nih) then
+      call basic_halo_exchange( mesh%pai_Tri, size( d_nih,2), d_nih)
+    elseif (size( d_nih,1) == mesh%pai_E%n_nih) then
+      call basic_halo_exchange( mesh%pai_E, size( d_nih,2), d_nih)
     else
       call crash('unexpected array size')
     end if
@@ -158,341 +188,5 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine exchange_halos_dp_3D
-
-  ! == a-grid
-
-  subroutine exchange_halos_a_logical( mesh, d_a_nih)
-    !< Exhchange halos for a field defined on the vertices
-
-    ! In/output variables:
-    type(type_mesh),       intent(in   ) :: mesh
-    logical, dimension(:), intent(inout) :: d_a_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_a_logical'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
-      mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
-      mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_a_logical
-
-  subroutine exchange_halos_a_int( mesh, d_a_nih)
-    !< Exhchange halos for a field defined on the vertices
-
-    ! In/output variables:
-    type(type_mesh),       intent(in   ) :: mesh
-    integer, dimension(:), intent(inout) :: d_a_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_a_int'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
-      mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
-      mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_a_int
-
-  subroutine exchange_halos_a_int_3D( mesh, d_a_nih)
-    !< Exhchange halos for a field defined on the vertices
-
-    ! In/output variables:
-    type(type_mesh),         intent(in   ) :: mesh
-    integer, dimension(:,:), intent(inout) :: d_a_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_a_int_3D'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
-      mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
-      mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri, size( d_a_nih,2))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_a_int_3D
-
-  subroutine exchange_halos_a_dp( mesh, d_a_nih)
-    !< Exhchange halos for a field defined on the vertices
-
-    ! In/output variables:
-    type(type_mesh),        intent(in   ) :: mesh
-    real(dp), dimension(:), intent(inout) :: d_a_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_a_dp'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
-      mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
-      mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_a_dp
-
-  subroutine exchange_halos_a_dp_3D( mesh, d_a_nih)
-    !< Exhchange halos for a field defined on the vertices
-
-    ! In/output variables:
-    type(type_mesh),          intent(in   ) :: mesh
-    real(dp), dimension(:,:), intent(inout) :: d_a_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_a_dp_3D'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_a_nih, mesh%vi1_nih, mesh%vi2_nih, &
-      mesh%vi1_hle, mesh%vi2_hle, mesh%vi1_hli, mesh%vi2_hli, &
-      mesh%vi1_hre, mesh%vi2_hre, mesh%vi1_hri, mesh%vi2_hri, size( d_a_nih,2))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_a_dp_3D
-
-  ! == b-grid
-
-  subroutine exchange_halos_b_logical( mesh, d_b_nih)
-    !< Exhchange halos for a field defined on the triangles
-
-    ! In/output variables:
-    type(type_mesh),       intent(in   ) :: mesh
-    logical, dimension(:), intent(inout) :: d_b_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_b_logical'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
-      mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
-      mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_b_logical
-
-  subroutine exchange_halos_b_int( mesh, d_b_nih)
-    !< Exhchange halos for a field defined on the triangles
-
-    ! In/output variables:
-    type(type_mesh),       intent(in   ) :: mesh
-    integer, dimension(:), intent(inout) :: d_b_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_b_int'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
-      mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
-      mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_b_int
-
-  subroutine exchange_halos_b_int_3D( mesh, d_b_nih)
-    !< Exhchange halos for a field defined on the triangles
-
-    ! In/output variables:
-    type(type_mesh),         intent(in   ) :: mesh
-    integer, dimension(:,:), intent(inout) :: d_b_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_b_int_3D'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
-      mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
-      mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri, size( d_b_nih,2))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_b_int_3D
-
-  subroutine exchange_halos_b_dp( mesh, d_b_nih)
-    !< Exhchange halos for a field defined on the triangles
-
-    ! In/output variables:
-    type(type_mesh),        intent(in   ) :: mesh
-    real(dp), dimension(:), intent(inout) :: d_b_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_b_dp'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
-      mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
-      mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_b_dp
-
-  subroutine exchange_halos_b_dp_3D( mesh, d_b_nih)
-    !< Exhchange halos for a field defined on the triangles
-
-    ! In/output variables:
-    type(type_mesh),          intent(in   ) :: mesh
-    real(dp), dimension(:,:), intent(inout) :: d_b_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_b_dp_3D'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_b_nih, mesh%ti1_nih, mesh%ti2_nih, &
-      mesh%ti1_hle, mesh%ti2_hle, mesh%ti1_hli, mesh%ti2_hli, &
-      mesh%ti1_hre, mesh%ti2_hre, mesh%ti1_hri, mesh%ti2_hri, size( d_b_nih,2))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_b_dp_3D
-
-  ! == c-grid
-
-  subroutine exchange_halos_c_logical( mesh, d_c_nih)
-    !< Exhchange halos for a field defined on the edges
-
-    ! In/output variables:
-    type(type_mesh),       intent(in   ) :: mesh
-    logical, dimension(:), intent(inout) :: d_c_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_c_logical'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
-      mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
-      mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_c_logical
-
-  subroutine exchange_halos_c_int( mesh, d_c_nih)
-    !< Exhchange halos for a field defined on the edges
-
-    ! In/output variables:
-    type(type_mesh),       intent(in   ) :: mesh
-    integer, dimension(:), intent(inout) :: d_c_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_c_int'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
-      mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
-      mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_c_int
-
-  subroutine exchange_halos_c_int_3D( mesh, d_c_nih)
-    !< Exhchange halos for a field defined on the edges
-
-    ! In/output variables:
-    type(type_mesh),         intent(in   ) :: mesh
-    integer, dimension(:,:), intent(inout) :: d_c_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_c_int_3D'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
-      mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
-      mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri, size( d_c_nih,2))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_c_int_3D
-
-  subroutine exchange_halos_c_dp( mesh, d_c_nih)
-    !< Exhchange halos for a field defined on the edges
-
-    ! In/output variables:
-    type(type_mesh),        intent(in   ) :: mesh
-    real(dp), dimension(:), intent(inout) :: d_c_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_c_dp'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
-      mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
-      mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_c_dp
-
-  subroutine exchange_halos_c_dp_3D( mesh, d_c_nih)
-    !< Exhchange halos for a field defined on the edges
-
-    ! In/output variables:
-    type(type_mesh),          intent(in   ) :: mesh
-    real(dp), dimension(:,:), intent(inout) :: d_c_nih
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'exchange_halos_c_dp_3D'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call basic_halo_exchange( d_c_nih, mesh%ei1_nih, mesh%ei2_nih, &
-      mesh%ei1_hle, mesh%ei2_hle, mesh%ei1_hli, mesh%ei2_hli, &
-      mesh%ei1_hre, mesh%ei2_hre, mesh%ei1_hri, mesh%ei2_hri, size( d_c_nih,2))
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine exchange_halos_c_dp_3D
 
 end module mesh_halo_exchange

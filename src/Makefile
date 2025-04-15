@@ -88,6 +88,7 @@ UFEMISM_source = \
   \
   basic/precisions.f90 \
   \
+  types/parallel_array_info_type.f90 \
   types/CSR_sparse_matrix_type.f90 \
   types/grid_types.f90 \
   types/mesh_types.f90 \
@@ -134,6 +135,7 @@ UFEMISM_source = \
   basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
   basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
+  basic/mpi_parallelisation/dist_to_hybrid_mod.f90 \
   basic/mpi_parallelisation/halo_exchange_mod.f90 \
   basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
   basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \

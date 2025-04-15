@@ -19,7 +19,7 @@ MODULE laddie_velocity
   USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   USE laddie_physics                                         , ONLY: compute_buoyancy
-  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
 
   IMPLICIT NONE
 
@@ -197,7 +197,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_viscUV'
     INTEGER                                               :: ci, ti, tj, ei
-    REAL(dp)                                              :: D_x, D_y, D, Ah, dUabs
+    REAL(dp)                                              :: Ah, dUabs
     REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot
     LOGICAL, DIMENSION(mesh%nTri)                         :: mask_oc_b_tot
     REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
@@ -224,10 +224,6 @@ CONTAINS
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
-          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
-          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
-          D   = SQRT( D_x**2 + D_y**2)
-
           Ah = C%laddie_viscosity ! * 0.5_dp*(SQRT(mesh%TriA( ti)) + SQRT(mesh%TriA( tj))) / 1000.0_dp
 
           IF (tj==0) THEN
@@ -243,8 +239,8 @@ CONTAINS
 
             ! Add viscosity flux based on dU/dx and dV/dy.
             ! Note: for grounded neighbours, U_tot( tj) = 0, meaning this is a no slip option. Can be expanded
-            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
-            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / D
+            laddie%viscU( ti) = laddie%viscU( ti) + (U_tot( tj) - U_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / mesh%TriD( ti, ci)
+            laddie%viscV( ti) = laddie%viscV( ti) + (V_tot( tj) - V_tot( ti)) * Ah * H_c_tot( ei) / mesh%TriA( ti) * mesh%TriCw( ti, ci) / mesh%TriD( ti, ci)
           END IF
         END DO
 
@@ -256,35 +252,35 @@ CONTAINS
 
   END SUBROUTINE compute_viscUV
 
-  SUBROUTINE compute_divQUV_upstream( mesh, laddie, npxref, Hstar_b)
+  subroutine compute_divQUV_upstream( mesh, laddie, npxref, Hstar_b)
     ! Upstream scheme
 
     ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    REAL(dp), DIMENSION(mesh%ti1:mesh%ti2), INTENT(IN)    :: Hstar_b
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_model),                intent(inout) :: laddie
+    type(type_laddie_timestep),             intent(in)    :: npxref
+    real(dp), dimension(mesh%ti1:mesh%ti2), intent(in)    :: Hstar_b
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQUV_upstream'
-    REAL(dp), DIMENSION(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
-    INTEGER                                               :: ti, tj, ci, ei
-    REAL(dp)                                              :: D_x, D_y, D_c, u_perp_x, u_perp_y
-    LOGICAL, DIMENSION(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
+    character(len=256), parameter                         :: routine_name = 'compute_divQUV_upstream'
+    real(dp), dimension(mesh%nTri)                        :: U_tot, V_tot, H_b_tot
+    real(dp), dimension(mesh%nE)                          :: U_c_tot, V_c_tot
+    integer                                               :: ti, tj, ci, ei
+    real(dp)                                              :: u_perp
+    logical, dimension(mesh%nTri)                         :: mask_gl_b_tot, mask_cf_b_tot, mask_b_tot
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all( laddie%mask_gl_b, mask_gl_b_tot)
-    CALL gather_to_all( laddie%mask_cf_b, mask_cf_b_tot)
-    CALL gather_to_all( laddie%mask_b, mask_b_tot)
-    CALL gather_to_all( npxref%U, U_tot)
-    CALL gather_to_all( npxref%V, V_tot)
-    CALL gather_to_all( npxref%U_c, U_c_tot)
-    CALL gather_to_all( npxref%V_c, V_c_tot)
-    CALL gather_to_all( Hstar_b, H_b_tot)
+    call gather_to_all( laddie%mask_gl_b, mask_gl_b_tot)
+    call gather_to_all( laddie%mask_cf_b, mask_cf_b_tot)
+    call gather_to_all( laddie%mask_b, mask_b_tot)
+    call gather_to_all( npxref%U, U_tot)
+    call gather_to_all( npxref%V, V_tot)
+    call gather_to_all( npxref%U_c, U_c_tot)
+    call gather_to_all( npxref%V_c, V_c_tot)
+    call gather_to_all( Hstar_b, H_b_tot)
 
     ! Initialise with zeros
     laddie%divQU = 0.0_dp
@@ -293,58 +289,53 @@ CONTAINS
     ! == Loop over triangles ==
     ! =========================
 
-    DO ti = mesh%ti1, mesh%ti2
+    do ti = mesh%ti1, mesh%ti2
 
-      IF (laddie%mask_b( ti)) THEN
+      if (laddie%mask_b( ti)) then
 
         ! Loop over all connections of triangle ti
-        DO ci = 1, 3
+        do ci = 1, 3
 
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
 
           ! Skip if no connecting triangle on this side
-          IF (tj == 0) CYCLE
+          if (tj == 0) cycle
 
           ! Skip connection if neighbour is grounded. No flux across grounding line
-          IF (mask_gl_b_tot( tj)) CYCLE
-
-          ! The triangle-triangle vector from ti to tj
-          D_x = mesh%Tricc( tj,1) - mesh%Tricc( ti,1)
-          D_y = mesh%Tricc( tj,2) - mesh%Tricc( ti,2)
-          D_c = SQRT( D_x**2 + D_y**2)
+          if (mask_gl_b_tot( tj)) cycle
 
           ! Calculate vertically averaged water velocity component perpendicular to this edge
-          u_perp_x = U_c_tot( ei) * D_x/D_c
-          u_perp_y = V_c_tot( ei) * D_y/D_c
+          u_perp = U_c_tot( ei) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci) &
+                 + V_c_tot( ei) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
 
           ! Calculate upstream momentum divergence
           ! =============================
           ! u_perp > 0: flow is exiting this triangle into triangle tj
-          IF (u_perp_x > 0) THEN
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * U_tot( ti)* u_perp_x / mesh%TriA( ti)
+          if (u_perp > 0) then
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * U_tot( ti)* u_perp / mesh%TriA( ti)
           ! u_perp < 0: flow is entering this triangle into triangle tj
-          ELSE
-            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * U_tot( tj)* u_perp_x / mesh%TriA( ti)
-          END IF
+          else
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * U_tot( tj)* u_perp / mesh%TriA( ti)
+          end if
 
           ! V momentum
-          IF (u_perp_y > 0) THEN
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * V_tot( ti)* u_perp_y / mesh%TriA( ti)
-          ELSE
-            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp_y / mesh%TriA( ti)
-          END IF
+          if (u_perp > 0) then
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( ti) * V_tot( ti)* u_perp / mesh%TriA( ti)
+          else
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * H_b_tot( tj) * V_tot( tj)* u_perp / mesh%TriA( ti)
+          end if
 
-        END DO ! DO ci = 1, 3
+        end do ! do ci = 1, 3
 
-      END IF ! (laddie%mask_b( ti))
+      end if ! (laddie%mask_b( ti))
 
-    END DO ! DO ti = mesh%ti1, mesh%ti2
+    end do ! do ti = mesh%ti1, mesh%ti2
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE compute_divQUV_upstream
+  end subroutine compute_divQUV_upstream
 
   subroutine map_UV_b_c( mesh, laddie, U, V, U_c, V_c)
     ! Calculate velocities on the c-grid for solving the layer thickness equation
@@ -365,8 +356,12 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, U, U_c)
-    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_UV_b_c, V, V_c)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_UV_b_c, &
+      mesh%pai_Tri, U, mesh%pai_E, U_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false.)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_UV_b_c, &
+      mesh%pai_Tri, V, mesh%pai_E, V_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

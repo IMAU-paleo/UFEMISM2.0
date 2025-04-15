@@ -5,7 +5,8 @@ module solve_linearised_SSA_DIVA
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, read_single_row_CSR_dist, &
+    finalise_matrix_CSR_dist
   use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic, find_ti_copy_SSA_icestream_infinite
   use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
@@ -148,6 +149,8 @@ contains
       end if
 
     end do
+
+    call finalise_matrix_CSR_dist( A_CSR)
 
     ! == Solve the matrix equation
     ! ============================

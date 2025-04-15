@@ -9,7 +9,7 @@ module remapping_mesh_to_mesh
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map, type_single_row_mapping_matrices
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     add_empty_row_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use plane_geometry, only: triangle_area
   use mesh_utilities, only: calc_Voronoi_cell, find_containing_triangle, find_containing_vertex
@@ -88,6 +88,8 @@ contains
       call add_entry_CSR_dist( M_CSR, row, col, 1._dp)
 
     end do
+
+    call finalise_matrix_CSR_dist( M_CSR)
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( M_CSR, map%M)
@@ -191,6 +193,8 @@ contains
       call add_entry_CSR_dist( M_CSR, row, colc, wc)
 
     end do
+
+    call finalise_matrix_CSR_dist( M_CSR)
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( M_CSR, map%M)
@@ -794,6 +798,10 @@ contains
 
     end do
 
+    call finalise_matrix_CSR_dist( A_xdy_b_a_CSR  )
+    call finalise_matrix_CSR_dist( A_mxydx_b_a_CSR)
+    call finalise_matrix_CSR_dist( A_xydy_b_a_CSR )
+
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( A_xdy_b_a_CSR  , A_xdy_b_a  )
     call mat_CSR2petsc( A_mxydx_b_a_CSR, A_mxydx_b_a)
@@ -894,6 +902,10 @@ contains
       end if
 
     end do
+
+    call finalise_matrix_CSR_dist( A_xdy_a_b_CSR  )
+    call finalise_matrix_CSR_dist( A_mxydx_a_b_CSR)
+    call finalise_matrix_CSR_dist( A_xydy_a_b_CSR )
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( A_xdy_a_b_CSR  , A_xdy_a_b  )
