@@ -119,7 +119,7 @@ CONTAINS
       END SELECT
 
       ! Display or save fields
-      CALL print_diagnostics( laddie, tl)
+      CALL print_diagnostics( mesh, laddie, tl)
 
       call crash('whoopsiedaisy')
 
