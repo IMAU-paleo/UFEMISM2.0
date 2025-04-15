@@ -7,7 +7,7 @@ MODULE laddie_utilities
 
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
+  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string, warning
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
@@ -18,7 +18,7 @@ MODULE laddie_utilities
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use CSR_matrix_basics, only: allocate_matrix_CSR_dist
-  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use mesh_integrate_over_domain, only: average_over_domain, calc_and_print_min_mean_max
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD
   use mpi_distributed_shared_memory, only: allocate_dist_shared
@@ -40,7 +40,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_ambient_TS'
@@ -49,17 +49,15 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! ! Get T and S at layer base
-    ! DO vi = mesh%vi1, mesh%vi2
-    !    IF (laddie%mask_a( vi)) THEN
-    !      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
-    !      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
-    !    END IF
-    ! END DO
-    ! call calc_and_print_min_mean_max( mesh, laddie%T_amb, 'laddie%T_amb')
-    ! call calc_and_print_min_mean_max( mesh, laddie%S_amb, 'laddie%S_amb')
-
-    call crash('almost there!')
+    ! Get T and S at layer base
+    DO vi = mesh%vi1, mesh%vi2
+       IF (laddie%mask_a( vi)) THEN
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
+       END IF
+    END DO
+    call calc_and_print_min_mean_max( mesh, laddie%T_amb, 'laddie%T_amb')
+    call calc_and_print_min_mean_max( mesh, laddie%S_amb, 'laddie%S_amb')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -73,8 +71,8 @@ CONTAINS
 
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(in)    :: laddie
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
-    real(dp), dimension(mesh%ti1:mesh%ti2), intent(inout) :: H_b
+    real(dp), dimension(:),                 intent(in)    :: H_a
+    real(dp), dimension(:),                 intent(inout) :: H_b
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_H_a_b'
@@ -82,11 +80,8 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_b, &
-    !   mesh%pai_V, H_a, mesh%pai_Tri, H_b, &
-    !   xx_is_hybrid = .false., yy_is_hybrid = .false.)
-
-    call crash('almost there!')
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, &
+      mesh%pai_V, H_a, mesh%pai_Tri, H_b)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -100,8 +95,8 @@ CONTAINS
 
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(in)    :: laddie
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in)    :: H_a
-    real(dp), dimension(mesh%ei1:mesh%ei2), intent(inout) :: H_c
+    real(dp), dimension(:),                 intent(in)    :: H_a
+    real(dp), dimension(:),                 intent(inout) :: H_c
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'map_H_a_c'
@@ -109,11 +104,8 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_c, &
-    !   mesh%pai_V, H_a, mesh%pai_E, H_c, &
-    !   xx_is_hybrid = .false., yy_is_hybrid = .false.)
-
-    call crash('almost there!')
+    call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, &
+      mesh%pai_V, H_a, mesh%pai_E, H_c)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -231,6 +223,14 @@ CONTAINS
     ! Forward-Backward Runge-Kutta 3 scheme
     call allocate_dist_shared( laddie%Hstar         , laddie%wHstar         , mesh%pai_V%n_nih  )    ! [m]               Intermediate layer thickness
     laddie%Hstar         ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%Hstar
+
+    ! Mapped variables
+    call allocate_dist_shared( laddie%H_c           , laddie%wH_c           , mesh%pai_E%n_nih  )
+    call allocate_dist_shared( laddie%Hstar_b       , laddie%wHstar_b       , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( laddie%Hstar_c       , laddie%wHstar_c       , mesh%pai_E%n_nih  )
+    laddie%H_c           ( mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih  ) => laddie%H_c
+    laddie%Hstar_b       ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%Hstar_b
+    laddie%Hstar_c       ( mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih  ) => laddie%Hstar_c
 
     ! Masks
     call allocate_dist_shared( laddie%mask_a        , laddie%wmask_a        , mesh%pai_V%n_nih  )    !                 Mask on a-grid

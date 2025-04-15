@@ -19,6 +19,7 @@ MODULE laddie_thickness
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
+  use mesh_halo_exchange, only: exchange_halos
   use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
@@ -48,34 +49,32 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! ! Compute thickness divergence
-    ! CALL compute_divQH( mesh, laddie, npxref)
+    ! Compute thickness divergence
+    CALL compute_divQH( mesh, laddie, npxref)
 
-    ! ! Compute freezing temperature
-    ! CALL compute_freezing_temperature( mesh, ice, laddie, npxref)
+    ! Compute freezing temperature
+    CALL compute_freezing_temperature( mesh, ice, laddie, npxref)
 
-    ! ! Initialise ambient T and S
-    ! CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
+    ! Initialise ambient T and S
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
 
-    ! ! Compute buoyancy
-    ! CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
+    ! Compute buoyancy
+    CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
 
-    ! ! Compute melt rate
-    ! CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
+    ! Compute melt rate
+    CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
 
-    ! ! Compute entrainment
-    ! CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
+    ! Compute entrainment
+    CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
 
-    ! ! Do integration
-    ! CALL integrate_H( mesh, ice, laddie, npx, dt)
+    ! Do integration
+    CALL integrate_H( mesh, ice, laddie, npx, dt)
 
-    ! ! Map new values of H to b grid and c grid
-    ! CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
-    ! CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
-    ! call calc_and_print_min_mean_max( mesh, npx%H_b, 'npx%H_b')
-    ! call calc_and_print_min_mean_max( mesh, npx%H_c, 'npx%H_c')
-
-    call crash('almost there!')
+    ! Map new values of H to b grid and c grid
+    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
+    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
+    call calc_and_print_min_mean_max( mesh, npx%H_b, 'npx%H_b')
+    call calc_and_print_min_mean_max( mesh, npx%H_c, 'npx%H_c')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -100,44 +99,42 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! ! Loop over vertices
-    ! do vi = mesh%vi1, mesh%vi2
-    !   if (laddie%mask_a( vi)) then
+    ! Loop over vertices
+    do vi = mesh%vi1, mesh%vi2
+      if (laddie%mask_a( vi)) then
 
-    !     ! Get first guess at dHdt
-    !     dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi)
+        ! Get first guess at dHdt
+        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi)
 
-    !     ! First guess at H_n
-    !     npx%H( vi) = laddie%now%H( vi) + dHdt * dt
+        ! First guess at H_n
+        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
 
-    !     ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
-    !     laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
+        ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
+        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
 
-    !     ! If H_n > Hmax, suppress entrainment to ensure H_n <= available water column thickness
-    !     laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
+        ! If H_n > Hmax, suppress entrainment to ensure H_n <= available water column thickness
+        laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
 
-    !     ! Prevent strong entr_dmin and strong detrainment
-    !     if (laddie%entr_dmin(vi) > 0) then
-    !       laddie%entr( vi) = MAX(laddie%entr( vi), 0.0_dp)
-    !     end if
+        ! Prevent strong entr_dmin and strong detrainment
+        if (laddie%entr_dmin(vi) > 0) then
+          laddie%entr( vi) = MAX(laddie%entr( vi), 0.0_dp)
+        end if
 
-    !     ! Update detrainment. Shouldn't matter but just in case
-    !     laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
+        ! Update detrainment. Shouldn't matter but just in case
+        laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
 
-    !     ! Get actual dHdt
-    !     dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
+        ! Get actual dHdt
+        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
 
-    !     ! Get actual H_n
-    !     npx%H( vi) = laddie%now%H( vi) + dHdt * dt
+        ! Get actual H_n
+        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
 
-    !   end if !(laddie%mask_a( vi)) THEN
-    ! end do !vi = mesh%vi, mesh%v2
-    ! call calc_and_print_min_mean_max( mesh, laddie%entr_dmin, 'laddie%entr_dmin')
-    ! call calc_and_print_min_mean_max( mesh, laddie%entr, 'laddie%entr')
-    ! call calc_and_print_min_mean_max( mesh, laddie%detr, 'laddie%detr')
-    ! call calc_and_print_min_mean_max( mesh, npx%H, 'npx%H')
-
-    call crash('almost there!')
+      end if !(laddie%mask_a( vi)) THEN
+    end do !vi = mesh%vi, mesh%v2
+    call calc_and_print_min_mean_max( mesh, laddie%entr_dmin, 'laddie%entr_dmin')
+    call calc_and_print_min_mean_max( mesh, laddie%entr, 'laddie%entr')
+    call calc_and_print_min_mean_max( mesh, laddie%detr, 'laddie%detr')
+    call calc_and_print_min_mean_max( mesh, npx%H, 'npx%H')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -154,73 +151,68 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQH'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
     INTEGER                                               :: vi, ci, vj, ei
     REAL(dp)                                              :: u_perp
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! ! Calculate vertically averaged ice velocities on the edges
-    ! CALL gather_to_all( npx%U_c, U_c_tot)
-    ! CALL gather_to_all( npx%V_c, V_c_tot)
-    ! CALL gather_to_all( npx%H, H_tot)
-    ! CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
-    ! CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
+    ! Calculate vertically averaged ice velocities on the edges
+    call exchange_halos( mesh, npx%U_c)
+    call exchange_halos( mesh, npx%V_c)
+    call exchange_halos( mesh, npx%H)
+    ! call exchange_halos( mesh, laddie%mask_gr_a)  ! These have already been halo-exchanged in update_laddie_masks
+    ! call exchange_halos( mesh, laddie%mask_oc_a)
 
-    ! ! Initialise with zeros
-    ! laddie%divQH = 0.0_dp
+    ! Initialise with zeros
+    laddie%divQH( mesh%vi1:mesh%vi2) = 0.0_dp
 
-    ! ! == Loop over vertices ==
-    ! ! =========================
+    ! == Loop over vertices ==
+    ! =========================
 
-    ! DO vi = mesh%vi1, mesh%vi2
+    DO vi = mesh%vi1, mesh%vi2
 
-    !   IF (laddie%mask_a( vi)) THEN
-    !     ! Initialise
+      IF (laddie%mask_a( vi)) THEN
+        ! Initialise
 
-    !     ! Loop over all connections of vertex vi
-    !     DO ci = 1, mesh%nC( vi)
+        ! Loop over all connections of vertex vi
+        DO ci = 1, mesh%nC( vi)
 
-    !       ! Connection ci from vertex vi leads through edge ei to vertex vj
-    !       vj = mesh%C(  vi,ci)
+          ! Connection ci from vertex vi leads through edge ei to vertex vj
+          vj = mesh%C(  vi,ci)
 
-    !       ! Skip connection if neighbour is grounded. No flux across grounding line
-    !       ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-    !       IF (mask_gr_a_tot( vj)) CYCLE
+          ! Skip connection if neighbour is grounded. No flux across grounding line
+          ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
+          IF (laddie%mask_gr_a( vj)) CYCLE
 
-    !       ! Get edge
-    !       ei = mesh%VE( vi,ci)
+          ! Get edge
+          ei = mesh%VE( vi,ci)
 
-    !       ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-    !       u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+          ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
+          u_perp = npx%U_c( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + npx%V_c( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
-    !       ! Calculate upwind momentum divergence
-    !       ! =============================
-    !       ! u_perp > 0: flow is exiting this vertex into vertex vj
-    !       IF (u_perp > 0) THEN
-    !         laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
-    !       ! u_perp < 0: flow is entering this vertex from vertex vj
-    !       ELSE
-    !         IF (mask_oc_a_tot( vj)) THEN
-    !           CYCLE ! No inflow
-    !           ! TODO fix boundary condition for inflow
-    !           ! laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
-    !         ELSE
-    !           laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
-    !         END IF
-    !       END IF
+          ! Calculate upwind momentum divergence
+          ! =============================
+          ! u_perp > 0: flow is exiting this vertex into vertex vj
+          IF (u_perp > 0) THEN
+            laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * npx%H( vi) / mesh%A( vi)
+          ! u_perp < 0: flow is entering this vertex from vertex vj
+          ELSE
+            IF (laddie%mask_oc_a( vj)) THEN
+              CYCLE ! No inflow
+              ! TODO fix boundary condition for inflow
+              ! laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * npx%H( vi) / mesh%A( vi)
+            ELSE
+              laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * npx%H( vj) / mesh%A( vi)
+            END IF
+          END IF
 
-    !     END DO ! DO ci = 1, mesh%nC( vi)
+        END DO ! DO ci = 1, mesh%nC( vi)
 
-    !   END IF ! (laddie%mask_a( vi))
+      END IF ! (laddie%mask_a( vi))
 
-    ! END DO ! DO vi = mesh%vi1, mesh%vi2
-    ! call calc_and_print_min_mean_max( mesh, laddie%divQH, 'laddie%divQH')
-
-    call crash('almost there!')
+    END DO ! DO vi = mesh%vi1, mesh%vi2
+    call calc_and_print_min_mean_max( mesh, laddie%divQH, 'laddie%divQH')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
