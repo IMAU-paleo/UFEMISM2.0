@@ -109,7 +109,9 @@ MODULE laddie_model_types
 
     ! Mapped variables
     real(dp), dimension(:), contiguous, pointer :: H_c             => null()  ! [m]               Layer thickness on c grid
-    type(MPI_WIN) :: wH_c
+    real(dp), dimension(:), contiguous, pointer :: Hstar_b         => null()
+    real(dp), dimension(:), contiguous, pointer :: Hstar_c         => null()
+    type(MPI_WIN) :: wH_c, wHstar_b, wHstar_c
 
     ! Masks
     logical,  dimension(:), contiguous, pointer :: mask_a          => null()  !                   Mask on a-grid on which to apply computation
@@ -120,6 +122,7 @@ MODULE laddie_model_types
     logical,  dimension(:), contiguous, pointer :: mask_cf_b       => null()  !                   Calving front mask on b-grid
     logical,  dimension(:), contiguous, pointer :: mask_oc_b       => null()  !                   Icefree ocean mask on b-grid
     type(MPI_WIN) :: wmask_a, wmask_gr_a, wmask_oc_a, wmask_b, wmask_gl_b, wmask_cf_b, wmask_oc_b
+
 
     ! Mapping operators
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_b
