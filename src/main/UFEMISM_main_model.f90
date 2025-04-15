@@ -1200,9 +1200,9 @@ CONTAINS
     ! Remap all the model data from the old mesh to the new mesh
     CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice,     region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
     CALL remap_climate_model(         region%mesh, mesh_new, region%climate, region%forcing, region%name)
-    CALL remap_ocean_model(           region%mesh, mesh_new,                 region%ocean  , region%name)
+    CALL remap_ocean_model(           region%mesh, mesh_new, region%ice,     region%ocean  , region%name)
     CALL remap_SMB_model(             region%mesh, mesh_new,                 region%SMB    , region%name)
-    CALL remap_BMB_model(             region%mesh, mesh_new, region%ice,     region%ocean, region%BMB    , region%name, region%time)
+    CALL remap_BMB_model(             region%mesh, mesh_new, region%ice,     region%ocean,   region%BMB    , region%name, region%time)
     CALL remap_LMB_model(             region%mesh, mesh_new,                 region%LMB    , region%name)
     CALL remap_AMB_model(             region%mesh, mesh_new,                 region%AMB                 )
     CALL remap_GIA_model(             region%mesh, mesh_new,                 region%GIA    , region%refgeo_GIAeq, region%ELRA)

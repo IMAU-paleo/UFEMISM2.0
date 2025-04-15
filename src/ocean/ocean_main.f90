@@ -365,7 +365,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_ocean_model_region
 
-  SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ocean, region_name)
+  SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name)
     ! Remap the ocean model
 
     IMPLICIT NONE
@@ -374,6 +374,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
