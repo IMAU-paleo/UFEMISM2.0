@@ -49,15 +49,17 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Get T and S at layer base
-    DO vi = mesh%vi1, mesh%vi2
-       IF (laddie%mask_a( vi)) THEN
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
-       END IF
-    END DO
-    call calc_and_print_min_mean_max( mesh, laddie%T_amb, 'laddie%T_amb')
-    call calc_and_print_min_mean_max( mesh, laddie%S_amb, 'laddie%S_amb')
+    ! ! Get T and S at layer base
+    ! DO vi = mesh%vi1, mesh%vi2
+    !    IF (laddie%mask_a( vi)) THEN
+    !      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
+    !      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
+    !    END IF
+    ! END DO
+    ! call calc_and_print_min_mean_max( mesh, laddie%T_amb, 'laddie%T_amb')
+    ! call calc_and_print_min_mean_max( mesh, laddie%S_amb, 'laddie%S_amb')
+
+    call crash('almost there!')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -80,9 +82,11 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_b, &
-      mesh%pai_V, H_a, mesh%pai_Tri, H_b, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false.)
+    ! call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_b, &
+    !   mesh%pai_V, H_a, mesh%pai_Tri, H_b, &
+    !   xx_is_hybrid = .false., yy_is_hybrid = .false.)
+
+    call crash('almost there!')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -105,9 +109,11 @@ CONTAINS
     ! Add routine to path
     call init_routine( routine_name)
 
-    call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_c, &
-      mesh%pai_V, H_a, mesh%pai_E, H_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false.)
+    ! call multiply_CSR_matrix_with_vector_1D_wrapper( laddie%M_map_H_a_c, &
+    !   mesh%pai_V, H_a, mesh%pai_E, H_c, &
+    !   xx_is_hybrid = .false., yy_is_hybrid = .false.)
+
+    call crash('almost there!')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
