@@ -21,7 +21,7 @@ module CSR_matrix_vector_multiplication
 contains
 
   subroutine multiply_CSR_matrix_with_vector_1D_wrapper( AA, pai_x, xx, pai_y, yy, &
-    xx_is_hybrid, yy_is_hybrid)
+    xx_is_hybrid, yy_is_hybrid, buffer_xx_nih, buffer_yy_nih)
     !< Interface between the old, purely distributed memory architecture,
     !< and the new, hybrid distributed/shared memory architecture.
 
@@ -32,6 +32,7 @@ contains
     type(type_par_arr_info),         intent(in   ) :: pai_y
     real(dp), dimension(:), target,  intent(  out) :: yy
     logical, optional,               intent(in   ) :: xx_is_hybrid, yy_is_hybrid
+    real(dp), dimension(:), target, optional, intent(in   ) :: buffer_xx_nih, buffer_yy_nih
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'multiply_CSR_matrix_with_vector_1D_wrapper'
@@ -58,7 +59,11 @@ contains
     if (xx_is_hybrid_) then
       xx_nih => xx
     else
-      call allocate_dist_shared( xx_nih, wxx_nih, pai_x%n_nih)
+      if (present( buffer_xx_nih)) then
+        xx_nih => buffer_xx_nih
+      else
+        call allocate_dist_shared( xx_nih, wxx_nih, pai_x%n_nih)
+      end if
       call dist_to_hybrid( pai_x, xx, xx_nih)
       call basic_halo_exchange( pai_x, xx_nih)
     end if
@@ -66,7 +71,11 @@ contains
     if (yy_is_hybrid_) then
       yy_nih => yy
     else
-      call allocate_dist_shared( yy_nih, wyy_nih, pai_y%n_nih)
+      if (present( buffer_yy_nih)) then
+        yy_nih => buffer_yy_nih
+      else
+        call allocate_dist_shared( yy_nih, wyy_nih, pai_y%n_nih)
+      end if
       call dist_to_hybrid( pai_y, yy, yy_nih)
     end if
 
@@ -75,14 +84,22 @@ contains
     if (xx_is_hybrid_) then
       nullify( xx_nih)
     else
-      call deallocate_dist_shared( xx_nih, wxx_nih)
+      if (.not. present( buffer_xx_nih)) then
+        call deallocate_dist_shared( xx_nih, wxx_nih)
+      else
+        nullify( xx_nih)
+      end if
     end if
 
     if (yy_is_hybrid_) then
       nullify( yy_nih)
     else
       call hybrid_to_dist( pai_y, yy_nih, yy)
-      call deallocate_dist_shared( yy_nih, wyy_nih)
+      if (.not. present( buffer_yy_nih)) then
+        call deallocate_dist_shared( yy_nih, wyy_nih)
+      else
+        nullify( yy_nih)
+      end if
     end if
 
     ! Finalise routine path
@@ -91,7 +108,7 @@ contains
   end subroutine multiply_CSR_matrix_with_vector_1D_wrapper
 
   subroutine multiply_CSR_matrix_with_vector_2D_wrapper( AA, pai_x, xx, pai_y, yy, &
-    xx_is_hybrid, yy_is_hybrid)
+    xx_is_hybrid, yy_is_hybrid, buffer_xx_nih, buffer_yy_nih)
     !< Interface between the old, purely distributed memory architecture,
     !< and the new, hybrid distributed/shared memory architecture.
 
@@ -102,6 +119,7 @@ contains
     type(type_par_arr_info),          intent(in   ) :: pai_y
     real(dp), dimension(:,:), target, intent(  out) :: yy
     logical, optional,                intent(in   ) :: xx_is_hybrid, yy_is_hybrid
+    real(dp), dimension(:,:), target, optional, intent(in   ) :: buffer_xx_nih, buffer_yy_nih
 
     ! Local variables:
     character(len=1024), parameter    :: routine_name = 'multiply_CSR_matrix_with_vector_2D_wrapper'
@@ -128,7 +146,11 @@ contains
     if (xx_is_hybrid_) then
       xx_nih => xx
     else
-      call allocate_dist_shared( xx_nih, wxx_nih, pai_x%n_nih, size( xx,2))
+      if (present( buffer_xx_nih)) then
+        xx_nih => buffer_xx_nih
+      else
+        call allocate_dist_shared( xx_nih, wxx_nih, pai_x%n_nih, size( xx,2))
+      end if
       call dist_to_hybrid( pai_x, size( xx,2), xx, xx_nih)
       call basic_halo_exchange( pai_x, size( xx,2), xx_nih)
     end if
@@ -136,7 +158,11 @@ contains
     if (yy_is_hybrid_) then
       yy_nih => yy
     else
-      call allocate_dist_shared( yy_nih, wyy_nih, pai_y%n_nih, size( xx,2))
+      if (present( buffer_yy_nih)) then
+        yy_nih => buffer_yy_nih
+      else
+        call allocate_dist_shared( yy_nih, wyy_nih, pai_y%n_nih, size( xx,2))
+      end if
       call dist_to_hybrid( pai_y, size( xx,2), yy, yy_nih)
     end if
 
@@ -145,14 +171,22 @@ contains
     if (xx_is_hybrid_) then
       nullify( xx_nih)
     else
-      call deallocate_dist_shared( xx_nih, wxx_nih)
+      if (.not. present( buffer_xx_nih)) then
+        call deallocate_dist_shared( xx_nih, wxx_nih)
+      else
+        nullify( xx_nih)
+      end if
     end if
 
     if (yy_is_hybrid_) then
       nullify( yy_nih)
     else
       call hybrid_to_dist( pai_y, size( xx,2), yy_nih, yy)
-      call deallocate_dist_shared( yy_nih, wyy_nih)
+      if (.not. present( buffer_yy_nih)) then
+        call deallocate_dist_shared( yy_nih, wyy_nih)
+      else
+        nullify( yy_nih)
+      end if
     end if
 
     ! Finalise routine path
