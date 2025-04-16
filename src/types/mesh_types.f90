@@ -5,6 +5,7 @@ module mesh_types
   use precisions, only: dp
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use parallel_array_info_type, only: type_par_arr_info
+  use mpi_f08, only: MPI_WIN
 
   implicit none
 
@@ -124,6 +125,22 @@ module mesh_types
     type(type_par_arr_info)                 :: pai_V                         ! Parallelisation info for vertex-based fields
     type(type_par_arr_info)                 :: pai_Tri                       ! Parallelisation info for triangle-based fields
     type(type_par_arr_info)                 :: pai_E                         ! Parallelisation info for edge-based fields
+
+    real(dp), dimension(:    ), contiguous, pointer :: buffer1_d_a_nih  => null()     ! Pre-allocated buffer memory on the a-grid (vertices)
+    real(dp), dimension(:    ), contiguous, pointer :: buffer2_d_a_nih  => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer1_d_ak_nih => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer2_d_ak_nih => null()
+    real(dp), dimension(:    ), contiguous, pointer :: buffer1_d_b_nih  => null()     ! Pre-allocated buffer memory on the b-grid (triangles)
+    real(dp), dimension(:    ), contiguous, pointer :: buffer2_d_b_nih  => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer1_d_bk_nih => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer2_d_bk_nih => null()
+    real(dp), dimension(:    ), contiguous, pointer :: buffer1_d_c_nih  => null()     ! Pre-allocated buffer memory on the c-grid (edges)
+    real(dp), dimension(:    ), contiguous, pointer :: buffer2_d_c_nih  => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer1_d_ck_nih => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer2_d_ck_nih => null()
+    type(MPI_WIN) :: wbuffer1_d_a_nih, wbuffer2_d_a_nih, wbuffer1_d_ak_nih, wbuffer2_d_ak_nih
+    type(MPI_WIN) :: wbuffer1_d_b_nih, wbuffer2_d_b_nih, wbuffer1_d_bk_nih, wbuffer2_d_bk_nih
+    type(MPI_WIN) :: wbuffer1_d_c_nih, wbuffer2_d_c_nih, wbuffer1_d_ck_nih, wbuffer2_d_ck_nih
 
   ! Matrix operators
   ! ================
