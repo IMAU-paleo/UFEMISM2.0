@@ -55,6 +55,7 @@ module mesh_parallelisation
   use mpi_basic, only: par, sync
   use mpi_distributed_memory, only: partition_list
   use mpi_f08, only: MPI_ALLREDUCE, MPI_INTEGER, MPI_MIN, MPI_MAX, MPI_IN_PLACE, MPI_COMM_WORLD, MPI_ALLGATHER
+  use mpi_distributed_shared_memory, only: allocate_dist_shared
 
   implicit none
 
@@ -108,6 +109,34 @@ contains
 
     ! Determine all halos
     call determine_halos( mesh)
+
+    ! Allocate buffer shared memory for e.g. matrix multiplications
+    call allocate_dist_shared( mesh%buffer1_d_a_nih , mesh%wbuffer1_d_a_nih , mesh%pai_V%n_nih)
+    call allocate_dist_shared( mesh%buffer2_d_a_nih , mesh%wbuffer2_d_a_nih , mesh%pai_V%n_nih)
+    call allocate_dist_shared( mesh%buffer1_d_ak_nih, mesh%wbuffer1_d_ak_nih, mesh%pai_V%n_nih,   mesh%nz)
+    call allocate_dist_shared( mesh%buffer2_d_ak_nih, mesh%wbuffer2_d_ak_nih, mesh%pai_V%n_nih,   mesh%nz)
+    mesh%buffer1_d_a_nih(  mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih             ) => mesh%buffer1_d_a_nih
+    mesh%buffer2_d_a_nih(  mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih             ) => mesh%buffer2_d_a_nih
+    mesh%buffer1_d_ak_nih( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  , 1:mesh%nz) => mesh%buffer1_d_ak_nih
+    mesh%buffer2_d_ak_nih( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  , 1:mesh%nz) => mesh%buffer2_d_ak_nih
+
+    call allocate_dist_shared( mesh%buffer1_d_b_nih , mesh%wbuffer1_d_b_nih , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( mesh%buffer2_d_b_nih , mesh%wbuffer2_d_b_nih , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( mesh%buffer1_d_bk_nih, mesh%wbuffer1_d_bk_nih, mesh%pai_Tri%n_nih, mesh%nz)
+    call allocate_dist_shared( mesh%buffer2_d_bk_nih, mesh%wbuffer2_d_bk_nih, mesh%pai_Tri%n_nih, mesh%nz)
+    mesh%buffer1_d_b_nih(  mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih           ) => mesh%buffer1_d_b_nih
+    mesh%buffer2_d_b_nih(  mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih           ) => mesh%buffer2_d_b_nih
+    mesh%buffer1_d_bk_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih, 1:mesh%nz) => mesh%buffer1_d_bk_nih
+    mesh%buffer2_d_bk_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih, 1:mesh%nz) => mesh%buffer2_d_bk_nih
+
+    call allocate_dist_shared( mesh%buffer1_d_c_nih , mesh%wbuffer1_d_c_nih , mesh%pai_E%n_nih)
+    call allocate_dist_shared( mesh%buffer2_d_c_nih , mesh%wbuffer2_d_c_nih , mesh%pai_E%n_nih)
+    call allocate_dist_shared( mesh%buffer1_d_ck_nih, mesh%wbuffer1_d_ck_nih, mesh%pai_E%n_nih,   mesh%nz)
+    call allocate_dist_shared( mesh%buffer2_d_ck_nih, mesh%wbuffer2_d_ck_nih, mesh%pai_E%n_nih,   mesh%nz)
+    mesh%buffer1_d_c_nih(  mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih             ) => mesh%buffer1_d_c_nih
+    mesh%buffer2_d_c_nih(  mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih             ) => mesh%buffer2_d_c_nih
+    mesh%buffer1_d_ck_nih( mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih  , 1:mesh%nz) => mesh%buffer1_d_ck_nih
+    mesh%buffer2_d_ck_nih( mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih  , 1:mesh%nz) => mesh%buffer2_d_ck_nih
 
     ! call print_parallelisation_info( mesh)
 
