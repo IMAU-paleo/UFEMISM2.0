@@ -253,22 +253,20 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! ! Integrate H 1 time step
-    ! CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
+    ! Integrate H 1 time step
+    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
 
-    ! ! Update diffusive terms based on now time step
-    ! CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
+    ! Update diffusive terms based on now time step
+    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
 
-    ! ! Integrate U and V 1 time step
-    ! CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    ! Integrate U and V 1 time step
+    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
-    ! ! Integrate T and S 1 time step
-    ! CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    ! Integrate T and S 1 time step
+    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
-    ! ! == Move time ==
-    ! CALL move_laddie_timestep( laddie, tl, dt)
-
-    call crash('almost there!')
+    ! == Move time ==
+    CALL move_laddie_timestep( mesh, laddie, tl, dt)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
