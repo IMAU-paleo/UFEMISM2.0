@@ -11,7 +11,7 @@ module netcdf_inquire_grid_mesh
 
   private
 
-  public :: inquire_xy_grid, inquire_lonlat_grid, inquire_mesh
+  public :: inquire_xy_grid, inquire_lonlat_grid, inquire_lat_grid, inquire_mesh
 
 contains
 
@@ -96,6 +96,43 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine inquire_lonlat_grid
+
+  subroutine inquire_lat_grid( filename, has_lat_grid)
+    !< Inquire if a NetCDF file contains the dimensions and variables
+    !< describing a regular lat-only grid (like the insolation file).
+
+    ! In/output variables:
+    character(len=*), intent(in   ) :: filename
+    logical,          intent(  out) :: has_lat_grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'inquire_lat_grid'
+    integer                        :: ncid
+    integer                        :: id_dim_lat
+    integer                        :: id_var_lat
+
+    ! Add routine to path
+    call init_routine( routine_name, do_track_resource_use = .false.)
+
+    ! Open the NetCDF file
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Look for x and y dimensions and variables
+    call inquire_dim_multopt( filename, ncid, field_name_options_lat, id_dim_lat)
+    call inquire_var_multopt( filename, ncid, field_name_options_lat, id_var_lat)
+
+    ! Check if everything is there
+    has_lat_grid = (&
+      id_dim_lat /= -1 .and. &
+      id_var_lat /= -1)
+
+    ! Close the NetCDF file
+    call close_netcdf_file( ncid)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine inquire_lat_grid
 
   subroutine inquire_mesh( filename, has_mesh)
     !< Inquire if a NetCDF file contains all the dimensions and variables
