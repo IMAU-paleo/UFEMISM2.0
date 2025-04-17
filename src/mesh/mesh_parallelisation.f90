@@ -270,6 +270,10 @@ contains
 
     end if
 
+    mesh%pai_V%n       = mesh%nV
+    mesh%pai_Tri%n     = mesh%nTri
+    mesh%pai_E%n       = mesh%nE
+
     mesh%pai_V%n_nih   = mesh%pai_V%i2_nih   + 1 - mesh%pai_V%i1_nih
     mesh%pai_Tri%n_nih = mesh%pai_Tri%i2_nih + 1 - mesh%pai_Tri%i1_nih
     mesh%pai_E%n_nih   = mesh%pai_E%i2_nih   + 1 - mesh%pai_E%i1_nih
