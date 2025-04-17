@@ -26,6 +26,7 @@ MODULE laddie_main
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
   use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
@@ -650,99 +651,97 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! ! == Regular variables ==
+    ! == Regular variables ==
 
-    ! ! Thickness
-    ! CALL reallocate_bounds( laddie%dH_dt,                mesh_new%vi1, mesh_new%vi2)
+    ! Thickness
+    call reallocate_dist_shared( laddie%dH_dt,          laddie%wdH_dt,          mesh_new%pai_V%n_nih)
 
-    ! ! Temperatures
-    ! CALL reallocate_bounds( laddie%T_amb,                mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%T_base,               mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%T_freeze,             mesh_new%vi1, mesh_new%vi2)
+    ! Temperatures
+    call reallocate_dist_shared( laddie%T_amb,          laddie%wT_amb,          mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%T_base,         laddie%wT_base,         mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%T_freeze,       laddie%wT_freeze,       mesh_new%pai_V%n_nih)
 
-    ! ! Salinities
-    ! CALL reallocate_bounds( laddie%S_amb,                mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%S_base,               mesh_new%vi1, mesh_new%vi2)
+    ! Salinities
+    call reallocate_dist_shared( laddie%S_amb,          laddie%wS_amb,          mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%S_base,         laddie%wS_base,         mesh_new%pai_V%n_nih)
 
-    ! ! Densities and buoyancies
-    ! CALL reallocate_bounds( laddie%rho,                  mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%rho_amb,              mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%drho_amb,             mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%Hdrho_amb,            mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%Hdrho_amb_b,          mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%drho_base,            mesh_new%vi1, mesh_new%vi2)
+    ! Densities and buoyancies
+    call reallocate_dist_shared( laddie%rho,            laddie%wrho,            mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%rho_amb,        laddie%wrho_amb,        mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%drho_amb,       laddie%wdrho_amb,       mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%Hdrho_amb,      laddie%wHdrho_amb,      mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%Hdrho_amb_b,    laddie%wHdrho_amb_b,    mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%drho_base,      laddie%wdrho_base,      mesh_new%pai_V%n_nih)
 
-    ! ! Friction velocity
-    ! CALL reallocate_bounds( laddie%u_star,               mesh_new%vi1, mesh_new%vi2)
+    ! Friction velocity
+    call reallocate_dist_shared( laddie%u_star,         laddie%wu_star,         mesh_new%pai_V%n_nih)
 
-    ! ! Physical parameter fields
-    ! CALL reallocate_bounds( laddie%gamma_T,              mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%gamma_S,              mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%A_h,                  mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%K_h,                  mesh_new%vi1, mesh_new%vi2)
+    ! Physical parameter fields
+    call reallocate_dist_shared( laddie%gamma_T,        laddie%wgamma_T,        mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%gamma_S,        laddie%wgamma_S,        mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%A_h,            laddie%wA_h,            mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%K_h,            laddie%wK_h,            mesh_new%pai_V%n_nih)
 
-    ! ! Vertical rates
-    ! CALL reallocate_bounds( laddie%melt,                 mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%entr,                 mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%entr_dmin,            mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%detr,                 mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%entr_tot,             mesh_new%vi1, mesh_new%vi2)
+    ! Vertical rates
+    call reallocate_dist_shared( laddie%melt,           laddie%wmelt,           mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%entr,           laddie%wentr,           mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%entr_dmin,      laddie%wentr_dmin,      mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%detr,           laddie%wdetr,           mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%entr_tot,       laddie%wentr_tot,       mesh_new%pai_V%n_nih)
 
-    ! ! Horizontal fluxes
-    ! CALL reallocate_bounds( laddie%divQH,                mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%divQU,                mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%divQV,                mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%divQT,                mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%divQS,                mesh_new%vi1, mesh_new%vi2)
+    ! Horizontal fluxes
+    call reallocate_dist_shared( laddie%divQH,          laddie%wdivQH,          mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%divQU,          laddie%wdivQU,          mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%divQV,          laddie%wdivQV,          mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%divQT,          laddie%wdivQT,          mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%divQS,          laddie%wdivQS,          mesh_new%pai_V%n_nih)
 
-    ! ! Viscosities
-    ! CALL reallocate_bounds( laddie%viscU,                mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%viscV,                mesh_new%ti1, mesh_new%ti2)
+    ! Viscosities
+    call reallocate_dist_shared( laddie%viscU,          laddie%wviscU,          mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%viscV,          laddie%wviscV,          mesh_new%pai_Tri%n_nih)
 
-    ! ! Diffusivities
-    ! CALL reallocate_bounds( laddie%diffT,                mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%diffS,                mesh_new%vi1, mesh_new%vi2)
+    ! Diffusivities
+    call reallocate_dist_shared( laddie%diffT,          laddie%wdiffT,          mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%diffS,          laddie%wdiffS,          mesh_new%pai_V%n_nih)
 
-    ! ! RHS terms
-    ! CALL reallocate_bounds( laddie%ddrho_amb_dx_b,       mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%ddrho_amb_dy_b,       mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%dH_dx_b,              mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%dH_dy_b,              mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%detr_b,               mesh_new%ti1, mesh_new%ti2)
+    ! RHS terms
+    call reallocate_dist_shared( laddie%ddrho_amb_dx_b, laddie%wddrho_amb_dx_b, mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%ddrho_amb_dy_b, laddie%wddrho_amb_dy_b, mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%dH_dx_b,        laddie%wdH_dx_b,        mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%dH_dy_b,        laddie%wdH_dy_b,        mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%detr_b,         laddie%wdetr_b,         mesh_new%pai_Tri%n_nih)
 
-    ! ! Masks
-    ! CALL reallocate_bounds( laddie%mask_a,               mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%mask_gr_a,            mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%mask_oc_a,            mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( laddie%mask_b,               mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%mask_gl_b,            mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%mask_cf_b,            mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( laddie%mask_oc_b,            mesh_new%ti1, mesh_new%ti2)
+    ! Masks
+    call reallocate_dist_shared( laddie%mask_a,         laddie%wmask_a,         mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_gr_a,      laddie%wmask_gr_a,      mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_oc_a,      laddie%wmask_oc_a,      mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_b,         laddie%wmask_b,         mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%mask_gl_b,      laddie%wmask_gl_b,      mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%mask_cf_b,      laddie%wmask_cf_b,      mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%mask_oc_b,      laddie%wmask_oc_b,      mesh_new%pai_Tri%n_nih)
 
-    ! ! == Re-initialise masks ==
-    ! CALL update_laddie_masks( mesh_new, ice, laddie)
+    ! == Re-initialise masks ==
+    CALL update_laddie_masks( mesh_new, ice, laddie)
 
-    ! ! == Update operators ==
-    ! CALL update_laddie_operators( mesh_new, ice, laddie)
+    ! == Update operators ==
+    CALL update_laddie_operators( mesh_new, ice, laddie)
 
-    ! ! == Timestep variables ==
-    ! CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
+    ! == Timestep variables ==
+    CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
 
-    ! SELECT CASE(C%choice_laddie_integration_scheme)
-    !   CASE DEFAULT
-    !     CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
-    !   CASE ('euler')
-    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
-    !   CASE ('fbrk3')
-    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np13)
-    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np12)
-    !     CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
-    ! END SELECT
+    SELECT CASE(C%choice_laddie_integration_scheme)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
+      CASE ('euler')
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
+      CASE ('fbrk3')
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np13)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np12)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
+    END SELECT
 
-    ! ! == Re-initialise ==
-    ! CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init)
-
-    call crash('fixme!')
+    ! == Re-initialise ==
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -753,7 +752,6 @@ CONTAINS
     ! Remap laddie timestep
 
     ! In- and output variables
-
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
@@ -764,28 +762,47 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_timestep'
     INTEGER                                               :: vi
+    real(dp), dimension(:), allocatable                   :: d_loc
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! ! Reallocate
-    ! CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%H, '2nd_order_conservative')
-    ! CALL reallocate_bounds( npx%H_b,                     mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( npx%H_c,                     mesh_new%ei1, mesh_new%ei2)
-    ! CALL reallocate_bounds( npx%U,                       mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( npx%U_a,                     mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( npx%U_c,                     mesh_new%ei1, mesh_new%ei2)
-    ! CALL reallocate_bounds( npx%V,                       mesh_new%ti1, mesh_new%ti2)
-    ! CALL reallocate_bounds( npx%V_a,                     mesh_new%vi1, mesh_new%vi2)
-    ! CALL reallocate_bounds( npx%V_c,                     mesh_new%ei1, mesh_new%ei2)
-    ! CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%T, '2nd_order_conservative')
-    ! CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, npx%S, '2nd_order_conservative')
+    ! DENK DROM - this should be cleaned up once the remapping code is ported to hybrid memory
+    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_V, npx%H, d_loc)
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%H, npx%wH, mesh_new%pai_V%n_nih)
+    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%H)
+    deallocate( d_loc)
 
-    ! ! == Re-initialise ==
+    call reallocate_dist_shared( npx%H_b, npx%wH_b, mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( npx%H_c, npx%wH_c, mesh_new%pai_E%n_nih)
+    call reallocate_dist_shared( npx%U,   npx%wU,   mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( npx%U_a, npx%wU_a, mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( npx%U_c, npx%wU_c, mesh_new%pai_E%n_nih)
+    call reallocate_dist_shared( npx%V,   npx%wV,   mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( npx%V_a, npx%wV_a, mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( npx%V_c, npx%wV_c, mesh_new%pai_E%n_nih)
 
-    ! ! Layer thickness on b and c grid
-    ! CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
-    ! CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
+    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_V, npx%T, d_loc)
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%T, npx%wT, mesh_new%pai_V%n_nih)
+    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%T)
+    deallocate( d_loc)
+
+    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_V, npx%S, d_loc)
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%S, npx%wS, mesh_new%pai_V%n_nih)
+    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%S)
+    deallocate( d_loc)
+
+    ! == Re-initialise ==
+
+    ! Layer thickness on b and c grid
+    CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
+    CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
 
     call crash('fixme!')
 
