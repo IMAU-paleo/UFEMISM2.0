@@ -232,6 +232,9 @@ CONTAINS
     laddie%Hstar_b       ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%Hstar_b
     laddie%Hstar_c       ( mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih  ) => laddie%Hstar_c
 
+    ! Forward-Backward Runge-Kutta 3 scheme
+    ALLOCATE( laddie%Hstar              ( mesh%vi1:mesh%vi2), source=0._dp) ! [m]               Intermediate layer thickness
+
     ! Masks
     call allocate_dist_shared( laddie%mask_a        , laddie%wmask_a        , mesh%pai_V%n_nih  )    !                 Mask on a-grid
     call allocate_dist_shared( laddie%mask_gr_a     , laddie%wmask_gr_a     , mesh%pai_V%n_nih  )    !                 Grounded mask on a-grid
