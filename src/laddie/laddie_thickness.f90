@@ -58,7 +58,7 @@ CONTAINS
     CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
+    CALL compute_buoyancy( mesh, laddie, npx, npxref%H)
 
     ! Compute melt rate
     CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)

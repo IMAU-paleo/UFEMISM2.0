@@ -46,8 +46,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_UV_npx'
-    INTEGER                                               :: ti, ci, nfl, vj
-    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Hdrho_fl, Uabs
+    INTEGER                                               :: ti
+    REAL(dp)                                              :: dHUdt, dHVdt, HU_next, HV_next, PGF_x, PGF_y, Uabs
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -59,7 +59,7 @@ CONTAINS
     CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, ice, laddie, npx, Hstar)
+    CALL compute_buoyancy( mesh, laddie, npx, Hstar)
 
     ! Bunch of mappings - TODO: move b-grid versions to Laddie type, make them hybrid; faster
     call exchange_halos( mesh, laddie%detr)
@@ -187,13 +187,12 @@ CONTAINS
 
   END SUBROUTINE compute_UV_npx
 
-  SUBROUTINE compute_viscUV( mesh, ice, laddie, npxref)
+  SUBROUTINE compute_viscUV( mesh, laddie, npxref)
     ! Compute horizontal viscosity of momentum
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 

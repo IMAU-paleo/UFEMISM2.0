@@ -25,13 +25,12 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, ice, laddie, npxref, npx, Hstar, dt, include_diffusive_terms)
+  SUBROUTINE compute_TS_npx( mesh, laddie, npxref, npx, Hstar, dt, include_diffusive_terms)
     ! Integrate T and S by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
@@ -92,13 +91,12 @@ CONTAINS
 
   END SUBROUTINE compute_TS_npx
 
-  SUBROUTINE compute_diffTS( mesh, ice, laddie, npxref)
+  SUBROUTINE compute_diffTS( mesh, laddie, npxref)
     ! Compute horizontal diffusion of heat and salt
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 
@@ -106,7 +104,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
     INTEGER                                               :: vi, vj, ci, ei
     REAL(dp)                                              :: Kh
-
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -158,10 +155,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQTS'
-    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
-    INTEGER                                               :: ti, ci, ei, tj, vi, vj, vi1, vi2, i, j, e, k
+    INTEGER                                               :: ci, ei, vi, vj
     REAL(dp)                                              :: u_perp
-    LOGICAL                                               :: isbound
 
     ! Add routine to path
     CALL init_routine( routine_name)
