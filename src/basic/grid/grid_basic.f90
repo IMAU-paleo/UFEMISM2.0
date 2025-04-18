@@ -16,6 +16,7 @@ module grid_basic
   use CSR_matrix_basics, only: allocate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
+  use mpi_f08, only: MPI_ALLREDUCE, MPI_INTEGER, MPI_MIN, MPI_MAX
 
   implicit none
 
@@ -196,6 +197,9 @@ contains
     ! Conversion tables for grid-form vs. vector-form data
     call calc_field_to_vector_form_translation_tables( grid)
 
+    ! Parallelisation
+    call setup_grid_parallelisation( grid)
+
     ! Lon/lat-coordinates
     if (present( lambda_M) .or. present( phi_M) .or. present( beta_stereo)) then
 
@@ -222,6 +226,7 @@ contains
 
   end subroutine calc_secondary_grid_data
 
+  subroutine calc_matrix_operators_grid( grid, M_ddx_CSR, M_ddy_CSR)
     !< Calculate matrix operators for partial derivatives on a regular grid
     !< (needed for conservative remapping)
 
@@ -347,14 +352,62 @@ contains
     end do
     end do
 
-    ! Parallelisation domains
-    call partition_list( grid%n, par%i, par%n, grid%n1, grid%n2)
-    grid%n_loc = grid%n2 + 1 - grid%n1
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine calc_field_to_vector_form_translation_tables
+
+  subroutine setup_grid_parallelisation( grid)
+
+    ! In/output variables
+    type(type_grid), intent(inout) :: grid
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'setup_grid_parallelisation'
+    integer                        :: ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Parallelisation domains
+    call partition_list( grid%n, par%i, par%n, grid%n1, grid%n2)
+    grid%n_loc = grid%n2 + 1 - grid%n1
+
+    ! Parallel array info
+    grid%pai%n  = grid%n
+
+    grid%pai%i1    = grid%n1
+    grid%pai%i2    = grid%n2
+    grid%pai%n_loc = grid%n_loc
+
+    call MPI_ALLREDUCE( grid%pai%i1, grid%pai%i1_node, 1, MPI_INTEGER, MPI_MIN, par%mpi_comm_node, ierr)
+    call MPI_ALLREDUCE( grid%pai%i2, grid%pai%i2_node, 1, MPI_INTEGER, MPI_MAX, par%mpi_comm_node, ierr)
+    grid%pai%n_node = grid%pai%i2_node + 1 - grid%pai%i1_node
+
+    grid%pai%i1_nih = grid%pai%i1_node
+    grid%pai%i2_nih = grid%pai%i2_node
+    grid%pai%n_nih  = grid%pai%n_node
+
+    grid%pai%i1_hle = 0
+    grid%pai%i2_hle = -1
+    grid%pai%n_hle  = 0
+
+    grid%pai%i1_hli = 0
+    grid%pai%i2_hli = -1
+    grid%pai%n_hli  = 0
+
+    grid%pai%i1_hre = 0
+    grid%pai%i2_hre = -1
+    grid%pai%n_hre  = 0
+
+    grid%pai%i1_hri = 0
+    grid%pai%i2_hri = -1
+    grid%pai%n_hri  = 0
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine setup_grid_parallelisation
 
 ! == Calculate contour lines and polygons from gridded data (for mesh generation)
 
