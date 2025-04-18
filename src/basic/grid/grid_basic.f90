@@ -2,8 +2,6 @@ module grid_basic
 
   ! Functions for working with simple square x/y-grids
 
-#include <petsc/finclude/petscksp.h>
-  use petscksp
   use precisions, only: dp
   use grid_types, only: type_grid
   use mpi_basic, only: par
@@ -224,18 +222,16 @@ contains
 
   end subroutine calc_secondary_grid_data
 
-  subroutine calc_matrix_operators_grid( grid, M_ddx, M_ddy)
     !< Calculate matrix operators for partial derivatives on a regular grid
     !< (needed for conservative remapping)
 
     ! In/output variables:
-    type(type_grid), intent(in   ) :: grid
-    type(tMat),      intent(  out) :: M_ddx, M_ddy
+    type(type_grid),                 intent(in   ) :: grid
+    type(type_sparse_matrix_CSR_dp), intent(  out) :: M_ddx_CSR, M_ddy_CSR
 
     ! Local variables:
     character(len=256), parameter   :: routine_name = 'calc_matrix_operators_grid'
     integer                         :: ncols, nrows, ncols_loc, nrows_loc, nnz_per_row_est, nnz_est_proc
-    type(type_sparse_matrix_CSR_dp) :: M_ddx_CSR, M_ddy_CSR
     integer                         :: row, i, j, col
     real(dp)                        :: valpos, valneg
 
@@ -313,14 +309,6 @@ contains
 
     call finalise_matrix_CSR_dist( M_ddx_CSR)
     call finalise_matrix_CSR_dist( M_ddy_CSR)
-
-    ! Convert to PETSc format
-    call mat_CSR2petsc( M_ddx_CSR, M_ddx)
-    call mat_CSR2petsc( M_ddy_CSR, M_ddy)
-
-    ! Clean up after yourself
-    call deallocate_matrix_CSR_dist( M_ddx_CSR)
-    call deallocate_matrix_CSR_dist( M_ddy_CSR)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
