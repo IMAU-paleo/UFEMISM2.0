@@ -20,7 +20,6 @@ MODULE laddie_thickness
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   use mesh_halo_exchange, only: exchange_halos
-  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
 
@@ -73,8 +72,6 @@ CONTAINS
     ! Map new values of H to b grid and c grid
     CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
     CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
-    ! call calc_and_print_min_mean_max( mesh, npx%H_b, 'npx%H_b')
-    ! call calc_and_print_min_mean_max( mesh, npx%H_c, 'npx%H_c')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -131,10 +128,6 @@ CONTAINS
 
       end if !(laddie%mask_a( vi)) THEN
     end do !vi = mesh%vi, mesh%v2
-    ! call calc_and_print_min_mean_max( mesh, laddie%entr_dmin, 'laddie%entr_dmin')
-    ! call calc_and_print_min_mean_max( mesh, laddie%entr, 'laddie%entr')
-    ! call calc_and_print_min_mean_max( mesh, laddie%detr, 'laddie%detr')
-    ! call calc_and_print_min_mean_max( mesh, npx%H, 'npx%H')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -161,8 +154,6 @@ CONTAINS
     call exchange_halos( mesh, npx%U_c)
     call exchange_halos( mesh, npx%V_c)
     call exchange_halos( mesh, npx%H)
-    ! call exchange_halos( mesh, laddie%mask_gr_a)  ! These have already been halo-exchanged in update_laddie_masks
-    ! call exchange_halos( mesh, laddie%mask_oc_a)
 
     ! Initialise with zeros
     laddie%divQH( mesh%vi1:mesh%vi2) = 0.0_dp
@@ -212,7 +203,6 @@ CONTAINS
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
-    ! call calc_and_print_min_mean_max( mesh, laddie%divQH, 'laddie%divQH')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -28,7 +28,6 @@ MODULE laddie_main
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
-  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
 
@@ -306,7 +305,6 @@ CONTAINS
       laddie%Hstar( vi) = C%laddie_fbrk3_beta1 * laddie%np13%H( vi) + (1-C%laddie_fbrk3_beta1) * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
-    ! call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
@@ -329,7 +327,6 @@ CONTAINS
       laddie%Hstar( vi) = C%laddie_fbrk3_beta2 * laddie%np12%H( vi) + (1-C%laddie_fbrk3_beta2) * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
-    ! call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
@@ -352,7 +349,6 @@ CONTAINS
       laddie%Hstar( vi) = C%laddie_fbrk3_beta3 * laddie%np1%H( vi) + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H( vi) + C%laddie_fbrk3_beta3 * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
-    ! call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
