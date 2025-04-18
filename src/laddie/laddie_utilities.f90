@@ -56,8 +56,8 @@ CONTAINS
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
-    call calc_and_print_min_mean_max( mesh, laddie%T_amb, 'laddie%T_amb')
-    call calc_and_print_min_mean_max( mesh, laddie%S_amb, 'laddie%S_amb')
+    ! call calc_and_print_min_mean_max( mesh, laddie%T_amb, 'laddie%T_amb')
+    ! call calc_and_print_min_mean_max( mesh, laddie%S_amb, 'laddie%S_amb')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

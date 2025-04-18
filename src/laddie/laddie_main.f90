@@ -121,9 +121,7 @@ CONTAINS
       END SELECT
 
       ! Display or save fields
-      CALL print_diagnostics( mesh, laddie, tl)
-
-      call crash('whoopsiedaisy')
+      ! CALL print_diagnostics( mesh, laddie, tl)
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
@@ -308,7 +306,7 @@ CONTAINS
       laddie%Hstar( vi) = C%laddie_fbrk3_beta1 * laddie%np13%H( vi) + (1-C%laddie_fbrk3_beta1) * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
-    call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
+    ! call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
@@ -331,7 +329,7 @@ CONTAINS
       laddie%Hstar( vi) = C%laddie_fbrk3_beta2 * laddie%np12%H( vi) + (1-C%laddie_fbrk3_beta2) * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
-    call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
+    ! call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
@@ -354,7 +352,7 @@ CONTAINS
       laddie%Hstar( vi) = C%laddie_fbrk3_beta3 * laddie%np1%H( vi) + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H( vi) + C%laddie_fbrk3_beta3 * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
-    call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
+    ! call calc_and_print_min_mean_max( mesh, laddie%Hstar, 'laddie%Hstar')
 
     ! Update diffusive terms
     !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
