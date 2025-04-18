@@ -647,15 +647,21 @@ CONTAINS
 
     ! Thickness
     call reallocate_dist_shared( laddie%dH_dt,          laddie%wdH_dt,          mesh_new%pai_V%n_nih)
+    laddie%dH_dt         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%dH_dt
 
     ! Temperatures
     call reallocate_dist_shared( laddie%T_amb,          laddie%wT_amb,          mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%T_base,         laddie%wT_base,         mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%T_freeze,       laddie%wT_freeze,       mesh_new%pai_V%n_nih)
+    laddie%T_amb         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%T_amb
+    laddie%T_base        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%T_base
+    laddie%T_freeze      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%T_freeze
 
     ! Salinities
     call reallocate_dist_shared( laddie%S_amb,          laddie%wS_amb,          mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%S_base,         laddie%wS_base,         mesh_new%pai_V%n_nih)
+    laddie%S_amb         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%S_amb
+    laddie%S_base        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%S_base
 
     ! Densities and buoyancies
     call reallocate_dist_shared( laddie%rho,            laddie%wrho,            mesh_new%pai_V%n_nih)
@@ -664,15 +670,26 @@ CONTAINS
     call reallocate_dist_shared( laddie%Hdrho_amb,      laddie%wHdrho_amb,      mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%Hdrho_amb_b,    laddie%wHdrho_amb_b,    mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%drho_base,      laddie%wdrho_base,      mesh_new%pai_V%n_nih)
+    laddie%rho           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%rho
+    laddie%rho_amb       ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%rho_amb
+    laddie%drho_amb      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%drho_amb
+    laddie%Hdrho_amb     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%Hdrho_amb
+    laddie%Hdrho_amb_b   ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%Hdrho_amb_b
+    laddie%drho_base     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%drho_base
 
     ! Friction velocity
     call reallocate_dist_shared( laddie%u_star,         laddie%wu_star,         mesh_new%pai_V%n_nih)
+    laddie%u_star        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%u_star
 
     ! Physical parameter fields
     call reallocate_dist_shared( laddie%gamma_T,        laddie%wgamma_T,        mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%gamma_S,        laddie%wgamma_S,        mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%A_h,            laddie%wA_h,            mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%K_h,            laddie%wK_h,            mesh_new%pai_V%n_nih)
+    laddie%gamma_T       ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%gamma_T
+    laddie%gamma_S       ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%gamma_S
+    laddie%A_h           ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%A_h
+    laddie%K_h           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%K_h
 
     ! Vertical rates
     call reallocate_dist_shared( laddie%melt,           laddie%wmelt,           mesh_new%pai_V%n_nih)
@@ -680,6 +697,11 @@ CONTAINS
     call reallocate_dist_shared( laddie%entr_dmin,      laddie%wentr_dmin,      mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%detr,           laddie%wdetr,           mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%entr_tot,       laddie%wentr_tot,       mesh_new%pai_V%n_nih)
+    laddie%melt          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%melt
+    laddie%entr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr
+    laddie%entr_dmin     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_dmin
+    laddie%detr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%detr
+    laddie%entr_tot      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_tot
 
     ! Horizontal fluxes
     call reallocate_dist_shared( laddie%divQH,          laddie%wdivQH,          mesh_new%pai_V%n_nih)
@@ -687,14 +709,23 @@ CONTAINS
     call reallocate_dist_shared( laddie%divQV,          laddie%wdivQV,          mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%divQT,          laddie%wdivQT,          mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%divQS,          laddie%wdivQS,          mesh_new%pai_V%n_nih)
+    laddie%divQH         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%divQH
+    laddie%divQU         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%divQU
+    laddie%divQV         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%divQV
+    laddie%divQT         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%divQT
+    laddie%divQS         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%divQS
 
     ! Viscosities
     call reallocate_dist_shared( laddie%viscU,          laddie%wviscU,          mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%viscV,          laddie%wviscV,          mesh_new%pai_Tri%n_nih)
+    laddie%viscU         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%viscU
+    laddie%viscV         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%viscV
 
     ! Diffusivities
     call reallocate_dist_shared( laddie%diffT,          laddie%wdiffT,          mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%diffS,          laddie%wdiffS,          mesh_new%pai_V%n_nih)
+    laddie%diffT         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%diffT
+    laddie%diffS         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%diffS
 
     ! RHS terms
     call reallocate_dist_shared( laddie%ddrho_amb_dx_b, laddie%wddrho_amb_dx_b, mesh_new%pai_Tri%n_nih)
@@ -702,6 +733,23 @@ CONTAINS
     call reallocate_dist_shared( laddie%dH_dx_b,        laddie%wdH_dx_b,        mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%dH_dy_b,        laddie%wdH_dy_b,        mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%detr_b,         laddie%wdetr_b,         mesh_new%pai_Tri%n_nih)
+    laddie%ddrho_amb_dx_b( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%ddrho_amb_dx_b
+    laddie%ddrho_amb_dy_b( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%ddrho_amb_dy_b
+    laddie%dH_dx_b       ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%dH_dx_b
+    laddie%dH_dy_b       ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%dH_dy_b
+    laddie%detr_b        ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%detr_b
+
+    ! Forward-Backward Runge-Kutta 3 scheme
+    call reallocate_dist_shared( laddie%Hstar         , laddie%wHstar         , mesh_new%pai_V%n_nih  )
+    laddie%Hstar         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%Hstar
+
+    ! Mapped variables
+    call reallocate_dist_shared( laddie%H_c           , laddie%wH_c           , mesh_new%pai_E%n_nih  )
+    call reallocate_dist_shared( laddie%Hstar_b       , laddie%wHstar_b       , mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%Hstar_c       , laddie%wHstar_c       , mesh_new%pai_E%n_nih  )
+    laddie%H_c           ( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => laddie%H_c
+    laddie%Hstar_b       ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%Hstar_b
+    laddie%Hstar_c       ( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => laddie%Hstar_c
 
     ! Masks
     call reallocate_dist_shared( laddie%mask_a,         laddie%wmask_a,         mesh_new%pai_V%n_nih)
@@ -711,6 +759,13 @@ CONTAINS
     call reallocate_dist_shared( laddie%mask_gl_b,      laddie%wmask_gl_b,      mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%mask_cf_b,      laddie%wmask_cf_b,      mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( laddie%mask_oc_b,      laddie%wmask_oc_b,      mesh_new%pai_Tri%n_nih)
+    laddie%mask_a        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%mask_a
+    laddie%mask_gr_a     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%mask_gr_a
+    laddie%mask_oc_a     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%mask_oc_a
+    laddie%mask_b        ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_b
+    laddie%mask_gl_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_gl_b
+    laddie%mask_cf_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_cf_b
+    laddie%mask_oc_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_oc_b
 
     ! == Re-initialise masks ==
     CALL update_laddie_masks( mesh_new, ice, laddie)
@@ -773,6 +828,18 @@ CONTAINS
     call reallocate_dist_shared( npx%V_a, npx%wV_a, mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( npx%V_c, npx%wV_c, mesh_new%pai_E%n_nih)
 
+    npx%H  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%H
+    npx%H_b( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => npx%H_b
+    npx%H_c( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => npx%H_c
+    npx%U  ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => npx%U
+    npx%U_a( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%U_a
+    npx%U_c( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => npx%U_c
+    npx%V  ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => npx%V
+    npx%V_a( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%V_a
+    npx%V_c( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => npx%V_c
+    npx%T  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%T
+    npx%S  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%S
+
     allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
     call hybrid_to_dist( mesh_old%pai_V, npx%T, d_loc)
     CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
@@ -792,8 +859,6 @@ CONTAINS
     ! Layer thickness on b and c grid
     CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
     CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
-
-    call crash('fixme!')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
