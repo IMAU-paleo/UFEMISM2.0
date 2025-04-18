@@ -15,7 +15,6 @@ MODULE laddie_physics
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
 
@@ -51,7 +50,6 @@ CONTAINS
     do vi = mesh%vi1, mesh%vi2
       laddie%u_star( vi) = (C%laddie_drag_coefficient_top * (npx%U_a( vi)**2 + npx%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
     end do
-    ! call calc_and_print_min_mean_max( mesh, laddie%u_star, 'laddie%u_star')
 
     ! Get gamma values
     SELECT CASE (C%choice_laddie_gamma)
@@ -69,8 +67,6 @@ CONTAINS
            END IF
         END DO
     END SELECT
-    ! call calc_and_print_min_mean_max( mesh, laddie%gamma_T, 'laddie%gamma_T')
-    ! call calc_and_print_min_mean_max( mesh, laddie%gamma_S, 'laddie%gamma_S')
 
     ! == Get melt rate ==
     ! ===================
@@ -115,8 +111,6 @@ CONTAINS
 
        END IF
     END DO
-    ! call calc_and_print_min_mean_max( mesh, laddie%melt, 'laddie%melt')
-    ! call calc_and_print_min_mean_max( mesh, laddie%T_base, 'laddie%T_base')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -165,10 +159,6 @@ CONTAINS
          laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
        END IF
     END DO
-    ! call calc_and_print_min_mean_max( mesh, laddie%S_base, 'laddie%S_base')
-    ! call calc_and_print_min_mean_max( mesh, laddie%drho_base, 'laddie%drho_base')
-    ! call calc_and_print_min_mean_max( mesh, laddie%entr, 'laddie%entr')
-    ! call calc_and_print_min_mean_max( mesh, laddie%detr, 'laddie%detr')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -198,7 +188,6 @@ CONTAINS
          laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
        END IF
     END DO
-    ! call calc_and_print_min_mean_max( mesh, laddie%T_freeze, 'laddie%T_freeze')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -241,8 +230,6 @@ CONTAINS
 
        END IF
     END DO
-    ! call calc_and_print_min_mean_max( mesh, laddie%drho_amb, 'laddie%drho_amb')
-    ! call calc_and_print_min_mean_max( mesh, laddie%Hdrho_amb, 'laddie%Hdrho_amb')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
