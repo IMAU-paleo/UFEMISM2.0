@@ -27,28 +27,28 @@ contains
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'integrate_over_domain'
-    real(dp), dimension(:), pointer :: d_loc
+    real(dp), dimension(:), pointer :: d_nih, d_loc
 
     ! Add routine to path
     call init_routine( routine_name)
 
     if     (size( d,1) == mesh%pai_V%n_loc) then
-      d_loc( mesh%pai_V%i1:mesh%pai_V%i2) => d
-      call integrate_over_domain_a( mesh, d_loc, int_d)
+      call integrate_over_domain_a( mesh, d, int_d)
     elseif (size( d,1) == mesh%pai_V%n_nih) then
-      d_loc( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d
+      d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d
+      d_loc => d_nih( mesh%pai_V%i1:mesh%pai_V%i2)
       call integrate_over_domain_a( mesh, d_loc, int_d)
     elseif (size( d,1) == mesh%pai_Tri%n_loc) then
-      d_loc( mesh%pai_Tri%i1:mesh%pai_Tri%i2) => d
-      call integrate_over_domain_b( mesh, d_loc, int_d)
+      call integrate_over_domain_b( mesh, d, int_d)
     elseif (size( d,1) == mesh%pai_Tri%n_nih) then
-      d_loc( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d
+      d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d
+      d_loc => d_nih( mesh%pai_Tri%i1:mesh%pai_Tri%i2)
       call integrate_over_domain_b( mesh, d_loc, int_d)
     elseif (size( d,1) == mesh%pai_E%n_loc) then
-      d_loc( mesh%pai_E%i1:mesh%pai_E%i2) => d
-      call integrate_over_domain_c( mesh, d_loc, int_d)
+      call integrate_over_domain_c( mesh, d, int_d)
     elseif (size( d,1) == mesh%pai_E%n_nih) then
-      d_loc( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d
+      d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d
+      d_loc => d_nih( mesh%pai_E%i1:mesh%pai_E%i2)
       call integrate_over_domain_c( mesh, d_loc, int_d)
     else
       call crash('invalid vector size')
@@ -90,26 +90,51 @@ contains
     character(len=*),               intent(in   ) :: name
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_and_print_min_mean_max'
-    real(dp)                       :: d_min, d_max, d_av
-    integer                        :: ierr
-    character(len=20)              :: name_
+    character(len=1024), parameter  :: routine_name = 'calc_and_print_min_mean_max'
+    real(dp), dimension(:), pointer :: d_nih, d_loc
+    real(dp)                        :: d_min, d_max, d_av
+    integer                         :: ierr
+    character(len=20)               :: name_
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    d_min = minval( d)
-    d_max = maxval( d)
+    call sync
+
+    if     (size( d,1) == mesh%pai_V%n_loc) then
+      d_loc => d
+    elseif (size( d,1) == mesh%pai_V%n_nih) then
+      d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d
+      d_loc => d_nih( mesh%pai_V%i1:mesh%pai_V%i2)
+    elseif (size( d,1) == mesh%pai_Tri%n_loc) then
+      d_loc => d
+    elseif (size( d,1) == mesh%pai_Tri%n_nih) then
+      d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d
+      d_loc => d_nih( mesh%pai_Tri%i1:mesh%pai_Tri%i2)
+    elseif (size( d,1) == mesh%pai_E%n_loc) then
+      d_loc => d
+    elseif (size( d,1) == mesh%pai_E%n_nih) then
+      d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d
+      d_loc => d_nih( mesh%pai_E%i1:mesh%pai_E%i2)
+    else
+      call crash('invalid vector size')
+    end if
+
+    d_min = minval( d_loc)
+    d_max = maxval( d_loc)
     call MPI_ALLREDUCE( MPI_IN_PLACE, d_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
     call MPI_ALLREDUCE( MPI_IN_PLACE, d_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    call average_over_domain( mesh, d, d_av)
+    call average_over_domain( mesh, d_loc, d_av)
 
     name_ = ' '
     name_( len( name_)-len_trim( name)+1:len( name_)) = name( 1:len_trim( name))
 
     if (par%primary) call warning( name_ // ': [{dp_01} - {dp_02} - {dp_03}]', &
       dp_01 = d_min, dp_02 = d_av, dp_03 = d_max)
+
+    nullify( d_nih)
+    nullify( d_loc)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

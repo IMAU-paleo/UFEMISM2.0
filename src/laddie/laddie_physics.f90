@@ -33,7 +33,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
     REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
@@ -48,7 +48,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Get friction velocity
-    laddie%u_star= (C%laddie_drag_coefficient_top * (npx%U_a**2 + npx%V_a**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
+    do vi = mesh%vi1, mesh%vi2
+      laddie%u_star( vi) = (C%laddie_drag_coefficient_top * (npx%U_a( vi)**2 + npx%V_a( vi)**2 + C%uniform_laddie_tidal_velocity**2 ))**.5
+    end do
     call calc_and_print_min_mean_max( mesh, laddie%u_star, 'laddie%u_star')
 
     ! Get gamma values
@@ -56,8 +58,8 @@ CONTAINS
       CASE DEFAULT
         CALL crash('unknown choice_laddie_gamma "' // TRIM( C%choice_laddie_gamma) // '"')
       CASE ('uniform')
-        laddie%gamma_T = C%uniform_laddie_gamma_T
-        laddie%gamma_S = C%uniform_laddie_gamma_T/35.0_dp
+        laddie%gamma_T( mesh%vi1:mesh%vi2) = C%uniform_laddie_gamma_T
+        laddie%gamma_S( mesh%vi1:mesh%vi2) = C%uniform_laddie_gamma_T/35.0_dp
       CASE ('Jenkins1991')
         DO vi = mesh%vi1, mesh%vi2
            IF (laddie%mask_a( vi)) THEN
@@ -130,7 +132,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_entrainment'
@@ -213,7 +215,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
@@ -223,7 +225,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    laddie%drho_amb = 0.0_dp
+    laddie%drho_amb( mesh%vi1:mesh%vi2) = 0.0_dp
 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN

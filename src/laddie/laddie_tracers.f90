@@ -16,6 +16,7 @@ MODULE laddie_tracers
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
+  use mesh_halo_exchange, only: exchange_halos
   use mesh_integrate_over_domain, only: calc_and_print_min_mean_max
 
   IMPLICIT NONE
@@ -35,7 +36,7 @@ CONTAINS
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
     REAL(dp),                               INTENT(IN)    :: dt
     LOGICAL,                                INTENT(IN)    :: include_diffusive_terms
 
@@ -108,22 +109,18 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
     INTEGER                                               :: vi, vj, ci, ei
     REAL(dp)                                              :: Kh
-    REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    REAL(dp), DIMENSION(mesh%nE)                          :: H_c_tot
+
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Gather
-    CALL gather_to_all( npxref%T, T_tot)
-    CALL gather_to_all( npxref%S, S_tot)
-    CALL gather_to_all( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all( npxref%H_c, H_c_tot)
+    call exchange_halos( mesh, npxref%T)
+    call exchange_halos( mesh, npxref%S)
+    call exchange_halos( mesh, npxref%H_c)
 
     ! Initialise at 0
-    laddie%diffT = 0.0_dp
-    laddie%diffS = 0.0_dp
+    laddie%diffT( mesh%vi1:mesh%vi2) = 0.0_dp
+    laddie%diffS( mesh%vi1:mesh%vi2) = 0.0_dp
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
@@ -135,13 +132,13 @@ CONTAINS
           vj = mesh%C( vi, ci)
           ei = mesh%VE( vi, ci)
           ! Can simply skip non-floating vertices to ensure d/dx = d/dy = 0 at boundaries
-          IF (mask_a_tot( vj)) THEN
+          IF (laddie%mask_a( vj)) THEN
             ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
 
             Kh = C%laddie_diffusivity
 
-            laddie%diffT( vi) = laddie%diffT( vi) + (T_tot( vj) - T_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
-            laddie%diffS( vi) = laddie%diffS( vi) + (S_tot( vj) - S_tot( vi)) * Kh * H_c_tot( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+            laddie%diffT( vi) = laddie%diffT( vi) + (npxref%T( vj) - npxref%T( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+            laddie%diffS( vi) = laddie%diffS( vi) + (npxref%S( vj) - npxref%S( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
           END IF
         END DO
 
@@ -162,35 +159,31 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
+    REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQTS'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: T_tot, S_tot, Hstar_tot
     INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     INTEGER                                               :: ti, ci, ei, tj, vi, vj, vi1, vi2, i, j, e, k
     REAL(dp)                                              :: u_perp
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_a_tot
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
     LOGICAL                                               :: isbound
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all( npx%U_c, U_c_tot)
-    CALL gather_to_all( npx%V_c, V_c_tot)
-    CALL gather_to_all( Hstar, Hstar_tot)
-    CALL gather_to_all( npx%T, T_tot)
-    CALL gather_to_all( npx%S, S_tot)
-    CALL gather_to_all( laddie%mask_a, mask_a_tot)
-    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
+    ! TODO: figure out which of these fields already had their halos exchanged
+    call exchange_halos( mesh, npx%U_c)
+    call exchange_halos( mesh, npx%V_c)
+    ! call exchange_halos( mesh, Hstar) ! Definitely this one
+    call exchange_halos( mesh, npx%T)
+    call exchange_halos( mesh, npx%S)
+    call exchange_halos( mesh, laddie%mask_a)
+    call exchange_halos( mesh, laddie%mask_gr_a)
+    call exchange_halos( mesh, laddie%mask_oc_a)
 
     ! Initialise with zeros
-    laddie%divQT = 0.0_dp
-    laddie%divQS = 0.0_dp
+    laddie%divQT( mesh%vi1:mesh%vi2) = 0.0_dp
+    laddie%divQS( mesh%vi1:mesh%vi2) = 0.0_dp
 
     ! == Loop over vertices ==
     ! =========================
@@ -207,29 +200,29 @@ CONTAINS
 
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-          IF (mask_gr_a_tot( vj)) CYCLE
+          IF (laddie%mask_gr_a( vj)) CYCLE
 
           ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-          u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+          u_perp = npx%U_c( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + npx%V_c( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
           ! Calculate upwind momentum divergence
           ! =============================
           ! u_perp > 0: flow is exiting this vertex into vertex vj
           IF (u_perp > 0) THEN
-            laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
-            laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
+            laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar( vi) * npx%T( vi) / mesh%A( vi)
+            laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar( vi) * npx%S( vi) / mesh%A( vi)
           ! u_perp < 0: flow is entering this vertex from vertex vj
           ELSE
-            IF (mask_oc_a_tot( vj)) THEN
+            IF (laddie%mask_oc_a( vj)) THEN
               CYCLE ! no inflow
               ! TODO fix boundary condition inflow
-              laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * T_tot( vi) / mesh%A( vi)
-              laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vi) * S_tot( vi) / mesh%A( vi)
+              laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar( vi) * npx%T( vi) / mesh%A( vi)
+              laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar( vi) * npx%S( vi) / mesh%A( vi)
             ELSE
-              laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * T_tot( vj) / mesh%A( vi)
-              laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar_tot( vj) * S_tot( vj) / mesh%A( vi)
+              laddie%divQT( vi) = laddie%divQT( vi) + mesh%Cw( vi, ci) * u_perp * Hstar( vj) * npx%T( vj) / mesh%A( vi)
+              laddie%divQS( vi) = laddie%divQS( vi) + mesh%Cw( vi, ci) * u_perp * Hstar( vj) * npx%S( vj) / mesh%A( vi)
             END IF
           END IF
 
