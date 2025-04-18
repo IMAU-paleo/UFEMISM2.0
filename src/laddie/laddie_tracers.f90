@@ -87,8 +87,8 @@ CONTAINS
         npx%S( vi) = HS_next / npx%H( vi)
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
-    call calc_and_print_min_mean_max( mesh, npx%T, 'npx%T')
-    call calc_and_print_min_mean_max( mesh, npx%S, 'npx%S')
+    ! call calc_and_print_min_mean_max( mesh, npx%T, 'npx%T')
+    ! call calc_and_print_min_mean_max( mesh, npx%S, 'npx%S')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -144,8 +144,8 @@ CONTAINS
 
       END IF
     END DO
-    call calc_and_print_min_mean_max( mesh, laddie%diffT, 'laddie%diffT')
-    call calc_and_print_min_mean_max( mesh, laddie%diffS, 'laddie%diffS')
+    ! call calc_and_print_min_mean_max( mesh, laddie%diffT, 'laddie%diffT')
+    ! call calc_and_print_min_mean_max( mesh, laddie%diffS, 'laddie%diffS')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -231,8 +231,8 @@ CONTAINS
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
-    call calc_and_print_min_mean_max( mesh, laddie%divQT, 'laddie%divQT')
-    call calc_and_print_min_mean_max( mesh, laddie%divQS, 'laddie%divQS')
+    ! call calc_and_print_min_mean_max( mesh, laddie%divQT, 'laddie%divQT')
+    ! call calc_and_print_min_mean_max( mesh, laddie%divQS, 'laddie%divQS')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

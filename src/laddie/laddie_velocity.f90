@@ -183,12 +183,12 @@ CONTAINS
     CALL map_b_a_2D( mesh, npx%U, npx%U_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
     CALL map_b_a_2D( mesh, npx%V, npx%V_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
 
-    call calc_and_print_min_mean_max( mesh, npx%U, 'npx%U')
-    call calc_and_print_min_mean_max( mesh, npx%V, 'npx%V')
-    call calc_and_print_min_mean_max( mesh, npx%U_c, 'npx%U_c')
-    call calc_and_print_min_mean_max( mesh, npx%V_c, 'npx%V_c')
-    call calc_and_print_min_mean_max( mesh, npx%U_a, 'npx%U_a')
-    call calc_and_print_min_mean_max( mesh, npx%V_a, 'npx%V_a')
+    ! call calc_and_print_min_mean_max( mesh, npx%U, 'npx%U')
+    ! call calc_and_print_min_mean_max( mesh, npx%V, 'npx%V')
+    ! call calc_and_print_min_mean_max( mesh, npx%U_c, 'npx%U_c')
+    ! call calc_and_print_min_mean_max( mesh, npx%V_c, 'npx%V_c')
+    ! call calc_and_print_min_mean_max( mesh, npx%U_a, 'npx%U_a')
+    ! call calc_and_print_min_mean_max( mesh, npx%V_a, 'npx%V_a')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -256,8 +256,8 @@ CONTAINS
 
       END IF !(laddie%mask_b( ti)
     END DO !ti = mesh%ti1, mesh%ti2
-    call calc_and_print_min_mean_max( mesh, laddie%viscU, 'laddie%viscU')
-    call calc_and_print_min_mean_max( mesh, laddie%viscV, 'laddie%viscV')
+    ! call calc_and_print_min_mean_max( mesh, laddie%viscU, 'laddie%viscU')
+    ! call calc_and_print_min_mean_max( mesh, laddie%viscV, 'laddie%viscV')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -339,8 +339,8 @@ CONTAINS
       end if ! (laddie%mask_b( ti))
 
     end do ! do ti = mesh%ti1, mesh%ti2
-    call calc_and_print_min_mean_max( mesh, laddie%divQU, 'laddie%divQU')
-    call calc_and_print_min_mean_max( mesh, laddie%divQV, 'laddie%divQV')
+    ! call calc_and_print_min_mean_max( mesh, laddie%divQU, 'laddie%divQU')
+    ! call calc_and_print_min_mean_max( mesh, laddie%divQV, 'laddie%divQV')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
