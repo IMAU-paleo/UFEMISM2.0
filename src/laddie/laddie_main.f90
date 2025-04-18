@@ -50,7 +50,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti, ei
+    INTEGER                                               :: vi, ti
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
@@ -255,13 +255,13 @@ CONTAINS
     CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
 
     ! Update diffusive terms based on now time step
-    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
+    CALL update_diffusive_terms( mesh, laddie, laddie%now)
 
     ! Integrate U and V 1 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! == Move time ==
     CALL move_laddie_timestep( mesh, laddie, tl, dt)
@@ -307,13 +307,13 @@ CONTAINS
     call exchange_halos( mesh, laddie%Hstar)
 
     ! Update diffusive terms
-    CALL update_diffusive_terms( mesh, ice, laddie, laddie%now)
+    CALL update_diffusive_terms( mesh, laddie, laddie%now)
 
     ! Integrate U and V 1/3 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
 
     ! Integrate T and S 1/3 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
+    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
 
     ! == Stage 2: explicit 1/2 timestep ==
     ! == RHS terms defined at n + 1/3 ====
@@ -329,13 +329,13 @@ CONTAINS
     call exchange_halos( mesh, laddie%Hstar)
 
     ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np13)
+    !CALL update_diffusive_terms( mesh, laddie, laddie%np13)
 
     ! Integrate U and V 1/2 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
+    CALL compute_TS_npx( mesh, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
 
     ! == Stage 3: explicit 1 timestep ====
     ! == RHS terms defined at n + 1/2 ====
@@ -351,13 +351,13 @@ CONTAINS
     call exchange_halos( mesh, laddie%Hstar)
 
     ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, ice, laddie, laddie%np12)
+    !CALL update_diffusive_terms( mesh, laddie, laddie%np12)
 
     ! Integrate U and V 1 time step
     CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
 
     ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, ice, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
+    CALL compute_TS_npx( mesh, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
 
     ! ===============
     ! == Move time ==
@@ -404,7 +404,7 @@ CONTAINS
 
   END SUBROUTINE move_laddie_timestep
 
-  SUBROUTINE update_diffusive_terms( mesh, ice, laddie, npxref)
+  SUBROUTINE update_diffusive_terms( mesh, laddie, npxref)
     ! Update diffusivity and viscosity. Based on reference timestep npxref
 
     ! For stability, most studies base diffusive terms on the now timestep
@@ -412,7 +412,6 @@ CONTAINS
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
 
@@ -423,10 +422,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Compute diffusivities
-    CALL compute_diffTS( mesh, ice, laddie, npxref)
+    CALL compute_diffTS( mesh, laddie, npxref)
 
     ! Compute viscosities
-    CALL compute_viscUV( mesh, ice, laddie, npxref)
+    CALL compute_viscUV( mesh, laddie, npxref)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -640,7 +639,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_model'
-    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -721,17 +719,17 @@ CONTAINS
     CALL update_laddie_operators( mesh_new, ice, laddie)
 
     ! == Timestep variables ==
-    CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%now)
+    CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%now)
 
     SELECT CASE(C%choice_laddie_integration_scheme)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
       CASE ('euler')
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
       CASE ('fbrk3')
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np13)
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np12)
-        CALL remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, laddie%np1)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np13)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np12)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
     END SELECT
 
     ! == Re-initialise ==
@@ -742,20 +740,17 @@ CONTAINS
 
   END SUBROUTINE remap_laddie_model
 
-  SUBROUTINE remap_laddie_timestep( mesh_old, mesh_new, ice, ocean, laddie, npx)
+  SUBROUTINE remap_laddie_timestep( mesh_old, mesh_new, laddie, npx)
     ! Remap laddie timestep
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_timestep'
-    INTEGER                                               :: vi
     real(dp), dimension(:), allocatable                   :: d_loc
 
     ! Add routine to path

@@ -194,22 +194,20 @@ CONTAINS
 
   END SUBROUTINE compute_freezing_temperature
 
-  SUBROUTINE compute_buoyancy( mesh, ice, laddie, npx, Hstar)
+  SUBROUTINE compute_buoyancy( mesh, laddie, npx, Hstar)
     ! Compute buoyancy = (rho_amb - rho)/rho_sw
     ! TODO update with Roquet EOS
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_buoyancy'
-    INTEGER                                               :: vi, vj, n, ci
-    REAL(dp)                                              :: T, S, H
+    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
