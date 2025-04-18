@@ -370,20 +370,22 @@ contains
   end subroutine map_from_lonlat_grid_to_mesh_3D
 
   ! From a mesh to an x/y-grid
-  subroutine map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+  subroutine map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+    method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 2-D data field from the vertices of a mesh to an x/y-grid
 
     ! In/output variables
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_grid),                     intent(in)    :: grid
-    real(dp), dimension(:    ),          intent(in)    :: d_mesh_partial
-    real(dp), dimension(:    ),          intent(out)   :: d_grid_vec_partial
-    character(len=*), optional,          intent(in)    :: method
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_grid),            intent(in   ) :: grid
+    real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:    ), intent(  out) :: d_grid_vec_partial
+    character(len=*), optional, intent(in   ) :: method
+    logical, optional,          intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
 
     ! Local variables:
-    character(len=1024), parameter                     :: routine_name = 'map_from_mesh_vertices_to_xy_grid_2D'
-    integer                                            :: mi, mi_valid
-    logical                                            :: found_map, found_empty_page
+    character(len=1024), parameter :: routine_name = 'map_from_mesh_vertices_to_xy_grid_2D'
+    integer                        :: mi, mi_valid
+    logical                        :: found_map, found_empty_page
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -418,22 +420,25 @@ contains
     end if
 
     ! Apply the appropriate mapping object
-    call apply_map_mesh_vertices_to_xy_grid_2D( mesh, grid, Atlas( mi), d_mesh_partial, d_grid_vec_partial)
+    call apply_map_mesh_vertices_to_xy_grid_2D( mesh, grid, Atlas( mi), &
+      d_mesh_partial, d_grid_vec_partial, d_mesh_is_hybrid, d_grid_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine map_from_mesh_vertices_to_xy_grid_2D
 
-  subroutine map_from_mesh_vertices_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+  subroutine map_from_mesh_vertices_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+    method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 3-D data field from the vertices of a mesh to an x/y-grid
 
     ! In/output variables
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_grid),                     intent(in)    :: grid
-    real(dp), dimension(:,:  ),          intent(in)    :: d_mesh_partial
-    real(dp), dimension(:,:  ),          intent(out)   :: d_grid_vec_partial
-    character(len=*), optional,          intent(in)    :: method
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_grid),            intent(in   ) :: grid
+    real(dp), dimension(:,:  ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:,:  ), intent(  out) :: d_grid_vec_partial
+    character(len=*), optional, intent(in   ) :: method
+    logical, optional,          intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
 
     ! Local variables:
     character(len=1024), parameter                     :: routine_name = 'map_from_mesh_vertices_to_xy_grid_3D'
@@ -473,7 +478,8 @@ contains
     end if
 
     ! Apply the appropriate mapping object
-    call apply_map_mesh_vertices_to_xy_grid_3D( mesh, grid, Atlas( mi), d_mesh_partial, d_grid_vec_partial)
+    call apply_map_mesh_vertices_to_xy_grid_3D( mesh, grid, Atlas( mi), &
+      d_mesh_partial, d_grid_vec_partial, d_mesh_is_hybrid, d_grid_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -486,16 +492,16 @@ contains
     ! For each grid cell, get the minimum value of all overlapping mesh vertices
 
     ! In/output variables
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_grid),                     intent(in)    :: grid
-    real(dp), dimension(:    ),          intent(in)    :: d_mesh_partial
-    real(dp), dimension(:    ),          intent(out)   :: d_grid_vec_partial
-    character(len=*), optional,          intent(in)    :: method
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_grid),            intent(in   ) :: grid
+    real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:    ), intent(  out) :: d_grid_vec_partial
+    character(len=*), optional, intent(in   ) :: method
 
     ! Local variables:
-    character(len=1024), parameter                     :: routine_name = 'map_from_mesh_vertices_to_xy_grid_2D_minval'
-    integer                                            :: mi, mi_valid
-    logical                                            :: found_map, found_empty_page
+    character(len=1024), parameter :: routine_name = 'map_from_mesh_vertices_to_xy_grid_2D_minval'
+    integer                        :: mi, mi_valid
+    logical                        :: found_map, found_empty_page
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -537,20 +543,22 @@ contains
 
   end subroutine map_from_mesh_vertices_to_xy_grid_2D_minval
 
-  subroutine map_from_mesh_triangles_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+  subroutine map_from_mesh_triangles_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+    method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 2-D data field from the triangles of a mesh to an x/y-grid
 
     ! In/output variables
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_grid),                     intent(in)    :: grid
-    real(dp), dimension(:    ),          intent(in)    :: d_mesh_partial
-    real(dp), dimension(:    ),          intent(out)   :: d_grid_vec_partial
-    character(len=*), optional,          intent(in)    :: method
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_grid),            intent(in   ) :: grid
+    real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:    ), intent(  out) :: d_grid_vec_partial
+    character(len=*), optional, intent(in   ) :: method
+    logical, optional,          intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
 
     ! Local variables:
-    character(len=1024), parameter                     :: routine_name = 'map_from_mesh_triangles_to_xy_grid_2D'
-    integer                                            :: mi, mi_valid
-    logical                                            :: found_map, found_empty_page
+    character(len=1024), parameter :: routine_name = 'map_from_mesh_triangles_to_xy_grid_2D'
+    integer                        :: mi, mi_valid
+    logical                        :: found_map, found_empty_page
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -585,22 +593,25 @@ contains
     end if
 
     ! Apply the appropriate mapping object
-    call apply_map_mesh_triangles_to_xy_grid_2D( mesh, grid, Atlas( mi), d_mesh_partial, d_grid_vec_partial)
+    call apply_map_mesh_triangles_to_xy_grid_2D( mesh, grid, Atlas( mi), &
+      d_mesh_partial, d_grid_vec_partial, d_mesh_is_hybrid, d_grid_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine map_from_mesh_triangles_to_xy_grid_2D
 
-  subroutine map_from_mesh_triangles_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+  subroutine map_from_mesh_triangles_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+    method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 3-D data field from the triangles of a mesh to an x/y-grid
 
     ! In/output variables
-    type(type_mesh),                     intent(in)    :: mesh
-    type(type_grid),                     intent(in)    :: grid
-    real(dp), dimension(:,:  ),          intent(in)    :: d_mesh_partial
-    real(dp), dimension(:,:  ),          intent(out)   :: d_grid_vec_partial
-    character(len=*), optional,          intent(in)    :: method
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_grid),            intent(in   ) :: grid
+    real(dp), dimension(:,:  ), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:,:  ), intent(  out) :: d_grid_vec_partial
+    character(len=*), optional, intent(in   ) :: method
+    logical, optional,          intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
 
     ! Local variables:
     character(len=1024), parameter                     :: routine_name = 'map_from_mesh_triangles_to_xy_grid_3D'
@@ -640,7 +651,8 @@ contains
     end if
 
     ! Apply the appropriate mapping object
-    call apply_map_mesh_triangles_to_xy_grid_3D( mesh, grid, Atlas( mi), d_mesh_partial, d_grid_vec_partial)
+    call apply_map_mesh_triangles_to_xy_grid_3D( mesh, grid, Atlas( mi), &
+      d_mesh_partial, d_grid_vec_partial, d_mesh_is_hybrid, d_grid_is_hybrid)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -948,7 +960,7 @@ contains
 
         end if
 
-        ! Determine new vertical mask 
+        ! Determine new vertical mask
         z_mask_new = 0
 
         do k = 1, size(vert_dst)
