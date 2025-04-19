@@ -91,11 +91,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_1D( map%M, d_grid_vec_partial, d_mesh_partial)
 
@@ -119,12 +114,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc .or. &
-      size( d_grid_vec_partial,2) /= size( d_mesh_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_2D( map%M, d_grid_vec_partial, d_mesh_partial)
@@ -153,11 +142,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_1D( map%M, d_grid_vec_partial, d_mesh_partial)
 
@@ -181,12 +165,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc .or. &
-      size( d_grid_vec_partial,2) /= size( d_mesh_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_2D( map%M, d_grid_vec_partial, d_mesh_partial)
@@ -215,11 +193,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_1D( map%M, d_grid_vec_partial, d_mesh_partial)
 
@@ -243,12 +216,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc .or. &
-      size( d_grid_vec_partial,2) /= size( d_mesh_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_2D( map%M, d_grid_vec_partial, d_mesh_partial)
@@ -280,11 +247,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call mat_petsc2CSR( map%M, M_CSR)
@@ -346,12 +308,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc .or. &
-      size( d_mesh_partial,2) /= size( d_grid_vec_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call mat_petsc2CSR( map%M, M_CSR)
@@ -416,11 +372,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Gather global mesh data
     call gather_to_all( d_mesh_partial, d_mesh_tot)
 
@@ -472,11 +423,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call mat_petsc2CSR( map%M, M_CSR)
@@ -539,12 +485,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc .or. &
-      size( d_mesh_partial,2) /= size( d_grid_vec_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
     call mat_petsc2CSR( map%M, M_CSR)
     call multiply_CSR_matrix_with_vector_2D_wrapper( M_CSR, &
@@ -605,11 +545,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_src_partial,1) /= mesh_src%nV_loc .or. size( d_dst_partial,1) /= mesh_dst%nV_loc) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_1D( map%M, d_src_partial, d_dst_partial)
 
@@ -637,12 +572,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_src_partial,1) /= mesh_src%nV_loc .or. size( d_dst_partial,1) /= mesh_dst%nV_loc .or. &
-      size( d_src_partial,2) /= size( d_dst_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_2D( map%M, d_src_partial, d_dst_partial)
@@ -675,11 +604,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_transect_partial,1) /= transect%nV_loc) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_1D( map%M, d_mesh_partial, d_transect_partial)
 
@@ -703,12 +627,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nV_loc .or. size( d_transect_partial,1) /= transect%nV_loc &
-      .or. size( d_mesh_partial,2) /= size( d_transect_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_2D( map%M, d_mesh_partial, d_transect_partial)
@@ -734,11 +652,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_transect_partial,1) /= transect%nV_loc) then
-      call crash('data fields are the wrong size!')
-    end if
-
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_1D( map%M, d_mesh_partial, d_transect_partial)
 
@@ -762,12 +675,6 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Safety
-    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_transect_partial,1) /= transect%nV_loc &
-      .or. size( d_mesh_partial,2) /= size( d_transect_partial,2)) then
-      call crash('data fields are the wrong size!')
-    end if
 
     ! Perform the mapping operation as a matrix multiplication
     call multiply_PETSc_matrix_with_vector_2D( map%M, d_mesh_partial, d_transect_partial)
