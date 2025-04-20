@@ -26,7 +26,7 @@ contains
     !< and the new, hybrid distributed/shared memory architecture.
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp), intent(in   ) :: AA
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: AA
     type(type_par_arr_info),         intent(in   ) :: pai_x
     real(dp), dimension(:), target,  intent(in   ) :: xx
     type(type_par_arr_info),         intent(in   ) :: pai_y
@@ -113,7 +113,7 @@ contains
     !< and the new, hybrid distributed/shared memory architecture.
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp),  intent(in   ) :: AA
+    type(type_sparse_matrix_CSR_dp),  intent(inout) :: AA
     type(type_par_arr_info),          intent(in   ) :: pai_x
     real(dp), dimension(:,:), target, intent(in   ) :: xx
     type(type_par_arr_info),          intent(in   ) :: pai_y
@@ -198,7 +198,7 @@ contains
     !< Evaluate the matrix-vector product yy = AA*xx
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp),                intent(in   ) :: AA
+    type(type_sparse_matrix_CSR_dp),                intent(inout) :: AA
     type(type_par_arr_info),                        intent(in   ) :: pai_x
     real(dp), dimension(pai_x%i1_nih:pai_x%i2_nih), intent(in   ) :: xx_nih
     type(type_par_arr_info),                        intent(in   ) :: pai_y
@@ -216,10 +216,17 @@ contains
 
     if (.not. AA%is_finalised) call crash('A is not finalised')
 
-    needs_x_tot = AA%j_min_node < pai_x%i1_nih .or. AA%j_max_node > pai_x%i2_nih
-    call MPI_ALLREDUCE( MPI_IN_PLACE, needs_x_tot, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    if (AA%needs_x_tot == -1) then
+      needs_x_tot = AA%j_min_node < pai_x%i1_nih .or. AA%j_max_node > pai_x%i2_nih
+      call MPI_ALLREDUCE( MPI_IN_PLACE, needs_x_tot, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+      if (needs_x_tot) then
+        AA%needs_x_tot = 1
+      else
+        AA%needs_x_tot = 0
+      end if
+    end if
 
-    if (needs_x_tot) then
+    if (AA%needs_x_tot == 1) then
       call allocate_dist_shared( xx_tot, wxx_tot, AA%n)
       call gather_dist_shared_to_all( pai_x, xx_nih, xx_tot)
       call multiply_CSR_matrix_with_vector_1D_x_tot( AA, pai_x, xx_tot, pai_y, yy_nih)
@@ -326,7 +333,7 @@ contains
     !< Evaluate the matrix-vector product yy = AA*xx
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp),                             intent(in   ) :: AA
+    type(type_sparse_matrix_CSR_dp),                             intent(inout) :: AA
     type(type_par_arr_info),                                     intent(in   ) :: pai_x
     real(dp), dimension(pai_x%i1_nih:pai_x%i2_nih,1:nz), target, intent(in   ) :: xx_nih
     type(type_par_arr_info),                                     intent(in   ) :: pai_y

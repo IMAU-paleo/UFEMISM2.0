@@ -29,6 +29,7 @@ module CSR_sparse_matrix_type
 
     logical :: is_finalised = .false.
     integer :: j_min_node, j_max_node   ! Range of rows of x needed by this node to compute y = A*x
+    integer :: needs_x_tot = -1         ! Whether y = A*x can be evaluated with just x_nih, or if it needs x_tot (0: can use x_nih; 1: needs x_tot; -1: not checked yet)
 
   end type type_sparse_matrix_CSR_dp
 
