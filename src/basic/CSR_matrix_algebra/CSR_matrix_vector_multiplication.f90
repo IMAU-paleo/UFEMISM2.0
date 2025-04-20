@@ -3,7 +3,7 @@ module CSR_matrix_vector_multiplication
   use assertions_basic, only: assert
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use precisions, only: dp
-  use mpi_basic, only: par
+  use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, MPI_WIN
   use parallel_array_info_type, only: type_par_arr_info
@@ -43,6 +43,7 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
+
 
     if (present( xx_is_hybrid)) then
       xx_is_hybrid_ = xx_is_hybrid
@@ -206,8 +207,6 @@ contains
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'multiply_CSR_matrix_with_vector_1D'
-    logical                         :: needs_x_tot
-    integer                         :: ierr
     real(dp), dimension(:), pointer :: xx_tot => null()
     type(MPI_WIN)                   :: wxx_tot
 
@@ -216,16 +215,15 @@ contains
 
     if (.not. AA%is_finalised) call crash('A is not finalised')
 
-    needs_x_tot = AA%j_min_node < pai_x%i1_nih .or. AA%j_max_node > pai_x%i2_nih
-    call MPI_ALLREDUCE( MPI_IN_PLACE, needs_x_tot, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
-
-    if (needs_x_tot) then
+    if (AA%needs_x_tot == 1) then
       call allocate_dist_shared( xx_tot, wxx_tot, AA%n)
       call gather_dist_shared_to_all( pai_x, xx_nih, xx_tot)
       call multiply_CSR_matrix_with_vector_1D_x_tot( AA, pai_x, xx_tot, pai_y, yy_nih)
       call deallocate_dist_shared( xx_tot, wxx_tot)
-    else
+    elseif (AA%needs_x_tot == 0) then
       call multiply_CSR_matrix_with_vector_1D_x_nih( AA, pai_x, xx_nih, pai_y, yy_nih)
+    else
+      call crash('needs_x_tot not initialised')
     end if
 
     ! Finalise routine path
@@ -250,10 +248,17 @@ contains
     call init_routine( routine_name)
 
 #if (DO_ASSERTIONS)
-    call assert( (AA%i1 == pai_y%i1) .and. (AA%i2 == pai_y%i2) .and. &
-      (AA%i1_node == pai_y%i1_node) .and. (AA%i2_node == pai_y%i2_node), &
-      'size of y doesnt meet expectations of A')
-    call assert( (AA%m == pai_x%n), &
+    call assert( &
+      (AA%m == pai_y%n) .and. &
+      (AA%i1 == pai_y%i1) .and. &
+      (AA%i2 == pai_y%i2) .and. &
+      (AA%i1_node == pai_y%i1_node) .and. &
+      (AA%i2_node == pai_y%i2_node) .and. &
+      (AA%n == pai_x%n) .and.  &
+      (AA%j1 == pai_x%i1) .and. &
+      (AA%j2 == pai_x%i2) .and. &
+      (AA%j1_node == pai_x%i1_node) .and. &
+      (AA%j2_node == pai_x%i2_node), &
       'size of x doesnt meet expectations of A')
 #endif
 
@@ -294,11 +299,17 @@ contains
     call init_routine( routine_name)
 
 #if (DO_ASSERTIONS)
-    call assert( (AA%i1 == pai_y%i1) .and. (AA%i2 == pai_y%i2) .and. &
-      (AA%i1_node == pai_y%i1_node) .and. (AA%i2_node == pai_y%i2_node), &
-      'size of y doesnt meet expectations of A')
-    call assert( (AA%j1 == pai_x%i1) .and. (AA%j2 == pai_x%i2) .and. &
-      (AA%j1_node == pai_x%i1_node) .and. (AA%j2_node == pai_x%i2_node), &
+    call assert( &
+      (AA%m == pai_y%n) .and. &
+      (AA%i1 == pai_y%i1) .and. &
+      (AA%i2 == pai_y%i2) .and. &
+      (AA%i1_node == pai_y%i1_node) .and. &
+      (AA%i2_node == pai_y%i2_node) .and. &
+      (AA%n == pai_x%n) .and.  &
+      (AA%j1 == pai_x%i1) .and. &
+      (AA%j2 == pai_x%i2) .and. &
+      (AA%j1_node == pai_x%i1_node) .and. &
+      (AA%j2_node == pai_x%i2_node), &
       'size of x doesnt meet expectations of A')
 #endif
 
