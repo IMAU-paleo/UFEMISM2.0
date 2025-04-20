@@ -33,6 +33,9 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'exchange_halos_logical'
 
+    ! Shortcut: when running on a single shared-memory node, do nothing
+    if (par%n_nodes == 1) return
+
     ! Add routine to path
     call init_routine( routine_name)
 
@@ -65,6 +68,9 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'exchange_halos_int'
+
+    ! Shortcut: when running on a single shared-memory node, do nothing
+    if (par%n_nodes == 1) return
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -99,6 +105,9 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'exchange_halos_int_3D'
 
+    ! Shortcut: when running on a single shared-memory node, do nothing
+    if (par%n_nodes == 1) return
+
     ! Add routine to path
     call init_routine( routine_name)
 
@@ -132,6 +141,9 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'exchange_halos_dp'
 
+    ! Shortcut: when running on a single shared-memory node, do nothing
+    if (par%n_nodes == 1) return
+
     ! Add routine to path
     call init_routine( routine_name)
 
@@ -164,6 +176,9 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'exchange_halos_dp_3D'
+
+    ! Shortcut: when running on a single shared-memory node, do nothing
+    if (par%n_nodes == 1) return
 
     ! Add routine to path
     call init_routine( routine_name)

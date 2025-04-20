@@ -46,14 +46,11 @@ subroutine exchange_halos_logical_1D( pai, d_nih)
   type(MPI_REQUEST), dimension(2) :: reqs
   integer                         :: ierr
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   ! Left halos
   if (par%node_ID == 0) then
@@ -148,14 +145,11 @@ subroutine exchange_halos_logical_2D( pai, nz, d_nih)
   integer                        :: k
   logical, dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     d_nih_1D( pai%i1_nih:pai%i2_nih) => d_nih( pai%i1_nih:pai%i2_nih,k)
@@ -179,14 +173,11 @@ subroutine exchange_halos_logical_3D( pai, nz, nl, d_nih)
   integer                        :: k,l
   logical, dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     do l = 1, nl
@@ -215,14 +206,11 @@ subroutine exchange_halos_int_1D( pai, d_nih)
   type(MPI_REQUEST), dimension(2) :: reqs
   integer                         :: ierr
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   ! Left halos
   if (par%node_ID == 0) then
@@ -317,14 +305,11 @@ subroutine exchange_halos_int_2D( pai, nz, d_nih)
   integer                        :: k
   integer, dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     d_nih_1D( pai%i1_nih:pai%i2_nih) => d_nih( pai%i1_nih:pai%i2_nih,k)
@@ -348,14 +333,11 @@ subroutine exchange_halos_int_3D( pai, nz, nl, d_nih)
   integer                        :: k,l
   integer, dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     do l = 1, nl
@@ -384,14 +366,11 @@ subroutine exchange_halos_dp_1D( pai, d_nih)
   type(MPI_REQUEST), dimension(2) :: reqs
   integer                         :: ierr
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   ! Left halos
   if (par%node_ID == 0) then
@@ -486,14 +465,11 @@ subroutine exchange_halos_dp_2D( pai, nz, d_nih)
   integer                         :: k
   real(dp), dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     d_nih_1D( pai%i1_nih:pai%i2_nih) => d_nih( pai%i1_nih:pai%i2_nih,k)
@@ -517,14 +493,11 @@ subroutine exchange_halos_dp_3D( pai, nz, nl, d_nih)
   integer                         :: k,l
   real(dp), dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     do l = 1, nl
@@ -553,14 +526,11 @@ subroutine exchange_halos_complex_1D( pai, d_nih)
   type(MPI_REQUEST), dimension(2)   :: reqs
   integer                           :: ierr
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   ! Left halos
   if (par%node_ID == 0) then
@@ -655,14 +625,11 @@ subroutine exchange_halos_complex_2D( pai, nz, d_nih)
   integer                           :: k
   complex*16, dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     d_nih_1D( pai%i1_nih:pai%i2_nih) => d_nih( pai%i1_nih:pai%i2_nih,k)
@@ -686,14 +653,11 @@ subroutine exchange_halos_complex_3D( pai, nz, nl, d_nih)
   integer                           :: k,l
   complex*16, dimension(:), pointer :: d_nih_1D
 
+  ! Shortcut: when running on a single shared-memory node, do nothing
+  if (par%n_nodes == 1) return
+
   ! Add routine to path
   call init_routine( routine_name)
-
-  ! If running on one node, do nothing
-  if (par%n_nodes == 1) then
-    call finalise_routine( routine_name)
-    return
-  end if
 
   do k = 1, nz
     do l = 1, nl
