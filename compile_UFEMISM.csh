@@ -2,44 +2,49 @@
 
 # Safety
 if ($#argv != 2) goto usage
-if ($1 != 'dev' && $1 != 'perf') goto usage
-if ($2 != 'changed' && $2 != 'clean') goto usage
 
 echo ""
 
 #  Confirm user's compilation choices
-if ($1 == 'dev') then
+set version   = $argv[1]
+if ($version == 'dev') then
   echo "dev: compiling UFEMISM, developers' version"
-else if ($1 == 'perf') then
+else if ($version == 'perf') then
   echo "perf: compiling UFEMISM, performance version"
+else
+  goto usage
 endif
 
-if ($2 == 'changed') then
+set selection = $argv[2]
+if ($selection == 'changed') then
   echo "changed: (re)compiling changed modules only"
-else if ($2 == 'clean') then
+else if ($selection == 'clean') then
   echo "clean: recompiling all modules"
+else
+  goto usage
 endif
+
 echo ""
 
 # Go to src/, make, and come back
 cd src
-if ($2 == 'clean') make clean
-if ($1 == 'dev') then
+if ($selection == 'clean') make clean
+if ($version == 'dev') then
   make all   DO_ASSERTIONS=yes   DO_RESOURCE_TRACKING=yes   DO_INCLUDE_COMPILER_CHECKS=yes
-else if ($1 == 'perf') then
+else if ($version == 'perf') then
   make all   DO_ASSERTIONS=no    DO_RESOURCE_TRACKING=no    DO_INCLUDE_COMPILER_CHECKS=no
 endif
 cd ..
 
 # Copy compiled program
-if ($1 == 'dev') then
+if ($version == 'dev') then
 
   rm -f UFEMISM_program_dev
   mv src/UFEMISM_program UFEMISM_program_dev
   rm -f UFEMISM_program
   cp UFEMISM_program_dev UFEMISM_program
 
-else if ($1 == 'perf') then
+else if ($version == 'perf') then
 
   rm -f UFEMISM_program_perf
   mv src/UFEMISM_program UFEMISM_program_perf
@@ -48,7 +53,7 @@ else if ($1 == 'perf') then
 
 endif
 
-exit 1
+exit 0
 
 usage:
 
@@ -72,3 +77,5 @@ echo "             type. In that case, better to just do a clean compilation."
 echo ""
 echo "    clean: recompile all modules. Always works, but slower."
 echo ""
+
+exit 1
