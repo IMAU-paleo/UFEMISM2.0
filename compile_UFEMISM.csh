@@ -33,15 +33,19 @@ cd ..
 
 # Copy compiled program
 if ($1 == 'dev') then
+
   rm -f UFEMISM_program_dev
   mv src/UFEMISM_program UFEMISM_program_dev
   rm -f UFEMISM_program
   cp UFEMISM_program_dev UFEMISM_program
+
 else if ($1 == 'perf') then
+
   rm -f UFEMISM_program_perf
   mv src/UFEMISM_program UFEMISM_program_perf
   rm -f UFEMISM_program
   cp UFEMISM_program_perf UFEMISM_program
+
 endif
 
 exit 1

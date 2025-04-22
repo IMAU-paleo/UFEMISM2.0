@@ -28,9 +28,15 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_local.txt
                             -ffpe-trap=zero,overflow#,invalid
 
 # Final set of compiler flags:
+DO_INCLUDE_COMPILER_CHECKS = yes
+ifeq ($(DO_INCLUDE_COMPILER_CHECKS),yes)
   F90FLAGS                = ${COMPILER_FLAGS_BASIC} \
                             ${COMPILER_FLAGS_CHECK} \
                             ${NCINC} ${NFINC} ${PETSCINC}
+else
+  F90FLAGS                = ${COMPILER_FLAGS_BASIC} \
+                            ${NCINC} ${NFINC} ${PETSCINC}
+endif
 
 # Linking flags of libaries:
 # -ld_classic : Force Command Line Tools v15 on Mac to behave like v14, which supports -commons linker option
