@@ -17,6 +17,8 @@ module apply_maps
   use mesh_utilities, only: set_border_vertices_to_interior_mean_dp_2D, set_border_vertices_to_interior_mean_dp_3D
   use mpi_distributed_memory, only: gather_to_all
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper, &
+    multiply_CSR_matrix_with_vector_2D_wrapper
 
   implicit none
 
@@ -26,7 +28,8 @@ module apply_maps
     apply_map_xy_grid_to_mesh_2D, apply_map_xy_grid_to_mesh_3D, &
     apply_map_xy_grid_to_mesh_triangles_2D, apply_map_xy_grid_to_mesh_triangles_3D, &
     apply_map_lonlat_grid_to_mesh_2D, apply_map_lonlat_grid_to_mesh_3D, &
-    apply_map_mesh_to_xy_grid_2D, apply_map_mesh_to_xy_grid_3D, apply_map_mesh_to_xy_grid_2D_minval, &
+    apply_map_mesh_vertices_to_xy_grid_2D, apply_map_mesh_vertices_to_xy_grid_3D, apply_map_mesh_vertices_to_xy_grid_2D_minval, &
+    apply_map_mesh_triangles_to_xy_grid_2D, apply_map_mesh_triangles_to_xy_grid_3D, &
     apply_map_mesh_to_mesh_2D, apply_map_mesh_to_mesh_3D, &
     apply_map_mesh_vertices_to_transect_2D, apply_map_mesh_vertices_to_transect_3D, &
     apply_map_mesh_triangles_to_transect_2D, apply_map_mesh_triangles_to_transect_3D
@@ -258,18 +261,21 @@ contains
   ! ===== mesh to x/y-grid =====
   ! ============================
 
-  !> Map a 2-D data field from a mesh to an x/y-grid.
-  subroutine apply_map_mesh_to_xy_grid_2D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
+  subroutine apply_map_mesh_vertices_to_xy_grid_2D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial, &
+    d_mesh_is_hybrid, d_grid_is_hybrid)
+    !< Map a 2-D data field from the vertices of a mesh to an x/y-grid.
 
     ! In/output variables
-    type(type_mesh),        intent(in)  :: mesh
-    type(type_grid),        intent(in)  :: grid
-    type(type_map),         intent(in)  :: map
-    real(dp), dimension(:), intent(in)  :: d_mesh_partial
-    real(dp), dimension(:), intent(out) :: d_grid_vec_partial
+    type(type_mesh),        intent(in   )  :: mesh
+    type(type_grid),        intent(in   )  :: grid
+    type(type_map),         intent(in   )  :: map
+    real(dp), dimension(:), intent(in   )  :: d_mesh_partial
+    real(dp), dimension(:), intent(  out) :: d_grid_vec_partial
+    logical, optional,      intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'apply_map_mesh_to_xy_grid_2D'
+    character(len=1024), parameter          :: routine_name = 'apply_map_mesh_vertices_to_xy_grid_2D'
+    type(type_sparse_matrix_CSR_dp)         :: M_CSR
     real(dp), dimension(:,:  ), allocatable :: d_grid
 
     ! Add routine to path
@@ -281,7 +287,10 @@ contains
     end if
 
     ! Perform the mapping operation as a matrix multiplication
-    call multiply_PETSc_matrix_with_vector_1D( map%M, d_mesh_partial, d_grid_vec_partial)
+    call mat_petsc2CSR( map%M, M_CSR)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( M_CSR, &
+      mesh%pai_V, d_mesh_partial, grid%pai, d_grid_vec_partial, &
+      xx_is_hybrid = d_mesh_is_hybrid, yy_is_hybrid = d_grid_is_hybrid)
 
     ! == Because the remapping operators are sometimes inaccurate at the
     !     domain boundary, set values in the outermost row of grid cells
@@ -316,20 +325,23 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine apply_map_mesh_to_xy_grid_2D
+  end subroutine apply_map_mesh_vertices_to_xy_grid_2D
 
-  !> Map a 3-D data field from a mesh to an x/y-grid.
-  subroutine apply_map_mesh_to_xy_grid_3D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
+  subroutine apply_map_mesh_vertices_to_xy_grid_3D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial, &
+    d_mesh_is_hybrid, d_grid_is_hybrid)
+    !< Map a 3-D data field from the vertices of a mesh to an x/y-grid.
 
     ! In/output variables
-    type(type_mesh),          intent(in)  :: mesh
-    type(type_grid),          intent(in)  :: grid
-    type(type_map),           intent(in)  :: map
-    real(dp), dimension(:,:), intent(in)  :: d_mesh_partial
-    real(dp), dimension(:,:), intent(out) :: d_grid_vec_partial
+    type(type_mesh),          intent(in   ) :: mesh
+    type(type_grid),          intent(in   ) :: grid
+    type(type_map),           intent(in   ) :: map
+    real(dp), dimension(:,:), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:,:), intent(  out) :: d_grid_vec_partial
+    logical, optional,        intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'apply_map_mesh_to_xy_grid_3D'
+    character(len=1024), parameter          :: routine_name = 'apply_map_mesh_vertices_to_xy_grid_3D'
+    type(type_sparse_matrix_CSR_dp)         :: M_CSR
     real(dp), dimension(:,:,:), allocatable :: d_grid
 
     ! Add routine to path
@@ -342,7 +354,10 @@ contains
     end if
 
     ! Perform the mapping operation as a matrix multiplication
-    call multiply_PETSc_matrix_with_vector_2D( map%M, d_mesh_partial, d_grid_vec_partial)
+    call mat_petsc2CSR( map%M, M_CSR)
+    call multiply_CSR_matrix_with_vector_2D_wrapper( M_CSR, &
+      mesh%pai_V, d_mesh_partial, grid%pai, d_grid_vec_partial, &
+      xx_is_hybrid = d_mesh_is_hybrid, yy_is_hybrid = d_grid_is_hybrid)
 
     ! == Because the remapping operators are sometimes inaccurate at the
     !     domain boundary, set values in the outermost row of grid cells
@@ -377,11 +392,11 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine apply_map_mesh_to_xy_grid_3D
+  end subroutine apply_map_mesh_vertices_to_xy_grid_3D
 
-  subroutine apply_map_mesh_to_xy_grid_2D_minval( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
-    ! Map a 2-D data field from a mesh to an x/y-grid.
-    !
+  subroutine apply_map_mesh_vertices_to_xy_grid_2D_minval( mesh, grid, map, d_mesh_partial, d_grid_vec_partial)
+    !< Map a 2-D data field from the vertices of a mesh to an x/y-grid.
+
     ! For each grid cell, get the minimum value of all overlapping mesh vertices
 
     ! In/output variables
@@ -392,7 +407,7 @@ contains
     real(dp), dimension(grid%n1 :grid%n2 ), intent(out) :: d_grid_vec_partial
 
     ! Local variables:
-    character(len=1024), parameter  :: routine_name = 'apply_map_mesh_to_xy_grid_2D_minval'
+    character(len=1024), parameter  :: routine_name = 'apply_map_mesh_vertices_to_xy_grid_2D_minval'
     real(dp), dimension(mesh%nV)    :: d_mesh_tot
     type(type_sparse_matrix_CSR_dp) :: M_CSR
     integer                         :: n,k1,k2,k,col,vi
@@ -436,7 +451,140 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine apply_map_mesh_to_xy_grid_2D_minval
+  end subroutine apply_map_mesh_vertices_to_xy_grid_2D_minval
+
+  subroutine apply_map_mesh_triangles_to_xy_grid_2D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial, &
+    d_mesh_is_hybrid, d_grid_is_hybrid)
+    !< Map a 2-D data field from the triangles of a mesh to an x/y-grid.
+
+    ! In/output variables
+    type(type_mesh),        intent(in   ) :: mesh
+    type(type_grid),        intent(in   ) :: grid
+    type(type_map),         intent(in   ) :: map
+    real(dp), dimension(:), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:), intent(  out) :: d_grid_vec_partial
+    logical, optional,      intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'apply_map_mesh_triangles_to_xy_grid_2D'
+    type(type_sparse_matrix_CSR_dp)       :: M_CSR
+    real(dp), dimension(:,:), allocatable :: d_grid
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc) then
+      call crash('data fields are the wrong size!')
+    end if
+
+    ! Perform the mapping operation as a matrix multiplication
+    call mat_petsc2CSR( map%M, M_CSR)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( M_CSR, &
+      mesh%pai_Tri, d_mesh_partial, grid%pai, d_grid_vec_partial, &
+      xx_is_hybrid = d_mesh_is_hybrid, yy_is_hybrid = d_grid_is_hybrid)
+
+    ! == Because the remapping operators are sometimes inaccurate at the
+    !     domain boundary, set values in the outermost row of grid cells
+    !    equal to those in the second-outermost row
+
+    if (par%primary) then
+      ! allocate memory for complete gridded data
+      allocate( d_grid( grid%nx, grid%ny))
+      ! Gather complete gridded data
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
+      ! Set values in the outermost row of grid cells
+      ! equal to those in the second-outermost row
+      d_grid( 1      ,:) = d_grid( 2        ,:)
+      d_grid( grid%nx,:) = d_grid( grid%nx-1,:)
+      d_grid( :,1      ) = d_grid( :,2        )
+      d_grid( :,grid%ny) = d_grid( :,grid%ny-1)
+      ! Distribute complete gridded data back over the processes
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      deallocate( d_grid)
+    else ! if (par%primary) then
+      ! allocate zero memory for complete gridded data (only the primary needs this)
+      allocate( d_grid( 0,0))
+      ! Gather complete gridded data
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial)
+      ! Distribute complete gridded data back over the processes
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      deallocate( d_grid)
+    end if ! if (par%primary) then
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_triangles_to_xy_grid_2D
+
+  subroutine apply_map_mesh_triangles_to_xy_grid_3D( mesh, grid, map, d_mesh_partial, d_grid_vec_partial, &
+    d_mesh_is_hybrid, d_grid_is_hybrid)
+    !< Map a 3-D data field from the triangles of a mesh to an x/y-grid.
+
+    ! In/output variables
+    type(type_mesh),          intent(in   ) :: mesh
+    type(type_grid),          intent(in   ) :: grid
+    type(type_map),           intent(in   ) :: map
+    real(dp), dimension(:,:), intent(in   ) :: d_mesh_partial
+    real(dp), dimension(:,:), intent(  out) :: d_grid_vec_partial
+    logical, optional,        intent(in   ) :: d_mesh_is_hybrid, d_grid_is_hybrid
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'apply_map_mesh_triangles_to_xy_grid_3D'
+    type(type_sparse_matrix_CSR_dp)         :: M_CSR
+    real(dp), dimension(:,:,:), allocatable :: d_grid
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (size( d_mesh_partial,1) /= mesh%nTri_loc .or. size( d_grid_vec_partial,1) /= grid%n_loc .or. &
+      size( d_mesh_partial,2) /= size( d_grid_vec_partial,2)) then
+      call crash('data fields are the wrong size!')
+    end if
+
+    ! Perform the mapping operation as a matrix multiplication
+    call mat_petsc2CSR( map%M, M_CSR)
+    call multiply_CSR_matrix_with_vector_2D_wrapper( M_CSR, &
+      mesh%pai_Tri, d_mesh_partial, grid%pai, d_grid_vec_partial, &
+      xx_is_hybrid = d_mesh_is_hybrid, yy_is_hybrid = d_grid_is_hybrid)
+
+    ! == Because the remapping operators are sometimes inaccurate at the
+    !     domain boundary, set values in the outermost row of grid cells
+    !    equal to those in the second-outermost row
+
+    if (par%primary) then
+      ! allocate memory for complete gridded data
+      allocate( d_grid( grid%nx, grid%ny, size( d_mesh_partial,2)))
+      ! Gather complete gridded data
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
+      ! Set values in the outermost row of grid cells
+      ! equal to those in the second-outermost row
+      d_grid( 1      ,:,:) = d_grid( 2        ,:,:)
+      d_grid( grid%nx,:,:) = d_grid( grid%nx-1,:,:)
+      d_grid( :,1      ,:) = d_grid( :,2        ,:)
+      d_grid( :,grid%ny,:) = d_grid( :,grid%ny-1,:)
+      ! Distribute complete gridded data back over the processes
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      deallocate( d_grid)
+    else ! if (par%primary) then
+      ! allocate zero memory for complete gridded data (only the primary needs this)
+      allocate( d_grid( 0,0,0))
+      ! Gather complete gridded data
+      call gather_gridded_data_to_primary( grid, d_grid_vec_partial, d_grid)
+      ! Distribute complete gridded data back over the processes
+      call distribute_gridded_data_from_primary( grid, d_grid, d_grid_vec_partial)
+      ! Clean up after yourself
+      deallocate( d_grid)
+    end if ! if (par%primary) then
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_triangles_to_xy_grid_3D
 
   ! ===== mesh to mesh =====
   ! ========================

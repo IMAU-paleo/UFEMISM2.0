@@ -6,11 +6,11 @@ module ct_discretisation_mapping_derivatives
   use model_configuration, only: C
   use precisions, only: dp
   use parameters
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string, warning
   use mpi_basic, only: par, sync
   use mesh_types, only: type_mesh
   use netcdf_io_main
-  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
   use assertions_basic
   use tests_main
 
@@ -395,44 +395,137 @@ contains
     allocate( d2dy2_b_b_2nd(   mesh%ti1:mesh%ti2))
 
     ! Calculate discretised approximations
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_a_b    , d_a_ex, d_a_b     )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_a_c    , d_a_ex, d_a_c     )
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_a_b, &
+      mesh%pai_V, d_a_ex, mesh%pai_Tri, d_a_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_a_c, &
+      mesh%pai_V, d_a_ex, mesh%pai_E, d_a_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_b_a    , d_b_ex, d_b_a     )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_b_c    , d_b_ex, d_b_c     )
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_b_a, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_V, d_b_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_b_c, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_E, d_b_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_c_a    , d_c_ex, d_c_a     )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_map_c_b    , d_c_ex, d_c_b     )
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_a    , d_a_ex, ddx_a_a   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_b    , d_a_ex, ddx_a_b   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_a_c    , d_a_ex, ddx_a_c   )
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_b_a    , d_b_ex, ddx_b_a   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_b_b    , d_b_ex, ddx_b_b   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_b_c    , d_b_ex, ddx_b_c   )
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_c_a, &
+      mesh%pai_E, d_c_ex, mesh%pai_V, d_c_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_c_b, &
+      mesh%pai_E, d_c_ex, mesh%pai_Tri, d_c_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_c_a    , d_c_ex, ddx_c_a   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_c_b    , d_c_ex, ddx_c_b   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddx_c_c    , d_c_ex, ddx_c_c   )
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_a_a, &
+      mesh%pai_V, d_a_ex, mesh%pai_V, ddx_a_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_a_b, &
+      mesh%pai_V, d_a_ex, mesh%pai_Tri, ddx_a_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_a_c, &
+      mesh%pai_V, d_a_ex, mesh%pai_E, ddx_a_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_a    , d_a_ex, ddy_a_a   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_b    , d_a_ex, ddy_a_b   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_a_c    , d_a_ex, ddy_a_c   )
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_b_a, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_V, ddx_b_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_b_b, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_Tri, ddx_b_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_b_c, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_E, ddx_b_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_b_a    , d_b_ex, ddy_b_a   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_b_b    , d_b_ex, ddy_b_b   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_b_c    , d_b_ex, ddy_b_c   )
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_c_a, &
+      mesh%pai_E, d_c_ex, mesh%pai_V, ddx_c_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_c_b, &
+      mesh%pai_E, d_c_ex, mesh%pai_Tri, ddx_c_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_c_c, &
+      mesh%pai_E, d_c_ex, mesh%pai_E, ddx_c_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_c_a    , d_c_ex, ddy_c_a   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_c_b    , d_c_ex, ddy_c_b   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M_ddy_c_c    , d_c_ex, ddy_c_c   )
 
-    call multiply_CSR_matrix_with_vector_1D( mesh%M2_ddx_b_b   , d_b_ex, ddx_b_b_2nd   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M2_ddy_b_b   , d_b_ex, ddy_b_b_2nd   )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M2_d2dx2_b_b , d_b_ex, d2dx2_b_b_2nd )
-    call multiply_CSR_matrix_with_vector_1D( mesh%M2_d2dxdy_b_b, d_b_ex, d2dxdy_b_b_2nd)
-    call multiply_CSR_matrix_with_vector_1D( mesh%M2_d2dy2_b_b , d_b_ex, d2dy2_b_b_2nd )
+
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_a_a, &
+      mesh%pai_V, d_a_ex, mesh%pai_V, ddy_a_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_a_b, &
+      mesh%pai_V, d_a_ex, mesh%pai_Tri, ddy_a_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_a_c, &
+      mesh%pai_V, d_a_ex, mesh%pai_E, ddy_a_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
+
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_b_a, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_V, ddy_b_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_b_b, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_Tri, ddy_b_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_b_c, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_E, ddy_b_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
+
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_c_a, &
+      mesh%pai_E, d_c_ex, mesh%pai_V, ddy_c_a, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_c_b, &
+      mesh%pai_E, d_c_ex, mesh%pai_Tri, ddy_c_b, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_c_c, &
+      mesh%pai_E, d_c_ex, mesh%pai_E, ddy_c_c, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
+
+
+
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M2_ddx_b_b, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_Tri, ddx_b_b_2nd, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M2_ddy_b_b, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_Tri, ddy_b_b_2nd, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M2_d2dx2_b_b, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_Tri, d2dx2_b_b_2nd, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M2_d2dxdy_b_b, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_Tri, d2dxdy_b_b_2nd, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M2_d2dy2_b_b, &
+      mesh%pai_Tri, d_b_ex, mesh%pai_Tri, d2dy2_b_b_2nd, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

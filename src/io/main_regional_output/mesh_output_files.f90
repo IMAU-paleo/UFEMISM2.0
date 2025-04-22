@@ -6,7 +6,12 @@ module mesh_output_files
   use model_configuration, only: C
   use grid_basic, only: type_grid
   use region_types, only: type_model_region
+  use mesh_types, only: type_mesh
+  use ice_model_types, only: type_ice_model
   use netcdf_io_main
+  use netcdf, only: NF90_DOUBLE
+  use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_signaling_nan
+  use mesh_contour, only: calc_mesh_contour
 
   implicit none
 
@@ -200,6 +205,14 @@ contains
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hi_eff', region%ice%Hi_eff)
       case ('Hs_slope')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'Hs_slope', region%ice%Hs_slope)
+      case ('grounding_line')
+        call write_grounding_line_to_file( filename, ncid, region%mesh, region%ice)
+      case ('ice_margin')
+        call write_ice_margin_to_file( filename, ncid, region%mesh, region%ice)
+      case ('calving_front')
+        call write_calving_front_to_file( filename, ncid, region%mesh, region%ice)
+      case ('coastline')
+        call write_coastline_to_file( filename, ncid, region%mesh, region%ice)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -357,61 +370,61 @@ contains
 
       ! 3-D
       case ('u_3D')
-        call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'u_3D', region%ice%u_3D)
+        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'u_3D', region%ice%u_3D_b)
       case ('v_3D')
-        call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'v_3D', region%ice%v_3D)
+        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'v_3D', region%ice%v_3D_b)
       case ('u_3D_b')
-        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'u_3D_b', region%ice%u_3D_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_3D_b')
-        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'v_3D_b', region%ice%v_3D_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('w_3D')
         call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'w_3D', region%ice%w_3D)
 
       ! Vertically integrated
       case ('u_vav')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_vav', region%ice%u_vav)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'u_vav', region%ice%u_vav_b)
       case ('v_vav')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'v_vav', region%ice%v_vav)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'v_vav', region%ice%v_vav_b)
       case ('u_vav_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'u_vav_b', region%ice%u_vav_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_vav_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'v_vav_b', region%ice%v_vav_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('uabs_vav')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'uabs_vav', region%ice%uabs_vav)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'uabs_vav', region%ice%uabs_vav_b)
       case ('uabs_vav_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'uabs_vav_b', region%ice%uabs_vav_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
 
       ! Surface
       case ('u_surf')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_surf', region%ice%u_surf)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'u_surf', region%ice%u_surf_b)
       case ('v_surf')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'v_surf', region%ice%v_surf)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'v_surf', region%ice%v_surf_b)
       case ('u_surf_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'u_surf_b', region%ice%u_surf_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_surf_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'v_surf_b', region%ice%v_surf_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('w_surf')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'w_surf', region%ice%w_surf)
       case ('uabs_surf')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'uabs_surf', region%ice%uabs_surf)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'uabs_surf', region%ice%uabs_surf_b)
       case ('uabs_surf_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'uabs_surf_b', region%ice%uabs_surf_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
 
       ! Base
       case ('u_base')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'u_base', region%ice%u_base)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'u_base', region%ice%u_base_b)
       case ('v_base')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'v_base', region%ice%v_base)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'v_base', region%ice%v_base_b)
       case ('u_base_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'u_base_b', region%ice%u_base_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_base_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'v_base_b', region%ice%v_base_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('w_base')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'w_base', region%ice%w_base)
       case ('uabs_base')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'uabs_base', region%ice%uabs_base)
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'uabs_base', region%ice%uabs_base_b)
       case ('uabs_base_b')
-        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, 'uabs_base_b', region%ice%uabs_base_b)
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
 
     ! === Strain rates ===
     ! ====================
@@ -511,6 +524,10 @@ contains
         call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'T_ocean', region%ocean%T)
       case ('S_ocean')
         call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'S_ocean', region%ocean%S)
+      case ('T_draft')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_draft', region%ocean%T_draft)
+      case ('T_freezing_point')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_freezing_point', region%ocean%T_freezing_point)
 
     ! == Surface mass balance ==
     ! ==========================
@@ -762,6 +779,11 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_main_regional_output_file_mesh_field'
+    integer                        :: int_dummy, id_dim_ei, id_dim_two, id_dim_time
+    integer                        :: id_var_grounding_line
+    integer                        :: id_var_calving_front
+    integer                        :: id_var_ice_margin
+    integer                        :: id_var_coastline
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -839,6 +861,38 @@ contains
         call add_field_mesh_dp_2D( filename, ncid, 'Hi_eff', long_name = 'Effective ice thickness', units = 'm')
       case ('Hs_slope')
         call add_field_mesh_dp_2D( filename, ncid, 'Hs_slope', long_name = 'Absolute surface gradient', units = '-')
+      case ('grounding_line')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'grounding_line', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_grounding_line)
+        call add_attribute_char( filename, ncid, id_var_grounding_line, 'long_name', 'Grounding-line coordinates')
+        call add_attribute_char( filename, ncid, id_var_grounding_line, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_grounding_line, 'format', 'Matlab contour format')
+      case ('ice_margin')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'ice_margin', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_ice_margin)
+        call add_attribute_char( filename, ncid, id_var_ice_margin, 'long_name', 'Ice margin coordinates')
+        call add_attribute_char( filename, ncid, id_var_ice_margin, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_ice_margin, 'format', 'Matlab contour format')
+      case ('calving_front')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'calving_front', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_calving_front)
+        call add_attribute_char( filename, ncid, id_var_calving_front, 'long_name', 'Calving-front coordinates')
+        call add_attribute_char( filename, ncid, id_var_calving_front, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_calving_front, 'format', 'Matlab contour format')
+      case ('coastline')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'coastline', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_coastline)
+        call add_attribute_char( filename, ncid, id_var_coastline, 'long_name', 'Coastline coordinates')
+        call add_attribute_char( filename, ncid, id_var_coastline, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_coastline, 'format', 'Matlab contour format')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -945,61 +999,61 @@ contains
 
       ! 3-D
       case ('u_3D')
-        call add_field_mesh_dp_3D( filename, ncid, 'u_3D', long_name = '3-D ice velocity in the x-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_3D_b( filename, ncid, 'u_3D', long_name = '3-D ice velocity in the x-direction', units = 'm yr^-1')
       case ('v_3D')
-        call add_field_mesh_dp_3D( filename, ncid, 'v_3D', long_name = '3-D ice velocity in the y-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_3D_b( filename, ncid, 'v_3D', long_name = '3-D ice velocity in the y-direction', units = 'm yr^-1')
       case ('u_3D_b')
-        call add_field_mesh_dp_3D_b( filename, ncid, 'u_3D_b', long_name = '3-D ice velocity in the x-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_3D_b')
-        call add_field_mesh_dp_3D_b( filename, ncid, 'v_3D_b', long_name = '3-D ice velocity in the y-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('w_3D')
         call add_field_mesh_dp_3D( filename, ncid, 'w_3D', long_name = '3-D ice velocity in the z-direction', units = 'm yr^-1')
 
       ! Vertically integrated
       case ('u_vav')
-        call add_field_mesh_dp_2D( filename, ncid, 'u_vav', long_name = 'Vertically averaged ice velocity in the x-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'u_vav', long_name = 'Vertically averaged ice velocity in the x-direction', units = 'm yr^-1')
       case ('v_vav')
-        call add_field_mesh_dp_2D( filename, ncid, 'v_vav', long_name = 'Vertically averaged ice velocity in the y-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'v_vav', long_name = 'Vertically averaged ice velocity in the y-direction', units = 'm yr^-1')
       case ('u_vav_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'u_vav_b', long_name = 'Vertically averaged ice velocity in the x-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_vav_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'v_vav_b', long_name = 'Vertically averaged ice velocity in the y-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('uabs_vav')
-        call add_field_mesh_dp_2D( filename, ncid, 'uabs_vav', long_name = 'Vertically averaged absolute ice velocity', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'uabs_vav', long_name = 'Vertically averaged absolute ice velocity', units = 'm yr^-1')
       case ('uabs_vav_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'uabs_vav_b', long_name = 'Vertically averaged absolute ice velocity', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
 
       ! Surface
       case ('u_surf')
-        call add_field_mesh_dp_2D( filename, ncid, 'u_surf', long_name = 'Surface ice velocity in the x-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'u_surf', long_name = 'Surface ice velocity in the x-direction', units = 'm yr^-1')
       case ('v_surf')
-        call add_field_mesh_dp_2D( filename, ncid, 'v_surf', long_name = 'Surface ice velocity in the y-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'v_surf', long_name = 'Surface ice velocity in the y-direction', units = 'm yr^-1')
       case ('u_surf_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'u_surf_b', long_name = 'Surface ice velocity in the x-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_surf_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'v_surf_b', long_name = 'Surface ice velocity in the y-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('w_surf')
         call add_field_mesh_dp_2D( filename, ncid, 'w_surf', long_name = 'Surface ice velocity in the z-direction', units = 'm yr^-1')
       case ('uabs_surf')
-        call add_field_mesh_dp_2D( filename, ncid, 'uabs_surf', long_name = 'Absolute surface ice velocity', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'uabs_surf', long_name = 'Absolute surface ice velocity', units = 'm yr^-1')
       case ('uabs_surf_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'uabs_surf_b', long_name = 'Absolute surface ice velocity', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
 
       ! Base
       case ('u_base')
-        call add_field_mesh_dp_2D( filename, ncid, 'u_base', long_name = 'Basal ice velocity in the x-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'u_base', long_name = 'Basal ice velocity in the x-direction', units = 'm yr^-1')
       case ('v_base')
-        call add_field_mesh_dp_2D( filename, ncid, 'v_base', long_name = 'Basal ice velocity in the y-direction', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'v_base', long_name = 'Basal ice velocity in the y-direction', units = 'm yr^-1')
       case ('u_base_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'u_base_b', long_name = 'Basal ice velocity in the x-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('v_base_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'v_base_b', long_name = 'Basal ice velocity in the y-direction', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
       case ('w_base')
         call add_field_mesh_dp_2D( filename, ncid, 'w_base', long_name = 'Basal ice velocity in the z-direction', units = 'm yr^-1')
       case ('uabs_base')
-        call add_field_mesh_dp_2D( filename, ncid, 'uabs_base', long_name = 'Absolute basal ice velocity', units = 'm yr^-1')
+        call add_field_mesh_dp_2D_b( filename, ncid, 'uabs_base', long_name = 'Absolute basal ice velocity', units = 'm yr^-1')
       case ('uabs_base_b')
-        call add_field_mesh_dp_2D_b( filename, ncid, 'uabs_base_b', long_name = 'Absolute basal ice velocity', units = 'm yr^-1')
+        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
 
     ! === Strain rates ===
     ! ====================
@@ -1099,6 +1153,10 @@ contains
         call add_field_mesh_dp_3D_ocean_notime( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
       case ('S_ocean')
         call add_field_mesh_dp_3D_ocean_notime( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'PSU')
+      case ('T_draft')
+        call add_field_mesh_dp_2D( filename, ncid, 'T_draft', long_name = 'Ocean temperature at ice draft', units = 'deg C')
+      case ('T_freezing_point')
+        call add_field_mesh_dp_2D( filename, ncid, 'T_freezing_point', long_name = 'Ocean freezing temperature at ice draft', units = 'deg C')
 
     ! == Surface mass balance ==
     ! ==========================
@@ -1221,5 +1279,194 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine create_main_regional_output_file_mesh_field
+
+  subroutine write_grounding_line_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_grounding_line_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: TAF_for_GL
+    integer                                 :: vi
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Replace thickness above floatation with NaN in ice-free vertices so GL wont be found there
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%Hi( vi) > 0.1_dp) then
+        TAF_for_GL( vi) = ice%TAF( vi)
+      else
+        TAF_for_GL( vi) = NaN
+      end if
+    end do
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, TAF_for_GL, 0._dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'grounding_line')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_grounding_line_to_file
+
+  subroutine write_calving_front_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_calving_front_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: Hi_for_GL
+    integer                                 :: vi
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Replace ice thickness with NaN in grounded vertices so CF wont be found there
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%TAF( vi) < 0._dp) then
+        Hi_for_GL( vi) = ice%Hi( vi)
+      else
+        Hi_for_GL( vi) = NaN
+      end if
+    end do
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, Hi_for_GL, 0.05_dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'calving_front')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_calving_front_to_file
+
+  subroutine write_ice_margin_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_ice_margin_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, ice%Hi, 0.05_dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'ice_margin')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_ice_margin_to_file
+
+  subroutine write_coastline_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_coastline_to_file'
+    real(dp)                                :: NaN
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: water_depth_for_coastline
+    integer                                 :: vi
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    NaN = ieee_value( NaN, ieee_signaling_nan)
+
+    ! Replace water depth with NaN in ice-covered vertices so coastline wont be found there
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%Hi( vi) > 0.05_dp) then
+        water_depth_for_coastline( vi) = NaN
+      else
+        water_depth_for_coastline( vi) = ice%SL( vi) - ice%Hb( vi)
+      end if
+    end do
+
+    ! Calculate grounding line contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, water_depth_for_coastline, 0._dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'coastline')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_coastline_to_file
+
+  subroutine write_contour_to_file( filename, ncid, mesh, CC, var_name)
+
+    ! In/output variables:
+    character(len=*),         intent(in   ) :: filename
+    integer,                  intent(in   ) :: ncid
+    type(type_mesh),          intent(in   ) :: mesh
+    real(dp), dimension(:,:), intent(in   ) :: CC
+    character(len=*),         intent(in   ) :: var_name
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_contour_to_file'
+    real(dp), dimension(:,:,:), allocatable :: CC_with_time
+    integer                                 :: id_dim_time, ti, id_var
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Add "pretend" time dimension
+    if (par%primary) then
+      allocate( CC_with_time( mesh%nE,2,1))
+      CC_with_time( :,:,1) = CC
+    end if
+
+    ! Inquire length of time dimension
+    call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Write to NetCDF
+    call inquire_var( filename, ncid, var_name, id_var)
+    call write_var_primary( filename, ncid, id_var, CC_with_time, &
+      start = (/ 1, 1, ti /), count = (/ mesh%nE, 2, 1 /) )
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_contour_to_file
 
 end module mesh_output_files

@@ -4,7 +4,7 @@ module CSR_matrix_basics
 
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use mpi_f08, only: MPI_ALLGATHER, MPI_INTEGER, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_SEND, MPI_RECV, &
-    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE, MPI_MIN, MPI_MAX
+    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE, MPI_MIN, MPI_MAX, MPI_IN_PLACE
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
@@ -17,7 +17,7 @@ module CSR_matrix_basics
   private
 
   public :: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, duplicate_matrix_CSR_dist, &
-    add_entry_CSR_dist, add_empty_row_CSR_dist, extend_matrix_CSR_dist, crop_matrix_CSR_dist, &
+    add_entry_CSR_dist, add_empty_row_CSR_dist, extend_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     gather_CSR_dist_to_primary, read_single_row_CSR_dist, allocate_matrix_CSR_loc
 
 contains
@@ -431,6 +431,63 @@ contains
     val( 1:nnz) = A%val( k1:k2)
 
   end subroutine read_single_row_CSR_dist
+
+  subroutine finalise_matrix_CSR_dist( A)
+
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'finalise_matrix_CSR_dist'
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    call crop_matrix_CSR_dist( A)
+    call calc_j_node_range( A)
+
+    A%is_finalised = .true.
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine finalise_matrix_CSR_dist
+
+  subroutine calc_j_node_range( A)
+
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_j_node_range'
+    integer                        :: i, k1, k2, k, j, ierr
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    A%j_min_node =  huge( A%j_min_node)
+    A%j_max_node = -huge( A%j_max_node)
+
+    do i = A%i1, A%i2
+
+      k1 = A%ptr( i)
+      k2 = A%ptr( i+1)-1
+
+      do k = k1, k2
+        j = A%ind( k)
+        A%j_min_node = min( A%j_min_node, j)
+        A%j_max_node = max( A%j_max_node, j)
+      end do
+
+    end do
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, A%j_min_node, 1, MPI_INTEGER, MPI_MIN, par%mpi_comm_node, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, A%j_max_node, 1, MPI_INTEGER, MPI_MAX, par%mpi_comm_node, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_j_node_range
 
   ! ===== CSR matrices in local memory =====
   ! ========================================

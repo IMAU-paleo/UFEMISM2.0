@@ -14,7 +14,7 @@ MODULE petsc_basic
   USE reallocate_mod                                         , ONLY: reallocate
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
-    add_entry_CSR_dist, deallocate_matrix_CSR_dist, crop_matrix_CSR_dist
+    add_entry_CSR_dist, deallocate_matrix_CSR_dist, finalise_matrix_CSR_dist
   use mpi_distributed_memory, only: partition_list, gather_to_all
 
   IMPLICIT NONE
@@ -46,6 +46,8 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    if (.not. AA%is_finalised) call crash('A is not finalised')
 
     ! Convert matrix to PETSc format
     CALL mat_CSR2petsc( AA, A)
@@ -300,8 +302,10 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'mat_petsc2CSR'
     INTEGER                                            :: m_glob, n_glob, m_loc, n_loc, istart, iend, row_glob, row_loc
     INTEGER                                            :: ncols
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: cols
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: vals
+    INTEGER,  DIMENSION(:    ), pointer                :: cols_
+    REAL(dp), DIMENSION(:    ), pointer                :: vals_
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE, target    :: cols
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE, target    :: vals
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: nnz_row_loc
     INTEGER                                            :: nnz_loc
     INTEGER                                            :: k
@@ -319,11 +323,14 @@ CONTAINS
     ALLOCATE( cols(        n_glob))
     ALLOCATE( vals(        n_glob))
 
+    cols_ => cols
+    vals_ => vals
+
     DO row_glob = istart+1, iend ! +1 because PETSc indexes from 0
       row_loc = row_glob - istart
-      CALL MatGetRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatGetRow( A, row_glob-1, ncols, cols_, vals_, perr)
       nnz_row_loc( row_loc) = ncols
-      CALL MatRestoreRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatRestoreRow( A, row_glob-1, ncols, cols_, vals_, perr)
     END DO
 
     nnz_loc = SUM( nnz_row_loc)
@@ -333,15 +340,15 @@ CONTAINS
 
     ! Copy data from the PETSc matrix to the CSR arrays
     DO row_glob = istart+1, iend ! +1 because PETSc indexes from 0
-      CALL MatGetRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatGetRow( A, row_glob-1, ncols, cols_, vals_, perr)
       DO k = 1, ncols
-        CALL add_entry_CSR_dist( AA, row_glob, cols( k)+1, vals( k))
+        CALL add_entry_CSR_dist( AA, row_glob, cols_( k)+1, vals_( k))
       END DO
-      CALL MatRestoreRow( A, row_glob-1, ncols, cols, vals, perr)
+      CALL MatRestoreRow( A, row_glob-1, ncols, cols_, vals_, perr)
     END DO
 
     ! Crop memory
-    call crop_matrix_CSR_dist( AA)
+    call finalise_matrix_CSR_dist( AA)
 
     ! Clean up after yourself
     DEALLOCATE( nnz_row_loc)
@@ -377,6 +384,8 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    if (.not. AA%is_finalised) call crash('A is not finalised')
 
     ! Determine number of non-zeros for this process
     nnz_proc = AA%nnz

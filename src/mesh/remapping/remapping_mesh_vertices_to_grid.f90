@@ -11,7 +11,7 @@ module remapping_mesh_vertices_to_grid
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     deallocate_matrix_CSR_dist, add_entry_CSR_dist, add_empty_row_CSR_dist
   use remapping_types, only: type_single_row_mapping_matrices, type_map
   use plane_geometry, only: is_in_triangle
@@ -20,18 +20,18 @@ module remapping_mesh_vertices_to_grid
   use line_tracing_grid, only: trace_line_grid
   use line_tracing_triangles, only: trace_line_tri
   use line_tracing_Voronoi, only: trace_line_Vor
-  use grid_basic, only: calc_matrix_operators_grid
   use netcdf_output
 
   implicit none
 
   private
 
-  public :: create_map_from_mesh_triangles_to_xy_grid
+  public :: create_map_from_mesh_vertices_to_xy_grid, calc_approximate_overlaps, calc_A_matrices, &
+    calc_w_matrices, dump_grid_and_mesh_to_netcdf, delete_grid_and_mesh_netcdf_dump_files
 
 contains
 
-  subroutine create_map_from_mesh_triangles_to_xy_grid( mesh, grid, map)
+  subroutine create_map_from_mesh_vertices_to_xy_grid( mesh, grid, map)
     !< Create a new mapping object from a mesh to an x/y-grid.
 
     ! By default uses 2nd-order conservative remapping.
@@ -79,7 +79,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine create_map_from_mesh_triangles_to_xy_grid
+  end subroutine create_map_from_mesh_vertices_to_xy_grid
 
   subroutine calc_approximate_overlaps( mesh, grid, &
     overlaps_with_small_triangle, containing_triangle)
@@ -468,6 +468,10 @@ contains
 
     end do
 
+    call finalise_matrix_CSR_dist( w0_CSR)
+    call finalise_matrix_CSR_dist( w1x_CSR)
+    call finalise_matrix_CSR_dist( w1y_CSR)
+
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( w0_CSR , w0 )
     call mat_CSR2petsc( w1x_CSR, w1x)
@@ -527,14 +531,16 @@ contains
     type(tMat),      intent(in   ) :: M
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'check_remapping_matrix_validity'
-    type(PetscErrorCode)                :: perr
-    integer                             :: k, row
-    integer                             :: nnz_per_row_max
-    integer                             :: ncols_row
-    integer,  dimension(:), allocatable :: cols_row
-    real(dp), dimension(:), allocatable :: vals_row
-    logical                             :: has_value
+    character(len=1024), parameter              :: routine_name = 'check_remapping_matrix_validity'
+    type(PetscErrorCode)                        :: perr
+    integer                                     :: k, row
+    integer                                     :: nnz_per_row_max
+    integer                                     :: ncols_row
+    integer,  dimension(:), allocatable, target :: cols_row
+    real(dp), dimension(:), allocatable, target :: vals_row
+    integer,  dimension(:), pointer             :: cols_row_
+    real(dp), dimension(:), pointer             :: vals_row_
+    logical                                     :: has_value
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -545,21 +551,27 @@ contains
     allocate( cols_row( nnz_per_row_max))
     allocate( vals_row( nnz_per_row_max))
 
+    cols_row_ => cols_row
+    vals_row_ => vals_row
+
     do row = grid%n1, grid%n2
 
-      call MatGetRow( M, row-1, ncols_row, cols_row, vals_row, perr)
+      call MatGetRow( M, row-1, ncols_row, cols_row_, vals_row_, perr)
 
       if (ncols_row == 0) call crash('ncols == 0!')
 
       has_value = .false.
       do k = 1, ncols_row
-        if (vals_row( k) /= 0._dp) has_value = .true.
+        if (vals_row_( k) /= 0._dp) has_value = .true.
       end do
       if (.not. has_value) call crash('only zeroes!')
 
-      call MatRestoreRow( M, row-1, ncols_row, cols_row, vals_row, perr)
+      call MatRestoreRow( M, row-1, ncols_row, cols_row_, vals_row_, perr)
 
     end do
+
+    deallocate( cols_row)
+    deallocate( vals_row)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

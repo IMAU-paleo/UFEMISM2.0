@@ -9,7 +9,7 @@ module remapping_mesh_to_mesh
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map, type_single_row_mapping_matrices
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     add_empty_row_CSR_dist, add_entry_CSR_dist, deallocate_matrix_CSR_dist
   use plane_geometry, only: triangle_area
   use mesh_utilities, only: calc_Voronoi_cell, find_containing_triangle, find_containing_vertex
@@ -88,6 +88,8 @@ contains
       call add_entry_CSR_dist( M_CSR, row, col, 1._dp)
 
     end do
+
+    call finalise_matrix_CSR_dist( M_CSR)
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( M_CSR, map%M)
@@ -191,6 +193,8 @@ contains
       call add_entry_CSR_dist( M_CSR, row, colc, wc)
 
     end do
+
+    call finalise_matrix_CSR_dist( M_CSR)
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( M_CSR, map%M)
@@ -313,14 +317,16 @@ contains
     type(tMat),      intent(  out) :: w0, w1x, w1y
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'calc_w_matrices'
-    type(PetscErrorCode)                :: perr
-    integer                             :: nnz_per_row_max
-    integer                             :: istart, iend, n, k, ti
-    integer                             :: ncols
-    integer,  dimension(:), allocatable :: cols
-    real(dp), dimension(:), allocatable :: vals, w0_row, w1x_row, w1y_row
-    real(dp)                            :: A_overlap_tot
+    character(len=1024), parameter              :: routine_name = 'calc_w_matrices'
+    type(PetscErrorCode)                        :: perr
+    integer                                     :: nnz_per_row_max
+    integer                                     :: istart, iend, n, k, ti
+    integer                                     :: ncols
+    integer,  dimension(:), allocatable, target :: cols
+    real(dp), dimension(:), allocatable, target :: vals, w0_row, w1x_row, w1y_row
+    integer,  dimension(:), pointer             :: cols_
+    real(dp), dimension(:), pointer             :: vals_, w0_row_, w1x_row_, w1y_row_
+    real(dp)                                    :: A_overlap_tot
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -341,44 +347,50 @@ contains
     allocate( w1x_row( nnz_per_row_max))
     allocate( w1y_row( nnz_per_row_max))
 
+    cols_    => cols
+    vals_    => vals
+    w0_row_  => w0_row
+    w1x_row_ => w1x_row
+    w1y_row_ => w1y_row
+
     call MatGetOwnershipRange( A_xdy_a_b  , istart, iend, perr)
 
     do n = istart+1, iend ! +1 because PETSc indexes from 0
 
       ! Calculate area of overlap
-      call MatGetRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
-      A_overlap_tot = sum( vals( 1:ncols))
-      call MatRestoreRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_xdy_a_b, n-1, ncols, cols_, vals_, perr)
+      A_overlap_tot = sum( vals_( 1:ncols))
+      call MatRestoreRow( A_xdy_a_b, n-1, ncols, cols_, vals_, perr)
 
       ! Skip vertices with zero overlap (which can happen if the boundary
       ! of their Voronoi cell coincides with that of this one)
       if (A_overlap_tot <= tiny( A_overlap_tot) * 16._dp) cycle
 
       ! w0
-      call MatGetRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_xdy_a_b, n-1, ncols, cols_, vals_, perr)
       do k = 1, ncols
-        w0_row( k) = vals( k) / A_overlap_tot
-        call MatSetValues( w0, 1, [n-1], 1, [cols( k)], [w0_row( k)], INSERT_VALUES, perr)
+        w0_row_( k) = vals_( k) / A_overlap_tot
+        call MatSetValues( w0, 1, [n-1], 1, [cols_( k)], [w0_row_( k)], INSERT_VALUES, perr)
       end do
-      call MatRestoreRow( A_xdy_a_b, n-1, ncols, cols, vals, perr)
+      call MatRestoreRow( A_xdy_a_b, n-1, ncols, cols_, vals_, perr)
 
       ! w1x
-      call MatGetRow( A_mxydx_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_mxydx_a_b, n-1, ncols, cols_, vals_, perr)
       do k = 1, ncols
-        ti = cols( k)+1
-        w1x_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
-        call MatSetValues( w1x, 1, [n-1], 1, [cols( k)], [w1x_row( k)], INSERT_VALUES, perr)
+        ti = cols_( k)+1
+        w1x_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
+        call MatSetValues( w1x, 1, [n-1], 1, [cols_( k)], [w1x_row_( k)], INSERT_VALUES, perr)
       end do
-      call MatRestoreRow( A_mxydx_a_b, n-1, ncols, cols, vals, perr)
+      call MatRestoreRow( A_mxydx_a_b, n-1, ncols, cols_, vals_, perr)
 
       ! w1y
-      call MatGetRow( A_xydy_a_b, n-1, ncols, cols, vals, perr)
+      call MatGetRow( A_xydy_a_b, n-1, ncols, cols_, vals_, perr)
       do k = 1, ncols
-        ti = cols( k)+1
-        w1y_row( k) = (vals( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
-        call MatSetValues( w1y, 1, [n-1], 1, [cols( k)], [w1y_row( k)], INSERT_VALUES, perr)
+        ti = cols_( k)+1
+        w1y_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
+        call MatSetValues( w1y, 1, [n-1], 1, [cols_( k)], [w1y_row_( k)], INSERT_VALUES, perr)
       end do
-      call MatRestoreRow( A_xydy_a_b, n-1, ncols, cols, vals, perr)
+      call MatRestoreRow( A_xydy_a_b, n-1, ncols, cols_, vals_, perr)
 
     end do
 
@@ -388,6 +400,12 @@ contains
     call MatAssemblyEnd(   w1x, MAT_FINAL_ASSEMBLY, perr)
     call MatAssemblyBegin( w1y, MAT_FINAL_ASSEMBLY, perr)
     call MatAssemblyEnd(   w1y, MAT_FINAL_ASSEMBLY, perr)
+
+    deallocate( cols)
+    deallocate( vals)
+    deallocate( w0_row)
+    deallocate( w1x_row)
+    deallocate( w1y_row)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -780,6 +798,10 @@ contains
 
     end do
 
+    call finalise_matrix_CSR_dist( A_xdy_b_a_CSR  )
+    call finalise_matrix_CSR_dist( A_mxydx_b_a_CSR)
+    call finalise_matrix_CSR_dist( A_xydy_b_a_CSR )
+
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( A_xdy_b_a_CSR  , A_xdy_b_a  )
     call mat_CSR2petsc( A_mxydx_b_a_CSR, A_mxydx_b_a)
@@ -880,6 +902,10 @@ contains
       end if
 
     end do
+
+    call finalise_matrix_CSR_dist( A_xdy_a_b_CSR  )
+    call finalise_matrix_CSR_dist( A_mxydx_a_b_CSR)
+    call finalise_matrix_CSR_dist( A_xydy_a_b_CSR )
 
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( A_xdy_a_b_CSR  , A_xdy_a_b  )

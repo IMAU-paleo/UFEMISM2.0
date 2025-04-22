@@ -1649,65 +1649,6 @@ CONTAINS
 
   END SUBROUTINE interpolate_to_point_dp_3D
 
-  SUBROUTINE integrate_over_domain( mesh, d, int_d)
-    ! Calculate the integral int_d over the model domain of a 2-D data field d
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                         INTENT(IN)          :: mesh
-    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(IN)          :: d
-    REAL(dp),                                INTENT(OUT)         :: int_d
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'integrate_over_domain'
-    INTEGER                                                      :: vi, ierr
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Integrate over process domain
-    int_d = 0._dp
-    DO vi = mesh%vi1, mesh%vi2
-      int_d = int_d + d( vi) * mesh%A( vi)
-    END DO
-
-    ! Reduce over processes to find total domain integral
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE integrate_over_domain
-
-  SUBROUTINE average_over_domain( mesh, d, av_d)
-    ! Calculate the average int_d over the model domain of a 2-D data field d
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                         INTENT(IN)          :: mesh
-    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2), INTENT(IN)          :: d
-    REAL(dp),                                INTENT(OUT)         :: av_d
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                :: routine_name = 'average_over_domain'
-    REAL(dp)                                                     :: int_d
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Integrate over the domain
-    CALL integrate_over_domain( mesh, d, int_d)
-
-    ! Divide by domain area to find the average
-    av_d = int_d / ((mesh%xmax - mesh%xmin) * (mesh%ymax - mesh%ymin))
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE average_over_domain
-
 ! == Set values of border vertices to mean of interior neighbours
 
   SUBROUTINE set_border_vertices_to_interior_mean_dp_2D( mesh, d_partial)

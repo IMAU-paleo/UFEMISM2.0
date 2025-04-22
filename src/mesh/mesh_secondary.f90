@@ -9,7 +9,6 @@ MODULE mesh_secondary
   use assertions_basic
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE mpi_distributed_memory                                 , ONLY: partition_list
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
@@ -20,6 +19,7 @@ MODULE mesh_secondary
   USE mesh_edges                                             , ONLY: construct_mesh_edges
   USE mesh_zeta                                              , ONLY: initialise_scaled_vertical_coordinate
   use mesh_Voronoi, only: construct_Voronoi_mesh
+  use mesh_parallelisation, only: setup_mesh_parallelisation
   use mpi_f08, only: MPI_ALLREDUCE, MPI_INTEGER, MPI_MIN, MPI_MAX
 
   IMPLICIT NONE
@@ -59,8 +59,8 @@ CONTAINS
     CALL calc_mesh_resolution(                  mesh)
     CALL calc_triangle_geometric_centres(       mesh)
     CALL calc_lonlat(                           mesh, lambda_M, phi_M, beta_stereo)
-    CALL calc_mesh_parallelisation_ranges(      mesh)
     CALL initialise_scaled_vertical_coordinate( mesh)
+    CALL setup_mesh_parallelisation(            mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -303,7 +303,7 @@ CONTAINS
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'calc_connection_lengths'
-    integer                        :: vi, vj, ci
+    integer                        :: vi, vj, ci, ti, tj
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -312,10 +312,17 @@ CONTAINS
     if (allocated( mesh%D_x)) deallocate( mesh%D_x)
     if (allocated( mesh%D_y)) deallocate( mesh%D_y)
     if (allocated( mesh%D)) deallocate( mesh%D)
+    if (allocated( mesh%TriD_x)) deallocate( mesh%TriD_x)
+    if (allocated( mesh%TriD_y)) deallocate( mesh%TriD_y)
+    if (allocated( mesh%TriD)) deallocate( mesh%TriD)
     allocate( mesh%D_x( mesh%nV, mesh%nC_mem), source = 0._dp)
     allocate( mesh%D_y( mesh%nV, mesh%nC_mem), source = 0._dp)
     allocate( mesh%D( mesh%nV, mesh%nC_mem), source = 0._dp)
+    allocate( mesh%TriD_x( mesh%nTri, 3), source = 0._dp)
+    allocate( mesh%TriD_y( mesh%nTri, 3), source = 0._dp)
+    allocate( mesh%TriD( mesh%nTri, 3), source = 0._dp)
 
+    ! Vertex-vertex connections
     do vi = 1, mesh%nV
       do ci = 1, mesh%nC( vi)
 
@@ -328,6 +335,25 @@ CONTAINS
 
       ! Get absolute distance
       mesh%D( vi, ci)   = sqrt( mesh%D_x( vi, ci)**2 + mesh%D_y( vi, ci)**2)
+
+      end do
+    end do
+
+    ! Triangle-triangle connections
+    do ti = 1, mesh%nTri
+      do ci = 1, 3
+
+        ! Connection ci from triangle ti to triangle tj
+        tj = mesh%TriC( ti, ci)
+
+        if (tj == 0) cycle
+
+        ! Get x and y components
+        mesh%TriD_x( ti, ci) = mesh%Tricc( tj, 1) - mesh%Tricc( ti, 1)
+        mesh%TriD_y( ti, ci) = mesh%Tricc( tj, 2) - mesh%Tricc( ti, 2)
+
+        ! Get absolute distance
+        mesh%TriD( ti, ci) = sqrt( mesh%TriD_x( ti, ci)**2 + mesh%TriD_y( ti, ci)**2)
 
       end do
     end do
@@ -476,57 +502,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_lonlat
-
-  subroutine calc_mesh_parallelisation_ranges( mesh)
-    !< Calculate ranges of vertices, triangles, and edges "owned" by each process and node
-
-    ! In/output variables:
-    type(type_mesh), intent(inout) :: mesh
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_mesh_parallelisation_ranges'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call calc_parallelisation_range( mesh%nV, mesh%vi1, mesh%vi2, mesh%nV_loc, &
-      mesh%vi1_node, mesh%vi2_node, mesh%nV_node)
-    call calc_parallelisation_range( mesh%nTri, mesh%ti1, mesh%ti2, mesh%nTri_loc, &
-      mesh%ti1_node, mesh%ti2_node, mesh%nTri_node)
-    call calc_parallelisation_range( mesh%nE, mesh%ei1, mesh%ei2, mesh%nE_loc, &
-      mesh%ei1_node, mesh%ei2_node, mesh%nE_node)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_mesh_parallelisation_ranges
-
-  subroutine calc_parallelisation_range( n, n1, n2, n_loc, n1_node, n2_node, n_node)
-    !< Calculate ranges of vertices/triangles/edges "owned" by each process and node
-
-    ! In/output variables:
-    integer, intent(in   ) :: n
-    integer, intent(  out) :: n1, n2, n_loc, n1_node, n2_node, n_node
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_parallelisation_range'
-    integer                        :: ierr
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Range owned by this process
-    call partition_list( n, par%i, par%n, n1, n2)
-    n_loc = n2 + 1 - n1
-
-    ! Range owned by this node
-    call MPI_ALLREDUCE( n1, n1_node, 1, MPI_INTEGER, MPI_MIN, par%mpi_comm_node, ierr)
-    call MPI_ALLREDUCE( n2, n2_node, 1, MPI_INTEGER, MPI_MAX, par%mpi_comm_node, ierr)
-    n_node = n2_node + 1 - n1_node
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_parallelisation_range
 
 END MODULE mesh_secondary
