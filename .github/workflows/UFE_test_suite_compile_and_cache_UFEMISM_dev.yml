@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  compile_UFEMISM:
+  compile_UFEMISM_dev:
     runs-on: macos-latest
     steps:
 
