@@ -1,5 +1,27 @@
 #! /bin/csh -f
 
+# Compile all the UFEMISM code.
+#
+# Usage: ./compile_UFEMISM.csh  [VERSION]  [SELECTION]
+#
+#   [VERSION]: dev, perf
+#
+#     dev : developer's version; extra compiler flags (see Makefile_include, COMPILER_FLAGS_CHECK),
+#           plus run-time assertions (i.e. DO_ASSERTIONS = true) and resource tracking (i.e.
+#           DO_RESOURCE_TRACKING = true). Useful for tracking coding errors, but slow.
+#
+#     perf: performance version; all of the above disabled. Coding errors will much more often
+#           simply result in segmentation faults, but runs much faster.
+#
+#   [SELECTION]: changed, clean
+#
+#     changed: (re)compile only changed modules. Works 99% of the time, fails when you change the
+#              definition of a derived type without recompiling all of the modules thst use that
+#              type. In that case, better to just do a clean compilation.
+#
+#     clean: recompile all modules. Always works, but slower.
+#
+
 # Safety
 if ($#argv != 2) goto usage
 
