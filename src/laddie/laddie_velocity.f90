@@ -61,7 +61,7 @@ CONTAINS
     ! Compute buoyancy
     CALL compute_buoyancy( mesh, laddie, npx, Hstar)
 
-    ! Bunch of mappings - TODO: move b-grid versions to Laddie type, make them hybrid; faster
+    ! Bunch of mappings
     call exchange_halos( mesh, laddie%detr)
     call exchange_halos( mesh, laddie%Hdrho_amb)
     ! call exchange_halos( mesh, Hstar) ! Already done in integrate_fbrk3
