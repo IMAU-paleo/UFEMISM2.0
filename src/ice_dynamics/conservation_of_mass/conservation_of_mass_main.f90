@@ -588,7 +588,8 @@ contains
     nrows_loc       = mesh%nV_loc
     nnz_est_proc    = mesh%nV_loc + SUM( mesh%nC( mesh%vi1:mesh%vi2))
 
-    call allocate_matrix_CSR_dist( M_divQ, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( M_divQ, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_V, pai_y = mesh%pai_V)
 
     ! == Calculate coefficients
     ! =========================

@@ -62,7 +62,8 @@ contains
     nnz_per_row_est = 3
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_V, pai_y = mesh%pai_Tri)
 
     ! == Calculate coefficients
     ! =========================
@@ -119,7 +120,8 @@ contains
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_V, pai_y = mesh%pai_E)
 
     ! == Calculate coefficients
     ! =========================
@@ -161,7 +163,8 @@ contains
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_Tri, pai_y = mesh%pai_E)
 
     ! == Calculate coefficients
     ! =========================

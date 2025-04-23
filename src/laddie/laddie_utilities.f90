@@ -17,7 +17,6 @@ MODULE laddie_utilities
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use mesh_integrate_over_domain, only: average_over_domain
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD
@@ -245,39 +244,6 @@ CONTAINS
     laddie%mask_gl_b     ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%mask_gl_b
     laddie%mask_cf_b     ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%mask_cf_b
     laddie%mask_oc_b     ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%mask_oc_b
-
-    ! == Initialise the matrix using the native UFEMISM CSR-matrix format
-    ! ===================================================================
-
-    ! Matrix size
-    ncols           = mesh%nV        ! from
-    ncols_loc       = mesh%nV_loc
-    nrows           = mesh%nTri      ! to
-    nrows_loc       = mesh%nTri_loc
-    nnz_per_row_est = 3
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
-
-    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-
-    ! Matrix size
-    ncols           = mesh%nV        ! from
-    ncols_loc       = mesh%nV_loc
-    nrows           = mesh%nE      ! to
-    nrows_loc       = mesh%nE_loc
-    nnz_per_row_est = 2
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
-
-    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
-
-    ! Matrix size
-    ncols           = mesh%nTri        ! from
-    ncols_loc       = mesh%nTri_loc
-    nrows           = mesh%nE      ! to
-    nrows_loc       = mesh%nE_loc
-    nnz_per_row_est = 2
-    nnz_est_proc    = nrows_loc * nnz_per_row_est
-
-    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
