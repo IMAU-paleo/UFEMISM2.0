@@ -57,8 +57,8 @@ contains
     ! Read x and y
     call read_var_primary(  filename, ncid, id_var_x, x)
     call read_var_primary(  filename, ncid, id_var_y, y)
-    call MPI_BCAST( x, nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST( y, ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( x(:), nx, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( y(:), ny, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Determine directions of x and y
     if (x( 2) > x( 1)) then
@@ -135,8 +135,8 @@ contains
     ! Read lon and lat
     call read_var_primary(  filename, ncid, id_var_lon, lon)
     call read_var_primary(  filename, ncid, id_var_lat, lat)
-    call MPI_BCAST( lon, nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    call MPI_BCAST( lat, nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( lon(:), nlon, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( lat(:), nlat, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Determine directions of x and y
     if (lon( 2) > lon( 1)) then
@@ -172,6 +172,7 @@ contains
   end subroutine determine_lonlat_indexing
 
   subroutine determine_lat_indexing( filename, ncid, var_name, latdir)
+
     !< Determine the indexing and dimension directions of a variable in a lat-only grid file
 
     ! In/output variables:

@@ -26,6 +26,7 @@ MODULE BMB_main
   use ice_geometry_basics, only: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   use netcdf_io_main
+  use ocean_main                                             , ONLY: remap_ocean_model
 
   IMPLICIT NONE
 
@@ -522,8 +523,8 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
+    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
@@ -582,8 +583,7 @@ CONTAINS
       CASE ('idealised')
         ! No need to do anything
       CASE ('parameterised')
-        !CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
-        !CALL initialise_BMB_model_parameterised( mesh_new, BMB)
+        CALL remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name)
         CALL run_BMB_model_parameterised( mesh_new, ice, ocean, BMB)
       CASE ('inverted')
         ! No need to do anything
