@@ -152,14 +152,8 @@ CONTAINS
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
 
-    ! Mask on a grid
-    DO vi = mesh%vi1, mesh%vi2
-      laddie%mask_a( vi)  = ice%mask_floating_ice( vi)
-    END DO
-    call exchange_halos( mesh, laddie%mask_a)
-
-    !TODO: update_laddie_operators seems to assume that laddie%mask_b has already
-    !      been calculated, should that be done here?
+    ! == Update masks ==
+    call update_laddie_masks( mesh, ice, laddie)
 
     ! == Update operators ==
     CALL update_laddie_operators( mesh, ice, laddie)
@@ -538,6 +532,11 @@ CONTAINS
       END IF
 
     END DO !ti = mesh%ti1, mesh%ti2
+
+    call exchange_halos( mesh, laddie%mask_b)
+    call exchange_halos( mesh, laddie%mask_gl_b)
+    call exchange_halos( mesh, laddie%mask_cf_b)
+    call exchange_halos( mesh, laddie%mask_oc_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
