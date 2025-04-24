@@ -36,6 +36,10 @@ MODULE laddie_model_types
   TYPE type_laddie_model
     ! The laddie model structure
 
+    ! Output
+    character(len=1024)                         :: output_filename
+    logical                                     :: output_file_matches_current_mesh
+
     ! Time domain
     REAL(dp)                                    :: dt                          ! [s]               Time step
     REAL(dp)                                    :: tend                        ! [s]               Time end of Laddie cycle
