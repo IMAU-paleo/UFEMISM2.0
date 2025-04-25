@@ -189,7 +189,7 @@ CONTAINS
     IF (C%choice_SMB_parameterised == 'IMAU-ITM') CALL initialise_insolation_forcing( forcing, mesh)
 
     ! CO2 record
-    call initialise_CO2_record( forcing)
+    if (C%choice_matrix_forcing == 'CO2_direct') call initialise_CO2_record( forcing)
     
     ! d18O record - not yet implemented
 
@@ -568,6 +568,8 @@ CONTAINS
     ELSE
       CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
     END IF
+    
+      IF (par%primary)  WRITE(*,"(A)") ' Initialising CO2 record '
 
     ! Allocate shared memory to take the data
     allocate( forcing%CO2_time(   C%CO2_record_length))
@@ -577,13 +579,16 @@ CONTAINS
     !CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )
 
     ! Read CO2 record (time and values) from specified text file
-    IF (par%primary) THEN
+    IF (par%primary)  WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+!    IF (par%primary) THEN
 
-      WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+!      WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
 !    END IF
 ! check this?!
 ! I added field_name_options_CO2 in netcdf field list
 ! from the funciton 3rd and 4th are outputs
+
+!! HERE IDK IF IS NEEDED TO CALL THEM INSIDE PRIMARY OR NOT.. CHECK
       call read_field_from_series_file( C%filename_CO2_record, field_name_options_CO2, forcing%CO2_record, forcing%CO2_time)
 
 !      OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
@@ -608,8 +613,9 @@ CONTAINS
       ! Convert from kyr to yr
       forcing%CO2_time = forcing%CO2_time * 1000._dp
 
-    END IF ! IF (par%primary)
-
+!    END IF ! IF (par%primary)
+    
+    IF (par%primary)  WRITE(*,"(A)") '   Updating CO2 at model time...'
     ! Set the value for the current (starting) model time
     CALL update_CO2_at_model_time( C%start_time_of_run, forcing)
 

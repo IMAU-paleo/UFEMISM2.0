@@ -61,6 +61,8 @@ contains
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    IF (par%primary)  WRITE(*,"(A)") '      Running climate matrix model...'
+
     ! Update forcing at model time
     ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
     CALL get_insolation_at_time( mesh, time, forcing, climate%Q_TOA)
@@ -133,6 +135,8 @@ contains
     allocate( Hs_GCM(       mesh%vi1:mesh%vi2))
     allocate( lambda_GCM(   mesh%vi1:mesh%vi2))
     
+    IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix temperature model...'
+    
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
 
@@ -153,6 +157,7 @@ contains
     ! Otherwise interpolate. Berends et al., 2018 - Eq. 1
     w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / &
                                (C%matrix_high_CO2_level - C%matrix_low_CO2_level) ))
+    IF (par%primary)  WRITE(*,"(A)") '   error step 0.1...'
 
     ! Find the interpolation weights based on absorbed insolation
     ! ===========================================================
@@ -160,14 +165,18 @@ contains
     ! Calculate modelled absorbed insolation
     ! CHECK where I_Abs will be stored it will be called as climate%matrix? 
     climate%matrix%I_abs( mesh%vi1:mesh%vi2) = 0._dp
-    DO m = 1, 12
+    IF (par%primary)  WRITE(*,"(A)") '   error step 0.2...'
     DO vi = mesh%vi1, mesh%vi2
+    DO m = 1, 12
+    print *, "value of I_abs", climate%matrix%I_abs( vi)
+    print *, "value of Q_TOA",climate%Q_TOA( vi,m)
+    print *, "value of Albedo",SMB%Albedo( vi, m)
       ! Calculate modelled absorbed insolation. Berends et al., 2018 - Eq. 2
       climate%matrix%I_abs( vi) = climate%matrix%I_abs( vi) + & 
-      climate%Q_TOA( vi,m) * (1._dp - SMB%Albedo( vi, m))  
+                                  climate%Q_TOA( vi,m) * (1._dp - SMB%Albedo( vi, m))  
     END DO
     END DO
-
+    IF (par%primary)  WRITE(*,"(A)") '   error step 1...'
     ! Calculate "direct" weighting field
     ! Berends et al., 2018 - Eq. 3
     DO vi = mesh%vi1, mesh%vi2
@@ -194,6 +203,7 @@ contains
       w_ice( mesh%vi1:mesh%vi2) = (1._dp * w_ins_smooth( mesh%vi1:mesh%vi2) + &
                                    6._dp * w_ins_av) / 7._dp
     END IF
+    IF (par%primary)  WRITE(*,"(A)") '   error step 2...'
 
 
     ! Combine interpolation weights from absorbed insolation and CO2 into the final weights fields
@@ -213,6 +223,7 @@ contains
 !! In UFE1.x here are two more options, glacial matrix and glacial index
 !! lines 1050 - 1080 in climate_module.f90
 !! ==============================================================================================================
+    IF (par%primary)  WRITE(*,"(A)") '   error step 3...'
 
     ! Interpolate between the GCM snapshots
     ! =====================================
@@ -281,6 +292,8 @@ contains
 !    CALL allocate_shared_dp_2D( 12, mesh%nV, T_ref_GCM,      wT_ref_GCM     )
 !    CALL allocate_shared_dp_2D( 12, mesh%nV, P_ref_GCM,      wP_ref_GCM     )
 !    CALL allocate_shared_dp_1D(     mesh%nV, Hs_GCM,         wHs_GCM        )
+
+    IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix precipitation model...'
 
     ! Calculate interpolation weights based on ice geometry
     ! =====================================================
@@ -369,8 +382,7 @@ contains
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix_precipitation
-  !!! CHECK mask_noice, in UFE1.x was on region%mask_noice (:)
-  SUBROUTINE initialise_climate_matrix( mesh, grid, ice, climate, region_name, mask_noice, forcing)
+  SUBROUTINE initialise_climate_matrix( mesh, grid, ice, climate, region_name, forcing)
 
     IMPLICIT NONE
 
@@ -380,7 +392,6 @@ contains
     type(type_ice_model),                intent(in)    :: ice
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    LOGICAL,  DIMENSION(:),          INTENT(IN)    :: mask_noice
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing    
 
     ! Local variables:
@@ -443,8 +454,8 @@ contains
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
     ! Get reference absorbed insolation for the GCM snapshots
-    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, mask_noice, forcing)
-    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, mask_noice, forcing)
+    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, forcing, ice)
+    CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, forcing, ice)
 
     ! Initialise applied climate with present-day observations
 ! initialise climate model for realistic climate, just for now, so I will have all allocate from the realistic climate
@@ -536,7 +547,8 @@ contains
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot'
-
+    !integer                                            :: vi, m
+    !REAL(dp)                                           :: longitude_start, Uwind_x, Uwind_y, Vwind_x, Vwind_y
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -554,9 +566,32 @@ contains
     CALL read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, snapshot%Precip )
     call read_field_from_file_2D_monthly( filename, 'Wind_WE||uas||'      , mesh, snapshot%Wind_WE) ! is needed the last ||? I copy it from SMB_realistic
     call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
+!    call save_variable_as_netcdf_dp_2D(snapshot%T2m, 'snapshot%T2m')
+!    call save_variable_as_netcdf_dp_2D(snapshot%Wind_WE, 'snapshot%Wind_WE')
+    
 
+    ! First find the first longitude which defines the start of quadrant I:
+    !longitude_start = mesh%lambda_M - 90._dp
+    
+    !DO vi = mesh%vi1, mesh%vi2
+    !DO m = 1, 12
+           !print *, snapshot%Wind_WE( vi,m)
+                 ! calculate x and y from the zonal wind
+     ! Uwind_x =   snapshot%Wind_WE( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+     ! Uwind_y = - snapshot%Wind_WE( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+
+      ! calculate x and y from the meridional winds
+      !Vwind_x =   snapshot%Wind_SN( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+      !Vwind_y =   snapshot%Wind_SN( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
+
+      ! Sum up wind components
+      !snapshot%Wind_LR( vi,m) = Uwind_x + Vwind_x   ! winds left to right
+      !snapshot%Wind_DU( vi,m) = Uwind_y + Vwind_y   ! winds bottom to top
+    !END DO
+    !END DO
+    
     call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
-
+    !print *, "no error?"
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -745,7 +780,7 @@ contains
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_matrix_calc_spatially_variable_lapserate
-  SUBROUTINE initialise_matrix_calc_absorbed_insolation( mesh, snapshot, region_name, mask_noice, forcing)
+  SUBROUTINE initialise_matrix_calc_absorbed_insolation( mesh, snapshot, region_name, forcing, ice)
     ! Calculate the yearly absorbed insolation for this (regional) GCM snapshot, to be used in the matrix interpolation
 
     IMPLICIT NONE
@@ -754,9 +789,8 @@ contains
     TYPE(type_mesh),                      INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
-    !!! FIX mask_noice is used later on run_SMB_model, this is probably different in UFE2
-    LOGICAL,  DIMENSION(:  ),           INTENT(IN)    :: mask_noice
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
+    type(type_ice_model),                   intent(in)    :: ice
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_calc_absorbed_insolation'
@@ -764,6 +798,7 @@ contains
     TYPE(type_ice_model)                                :: ice_dummy
     TYPE(type_climate_model)                            :: climate_dummy
     TYPE(type_SMB_model)                                :: SMB_dummy
+    CHARACTER(LEN=256)                                  :: choice_SMB_IMAUITM_init_firn_dummy
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -799,9 +834,14 @@ contains
     allocate( ice_dummy%mask_icefree_ocean( mesh%vi1:mesh%vi2))
     allocate( ice_dummy%mask_grounded_ice(   mesh%vi1:mesh%vi2))
     allocate( ice_dummy%mask_floating_ice( mesh%vi1:mesh%vi2))
+    allocate( ice_dummy%mask_noice(        mesh%vi1:mesh%vi2))
 
     ! Fill in masks for the SMB model
     DO vi = mesh%vi1, mesh%vi2
+    
+   ! In IMAU-ICE SMB is runned using region%mask_noice in UFE2 is ice%mask_noice, I will keep the masks from above for ice_dummy
+   ! and make ice_dummy%mask_noice = ice%mask_noice to run the SMB using the dummy, following IMAU-ICE code..
+      ice_dummy%mask_noice( vi) = ice%mask_noice( vi) 
 
       IF (snapshot%Hs( vi) == MINVAL(snapshot%Hs)) THEN
         ice_dummy%mask_icefree_ocean( vi) = .true.
@@ -835,6 +875,10 @@ contains
     allocate( SMB_dummy%Albedo          (mesh%vi1:mesh%vi2, 12))
     allocate( SMB_dummy%Albedo_year     (mesh%vi1:mesh%vi2))
     allocate( SMB_dummy%SMB_monthly     (mesh%vi1:mesh%vi2,12))
+    allocate( SMB_dummy%FirnDepth       (mesh%vi1:mesh%vi2,12))
+    allocate( SMB_dummy%MeltPreviousYear(mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%SMB             (mesh%vi1:mesh%vi2))
+    SMB_dummy%SMB = 0._dp
 
 ! not needed anymore.. commment for now
 !    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_constant, SMB_dummy%wC_abl_constant)
@@ -848,26 +892,67 @@ contains
         SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_NAM
         SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_NAM
         SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_NAM
+        choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_NAM
       ELSEIF (region_name == 'EAS') THEN
         SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_EAS
         SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_EAS
         SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_EAS
         SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_EAS
+        choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_EAS
       ELSEIF (region_name == 'GRL') THEN
         SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_GRL
         SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_GRL
         SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_GRL
         SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_GRL
+        choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_GRL
       ELSEIF (region_name == 'ANT') THEN
         SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_ANT
         SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_ANT
         SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_ANT
         SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_ANT
+        choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_ANT
       END IF
     END IF ! IF (par%primary) THEN
 
+    ! Initialise the firn layer
+    IF     (choice_SMB_IMAUITM_init_firn_dummy == 'uniform') THEN
+      ! Initialise with a uniform firn layer over the ice sheet
+
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%Hi( vi) > 0._dp) THEN
+          SMB_dummy%FirnDepth(        vi,:) = C%SMB_IMAUITM_initial_firn_thickness
+          SMB_dummy%MeltPreviousYear(   vi) = 0._dp
+        ELSE
+          SMB_dummy%FirnDepth(        vi,:) = 0._dp
+          SMB_dummy%MeltPreviousYear(   vi) = 0._dp
+        END IF
+      END DO
+
+    ELSEIF (choice_SMB_IMAUITM_init_firn_dummy == 'read_from_file') THEN
+      CALL crash('not implemented yet with climate matrix "' // TRIM( choice_SMB_IMAUITM_init_firn_dummy) // '"!')
+      ! Initialise with the firn layer of a previous run
+      !CALL initialise_IMAUITM_firn_from_file( mesh, SMB_dummy, region_name)
+    ELSE
+      CALL crash('unknown choice_SMB_IMAUITM_init_firn "' // TRIM( choice_SMB_IMAUITM_init_firn_dummy) // '"!')
+    END IF
+
+    ! Initialise albedo
+    DO vi = mesh%vi1, mesh%vi2
+      ! Background albedo
+      IF (ice%Hb( vi) < 0._dp) THEN
+        SMB_dummy%AlbedoSurf( vi) = 0.1_dp ! albedo_water
+      ELSE
+        SMB_dummy%AlbedoSurf( vi) = 0.2_dp ! albedo_soil
+      END IF
+      IF (ice%Hi( vi) > 0._dp) THEN
+        SMB_dummy%AlbedoSurf(  vi) = 0.85_dp ! albedo_snow
+      END IF
+      SMB_dummy%Albedo( vi,:) = SMB_dummy%AlbedoSurf( vi)
+    END DO
+
     ! Run the SMB model for 10 years for this particular climate
     ! (experimentally determined to be long enough to converge)
+    if (par%primary) write(*,"(A)") '      Running SMB during initialise_matrix_calc_absorbed_insolation'
     DO i = 1, 10
       CALL run_SMB_model_parameterised_IMAUITM( mesh, ice_dummy, climate_dummy, SMB_dummy)
     END DO
@@ -1108,9 +1193,11 @@ contains
     ! First find the first longitude which defines the start of quadrant I:
     longitude_start = mesh%lambda_M - 90._dp
 
+    print *, mesh%vi2
+    call save_variable_as_netcdf_dp_2D(wind_WE, 'testname')
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-
+     ! write (10,*) (wind_WE)
       ! calculate x and y from the zonal wind
       Uwind_x =   wind_WE( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
       Uwind_y = - wind_WE( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))

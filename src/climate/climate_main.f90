@@ -49,7 +49,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
+    
     ! Check if we need to calculate a new climate
     IF (C%do_asynchronous_climate) THEN
       ! Asynchronous coupling: do not calculate a new climate in
@@ -165,7 +165,8 @@ CONTAINS
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
     ELSEIF (choice_climate_model == 'matrix') THEN
-      call initialise_climate_matrix( mesh, grid, ice, climate, region_name, ice%mask_noice, forcing)
+      IF (par%primary)  WRITE(*,"(A)") '   Initialising climate matrix model...'
+      call initialise_climate_matrix( mesh, grid, ice, climate, region_name, forcing)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
