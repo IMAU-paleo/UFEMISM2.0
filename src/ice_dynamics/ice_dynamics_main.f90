@@ -46,6 +46,7 @@ module ice_dynamics_main
   use ice_model_memory, only: allocate_ice_model
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D
   use climate_realistic, only: update_sealevel_at_model_time
+  use ice_shelf_base_slopes_onesided, only: calc_ice_shelf_base_slopes_onesided
 
   implicit none
 
@@ -165,8 +166,7 @@ contains
     call calc_effective_thickness( region%mesh, region%ice, region%ice%Hi, region%ice%Hi_eff, region%ice%fraction_margin)
 
     ! Calculate ice shelf draft gradients
-    call ddx_a_b_2D( region%mesh, region%ice%Hib, region%ice%dHib_dx_b)
-    call ddy_a_b_2D( region%mesh, region%ice%Hib, region%ice%dHib_dy_b)
+    call calc_ice_shelf_base_slopes_onesided( region%mesh, region%ice)
 
     ! Calculate absolute surface gradient
     call ddx_a_a_2D( region%mesh, region%ice%Hs, dHs_dx)
@@ -290,10 +290,6 @@ contains
 
     end do ! do vi = mesh%vi1, mesh%vi2
 
-    ! Calculate ice shelf draft gradients
-    call ddx_a_b_2D( mesh, ice%Hib, ice%dHib_dx_b)
-    call ddy_a_b_2D( mesh, ice%Hib, ice%dHib_dy_b)
-
     ! Calculate zeta gradients
     call calc_zeta_gradients( mesh, ice)
 
@@ -318,6 +314,9 @@ contains
 
     ! Compute effective thickness at calving fronts
     call calc_effective_thickness( mesh, ice, ice%Hi, ice%Hi_eff, ice%fraction_margin)
+
+    ! Calculate ice shelf draft gradients
+    call calc_ice_shelf_base_slopes_onesided( mesh, ice)
 
     ! Surface gradients
     ! =================
@@ -755,8 +754,7 @@ contains
     end do ! do vi = mesh_new%vi1, mesh_new%vi2
 
     ! Horizontal derivatives
-    call ddx_a_b_2D( mesh_new, ice%Hib, ice%dHib_dx_b)
-    call ddy_a_b_2D( mesh_new, ice%Hib, ice%dHib_dy_b)
+    call calc_ice_shelf_base_slopes_onesided( mesh_new, ice)
 
     ! Calculate zeta gradients
     call calc_zeta_gradients( mesh_new, ice)

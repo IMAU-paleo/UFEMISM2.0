@@ -4,7 +4,7 @@ MODULE laddie_thickness
 
 ! ===== Preamble =====
 ! ====================
-    
+
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
@@ -19,11 +19,12 @@ MODULE laddie_thickness
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
+  use mesh_halo_exchange, only: exchange_halos
 
   IMPLICIT NONE
-    
+
 CONTAINS
-    
+
 ! ===== Main routines =====
 ! =========================
 
@@ -43,7 +44,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_H_npx'
- 
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -57,12 +58,12 @@ CONTAINS
     CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, ice, laddie, npx, npxref%H)
+    CALL compute_buoyancy( mesh, laddie, npx, npxref%H)
 
     ! Compute melt rate
     CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
-     
-    ! Compute entrainment                                    
+
+    ! Compute entrainment
     CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
 
     ! Do integration
@@ -143,24 +144,19 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_divQH'
-    REAL(dp), DIMENSION(mesh%nE)                          :: U_c_tot, V_c_tot
-    REAL(dp), DIMENSION(mesh%nV)                          :: H_tot
     INTEGER                                               :: vi, ci, vj, ei
     REAL(dp)                                              :: u_perp
-    LOGICAL, DIMENSION(mesh%nV)                           :: mask_gr_a_tot, mask_oc_a_tot
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    CALL gather_to_all( npx%U_c, U_c_tot)
-    CALL gather_to_all( npx%V_c, V_c_tot)
-    CALL gather_to_all( npx%H, H_tot)
-    CALL gather_to_all( laddie%mask_gr_a, mask_gr_a_tot)
-    CALL gather_to_all( laddie%mask_oc_a, mask_oc_a_tot)
+    call exchange_halos( mesh, npx%U_c)
+    call exchange_halos( mesh, npx%V_c)
+    call exchange_halos( mesh, npx%H)
 
     ! Initialise with zeros
-    laddie%divQH = 0.0_dp
+    laddie%divQH( mesh%vi1:mesh%vi2) = 0.0_dp
 
     ! == Loop over vertices ==
     ! =========================
@@ -178,32 +174,32 @@ CONTAINS
 
           ! Skip connection if neighbour is grounded. No flux across grounding line
           ! Can be made more flexible when accounting for partial cells (PMP instead of FCMP)
-          IF (mask_gr_a_tot( vj)) CYCLE
+          IF (laddie%mask_gr_a( vj)) CYCLE
 
           ! Get edge
           ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-          u_perp = U_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + V_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+          u_perp = npx%U_c( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + npx%V_c( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
 
           ! Calculate upwind momentum divergence
           ! =============================
           ! u_perp > 0: flow is exiting this vertex into vertex vj
           IF (u_perp > 0) THEN
-            laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
+            laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * npx%H( vi) / mesh%A( vi)
           ! u_perp < 0: flow is entering this vertex from vertex vj
           ELSE
-            IF (mask_oc_a_tot( vj)) THEN
+            IF (laddie%mask_oc_a( vj)) THEN
               CYCLE ! No inflow
               ! TODO fix boundary condition for inflow
-              ! laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vi) / mesh%A( vi)
+              ! laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * npx%H( vi) / mesh%A( vi)
             ELSE
-              laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * H_tot( vj) / mesh%A( vi)
+              laddie%divQH( vi) = laddie%divQH( vi) + mesh%Cw( vi, ci) * u_perp * npx%H( vj) / mesh%A( vi)
             END IF
           END IF
 
         END DO ! DO ci = 1, mesh%nC( vi)
-       
+
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2

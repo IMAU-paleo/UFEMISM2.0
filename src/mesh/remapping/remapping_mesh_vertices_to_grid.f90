@@ -20,7 +20,6 @@ module remapping_mesh_vertices_to_grid
   use line_tracing_grid, only: trace_line_grid
   use line_tracing_triangles, only: trace_line_tri
   use line_tracing_Voronoi, only: trace_line_Vor
-  use grid_basic, only: calc_matrix_operators_grid
   use netcdf_output
 
   implicit none
