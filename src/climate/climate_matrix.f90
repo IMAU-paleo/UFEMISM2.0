@@ -164,6 +164,8 @@ contains
 
     ! Calculate modelled absorbed insolation
     ! CHECK where I_Abs will be stored it will be called as climate%matrix? 
+    IF (par%primary) print *, "value of Albedo",SMB%Albedo
+
     climate%matrix%I_abs( mesh%vi1:mesh%vi2) = 0._dp
     IF (par%primary)  WRITE(*,"(A)") '   error step 0.2...'
     DO vi = mesh%vi1, mesh%vi2
