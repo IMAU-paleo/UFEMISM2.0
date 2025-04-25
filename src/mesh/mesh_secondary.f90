@@ -59,8 +59,8 @@ CONTAINS
     CALL calc_mesh_resolution(                  mesh)
     CALL calc_triangle_geometric_centres(       mesh)
     CALL calc_lonlat(                           mesh, lambda_M, phi_M, beta_stereo)
-    CALL setup_mesh_parallelisation(            mesh)
     CALL initialise_scaled_vertical_coordinate( mesh)
+    CALL setup_mesh_parallelisation(            mesh)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

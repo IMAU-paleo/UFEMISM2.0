@@ -33,7 +33,8 @@ contains
     ! Perform the ddxping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_a_a, &
       mesh%pai_V, d_a, mesh%pai_V, ddx_a, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -58,7 +59,8 @@ contains
     ! Perform the ddxping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_ddx_a_a, &
       mesh%pai_V, d_a, mesh%pai_V, ddx_a, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_ak_nih, buffer_yy_nih = mesh%buffer2_d_ak_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -83,7 +85,8 @@ contains
     ! Perform the ddyping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_a_a, &
       mesh%pai_V, d_a, mesh%pai_V, ddy_a, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -107,7 +110,8 @@ contains
 
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_ddy_a_a, &
       mesh%pai_V, d_a, mesh%pai_V, ddy_a, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_ak_nih, buffer_yy_nih = mesh%buffer2_d_ak_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -132,7 +136,8 @@ contains
     ! Perform the mapping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_a_b, &
       mesh%pai_V, d_a, mesh%pai_Tri, d_b, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = d_b_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = d_b_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -157,7 +162,8 @@ contains
     ! Perform the mapping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_map_a_b, &
       mesh%pai_V, d_a, mesh%pai_Tri, d_b, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = d_b_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = d_b_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_ak_nih, buffer_yy_nih = mesh%buffer2_d_bk_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -182,7 +188,8 @@ contains
     ! Perform the mapping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_b_a, &
       mesh%pai_Tri, d_b, mesh%pai_V, d_a, &
-      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = d_a_is_hybrid)
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = d_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -207,7 +214,8 @@ contains
     ! Perform the mapping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_map_b_a, &
       mesh%pai_Tri, d_b, mesh%pai_V, d_a, &
-      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = d_a_is_hybrid)
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = d_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_bk_nih, buffer_yy_nih = mesh%buffer2_d_ak_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -232,7 +240,8 @@ contains
     ! Perform the ddxping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_a_b, &
       mesh%pai_V, d_a, mesh%pai_Tri, ddx_b, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_b_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_b_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -257,7 +266,8 @@ contains
     ! Perform the ddxping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_ddx_a_b, &
       mesh%pai_V, d_a, mesh%pai_Tri, ddx_b, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_b_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddx_b_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_ak_nih, buffer_yy_nih = mesh%buffer2_d_bk_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -282,7 +292,8 @@ contains
     ! Perform the ddxping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_b_a, &
       mesh%pai_Tri, d_b, mesh%pai_V, ddx_a, &
-      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -307,7 +318,8 @@ contains
     ! Perform the ddxping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_ddx_b_a, &
       mesh%pai_Tri, d_b, mesh%pai_V, ddx_a, &
-      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid)
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddx_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_bk_nih, buffer_yy_nih = mesh%buffer2_d_ak_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -332,7 +344,8 @@ contains
     ! Perform the ddyping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_a_b, &
       mesh%pai_V, d_a, mesh%pai_Tri, ddy_b, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_b_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_b_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -357,7 +370,8 @@ contains
     ! Perform the ddyping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_ddy_a_b, &
       mesh%pai_V, d_a, mesh%pai_Tri, ddy_b, &
-      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_b_is_hybrid)
+      xx_is_hybrid = d_a_is_hybrid, yy_is_hybrid = ddy_b_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_ak_nih, buffer_yy_nih = mesh%buffer2_d_bk_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -382,7 +396,8 @@ contains
     ! Perform the ddyping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_b_a, &
       mesh%pai_Tri, d_b, mesh%pai_V, ddy_a, &
-      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -407,7 +422,8 @@ contains
     ! Perform the ddyping operation as a matrix multiplication
     call multiply_CSR_matrix_with_vector_2D_wrapper( mesh%M_ddy_b_a, &
       mesh%pai_Tri, d_b, mesh%pai_V, ddy_a, &
-      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid)
+      xx_is_hybrid = d_b_is_hybrid, yy_is_hybrid = ddy_a_is_hybrid, &
+      buffer_xx_nih = mesh%buffer1_d_bk_nih, buffer_yy_nih = mesh%buffer2_d_ak_nih)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -638,7 +638,8 @@ CONTAINS
     ! (set to false whenever a new mesh is created,
     ! and set to true whenever a new set of output files is created)
 
-    region%output_files_match_current_mesh = .TRUE.
+    region%output_files_match_current_mesh             = .TRUE.
+    region%BMB%laddie%output_file_matches_current_mesh = .TRUE.
 
     ! ===== Finalisation =====
     ! ========================
@@ -1194,6 +1195,13 @@ CONTAINS
     ! Write the mesh creation success message to the terminal
     CALL write_mesh_success( mesh_new)
 
+    ! Confirm that the current set of mesh output files do not match the current model mesh
+    ! (set to false whenever a new mesh is created,
+    ! and set to true whenever a new set of output files is created)
+
+    region%output_files_match_current_mesh             = .FALSE.
+    region%BMB%laddie%output_file_matches_current_mesh = .FALSE.
+
     ! Remap the reference geometries to the new mesh (deallocation of old data happens in there)
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
@@ -1225,12 +1233,6 @@ CONTAINS
     CALL deallocate_mesh( region%mesh)
     region%mesh = mesh_new
     region%time_mesh_was_created = region%time
-
-    ! Confirm that the current set of mesh output files do not match the current model mesh
-    ! (set to false whenever a new mesh is created,
-    ! and set to true whenever a new set of output files is created)
-
-    region%output_files_match_current_mesh = .FALSE.
 
     ! We want to know how long this takes, just to show off...
     tstop = MPI_WTIME()

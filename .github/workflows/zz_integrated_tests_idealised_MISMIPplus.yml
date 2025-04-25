@@ -35,7 +35,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: | 
+        run: |
           python -m pip install --upgrade pip
           pip install -r tools/python/requirements.txt
 
@@ -50,7 +50,7 @@ jobs:
         id: UFEMISM_program_cache_restore
         with:
           path: UFEMISM_program
-          key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
+          key: UFEMISM_program_perf_${{ github.ref_name }}_${{ github.run_id }}
 
       - name: Run integrated_tests/idealised/MISMIPplus - 01_5km_spinup_part0
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/MISMIPplus/config_01_5km_spinup_part0.cfg

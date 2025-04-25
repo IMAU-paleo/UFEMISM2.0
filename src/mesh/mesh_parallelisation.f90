@@ -55,6 +55,7 @@ module mesh_parallelisation
   use mpi_basic, only: par, sync
   use mpi_distributed_memory, only: partition_list
   use mpi_f08, only: MPI_ALLREDUCE, MPI_INTEGER, MPI_MIN, MPI_MAX, MPI_IN_PLACE, MPI_COMM_WORLD, MPI_ALLGATHER
+  use mpi_distributed_shared_memory, only: allocate_dist_shared
 
   implicit none
 
@@ -84,27 +85,58 @@ contains
       mesh%V_owning_process, mesh%V_owning_node)
     mesh%pai_V%i1 = mesh%vi1
     mesh%pai_V%i2 = mesh%vi2
+    mesh%pai_V%n_loc = mesh%nV_loc
 
     ! b-grid (triangles)
     allocate( mesh%Tri_owning_process( mesh%nTri))
     allocate( mesh%Tri_owning_node   ( mesh%nTri))
     call determine_ownership_ranges( mesh%nTri, mesh%ti1, mesh%ti2, mesh%nTri_loc, &
-      mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node, mesh%pai_Tri%n_node, &
-      mesh%Tri_owning_process, mesh%Tri_owning_node)
+    mesh%pai_Tri%i1_node, mesh%pai_Tri%i2_node, mesh%pai_Tri%n_node, &
+    mesh%Tri_owning_process, mesh%Tri_owning_node)
     mesh%pai_Tri%i1 = mesh%ti1
     mesh%pai_Tri%i2 = mesh%ti2
+    mesh%pai_Tri%n_loc = mesh%nTri_loc
 
     ! c-grid (edges)
     allocate( mesh%E_owning_process  ( mesh%nE))
     allocate( mesh%E_owning_node     ( mesh%nE))
     call determine_ownership_ranges( mesh%nE, mesh%ei1, mesh%ei2, mesh%nE_loc, &
-      mesh%pai_E%i1_node, mesh%pai_E%i2_node, mesh%pai_E%n_node, &
-      mesh%E_owning_process, mesh%E_owning_node)
+    mesh%pai_E%i1_node, mesh%pai_E%i2_node, mesh%pai_E%n_node, &
+    mesh%E_owning_process, mesh%E_owning_node)
     mesh%pai_E%i1 = mesh%ei1
     mesh%pai_E%i2 = mesh%ei2
+    mesh%pai_E%n_loc = mesh%nE_loc
 
     ! Determine all halos
     call determine_halos( mesh)
+
+    ! Allocate buffer shared memory for e.g. matrix multiplications
+    call allocate_dist_shared( mesh%buffer1_d_a_nih , mesh%wbuffer1_d_a_nih , mesh%pai_V%n_nih)
+    call allocate_dist_shared( mesh%buffer2_d_a_nih , mesh%wbuffer2_d_a_nih , mesh%pai_V%n_nih)
+    call allocate_dist_shared( mesh%buffer1_d_ak_nih, mesh%wbuffer1_d_ak_nih, mesh%pai_V%n_nih,   mesh%nz)
+    call allocate_dist_shared( mesh%buffer2_d_ak_nih, mesh%wbuffer2_d_ak_nih, mesh%pai_V%n_nih,   mesh%nz)
+    mesh%buffer1_d_a_nih(  mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih             ) => mesh%buffer1_d_a_nih
+    mesh%buffer2_d_a_nih(  mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih             ) => mesh%buffer2_d_a_nih
+    mesh%buffer1_d_ak_nih( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  , 1:mesh%nz) => mesh%buffer1_d_ak_nih
+    mesh%buffer2_d_ak_nih( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  , 1:mesh%nz) => mesh%buffer2_d_ak_nih
+
+    call allocate_dist_shared( mesh%buffer1_d_b_nih , mesh%wbuffer1_d_b_nih , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( mesh%buffer2_d_b_nih , mesh%wbuffer2_d_b_nih , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( mesh%buffer1_d_bk_nih, mesh%wbuffer1_d_bk_nih, mesh%pai_Tri%n_nih, mesh%nz)
+    call allocate_dist_shared( mesh%buffer2_d_bk_nih, mesh%wbuffer2_d_bk_nih, mesh%pai_Tri%n_nih, mesh%nz)
+    mesh%buffer1_d_b_nih(  mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih           ) => mesh%buffer1_d_b_nih
+    mesh%buffer2_d_b_nih(  mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih           ) => mesh%buffer2_d_b_nih
+    mesh%buffer1_d_bk_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih, 1:mesh%nz) => mesh%buffer1_d_bk_nih
+    mesh%buffer2_d_bk_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih, 1:mesh%nz) => mesh%buffer2_d_bk_nih
+
+    call allocate_dist_shared( mesh%buffer1_d_c_nih , mesh%wbuffer1_d_c_nih , mesh%pai_E%n_nih)
+    call allocate_dist_shared( mesh%buffer2_d_c_nih , mesh%wbuffer2_d_c_nih , mesh%pai_E%n_nih)
+    call allocate_dist_shared( mesh%buffer1_d_ck_nih, mesh%wbuffer1_d_ck_nih, mesh%pai_E%n_nih,   mesh%nz)
+    call allocate_dist_shared( mesh%buffer2_d_ck_nih, mesh%wbuffer2_d_ck_nih, mesh%pai_E%n_nih,   mesh%nz)
+    mesh%buffer1_d_c_nih(  mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih             ) => mesh%buffer1_d_c_nih
+    mesh%buffer2_d_c_nih(  mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih             ) => mesh%buffer2_d_c_nih
+    mesh%buffer1_d_ck_nih( mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih  , 1:mesh%nz) => mesh%buffer1_d_ck_nih
+    mesh%buffer2_d_ck_nih( mesh%pai_E%i1_nih  :mesh%pai_E%i2_nih  , 1:mesh%nz) => mesh%buffer2_d_ck_nih
 
     ! call print_parallelisation_info( mesh)
 
@@ -266,6 +298,10 @@ contains
       mesh%pai_E%i2_nih = mesh%pai_E%i2_hre
 
     end if
+
+    mesh%pai_V%n       = mesh%nV
+    mesh%pai_Tri%n     = mesh%nTri
+    mesh%pai_E%n       = mesh%nE
 
     mesh%pai_V%n_nih   = mesh%pai_V%i2_nih   + 1 - mesh%pai_V%i1_nih
     mesh%pai_Tri%n_nih = mesh%pai_Tri%i2_nih + 1 - mesh%pai_Tri%i1_nih
