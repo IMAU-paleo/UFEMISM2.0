@@ -134,9 +134,9 @@ CONTAINS
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .FALSE.)
       CASE ('laddie')
         IF (time == C%start_time_of_run) THEN
-          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init)
+          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init, region_name)
         ELSE
-          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie)
+          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie, region_name)
         END IF
 
         DO vi = mesh%vi1, mesh%vi2
@@ -286,7 +286,7 @@ CONTAINS
       CASE ('laddie_py')
         CALL initialise_BMB_model_laddie( mesh, BMB)
       CASE ('laddie')
-        CALL initialise_laddie_model( mesh, BMB%laddie, ocean, ice)
+        CALL initialise_laddie_model( mesh, BMB%laddie, ocean, ice, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT
@@ -590,7 +590,7 @@ CONTAINS
       CASE ('laddie_py')
         CALL remap_BMB_model_laddie( mesh_new, BMB)
       CASE ('laddie')
-        CALL remap_laddie_model( mesh_old, mesh_new, ice, ocean, BMB%laddie, time)
+        CALL remap_laddie_model( mesh_old, mesh_new, ice, ocean, BMB%laddie, time, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model "' // TRIM( choice_BMB_model) // '"')
     END SELECT

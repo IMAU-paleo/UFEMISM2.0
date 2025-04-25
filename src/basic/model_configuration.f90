@@ -922,6 +922,9 @@ MODULE model_configuration
   ! == LADDIE model
   ! ===============
 
+    ! Output
+    LOGICAL             :: do_write_laddie_output_config                = .FALSE.                          ! Whether or not to write output on laddie time
+
     ! Time step
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
     REAL(dp)            :: time_duration_laddie_config                  = 6._dp                            ! [days] Duration of each run cycle
@@ -2044,6 +2047,9 @@ MODULE model_configuration
   ! == LADDIE model
   ! ===============
 
+    ! Output
+    LOGICAL             :: do_write_laddie_output
+
     ! Time step
     REAL(dp)            :: dt_laddie
     REAL(dp)            :: time_duration_laddie
@@ -3056,6 +3062,7 @@ CONTAINS
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
       conda_activate_prompt_config                                , &
+      do_write_laddie_output_config                               , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
       time_duration_laddie_init_config                            , &
@@ -4142,6 +4149,9 @@ CONTAINS
 
   ! == LADDIE model
   ! ===============
+
+    ! Output
+    C%do_write_laddie_output                                 = do_write_laddie_output_config
 
     ! Time step
     C%dt_laddie                                              = dt_laddie_config
