@@ -53,7 +53,7 @@ CONTAINS
       ! Compute and read laddie values for current geometry
 
       ! Define filename of BMB output from LADDIE
-      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest_v00.nc'
+      filename_BMB_laddie_output      = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest_UFE.nc'
 
       ! Run LADDIE
       IF (par%primary) THEN
@@ -79,9 +79,11 @@ CONTAINS
 
         DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_ROI(vi)) THEN
-            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
+            ! IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
+              BMB%BMB( vi) = 0._dp 
               BMB%BMB_shelf( vi) = temporary_BMB(vi)
-            END IF
+              BMB%BMB( vi) = BMB%BMB_shelf( vi)
+            ! END IF
           END IF
         END DO
 
@@ -100,9 +102,11 @@ CONTAINS
 
         DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_ROI(vi)) THEN
-            IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
+            ! IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
+              BMB%BMB( vi) = 0._dp 
               BMB%BMB_shelf( vi) = temporary_BMB(vi)
-            END IF
+              BMB%BMB( vi) = BMB%BMB_shelf( vi)
+            ! END IF
           END IF
         END DO
 
