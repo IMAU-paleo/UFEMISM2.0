@@ -63,6 +63,8 @@ contains
 
     IF (par%primary)  WRITE(*,"(A)") '      Running climate matrix model...'
 
+    print *, "size of SMB%Albedo just after entering run =", size(SMB%Albedo, 1), 'times', size(SMB%Albedo, 2)
+
     ! Update forcing at model time
     ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
     CALL get_insolation_at_time( mesh, time, forcing, climate%Q_TOA)
@@ -164,15 +166,12 @@ contains
 
     ! Calculate modelled absorbed insolation
     ! CHECK where I_Abs will be stored it will be called as climate%matrix? 
-    IF (par%primary) print *, "value of Albedo",SMB%Albedo
+    !IF (par%primary) print *, "value of Albedo",SMB%Albedo
 
     climate%matrix%I_abs( mesh%vi1:mesh%vi2) = 0._dp
     IF (par%primary)  WRITE(*,"(A)") '   error step 0.2...'
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-    print *, "value of I_abs", climate%matrix%I_abs( vi)
-    print *, "value of Q_TOA",climate%Q_TOA( vi,m)
-    print *, "value of Albedo",SMB%Albedo( vi, m)
       ! Calculate modelled absorbed insolation. Berends et al., 2018 - Eq. 2
       climate%matrix%I_abs( vi) = climate%matrix%I_abs( vi) + & 
                                   climate%Q_TOA( vi,m) * (1._dp - SMB%Albedo( vi, m))  
@@ -181,16 +180,23 @@ contains
     IF (par%primary)  WRITE(*,"(A)") '   error step 1...'
     ! Calculate "direct" weighting field
     ! Berends et al., 2018 - Eq. 3
+    print *, "size of matrix%I_abs =", size(climate%matrix%I_abs, 1)
+    print *, "size of matrix%GCM_warm%I_abs =", size(climate%matrix%GCM_warm%I_abs, 1)
+    print *, "size of matrix%GCM%cold%I_abs =", size(climate%matrix%GCM_cold%I_abs, 1)
     DO vi = mesh%vi1, mesh%vi2
+    print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
+    print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
+    print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
+    print *, "print value of w_ins", w_ins(vi), "and vi = ", vi
       ! If absorbed insolation ~= warm snap -> weight is 1.
       ! If ~= cold snap -> weight is 0. Otherwise interpolate
       w_ins( vi) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, &
                       ( climate%matrix%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) / &
                       ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
     END DO
+    IF (par%primary)  WRITE(*,"(A)") '   error step 1.5 ...'
     w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
                                                            (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
-
     ! Smooth the weighting field
     w_ins_smooth( mesh%vi1:mesh%vi2) = w_ins( mesh%vi1:mesh%vi2)
     CALL smooth_Gaussian( mesh, grid, w_ins_smooth, 200000._dp)
@@ -1195,7 +1201,7 @@ contains
     ! First find the first longitude which defines the start of quadrant I:
     longitude_start = mesh%lambda_M - 90._dp
 
-    print *, mesh%vi2
+    print *, "print value of mesh%vi2 = ", mesh%vi2
     call save_variable_as_netcdf_dp_2D(wind_WE, 'testname')
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
