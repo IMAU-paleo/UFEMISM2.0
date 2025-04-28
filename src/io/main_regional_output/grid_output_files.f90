@@ -423,7 +423,7 @@ contains
         elsewhere
           mask_int = 0.0_dp
         end where
-        call map_from_mesh_to_xy_grid_2D( region%mesh, grid, mask_int, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, mask_int, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'mask_ROI', d_grid_vec_partial_2D)
 
     ! ===== Area fractions =====
