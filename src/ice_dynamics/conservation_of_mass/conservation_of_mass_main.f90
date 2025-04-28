@@ -8,8 +8,9 @@ module conservation_of_mass_main
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, duplicate_matrix_CSR_dist
-  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, add_entry_CSR_dist, duplicate_matrix_CSR_dist, &
+    finalise_matrix_CSR_dist
+  use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper
   use ice_geometry_basics, only: ice_surface_elevation, Hi_from_Hb_Hs_and_SL
   use mpi_distributed_memory, only: gather_to_all
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
@@ -172,7 +173,10 @@ contains
     call calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
-    call multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( M_divQ, &
+      mesh%pai_V, Hi, mesh%pai_V, divQ, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Calculate rate of ice thickness change dHi/dt
     dHi_dt = -divQ + fraction_margin * (SMB + BMB - dHi_dt_target) + LMB
@@ -302,7 +306,10 @@ contains
     call calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
-    call multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( M_divQ, &
+      mesh%pai_V, Hi, mesh%pai_V, divQ, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Calculate an estimate of the rate of ice thickness change dHi/dt
     dHi_dt_dummy = -divQ + SMB + BMB + LMB - dHi_dt_target
@@ -332,6 +339,7 @@ contains
         end if
       end do
     end do
+    call finalise_matrix_CSR_dist( AA)
 
     ! Load vector
     do vi = mesh%vi1, mesh%vi2
@@ -457,7 +465,10 @@ contains
     call calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
 
     ! Calculate the ice flux divergence div(Q)
-    call multiply_CSR_matrix_with_vector_1D( M_divQ, Hi, divQ)
+    call multiply_CSR_matrix_with_vector_1D_wrapper( M_divQ, &
+      mesh%pai_V, Hi, mesh%pai_V, divQ, &
+      xx_is_hybrid = .false., yy_is_hybrid = .false., &
+      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
 
     ! Calculate an estimate of the rate of ice thickness change dHi/dt
     dHi_dt_dummy = -divQ + SMB + BMB + LMB - dHi_dt_target
@@ -487,6 +498,7 @@ contains
         end if
       end do
     end do
+    call finalise_matrix_CSR_dist( AA)
 
     ! Load vector
     do vi = mesh%vi1, mesh%vi2
@@ -576,7 +588,8 @@ contains
     nrows_loc       = mesh%nV_loc
     nnz_est_proc    = mesh%nV_loc + SUM( mesh%nC( mesh%vi1:mesh%vi2))
 
-    call allocate_matrix_CSR_dist( M_divQ, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( M_divQ, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_V, pai_y = mesh%pai_V)
 
     ! == Calculate coefficients
     ! =========================
@@ -630,6 +643,8 @@ contains
       end do ! do ci = 1, mesh%nC( vi)
 
     end do ! do vi = mesh%vi1, mesh%vi2
+
+    call finalise_matrix_CSR_dist( M_divQ)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

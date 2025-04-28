@@ -696,6 +696,9 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL_config           = ''
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT_config           = ''
 
+    ! Choice of extrapolation method
+    CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method_config     = 'initialisation'                 ! Method to extrapolate ocean forcing into cavities: 'initialisation'
+
   ! == Surface mass balance
   ! =======================
 
@@ -815,6 +818,9 @@ MODULE model_configuration
 
   ! == LADDIE model
   ! ===============
+
+    ! Output
+    LOGICAL             :: do_write_laddie_output_config                = .FALSE.                          ! Whether or not to write output on laddie time
 
     ! Time step
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
@@ -1712,6 +1718,9 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT
 
+    ! Choice of extrapolation method
+    CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method
+
   ! == Surface mass balance
   ! =======================
 
@@ -1831,6 +1840,9 @@ MODULE model_configuration
 
   ! == LADDIE model
   ! ===============
+
+    ! Output
+    LOGICAL             :: do_write_laddie_output
 
     ! Time step
     REAL(dp)            :: dt_laddie
@@ -2707,6 +2719,7 @@ CONTAINS
       filename_ocean_snapshot_EAS_config                          , &
       filename_ocean_snapshot_GRL_config                          , &
       filename_ocean_snapshot_ANT_config                          , &
+      choice_ocean_extrapolation_method_config                    , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
       do_SMB_removal_icefree_land_config                          , &
@@ -2772,6 +2785,7 @@ CONTAINS
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
       conda_activate_prompt_config                                , &
+      do_write_laddie_output_config                               , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
       time_duration_laddie_init_config                            , &
@@ -3636,6 +3650,9 @@ CONTAINS
     C%filename_ocean_snapshot_GRL                            = filename_ocean_snapshot_GRL_config
     C%filename_ocean_snapshot_ANT                            = filename_ocean_snapshot_ANT_config
 
+    ! Choice of extrapolation method
+    C%choice_ocean_extrapolation_method                      = choice_ocean_extrapolation_method_config
+
   ! == Surface mass balance
   ! =======================
 
@@ -3755,6 +3772,9 @@ CONTAINS
 
   ! == LADDIE model
   ! ===============
+
+    ! Output
+    C%do_write_laddie_output                                 = do_write_laddie_output_config
 
     ! Time step
     C%dt_laddie                                              = dt_laddie_config

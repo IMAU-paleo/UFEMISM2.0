@@ -4,6 +4,8 @@ module mesh_types
 
   use precisions, only: dp
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
+  use parallel_array_info_type, only: type_par_arr_info
+  use mpi_f08, only: MPI_WIN
 
   implicit none
 
@@ -76,6 +78,9 @@ module mesh_types
     integer,  dimension(:    ), allocatable :: TriBI                         ! [0-8]     Each triangle's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
     real(dp), dimension(:,:  ), allocatable :: TriGC                         ! [m]       The X,Y-coordinates of each triangle's geometric centre
     real(dp), dimension(:    ), allocatable :: TriA                          ! [m^2]     The area of each triangle
+    real(dp), dimension(:,:  ), allocatable :: TriD_x                        ! [m]       x-component of triangle-triangle connections
+    real(dp), dimension(:,:  ), allocatable :: TriD_y                        ! [m]       y-component of triangle-triangle connections
+    real(dp), dimension(:,:  ), allocatable :: TriD                          ! [m]       absolute distance of triangle-triangle connections
 
     ! lon/lat coordinates
     real(dp), dimension(:    ), allocatable :: lat                           ! [degrees north] Latitude  of each vertex
@@ -89,6 +94,7 @@ module mesh_types
     integer,  dimension(:,:  ), allocatable :: ETri                          !           Edge-to-triangle connectivity list
     integer,  dimension(:,:  ), allocatable :: TriE                          !           Triangle-to-edge connectivity list (order of TriC, across from 1st, 2nd, 3rd vertex)
     integer,  dimension(:    ), allocatable :: EBI                           ! [0-8]     Each edge's border index; 0 = free, 1 = north, 2 = northeast, ..., 8 = northwest
+    real(dp), dimension(:    ), allocatable :: EA                            ! [m^2]     Area of each edge's "cell"
 
     ! Voronoi mesh
     integer                                 :: nVor                          !           Total number of Voronoi vertices
@@ -105,12 +111,36 @@ module mesh_types
     integer,  dimension(:,:  ), allocatable :: VVor                          !           For each regular vertex, the indices of the Voronoi vertices spanning its Voronoi cell
 
     ! Parallelisation ranges
-    integer                                 :: vi1_node, vi2_node, nV_node   ! Each node    "owns" nV_node   vertices  vi1_node - vi2_node, so that nV_node   = vi2_node + 1 - vi1_node
-    integer                                 :: ti1_node, ti2_node, nTri_node ! Each node    "owns" nTri_node triangles ti1_node - ti2_node, so that nTri_node = ti2_node + 1 - ti1_node
-    integer                                 :: ei1_node, ei2_node, nE_node   ! Each node    "owns" nE_node   edges     ei1_node - ei2_node, so that nE_node   = ei2_node + 1 - ei1_node
     integer                                 :: vi1, vi2, nV_loc              ! Each process "owns" nV_loc    vertices  vi1      - vi2     , so that nV_loc    = vi2      + 1 - vi1
     integer                                 :: ti1, ti2, nTri_loc            ! Each process "owns" nTri_loc  triangles ti1      - ti2     , so that nTri_loc  = ti2      + 1 - ti1
     integer                                 :: ei1, ei2, nE_loc              ! Each process "owns" nE_loc    edges     ei1      - ei2     , so that nE_loc    = ei2      + 1 - ei1
+
+    integer,  dimension(:    ), allocatable :: V_owning_process              !           Which process owns each vertex
+    integer,  dimension(:    ), allocatable :: Tri_owning_process            !           Which process owns each triangle
+    integer,  dimension(:    ), allocatable :: E_owning_process              !           Which process owns each edge
+    integer,  dimension(:    ), allocatable :: V_owning_node                 !           Which node owns each vertex
+    integer,  dimension(:    ), allocatable :: Tri_owning_node               !           Which node owns each triangle
+    integer,  dimension(:    ), allocatable :: E_owning_node                 !           Which node owns each edge
+
+    type(type_par_arr_info)                 :: pai_V                         ! Parallelisation info for vertex-based fields
+    type(type_par_arr_info)                 :: pai_Tri                       ! Parallelisation info for triangle-based fields
+    type(type_par_arr_info)                 :: pai_E                         ! Parallelisation info for edge-based fields
+
+    real(dp), dimension(:    ), contiguous, pointer :: buffer1_d_a_nih  => null()     ! Pre-allocated buffer memory on the a-grid (vertices)
+    real(dp), dimension(:    ), contiguous, pointer :: buffer2_d_a_nih  => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer1_d_ak_nih => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer2_d_ak_nih => null()
+    real(dp), dimension(:    ), contiguous, pointer :: buffer1_d_b_nih  => null()     ! Pre-allocated buffer memory on the b-grid (triangles)
+    real(dp), dimension(:    ), contiguous, pointer :: buffer2_d_b_nih  => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer1_d_bk_nih => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer2_d_bk_nih => null()
+    real(dp), dimension(:    ), contiguous, pointer :: buffer1_d_c_nih  => null()     ! Pre-allocated buffer memory on the c-grid (edges)
+    real(dp), dimension(:    ), contiguous, pointer :: buffer2_d_c_nih  => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer1_d_ck_nih => null()
+    real(dp), dimension(:,:  ), contiguous, pointer :: buffer2_d_ck_nih => null()
+    type(MPI_WIN) :: wbuffer1_d_a_nih, wbuffer2_d_a_nih, wbuffer1_d_ak_nih, wbuffer2_d_ak_nih
+    type(MPI_WIN) :: wbuffer1_d_b_nih, wbuffer2_d_b_nih, wbuffer1_d_bk_nih, wbuffer2_d_bk_nih
+    type(MPI_WIN) :: wbuffer1_d_c_nih, wbuffer2_d_c_nih, wbuffer1_d_ck_nih, wbuffer2_d_ck_nih
 
   ! Matrix operators
   ! ================

@@ -12,6 +12,7 @@ MODULE mesh_memory
   USE mesh_types                                             , ONLY: type_mesh
   USE reallocate_mod                                         , ONLY: reallocate
   USE CSR_matrix_basics                            , ONLY: deallocate_matrix_CSR_dist
+  use mpi_distributed_shared_memory, only: deallocate_dist_shared
 
   IMPLICIT NONE
 
@@ -194,14 +195,14 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! Basic meta properties
-  ! =====================
+    ! Basic meta properties
+    ! =====================
 
     IF (ALLOCATED( mesh%zeta            )) DEALLOCATE( mesh%zeta            )
     IF (ALLOCATED( mesh%zeta_stag       )) DEALLOCATE( mesh%zeta_stag       )
 
-  ! Primary mesh data
-  ! =================
+    ! Primary mesh data
+    ! =================
 
     ! Vertex data
     IF (ALLOCATED( mesh%V               )) DEALLOCATE( mesh%V               )
@@ -216,16 +217,16 @@ CONTAINS
     IF (ALLOCATED( mesh%TriC            )) DEALLOCATE( mesh%TriC            )
     IF (ALLOCATED( mesh%Tricc           )) DEALLOCATE( mesh%Tricc           )
 
-  ! Refinement data
-  ! ===============
+    ! Refinement data
+    ! ===============
 
     IF (ALLOCATED( mesh%Tri_flip_list   )) DEALLOCATE( mesh%Tri_flip_list   )
     IF (ALLOCATED( mesh%refinement_map  )) DEALLOCATE( mesh%refinement_map  )
     IF (ALLOCATED( mesh%refinement_stack)) DEALLOCATE( mesh%refinement_stack)
     IF (ALLOCATED( mesh%Tri_li          )) DEALLOCATE( mesh%Tri_li          )
 
-  ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
-  ! =======================================================================================
+    ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
+    ! =======================================================================================
 
     ! Derived geometry data
     IF (ALLOCATED( mesh%A               )) DEALLOCATE( mesh%A               )
@@ -239,6 +240,9 @@ CONTAINS
     IF (ALLOCATED( mesh%TriBI           )) DEALLOCATE( mesh%TriBI           )
     IF (ALLOCATED( mesh%TriGC           )) DEALLOCATE( mesh%TriGC           )
     IF (ALLOCATED( mesh%TriA            )) DEALLOCATE( mesh%TriA            )
+    IF (ALLOCATED( mesh%TriD_x          )) DEALLOCATE( mesh%TriD_x          )
+    IF (ALLOCATED( mesh%TriD_y          )) DEALLOCATE( mesh%TriD_y          )
+    IF (ALLOCATED( mesh%TriD            )) DEALLOCATE( mesh%TriD            )
 
     ! lon/lat coordinates
     IF (ALLOCATED( mesh%lat             )) DEALLOCATE( mesh%lat             )
@@ -252,8 +256,22 @@ CONTAINS
     IF (ALLOCATED( mesh%TriE            )) DEALLOCATE( mesh%TriE            )
     IF (ALLOCATED( mesh%EBI             )) DEALLOCATE( mesh%EBI             )
 
-  ! Matrix operators
-  ! ================
+    ! Deallocate buffer shared memory
+    if (associated( mesh%buffer1_d_a_nih )) call deallocate_dist_shared( mesh%buffer1_d_a_nih , mesh%wbuffer1_d_a_nih )
+    if (associated( mesh%buffer2_d_a_nih )) call deallocate_dist_shared( mesh%buffer2_d_a_nih , mesh%wbuffer2_d_a_nih )
+    if (associated( mesh%buffer1_d_ak_nih)) call deallocate_dist_shared( mesh%buffer1_d_ak_nih, mesh%wbuffer1_d_ak_nih)
+    if (associated( mesh%buffer2_d_ak_nih)) call deallocate_dist_shared( mesh%buffer2_d_ak_nih, mesh%wbuffer2_d_ak_nih)
+    if (associated( mesh%buffer1_d_b_nih )) call deallocate_dist_shared( mesh%buffer1_d_b_nih , mesh%wbuffer1_d_b_nih )
+    if (associated( mesh%buffer2_d_b_nih )) call deallocate_dist_shared( mesh%buffer2_d_b_nih , mesh%wbuffer2_d_b_nih )
+    if (associated( mesh%buffer1_d_bk_nih)) call deallocate_dist_shared( mesh%buffer1_d_bk_nih, mesh%wbuffer1_d_bk_nih)
+    if (associated( mesh%buffer2_d_bk_nih)) call deallocate_dist_shared( mesh%buffer2_d_bk_nih, mesh%wbuffer2_d_bk_nih)
+    if (associated( mesh%buffer1_d_c_nih )) call deallocate_dist_shared( mesh%buffer1_d_c_nih , mesh%wbuffer1_d_c_nih )
+    if (associated( mesh%buffer2_d_c_nih )) call deallocate_dist_shared( mesh%buffer2_d_c_nih , mesh%wbuffer2_d_c_nih )
+    if (associated( mesh%buffer1_d_ck_nih)) call deallocate_dist_shared( mesh%buffer1_d_ck_nih, mesh%wbuffer1_d_ck_nih)
+    if (associated( mesh%buffer2_d_ck_nih)) call deallocate_dist_shared( mesh%buffer2_d_ck_nih, mesh%wbuffer2_d_ck_nih)
+
+    ! Matrix operators
+    ! ================
 
     ! Grid-cell-to-matrix-row translation tables
 

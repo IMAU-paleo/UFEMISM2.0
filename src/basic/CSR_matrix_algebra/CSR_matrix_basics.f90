@@ -4,20 +4,22 @@ module CSR_matrix_basics
 
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use mpi_f08, only: MPI_ALLGATHER, MPI_INTEGER, MPI_ANY_TAG, MPI_COMM_WORLD, MPI_SEND, MPI_RECV, &
-    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE, MPI_MIN, MPI_MAX
+    MPI_STATUS, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_ALLREDUCE, MPI_MIN, MPI_MAX, MPI_IN_PLACE, &
+    MPI_LOGICAL, MPI_LOR
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
   use parameters
   use reallocate_mod, only: reallocate
   use mpi_distributed_memory, only: partition_list, gather_to_all
+  use parallel_array_info_type, only: type_par_arr_info
 
   implicit none
 
   private
 
   public :: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, duplicate_matrix_CSR_dist, &
-    add_entry_CSR_dist, add_empty_row_CSR_dist, extend_matrix_CSR_dist, crop_matrix_CSR_dist, &
+    add_entry_CSR_dist, add_empty_row_CSR_dist, extend_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     gather_CSR_dist_to_primary, read_single_row_CSR_dist, allocate_matrix_CSR_loc
 
 contains
@@ -25,12 +27,13 @@ contains
   ! ===== CSR matrices in distributed memory =====
   ! ==============================================
 
-  subroutine allocate_matrix_CSR_dist( A, m_glob, n_glob, m_loc, n_loc, nnz_max_proc)
+  subroutine allocate_matrix_CSR_dist( A, m_glob, n_glob, m_loc, n_loc, nnz_max_proc, pai_x, pai_y)
     ! Allocate memory for a CSR-format sparse m-by-n matrix A
 
     ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
-    integer,                         intent(in)    :: m_glob, n_glob, m_loc, n_loc, nnz_max_proc
+    type(type_sparse_matrix_CSR_dp),   intent(inout) :: A
+    integer,                           intent(in   ) :: m_glob, n_glob, m_loc, n_loc, nnz_max_proc
+    type(type_par_arr_info), optional, intent(in   ) :: pai_x, pai_y
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'allocate_matrix_CSR_dist'
@@ -74,6 +77,75 @@ contains
     allocate( A%ptr( A%i1: A%i2+1), source = 1)
     allocate( A%ind( A%nnz_max), source = 0    )
     allocate( A%val( A%nnz_max), source = 0._dp)
+
+    ! Parallel array info
+    if (present( pai_x)) then
+      A%pai_x = pai_x
+    else
+      A%pai_x%n       = A%n
+
+      A%pai_x%n_loc   = A%n_loc
+      A%pai_x%i1      = A%j1
+      A%pai_x%i2      = A%j2
+
+      A%pai_x%n_node  = A%n_node
+      A%pai_x%i1_node = A%j1_node
+      A%pai_x%i2_node = A%j2_node
+
+      A%pai_x%n_nih   = A%pai_x%n_node
+      A%pai_x%i1_nih  = A%pai_x%i1_node
+      A%pai_x%i2_nih  = A%pai_x%i2_node
+
+      A%pai_x%n_hle   = 0
+      A%pai_x%i1_hle  = 0
+      A%pai_x%i2_hle  = -1
+
+      A%pai_x%n_hli   = 0
+      A%pai_x%i1_hli  = 0
+      A%pai_x%i2_hli  = -1
+
+      A%pai_x%n_hre   = 0
+      A%pai_x%i1_hre  = 0
+      A%pai_x%i2_hre  = -1
+
+      A%pai_x%n_hri   = 0
+      A%pai_x%i1_hri  = 0
+      A%pai_x%i2_hri  = -1
+    end if
+
+    if (present( pai_y)) then
+      A%pai_y = pai_y
+    else
+      A%pai_y%n       = A%m
+
+      A%pai_y%n_loc   = A%m_loc
+      A%pai_y%i1      = A%i1
+      A%pai_y%i2      = A%i2
+
+      A%pai_y%n_node  = A%m_node
+      A%pai_y%i1_node = A%i1_node
+      A%pai_y%i2_node = A%i2_node
+
+      A%pai_y%n_nih   = A%pai_y%n_node
+      A%pai_y%i1_nih  = A%pai_y%i1_node
+      A%pai_y%i2_nih  = A%pai_y%i2_node
+
+      A%pai_y%n_hle   = 0
+      A%pai_y%i1_hle  = 0
+      A%pai_y%i2_hle  = -1
+
+      A%pai_y%n_hli   = 0
+      A%pai_y%i1_hli  = 0
+      A%pai_y%i2_hli  = -1
+
+      A%pai_y%n_hre   = 0
+      A%pai_y%i1_hre  = 0
+      A%pai_y%i2_hre  = -1
+
+      A%pai_y%n_hri   = 0
+      A%pai_y%i1_hri  = 0
+      A%pai_y%i2_hri  = -1
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -431,6 +503,72 @@ contains
     val( 1:nnz) = A%val( k1:k2)
 
   end subroutine read_single_row_CSR_dist
+
+  subroutine finalise_matrix_CSR_dist( A)
+
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'finalise_matrix_CSR_dist'
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    call crop_matrix_CSR_dist( A)
+    call calc_j_node_range( A)
+
+    A%is_finalised = .true.
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine finalise_matrix_CSR_dist
+
+  subroutine calc_j_node_range( A)
+
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_j_node_range'
+    integer                        :: i, k1, k2, k, j, ierr
+    logical                        :: needs_x_tot
+
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
+    A%j_min_node =  huge( A%j_min_node)
+    A%j_max_node = -huge( A%j_max_node)
+
+    do i = A%i1, A%i2
+
+      k1 = A%ptr( i)
+      k2 = A%ptr( i+1)-1
+
+      do k = k1, k2
+        j = A%ind( k)
+        A%j_min_node = min( A%j_min_node, j)
+        A%j_max_node = max( A%j_max_node, j)
+      end do
+
+    end do
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, A%j_min_node, 1, MPI_INTEGER, MPI_MIN, par%mpi_comm_node, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, A%j_max_node, 1, MPI_INTEGER, MPI_MAX, par%mpi_comm_node, ierr)
+
+    needs_x_tot = A%j_min_node < A%pai_x%i1_nih .or. A%j_max_node > A%pai_x%i2_nih
+    call MPI_ALLREDUCE( MPI_IN_PLACE, needs_x_tot, 1, MPI_LOGICAL, MPI_LOR, MPI_COMM_WORLD, ierr)
+    if (needs_x_tot) then
+      A%needs_x_tot = 1
+    else
+      A%needs_x_tot = 0
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_j_node_range
 
   ! ===== CSR matrices in local memory =====
   ! ========================================

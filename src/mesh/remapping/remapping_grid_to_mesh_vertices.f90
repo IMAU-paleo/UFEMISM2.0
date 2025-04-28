@@ -9,7 +9,7 @@ module remapping_grid_to_mesh_vertices
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, &
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
     deallocate_matrix_CSR_dist, add_entry_CSR_dist, add_empty_row_CSR_dist
   use remapping_types, only: type_single_row_mapping_matrices, type_map
   use plane_geometry, only: is_in_triangle
@@ -52,7 +52,7 @@ contains
     logical, dimension(mesh%vi1:mesh%vi2) :: is_large_vertex
     type(type_sparse_matrix_CSR_dp)       :: A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR
     type(tMat)                            :: w0, w1x, w1y
-    type(tMat)                            :: grid_M_ddx, grid_M_ddy
+    type(type_sparse_matrix_CSR_dp)       :: grid_M_ddx_CSR, grid_M_ddy_CSR
     character(len=1024)                   :: filename_grid, filename_mesh
 
     ! Add routine to path
@@ -78,9 +78,9 @@ contains
       lies_outside_grid_domain, is_large_vertex, &
       A_xdy_a_g_CSR, A_mxydx_a_g_CSR, A_xydy_a_g_CSR, w0, w1x, w1y)
 
-    call calc_matrix_operators_grid( grid, grid_M_ddx, grid_M_ddy)
+    call calc_matrix_operators_grid( grid, grid_M_ddx_CSR, grid_M_ddy_CSR)
 
-    call calc_remapping_matrix( w0, w1x, w1y, grid_M_ddx, grid_M_ddy, map%M)
+    call calc_remapping_matrix( w0, w1x, w1y, grid_M_ddx_CSR, grid_M_ddy_CSR, map%M)
 
     call delete_grid_and_mesh_netcdf_dump_files( filename_grid, filename_mesh)
 
@@ -230,6 +230,10 @@ contains
       end if
 
     end do
+
+    call finalise_matrix_CSR_dist( A_xdy_a_g_CSR)
+    call finalise_matrix_CSR_dist( A_mxydx_a_g_CSR)
+    call finalise_matrix_CSR_dist( A_xydy_a_g_CSR)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -486,6 +490,10 @@ contains
 
     end do
 
+    call finalise_matrix_CSR_dist( w0_CSR )
+    call finalise_matrix_CSR_dist( w1x_CSR)
+    call finalise_matrix_CSR_dist( w1y_CSR)
+
     ! Convert matrices from Fortran to PETSc types
     call mat_CSR2petsc( w0_CSR , w0 )
     call mat_CSR2petsc( w1x_CSR, w1x)
@@ -496,21 +504,24 @@ contains
 
   end subroutine calc_w_matrices
 
-  subroutine calc_remapping_matrix( w0, w1x, w1y, grid_M_ddx, grid_M_ddy, M)
+  subroutine calc_remapping_matrix( w0, w1x, w1y, grid_M_ddx_CSR, grid_M_ddy_CSR, M)
     !< Calculate the grid-to-mesh-vertices remapping matrix M
 
     ! In/output variables
-    type(tMat), intent(inout) :: w0, w1x, w1y
-    type(tMat), intent(inout) :: grid_M_ddx, grid_M_ddy
-    type(tMat), intent(  out) :: M
+    type(tMat),                      intent(in   ) :: w0, w1x, w1y
+    type(type_sparse_matrix_CSR_dp), intent(in   ) :: grid_M_ddx_CSR, grid_M_ddy_CSR
+    type(tMat),                      intent(  out) :: M
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'calc_remapping_matrix'
     type(PetscErrorCode)            :: perr
-    type(tMat)                      :: M1, M2
+    type(tMat)                      :: grid_M_ddx, grid_M_ddy, M1, M2
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    call mat_CSR2petsc( grid_M_ddx_CSR, grid_M_ddx)
+    call mat_CSR2petsc( grid_M_ddy_CSR, grid_M_ddy)
 
     ! M = w0 + w1x * M_ddx + w1y * M_ddy
 

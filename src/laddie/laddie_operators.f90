@@ -13,8 +13,9 @@ module laddie_operators
   use ice_model_types                                        , only: type_ice_model
   use laddie_model_types                                     , only: type_laddie_model, type_laddie_timestep
   use mpi_distributed_memory                                 , only: gather_to_all
-  use CSR_matrix_basics                            , only: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
-                                                                     add_entry_CSR_dist, add_empty_row_CSR_dist, crop_matrix_CSR_dist
+  use CSR_matrix_basics, only: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
+    add_entry_CSR_dist, add_empty_row_CSR_dist, finalise_matrix_CSR_dist
+  use mesh_halo_exchange, only: exchange_halos
 
   implicit none
 
@@ -38,14 +39,12 @@ contains
     integer                                               :: row, ti, n, i, vi, vj, ei, til, tir
     real(dp), dimension(3)                                :: cM_map_H_a_b
     real(dp), dimension(2)                                :: cM_map_H_a_c
-    logical, dimension(mesh%nV)                           :: mask_a_tot
-    logical, dimension(mesh%nTri)                         :: mask_b_tot
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    call gather_to_all( laddie%mask_a, mask_a_tot)
-    call gather_to_all( laddie%mask_b, mask_b_tot)
+    call exchange_halos( mesh, laddie%mask_a)
+    call exchange_halos( mesh, laddie%mask_b)
 
     ! Make sure to deallocate before allocating
     call deallocate_matrix_CSR_dist( laddie%M_map_H_a_b)
@@ -63,7 +62,8 @@ contains
     nnz_per_row_est = 3
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_b, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_V, pai_y = mesh%pai_Tri)
 
     ! == Calculate coefficients
     ! =========================
@@ -85,7 +85,7 @@ contains
         do i = 1, 3
           vi = mesh%Tri( ti, i)
           ! Only add vertex if in mask_a
-          if (mask_a_tot( vi)) then
+          if (laddie%mask_a( vi)) then
             ! Set weight factor
             cM_map_H_a_b( i) = 1._dp
             n = n + 1
@@ -120,7 +120,8 @@ contains
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_H_a_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_V, pai_y = mesh%pai_E)
 
     ! == Calculate coefficients
     ! =========================
@@ -135,11 +136,11 @@ contains
       vj = mesh%EV( ei, 2)
 
       ! Get masked average between the two vertices
-      if (mask_a_tot( vi) .and. mask_a_tot( vj)) then
+      if (laddie%mask_a( vi) .and. laddie%mask_a( vj)) then
         cM_map_H_a_c = [0.5_dp, 0.5_dp]
-      elseif (mask_a_tot( vi)) then
+      elseif (laddie%mask_a( vi)) then
         cM_map_H_a_c = [1._dp, 0._dp]
-      elseif (mask_a_tot( vj)) then
+      elseif (laddie%mask_a( vj)) then
         cM_map_H_a_c = [0._dp, 1._dp]
       else
         cM_map_H_a_c = 0._dp
@@ -162,7 +163,8 @@ contains
     nnz_per_row_est = 2
     nnz_est_proc    = nrows_loc * nnz_per_row_est
 
-    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( laddie%M_map_UV_b_c, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc, &
+      pai_x = mesh%pai_Tri, pai_y = mesh%pai_E)
 
     ! == Calculate coefficients
     ! =========================
@@ -178,7 +180,7 @@ contains
 
       if (til == 0 .and. tir > 0) then
         ! Only triangle on right side exists
-        if (mask_b_tot( tir)) then
+        if (laddie%mask_b( tir)) then
           ! Within laddie domain, so add
           call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 1._dp)
         else
@@ -187,7 +189,7 @@ contains
         end if
       elseif (tir == 0 .and. til > 0) then
         ! Only triangle on left side exists
-        if (mask_b_tot( til)) then
+        if (laddie%mask_b( til)) then
           ! Within laddie domain, so add
           call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 1._dp)
         else
@@ -196,7 +198,7 @@ contains
         end if
       elseif (til > 0 .and. tir > 0) then
         ! Both triangles exist
-        if (mask_b_tot( til) .or. mask_b_tot( tir)) then
+        if (laddie%mask_b( til) .or. laddie%mask_b( tir)) then
           ! At least one traingle in laddie domain, so add average
           call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, til, 0.5_dp)
           call add_entry_CSR_dist( laddie%M_map_UV_b_c, ei, tir, 0.5_dp)
@@ -211,9 +213,9 @@ contains
     end do
 
     ! Crop matrix memory
-    call crop_matrix_CSR_dist( laddie%M_map_H_a_b)
-    call crop_matrix_CSR_dist( laddie%M_map_H_a_c)
-    call crop_matrix_CSR_dist( laddie%M_map_UV_b_c)
+    call finalise_matrix_CSR_dist( laddie%M_map_H_a_b)
+    call finalise_matrix_CSR_dist( laddie%M_map_H_a_c)
+    call finalise_matrix_CSR_dist( laddie%M_map_UV_b_c)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

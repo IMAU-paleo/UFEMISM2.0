@@ -88,6 +88,7 @@ UFEMISM_source = \
   \
   basic/precisions.f90 \
   \
+  types/parallel_array_info_type.f90 \
   types/CSR_sparse_matrix_type.f90 \
   types/grid_types.f90 \
   types/mesh_types.f90 \
@@ -134,6 +135,8 @@ UFEMISM_source = \
   basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
   basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
   basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
+  basic/mpi_parallelisation/dist_to_hybrid_mod.f90 \
+  basic/mpi_parallelisation/halo_exchange_mod.f90 \
   basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
   basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
   \
@@ -161,6 +164,7 @@ UFEMISM_source = \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
+  mesh/mesh_integrate_over_domain.f90 \
   mesh/mesh_contour.f90 \
   mesh/mesh_dummy_meshes.f90 \
   mesh/mesh_ROI_polygons.f90 \
@@ -183,7 +187,9 @@ UFEMISM_source = \
   mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
   mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
   mesh/discretisation/mesh_disc_apply_operators.f90 \
+  mesh/mesh_parallelisation.f90 \
   mesh/mesh_secondary.f90 \
+  mesh/mesh_halo_exchange.f90 \
   mesh/creation/reduce_ice_geometry.f90 \
   mesh/creation/mesh_creation_refine_in_ROIs.f90 \
   mesh/creation/mesh_creation_from_reduced_geometry.f90 \
@@ -228,7 +234,8 @@ UFEMISM_source = \
   mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
   mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
   mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
-  mesh/remapping/create_maps_gridlonlat_mesh.f90 \
+  mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
+  mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
   mesh/remapping/remapping_mesh_to_mesh.f90 \
   mesh/remapping/remapping_transects.f90 \
   mesh/remapping/apply_maps.f90 \
@@ -256,6 +263,7 @@ UFEMISM_source = \
   surface_mass_balance/SMB_main.f90 \
   \
   ocean/ocean_utilities.f90 \
+  ocean/ocean_extrapolation.f90 \
   ocean/ocean_idealised.f90 \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
@@ -266,6 +274,7 @@ UFEMISM_source = \
   laddie/laddie_thickness.f90 \
   laddie/laddie_velocity.f90 \
   laddie/laddie_tracers.f90 \
+  laddie/laddie_output.f90 \
   laddie/laddie_main.f90 \
   \
   basal_mass_balance/BMB_idealised.f90 \
@@ -290,6 +299,7 @@ UFEMISM_source = \
   ice_dynamics/utilities/map_velocities_to_c_grid.f90 \
   ice_dynamics/utilities/time_step_criteria.f90 \
   ice_dynamics/utilities/ice_mass_and_fluxes.f90 \
+  ice_dynamics/utilities/ice_shelf_base_slopes_onesided.f90 \
   ice_dynamics/rheology/constitutive_equation.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_DIVA_utilities.f90 \
@@ -359,14 +369,17 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf_mesh.f90 \
   validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
+  validation/unit_tests/ut_ocean_extrapolation.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
   validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \
   validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
   validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
   validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
-  validation/unit_tests/ut_mpi_multiply_CSR_matrix_vector.f90 \
   validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
+  validation/unit_tests/ut_halo_exchange.f90 \
+  validation/unit_tests/ut_halo_exchange_mesh.f90 \
+  validation/unit_tests/ut_mpi_CSR_matrix_algebra.f90 \
   validation/unit_tests/unit_tests_multinode.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \

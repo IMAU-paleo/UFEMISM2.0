@@ -39,7 +39,7 @@ jobs:
         id: UFEMISM_program_cache_restore
         with:
           path: UFEMISM_program
-          key: UFEMISM_program_${{ github.ref_name }}_${{ github.run_id }}
+          key: UFEMISM_program_perf_${{ github.ref_name }}_${{ github.run_id }}
 
       - name: Run integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km/config.cfg

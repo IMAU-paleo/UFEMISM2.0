@@ -3,6 +3,7 @@ module grid_types
   ! Derived types for simple square grids (x/y and lon/lat)
 
   use precisions, only: dp
+  use parallel_array_info_type, only: type_par_arr_info
 
   implicit none
 
@@ -34,6 +35,7 @@ module grid_types
 
     ! Parallelisation
     integer                                 :: n1,n2,n_loc  ! Matrix rows owned by each process
+    type(type_par_arr_info)                 :: pai
 
   end type type_grid
 

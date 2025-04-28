@@ -188,9 +188,22 @@ CONTAINS
 
     END DO ! DO WHILE (.NOT. foundit)
 
-    ! Linear interpolation between nearest layers
-    w = (z_query - z_ocean( k_lo)) / (z_ocean( k_hi) - z_ocean( k_lo))
-    f_query = w * f_ocean( k_hi) + (1._dp - w) * f_ocean( k_lo)
+    ! Get interpolated value
+    if (isnan(f_ocean( k_hi)) .and. isnan(f_ocean( k_lo))) then
+      ! Both NaNs, so output NaN
+      f_query = f_ocean( k_hi)
+    elseif (isnan(f_ocean( k_hi))) then
+      ! Only deeper value is NaN, output non-NaN value
+      f_query = f_ocean( k_lo)
+    elseif (isnan(f_ocean( k_lo))) then
+      ! Only shallower value is NaN, output non-NaN value
+      f_query = f_ocean( k_hi)
+    else
+      ! Both values non-NaN
+      ! Linear interpolation between nearest layers
+      w = (z_query - z_ocean( k_lo)) / (z_ocean( k_hi) - z_ocean( k_lo))
+      f_query = w * f_ocean( k_hi) + (1._dp - w) * f_ocean( k_lo)
+    end if
 
   END SUBROUTINE interpolate_ocean_depth
 

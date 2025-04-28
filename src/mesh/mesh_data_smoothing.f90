@@ -10,7 +10,7 @@ module mesh_data_smoothing
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use remapping_main, only: map_from_mesh_to_xy_grid_2D, map_from_mesh_to_xy_grid_3D, &
+  use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D, map_from_mesh_vertices_to_xy_grid_3D, &
     map_from_xy_grid_to_mesh_2D, map_from_xy_grid_to_mesh_3D
   use smooth_gridded_data, only: smooth_Gaussian_grid
 
@@ -46,7 +46,7 @@ contains
     allocate( d_grid_vec_partial( grid%n_loc))
 
     ! Map data to the grid
-    call map_from_mesh_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
 
     ! Apply smoothing on the gridded data
     call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
@@ -81,7 +81,7 @@ contains
     allocate( d_grid_vec_partial( grid%n_loc, size( d_mesh_partial,2)))
 
     ! Map data to the grid
-    call map_from_mesh_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
+    call map_from_mesh_vertices_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
 
     ! Apply smoothing on the gridded data
     call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
