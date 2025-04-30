@@ -153,6 +153,7 @@ CONTAINS
     climate%Precip = 0._dp
     climate%Wind_LR = 0._dp
     climate%Wind_DU = 0._dp
+    print *, "climate%T2m size before calling inittialise climate matrix", size(climate%T2m, 1)
 
     ! Set time of next calculation to start time
     climate%t_next = C%start_time_of_run

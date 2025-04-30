@@ -190,6 +190,7 @@ contains
     print *, "print value of w_ins", w_ins(vi), "and vi = ", vi
       ! If absorbed insolation ~= warm snap -> weight is 1.
       ! If ~= cold snap -> weight is 0. Otherwise interpolate
+      ! HERE ADD A IF IN CASE THAT THE DENOMINATOR IS NEAR 0 when I_ABS ARE EQUAL (this happen with NaNs?)
       w_ins( vi) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, &
                       ( climate%matrix%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) / &
                       ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
@@ -413,6 +414,7 @@ contains
     allocate( climate%matrix%I_abs(           mesh%vi1:mesh%vi2))
     allocate( climate%matrix%GCM_bias_T2m(    mesh%vi1:mesh%vi2, 12))
     allocate( climate%matrix%GCM_bias_Precip( mesh%vi1:mesh%vi2, 12))
+    print *, "size of GCM_bias_T2m called just before allocate climate snapshot", size(climate%matrix%GCM_bias_T2m, dim=1)
     !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, climate%matrix%I_abs          , climate%matrix%wI_abs          )
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_T2m   , climate%matrix%wGCM_bias_T2m   )
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_Precip, climate%matrix%wGCM_bias_Precip)
@@ -538,6 +540,8 @@ contains
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Q_TOA,          snapshot%wQ_TOA         )
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Albedo,         snapshot%wAlbedo        )
     !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%I_abs,          snapshot%wI_abs         )
+    print *, "value of vi1 =", mesh%vi1, "value of vi2 = ", mesh%vi2
+    print *, "size of wind just after the allocation in allocate_climate_snapshot ... ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -576,29 +580,12 @@ contains
     call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
 !    call save_variable_as_netcdf_dp_2D(snapshot%T2m, 'snapshot%T2m')
 !    call save_variable_as_netcdf_dp_2D(snapshot%Wind_WE, 'snapshot%Wind_WE')
-    
-
-    ! First find the first longitude which defines the start of quadrant I:
-    !longitude_start = mesh%lambda_M - 90._dp
-    
-    !DO vi = mesh%vi1, mesh%vi2
-    !DO m = 1, 12
-           !print *, snapshot%Wind_WE( vi,m)
-                 ! calculate x and y from the zonal wind
-     ! Uwind_x =   snapshot%Wind_WE( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
-     ! Uwind_y = - snapshot%Wind_WE( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))
-
-      ! calculate x and y from the meridional winds
-      !Vwind_x =   snapshot%Wind_SN( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))
-      !Vwind_y =   snapshot%Wind_SN( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
-
-      ! Sum up wind components
-      !snapshot%Wind_LR( vi,m) = Uwind_x + Vwind_x   ! winds left to right
-      !snapshot%Wind_DU( vi,m) = Uwind_y + Vwind_y   ! winds bottom to top
-    !END DO
-    !END DO
+    print *, "size of T2m before rotate_wind.. ", size(snapshot%T2m, dim=1), "times ", size(snapshot%T2m, dim=2)
+    print *, "size of Wind_WE before rotate_wind.. ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
+    print *, "brounds of Wind_WE lower bound = ", lbound(snapshot%Wind_WE, dim=1), "upper bound = ", ubound(snapshot%Wind_WE, dim=1)
     
     call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
+
     !print *, "no error?"
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -616,8 +603,10 @@ contains
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),         INTENT(IN)    :: GCM_PI, PD_obs
-    REAL(dp), DIMENSION(:,:),          INTENT(OUT)   :: GCM_bias_T2m
-    REAL(dp), DIMENSION(:,:),          INTENT(OUT)   :: GCM_bias_Precip
+    !type(type_climate_model_matrix), intent(out) :: matrix
+   !dimension(mesh%ti1:mesh%ti2,mesh%nz) try with this 
+    REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),          INTENT(OUT)   :: GCM_bias_T2m
+    REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),          INTENT(OUT)   :: GCM_bias_Precip
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_matrix_calc_GCM_bias'
@@ -654,8 +643,8 @@ contains
     ! In/output variables:
     TYPE(type_mesh),                      INTENT(IN)    :: mesh
     TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
-    REAL(dp), DIMENSION(:,:),           INTENT(IN)    :: bias_T2m
-    REAL(dp), DIMENSION(:,:),           INTENT(IN)    :: bias_Precip
+    REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),           INTENT(IN)    :: bias_T2m
+    REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),           INTENT(IN)    :: bias_Precip
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_apply_bias_correction'
@@ -922,27 +911,24 @@ contains
       END IF
     END IF ! IF (par%primary) THEN
 
-    ! Initialise the firn layer
-    IF     (choice_SMB_IMAUITM_init_firn_dummy == 'uniform') THEN
-      ! Initialise with a uniform firn layer over the ice sheet
+    IF (par%primary) THEN
+      IF     (choice_SMB_IMAUITM_init_firn_dummy == 'uniform') THEN
+        ! do nothing
+      ELSE
+        CALL crash('climate matrix only implemented with uniform init firn"' // TRIM( choice_SMB_IMAUITM_init_firn_dummy) // '"!')
+      END IF
+    END IF ! IF (par%primary) THEN
 
-      DO vi = mesh%vi1, mesh%vi2
-        IF (ice%Hi( vi) > 0._dp) THEN
-          SMB_dummy%FirnDepth(        vi,:) = C%SMB_IMAUITM_initial_firn_thickness
-          SMB_dummy%MeltPreviousYear(   vi) = 0._dp
-        ELSE
-          SMB_dummy%FirnDepth(        vi,:) = 0._dp
-          SMB_dummy%MeltPreviousYear(   vi) = 0._dp
-        END IF
-      END DO
-
-    ELSEIF (choice_SMB_IMAUITM_init_firn_dummy == 'read_from_file') THEN
-      CALL crash('not implemented yet with climate matrix "' // TRIM( choice_SMB_IMAUITM_init_firn_dummy) // '"!')
-      ! Initialise with the firn layer of a previous run
-      !CALL initialise_IMAUITM_firn_from_file( mesh, SMB_dummy, region_name)
-    ELSE
-      CALL crash('unknown choice_SMB_IMAUITM_init_firn "' // TRIM( choice_SMB_IMAUITM_init_firn_dummy) // '"!')
-    END IF
+    ! Initialise with a uniform firn layer over the ice sheet
+    DO vi = mesh%vi1, mesh%vi2
+      IF (ice%Hi( vi) > 0._dp) THEN
+        SMB_dummy%FirnDepth(        vi,:) = C%SMB_IMAUITM_initial_firn_thickness
+        SMB_dummy%MeltPreviousYear(   vi) = 0._dp
+      ELSE
+        SMB_dummy%FirnDepth(        vi,:) = 0._dp
+        SMB_dummy%MeltPreviousYear(   vi) = 0._dp
+      END IF
+    END DO
 
     ! Initialise albedo
     DO vi = mesh%vi1, mesh%vi2
@@ -1185,10 +1171,10 @@ contains
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: wind_WE
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: wind_SN
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: wind_LR
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: wind_DU
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(IN)    :: wind_WE
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(IN)    :: wind_SN
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(OUT)   :: wind_LR
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(OUT)   :: wind_DU
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'rotate_wind_to_model_mesh'
@@ -1201,8 +1187,6 @@ contains
     ! First find the first longitude which defines the start of quadrant I:
     longitude_start = mesh%lambda_M - 90._dp
 
-    print *, "print value of mesh%vi2 = ", mesh%vi2
-    call save_variable_as_netcdf_dp_2D(wind_WE, 'testname')
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
      ! write (10,*) (wind_WE)
@@ -1220,7 +1204,9 @@ contains
 
     END DO
     END DO
-    CALL sync
+
+    call sync
+    print *, "error fixed!!"
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
