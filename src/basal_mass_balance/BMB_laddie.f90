@@ -79,11 +79,15 @@ CONTAINS
 
         DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_ROI(vi)) THEN
-            ! IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
-              BMB%BMB( vi) = 0._dp 
+            ! Initialise all values in ROI at zero
+            BMB%BMB( vi) = 0._dp 
+
+            ! Copy values from temporary BMB to all floating / grounding cells within ROI
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_fl( vi) .OR. ice%mask_gl_gr( vi)) THEN
               BMB%BMB_shelf( vi) = temporary_BMB(vi)
-              BMB%BMB( vi) = BMB%BMB_shelf( vi)
-            ! END IF
+              BMB%BMB( vi)       = BMB%BMB_shelf( vi)
+            END IF
+
           END IF
         END DO
 
@@ -101,12 +105,16 @@ CONTAINS
         CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
 
         DO vi = mesh%vi1, mesh%vi2
-          IF (ice%mask_ROI(vi)) THEN
-            ! IF (ice%mask_floating_ice( vi) .OR. ice%mask_icefree_ocean( vi) .OR. ice%mask_gl_gr( vi)) THEN
-              BMB%BMB( vi) = 0._dp 
+          IF (ice%mask_ROI(vi)) THEN              
+            ! Initialise all values in ROI at zero
+            BMB%BMB( vi) = 0._dp 
+
+            ! Copy values from temporary BMB to all floating / grounding cells within ROI
+            IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_fl( vi) .OR. ice%mask_gl_gr( vi)) THEN
               BMB%BMB_shelf( vi) = temporary_BMB(vi)
-              BMB%BMB( vi) = BMB%BMB_shelf( vi)
-            ! END IF
+              BMB%BMB( vi)       = BMB%BMB_shelf( vi)
+            END IF
+
           END IF
         END DO
 
