@@ -221,4 +221,97 @@ CONTAINS
 
   END SUBROUTINE initialise_BMB_model_prescribed_notime
 
+  SUBROUTINE initialise_BMB_model_prescribed_notime_hybrid( mesh, ice, BMB, region_name)
+    ! Initialise the BMB model
+    !
+    ! Prescribe BMB from a file without a time dimension
+    !
+    ! BMB only, no time
+
+    ! In- and output variables
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_BMB_model_prescribed_notime'
+    CHARACTER(LEN=256)                                    :: filename_BMB_prescribed
+    REAL(dp)                                              :: timeframe_BMB_prescribed
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: temporary_BMB
+    INTEGER                                               :: vi
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Determine filename for this model region
+    SELECT CASE (region_name)
+      CASE ('NAM')
+        filename_BMB_prescribed  = C%filename_BMB_prescribed_NAM
+        timeframe_BMB_prescribed = C%timeframe_BMB_prescribed_NAM
+      CASE ('EAS')
+        filename_BMB_prescribed  = C%filename_BMB_prescribed_EAS
+        timeframe_BMB_prescribed = C%timeframe_BMB_prescribed_EAS
+      CASE ('GRL')
+        filename_BMB_prescribed  = C%filename_BMB_prescribed_GRL
+        timeframe_BMB_prescribed = C%timeframe_BMB_prescribed_GRL
+      CASE ('ANT')
+        filename_BMB_prescribed  = C%filename_BMB_prescribed_ANT
+        timeframe_BMB_prescribed = C%timeframe_BMB_prescribed_ANT
+      CASE DEFAULT
+        CALL crash('unknown region_name "' // TRIM( region_name) // '"!')
+    END SELECT
+
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_BMB_prescribed,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_BMB_prescribed)
+      call find_last_timeframe(   filename_BMB_prescribed, timeframe_BMB_prescribed)
+    end if
+
+    ! Print to terminal
+    IF (par%primary)  WRITE(*,"(A)") '   Initialising BMB from file "' // colour_string( TRIM( filename_BMB_prescribed),'light blue') // '"...'
+
+    ! Read BMB from file
+    IF (timeframe_BMB_prescribed == 1E9_dp) THEN
+      ! Assume the file has no time dimension
+      CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, temporary_BMB)
+
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_ROI(vi)) THEN
+          ! Initialise all values in ROI at zero
+          BMB%BMB( vi) = 0._dp 
+
+          ! Copy values from temporary BMB to all floating / grounding cells within ROI
+          IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_fl( vi) .OR. ice%mask_gl_gr( vi)) THEN
+            BMB%BMB_shelf( vi) = temporary_BMB(vi)
+            BMB%BMB( vi)       = BMB%BMB_shelf( vi)
+          END IF
+
+        END IF
+      END DO
+    ELSE
+      ! Assume the file has a time dimension, and read the specified timeframe
+      CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, temporary_BMB, time_to_read = timeframe_BMB_prescribed)
+
+      DO vi = mesh%vi1, mesh%vi2
+        IF (ice%mask_ROI(vi)) THEN
+          ! Initialise all values in ROI at zero
+          BMB%BMB( vi) = 0._dp 
+
+          ! Copy values from temporary BMB to all floating / grounding cells within ROI
+          IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_fl( vi) .OR. ice%mask_gl_gr( vi)) THEN
+            BMB%BMB_shelf( vi) = temporary_BMB(vi)
+            BMB%BMB( vi)       = BMB%BMB_shelf( vi)
+          END IF
+
+        END IF
+      END DO
+
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_BMB_model_prescribed_notime_hybrid
+
 END MODULE BMB_prescribed

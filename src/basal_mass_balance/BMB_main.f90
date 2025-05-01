@@ -18,7 +18,7 @@ MODULE BMB_main
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE laddie_model_types                                     , ONLY: type_laddie_model
   USE BMB_idealised                                          , ONLY: initialise_BMB_model_idealised, run_BMB_model_idealised
-  USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
+  USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed, initialise_BMB_model_prescribed_notime_hybrid
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
   USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model, remap_laddie_model
@@ -159,11 +159,13 @@ CONTAINS
           END IF
         END DO
         CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+      CASE ('prescribed_fixed')
+        ! do nothing? or need to do something to prevent inverted melt rates from overwriting?
       CASE ('laddie_py')
         ! run_BMB_model_laddie and read BMB values only for region of interest
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .TRUE.)
         CALL apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
-      CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
+      CASE ('prescribed', 'idealised', 'parameterised', 'inverted', 'laddie')
         CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
@@ -296,9 +298,11 @@ CONTAINS
         ! No need to do anything
       CASE ('uniform')
         ! No need to do anything
+      CASE ('prescribed_fixed')
+        CALL initialise_BMB_model_prescribed_notime_hybrid( mesh, ice, BMB, region_name)
       CASE ('laddie_py')
          CALL initialise_BMB_model_laddie( mesh, BMB)
-      CASE ('prescribed', 'prescribed_fixed', 'idealised', 'parameterised', 'inverted', 'laddie')
+      CASE ('prescribed', 'idealised', 'parameterised', 'inverted', 'laddie')
         CALL crash('this BMB_model "' // TRIM( choice_BMB_model_ROI) // '" is not implemented for hybrid-BMB in ROI yet')
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_ROI "' // TRIM( choice_BMB_model_ROI) // '"')
