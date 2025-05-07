@@ -105,7 +105,12 @@ class Mesh(object):
         """ Get patch collection """
 
         #Get data
-        var = self.get_data(varname,t)
+        if varname == 'Uabs_lad':
+            var1 = self.get_data('U_lad',t)
+            var2 = self.get_data('V_lad',t)
+            var = (var1**2+var2**2)**.5
+        else:
+            var = self.get_data(varname,t)
 
         #Get colormap info
         cmap,norm = get_cmap(varname)
