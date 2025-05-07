@@ -33,7 +33,27 @@ def get_cmap(varname):
         cmap = copy(plt.get_cmap('cmo.ice'))
         norm = mpl.colors.Normalize(vmin=0,vmax=1000,clip=True)
 
-    elif varname == 'uabs_surf':
+    elif varname == 'H_lad':
+        cmap = copy(plt.get_cmap('gist_stern'))
+        norm = mpl.colors.Normalize(vmin=1,vmax=100,clip=True)
+
+    elif varname == 'T_lad':
+        cmap = copy(plt.get_cmap('cmo.thermal'))
+        norm = mpl.colors.Normalize(vmin=-2,vmax=1,clip=True)
+
+    elif varname == 'S_lad':
+        cmap = copy(plt.get_cmap('cmo.haline'))
+        norm = mpl.colors.Normalize(vmin=32,vmax=34,clip=True)
+
+    elif varname in ['U_lad', 'V_lad']:
+        cmap = copy(plt.get_cmap('cmo.balance'))
+        norm = mpl.colors.Normalize(vmin=-1,vmax=1,clip=True)
+
+    elif varname in ['Uabs_lad']:
+        cmap = copy(plt.get_cmap('cmo.speed'))
+        norm = mpl.colors.Normalize(vmin=0,vmax=1,clip=True)
+
+    elif varname in ['uabs_surf', 'uabs_vav']:
         cmap = copy(plt.get_cmap('turbo'))
         norm = mpl.colors.Normalize(vmin=0,vmax=2000,clip=True)
         #norm = mpl.colors.LogNorm(vmin=1.,vmax=3000,clip=True)

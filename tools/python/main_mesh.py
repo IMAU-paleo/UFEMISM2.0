@@ -94,11 +94,10 @@ class Mesh(object):
     def get_triangles(self):
         """ Extract triangles as patches """
         self.triangles = []
-        #for ti in range(0,len(self.ds.ti)):
-            #nVVor = self.ds.nVVor[vi].values
-            #VVor = self.ds.VVor[:nVVor,vi].values
-            #Vor = self.ds.Vor[:,VVor-1].values
-            #self.triangles.append(Polygon(Tri.T))
+        for ti in range(0,len(self.ds.ti)):
+            Tri = self.ds.Tri[:,ti].values
+            V = self.ds.V[:,Tri-1].values
+            self.triangles.append(Polygon(V.T))
         
         self.got_triangles = True
 
@@ -135,7 +134,7 @@ class Mesh(object):
     def get_data(self,varname,t):
         """ Get data array of variable for time slice t"""
 
-        # Read variable 
+        # Read variable
         try: 
             var = self.ds[varname]
         except:
