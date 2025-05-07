@@ -28,6 +28,7 @@ MODULE laddie_main
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
+  use laddie_output, only: create_laddie_output_file, write_to_laddie_output_file
 
   IMPLICIT NONE
 
@@ -36,7 +37,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, duration)
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, duration, region_name)
     ! Run the laddie model
 
     ! In- and output variables
@@ -47,6 +48,7 @@ CONTAINS
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
     REAL(dp),                               INTENT(IN)    :: duration
+    character(len=3),                       intent(in   ) :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
@@ -119,6 +121,11 @@ CONTAINS
           CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
       END SELECT
 
+      ! Write to output
+      if (C%do_write_laddie_output) then
+        call write_to_laddie_output_file( mesh, laddie, region_name, time*sec_per_year + tl)
+      end if
+
       ! Display or save fields
       ! CALL print_diagnostics( mesh, laddie, tl)
 
@@ -129,7 +136,7 @@ CONTAINS
 
   END SUBROUTINE run_laddie_model
 
-  SUBROUTINE initialise_laddie_model( mesh, laddie, ocean, ice)
+  SUBROUTINE initialise_laddie_model( mesh, laddie, ocean, ice, region_name)
     ! Initialise the laddie model
 
     ! In- and output variables
@@ -138,6 +145,7 @@ CONTAINS
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    character(len=3),                       intent(in   ) :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
@@ -171,6 +179,9 @@ CONTAINS
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
     END SELECT
+
+    ! Create output file
+    if (C%do_write_laddie_output) call create_laddie_output_file( mesh, laddie, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -625,7 +636,7 @@ CONTAINS
 
   END SUBROUTINE extrapolate_laddie_variables
 
-  SUBROUTINE remap_laddie_model( mesh_old, mesh_new, ice, ocean, laddie, time)
+  SUBROUTINE remap_laddie_model( mesh_old, mesh_new, ice, ocean, laddie, time, region_name)
     ! Reallocate and remap laddie variables
 
     ! In- and output variables
@@ -635,6 +646,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
+    character(len=3),                       intent(in   ) :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_model'
@@ -787,7 +799,7 @@ CONTAINS
     END SELECT
 
     ! == Re-initialise ==
-    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init)
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
