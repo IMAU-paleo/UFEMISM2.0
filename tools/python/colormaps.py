@@ -50,7 +50,7 @@ def get_cmap(varname):
 
     elif varname == 'H_lad':
         cmap = copy(plt.get_cmap('gist_stern'))
-        norm = mpl.colors.Normalize(vmin=1,vmax=100,clip=True)
+        norm = mpl.colors.Normalize(vmin=1,vmax=300,clip=True)
 
     elif varname == 'T_lad':
         cmap = copy(plt.get_cmap('cmo.thermal'))

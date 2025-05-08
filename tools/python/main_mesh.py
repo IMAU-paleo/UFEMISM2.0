@@ -10,11 +10,12 @@ from utils import *
 class Mesh(object):
     """ Properties and functions of a single mesh """
 
-    def __init__(self, directory, mesh):
+    def __init__(self, directory, mesh, file='main_output_ANT'):
         """ Gather basic info from run """
 
         self.directory = directory
         self.mesh = mesh
+        self.file = file
 
         self.got_voronois = False
         self.got_triangles = False
@@ -42,11 +43,11 @@ class Mesh(object):
 
             #Add data
             pcoll = self.get_pcoll(varname,t)
-            ax[v].add_collection(pcoll)
-
+            im = ax[v].add_collection(pcoll)
+            im.cmap.set_bad('magenta')
             #Add grounding line
-            gl = self.get_GL(t)
-            ax[v].plot(gl[0,:],gl[1,:],c='yellow',lw=.25)
+            #gl = self.get_GL(t)
+            #ax[v].plot(gl[0,:],gl[1,:],c='yellow',lw=.25)
 
             #Make up subplot
             ax[v].set_xlim([self.ds.xmin,self.ds.xmax])
@@ -79,7 +80,7 @@ class Mesh(object):
         self.close()
 
     def open(self):
-        self.ds = xr.open_dataset(f'{self.directory}/main_output_ANT_{self.mesh:05d}.nc')
+        self.ds = xr.open_dataset(f'{self.directory}/{self.file}_{self.mesh:05d}.nc')
         self.Ntimes = len(self.ds.time)
     
     def close(self):
