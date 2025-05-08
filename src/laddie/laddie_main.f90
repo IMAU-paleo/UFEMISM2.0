@@ -459,9 +459,6 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_gr_a( vi) = .true.
-      ELSE IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) THEN
-        laddie%mask_a( vi)    = .false.
-        laddie%mask_gr_a( vi) = .true.
       ELSE IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_oc_a( vi) = .true.
@@ -581,10 +578,11 @@ CONTAINS
       ! Skip if vertex is at border
       IF (mesh%VBI( vi) > 0) CYCLE
 
-      ! Skip if water column thickness is insufficient, treated as grounded for now
-      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
-
-      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+      IF (C%choice_calving_law == 'threshold_thickness') THEN
+        IF (ice%Hi( vi) < C%calving_threshold_thickness_shelf .and. ice%mask_floating_ice( vi)) CYCLE
+      ELSE
+        IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+      END IF
 
       ! Currently floating ice, so either seed or fill here
       IF (ice%mask_floating_ice( vi)) THEN
@@ -616,10 +614,11 @@ CONTAINS
       ! Skip if vertex is at border
       IF (mesh%VBI( vi) > 0) CYCLE
 
-      ! Skip if water column thickness is insufficient, treated as grounded for now
-      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
-
-      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+      IF (C%choice_calving_law == 'threshold_thickness') THEN
+        IF (ice%Hi( vi) < C%calving_threshold_thickness_shelf .and. ice%mask_floating_ice( vi)) CYCLE
+      ELSE
+        IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+      END IF
 
       ! Currently floating ice, so either seed or fill here
       IF (ice%mask_floating_ice( vi)) THEN
