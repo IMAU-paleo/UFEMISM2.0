@@ -45,9 +45,10 @@ class Mesh(object):
             pcoll = self.get_pcoll(varname,t)
             im = ax[v].add_collection(pcoll)
             im.cmap.set_bad('magenta')
+
             #Add grounding line
-            #gl = self.get_GL(t)
-            #ax[v].plot(gl[0,:],gl[1,:],c='yellow',lw=.25)
+            gl = self.get_GL(t)
+            ax[v].plot(gl[0,:],gl[1,:],c='yellow',lw=.25)
 
             #Make up subplot
             ax[v].set_xlim([self.ds.xmin,self.ds.xmax])
