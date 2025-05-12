@@ -122,7 +122,7 @@ CONTAINS
       END SELECT
 
       ! Write to output
-      if (C%do_write_laddie_output) then
+      if (C%do_write_laddie_output_fields) then
         call write_to_laddie_output_file( mesh, laddie, region_name, time*sec_per_year + tl)
       end if
 
@@ -181,7 +181,7 @@ CONTAINS
     END SELECT
 
     ! Create output file
-    if (C%do_write_laddie_output) call create_laddie_output_file( mesh, laddie, region_name)
+    if (C%do_write_laddie_output_fields) call create_laddie_output_file( mesh, laddie, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
