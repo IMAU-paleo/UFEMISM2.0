@@ -33,12 +33,25 @@ MODULE laddie_model_types
 
   END TYPE type_laddie_timestep
 
+  type type_scalar_output_buffer
+    !< Memory for buffering scalar output (from every model time step) between output writing intervals
+
+    integer :: n_mem         !< Number of timeframes for which memory has been allocated
+    integer :: n             !< Number of timeframes that are currently buffered
+
+    real(dp), dimension(:), allocatable :: time
+
+    real(dp), dimension(:), allocatable :: layer_volume
+
+  end type type_scalar_output_buffer
+
   TYPE type_laddie_model
     ! The laddie model structure
 
     ! Output
-    character(len=1024)                         :: output_filename
-    logical                                     :: output_file_matches_current_mesh
+    character(len=1024)                         :: output_fields_filename
+    character(len=1024)                         :: output_scalar_filename
+    logical                                     :: output_fields_file_matches_current_mesh
 
     ! Time domain
     REAL(dp)                                    :: dt                          ! [s]               Time step
@@ -138,6 +151,9 @@ MODULE laddie_model_types
     TYPE(type_laddie_timestep)              :: np1                         !                   Timestep n plus 1
     TYPE(type_laddie_timestep)              :: np12                        !                   Timestep n plus 1/2
     TYPE(type_laddie_timestep)              :: np13                        !                   Timestep n plus 1/3
+
+    ! Scalar output buffer
+    type(type_scalar_output_buffer)         :: buffer
 
   END TYPE type_laddie_model
 

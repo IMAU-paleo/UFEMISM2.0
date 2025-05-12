@@ -28,7 +28,8 @@ MODULE laddie_main
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
-  use laddie_output, only: create_laddie_output_file, write_to_laddie_output_file
+  use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, & 
+      write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file
 
   IMPLICIT NONE
 
@@ -123,7 +124,11 @@ CONTAINS
 
       ! Write to output
       if (C%do_write_laddie_output_fields) then
-        call write_to_laddie_output_file( mesh, laddie, region_name, time*sec_per_year + tl)
+        call write_to_laddie_output_fields_file( mesh, laddie, region_name, time*sec_per_year + tl)
+      end if
+
+      if (C%do_write_laddie_output_scalar) then
+        call write_to_laddie_output_scalar_file( mesh, laddie, time*sec_per_year + tl)
       end if
 
       ! Display or save fields
@@ -181,7 +186,8 @@ CONTAINS
     END SELECT
 
     ! Create output file
-    if (C%do_write_laddie_output_fields) call create_laddie_output_file( mesh, laddie, region_name)
+    if (C%do_write_laddie_output_fields) call create_laddie_output_fields_file( mesh, laddie, region_name)
+    if (C%do_write_laddie_output_scalar) call create_laddie_output_scalar_file( laddie, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
