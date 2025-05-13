@@ -2,6 +2,7 @@ module laddie_output
 
   use precisions, only: dp
   use mpi_basic, only: par, sync
+  use parameters
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
   use model_configuration, only: C
   use mesh_types, only: type_mesh
@@ -135,9 +136,6 @@ contains
     filename = laddie%output_scalar_filename
     n        = laddie%buffer%n
 
-    ! Print to terminal
-    if (par%primary) write(0,'(A)') '   Writing to laddie scalar output file "' // colour_string( trim( laddie%output_scalar_filename), 'light blue') // '"...'
-
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_writing( filename, ncid)
 
@@ -149,6 +147,10 @@ contains
 
     ! Write bulk scalars
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'layer_volume',      laddie%buffer%layer_volume,      n, ti+1)
+
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_max',          laddie%buffer%melt_max,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'uabs_max',          laddie%buffer%uabs_max,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'T_max',             laddie%buffer%T_max,             n, ti+1)
 
     ! Reset buffer
     laddie%buffer%n = 0
@@ -198,6 +200,10 @@ contains
     ! Integrated ice geometry
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'layer_volume', long_name = 'Total mixed layer volume', units = 'm^3')
 
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_max',     long_name = 'Maximum melt rate',        units = 'm/yr')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'uabs_max',     long_name = 'Maximum speed',            units = 'm/s')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'T_max',        long_name = 'Maximum temperature',      units = 'degC')
+
     ! Close the file
     call close_netcdf_file( ncid)
 
@@ -235,6 +241,9 @@ contains
       allocate( laddie%buffer%time             ( n_mem), source = 0._dp)
 
       allocate( laddie%buffer%layer_volume     ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%melt_max         ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%uabs_max         ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%T_max            ( n_mem), source = 0._dp)
 
     end if
 
@@ -254,13 +263,24 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'buffer_laddie_scalars'
     integer                        :: n, vi, ierr
-    real(dp)                       :: H_int
+    real(dp)                       :: H_int, melt_max, Uabs_max, T_max
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Calculate values
+    ! == Calculate values ==
     call integrate_over_domain( mesh, laddie%now%H, H_int)
+
+    melt_max = maxval( laddie%melt) * sec_per_year
+    call MPI_ALLREDUCE( MPI_IN_PLACE, melt_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    Uabs_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2))
+    call MPI_ALLREDUCE( MPI_IN_PLACE, Uabs_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    T_max = maxval( laddie%now%T)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, T_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+    ! =====================
 
     ! Only the primary does this
     if (par%primary) then
@@ -276,6 +296,10 @@ contains
       laddie%buffer%time             ( n) = time
 
       laddie%buffer%layer_volume     ( n) = H_int
+
+      laddie%buffer%melt_max         ( n) = melt_max
+      laddie%buffer%uabs_max         ( n) = Uabs_max
+      laddie%buffer%T_max            ( n) = T_max
     end if
 
     ! Finalise routine path
@@ -304,6 +328,10 @@ contains
     call reallocate( laddie%buffer%time             , n_mem, source = 0._dp)
 
     call reallocate( laddie%buffer%layer_volume     , n_mem, source = 0._dp)
+
+    call reallocate( laddie%buffer%melt_max         , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%uabs_max         , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%T_max            , n_mem, source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

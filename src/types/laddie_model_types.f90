@@ -43,6 +43,10 @@ MODULE laddie_model_types
 
     real(dp), dimension(:), allocatable :: layer_volume
 
+    real(dp), dimension(:), allocatable :: melt_max
+    real(dp), dimension(:), allocatable :: uabs_max
+    real(dp), dimension(:), allocatable :: T_max
+
   end type type_scalar_output_buffer
 
   TYPE type_laddie_model
