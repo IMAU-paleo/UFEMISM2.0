@@ -118,11 +118,10 @@ contains
 
   end subroutine create_laddie_output_fields_file
 
-  subroutine write_to_laddie_output_scalar_file( laddie, time)
+  subroutine write_to_laddie_output_scalar_file( laddie)
 
     ! In/output variables
     type(type_laddie_model), intent(inout) :: laddie
-    real(dp),                intent(in   ) :: time
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'write_to_laddie_output_scalar_file'

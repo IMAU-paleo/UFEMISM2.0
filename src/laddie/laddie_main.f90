@@ -38,7 +38,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, duration, region_name)
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, is_initial, region_name)
     ! Run the laddie model
 
     ! In- and output variables
@@ -48,7 +48,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
-    REAL(dp),                               INTENT(IN)    :: duration
+    logical,                                intent(in   ) :: is_initial
     character(len=3),                       intent(in   ) :: region_name
 
     ! Local variables:
@@ -56,6 +56,8 @@ CONTAINS
     INTEGER                                               :: vi, ti
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
+    REAL(dp)                                              :: duration         ! [days] Duration of run
+    REAL(dp)                                              :: ref_time         ! [s] Reference time for writing
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
     REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
 
@@ -100,6 +102,15 @@ CONTAINS
     ! == Main time loop ==
     ! ====================
 
+    ! Determine run duration and apply offset for initial run
+    if (is_initial) then
+      duration = C%time_duration_laddie_init
+      ref_time = time*sec_per_year - duration*sec_per_day
+    else
+      duration = C%time_duration_laddie
+      ref_time = time*sec_per_year
+    end if
+
     tl = 0.0_dp
 
     DO WHILE (tl < duration * sec_per_day)
@@ -124,11 +135,11 @@ CONTAINS
 
       ! Write to output
       if (C%do_write_laddie_output_fields) then
-        call write_to_laddie_output_fields_file( mesh, laddie, region_name, time*sec_per_year + tl)
+        call write_to_laddie_output_fields_file( mesh, laddie, region_name, ref_time + tl)
       end if
 
       if (C%do_write_laddie_output_scalar) then
-        call buffer_laddie_scalars( mesh, laddie, time*sec_per_year + tl)
+        call buffer_laddie_scalars( mesh, laddie, ref_time + tl)
       end if
 
       ! Display or save fields
@@ -137,7 +148,7 @@ CONTAINS
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
     if (C%do_write_laddie_output_scalar) then
-      call write_to_laddie_output_scalar_file( laddie, time*sec_per_year + tl)
+      call write_to_laddie_output_scalar_file( laddie)
     end if
 
     ! Finalise routine path
@@ -808,7 +819,7 @@ CONTAINS
     END SELECT
 
     ! == Re-initialise ==
-    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init, region_name)
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, .TRUE., region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
