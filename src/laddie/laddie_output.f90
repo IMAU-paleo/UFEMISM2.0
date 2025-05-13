@@ -151,6 +151,9 @@ contains
     ! Write bulk scalars
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'layer_volume',      laddie%buffer%layer_volume,      n, ti+1)
 
+    ! Reset buffer
+    laddie%buffer%n = 0
+
     ! Close the file
     call close_netcdf_file( ncid)
 
