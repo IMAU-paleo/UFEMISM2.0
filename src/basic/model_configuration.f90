@@ -822,6 +822,7 @@ MODULE model_configuration
     ! Output
     LOGICAL             :: do_write_laddie_output_fields_config         = .FALSE.                          ! Whether or not to write output fields on laddie time
     LOGICAL             :: do_write_laddie_output_scalar_config         = .FALSE.                          ! Whether or not to write output scalars on laddie time
+    REAL(dp)            :: time_interval_scalar_output_config           = 1._dp                            ! [days] Time interval at which to write out buffered scalars
 
     ! Time step
     REAL(dp)            :: dt_laddie_config                             = 360._dp                          ! [s] Time step for integration of laddie model
@@ -1846,6 +1847,7 @@ MODULE model_configuration
     ! Output
     LOGICAL             :: do_write_laddie_output_fields
     LOGICAL             :: do_write_laddie_output_scalar
+    REAL(dp)            :: time_interval_scalar_output
 
     ! Time step
     REAL(dp)            :: dt_laddie
@@ -2791,6 +2793,7 @@ CONTAINS
       conda_activate_prompt_config                                , &
       do_write_laddie_output_fields_config                        , &
       do_write_laddie_output_scalar_config                        , &
+      time_interval_scalar_output_config                          , &
       dt_laddie_config                                            , &
       time_duration_laddie_config                                 , &
       time_duration_laddie_init_config                            , &
@@ -3782,7 +3785,7 @@ CONTAINS
     ! Output
     C%do_write_laddie_output_fields                          = do_write_laddie_output_fields_config
     C%do_write_laddie_output_scalar                          = do_write_laddie_output_scalar_config
-
+    C%time_interval_scalar_output                            = time_interval_scalar_output_config
     ! Time step
     C%dt_laddie                                              = dt_laddie_config
     C%time_duration_laddie                                   = time_duration_laddie_config

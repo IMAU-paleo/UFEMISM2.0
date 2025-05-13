@@ -60,8 +60,8 @@ CONTAINS
     REAL(dp)                                              :: ref_time         ! [s] Reference time for writing
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
     REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
-    REAL(dp), PARAMETER                                   :: write_interval = 1.0_dp ! [days] 
     REAL(dp)                                              :: time_to_write    ! [days] 
+    REAL(dp)                                              :: last_write_time  ! [days] 
 
 
     ! Add routine to path
@@ -114,7 +114,8 @@ CONTAINS
     end if
 
     tl = 0.0_dp
-    time_to_write = write_interval
+    last_write_time = 0.0_dp
+    time_to_write = C%time_interval_scalar_output
 
     DO WHILE (tl < duration * sec_per_day)
 
@@ -147,7 +148,8 @@ CONTAINS
         ! Write if required
         if (tl > time_to_write * sec_per_day) then
           call write_to_laddie_output_scalar_file( laddie)
-          time_to_write = time_to_write + write_interval
+          last_write_time = time_to_write
+          time_to_write = time_to_write + C%time_interval_scalar_output
         end if
       end if
 
@@ -156,9 +158,11 @@ CONTAINS
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
-!    if (C%do_write_laddie_output_scalar) then
-!      call write_to_laddie_output_scalar_file( laddie)
-!    end if
+    ! Write any remaining buffered scalars
+    ! if (par%primary .and. laddie%buffer%n > 0) then
+    ! if (C%do_write_laddie_output_scalar .and. tl > last_write_time * sec_per_day) then
+    !    call write_to_laddie_output_scalar_file( laddie)
+    !  end if
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
