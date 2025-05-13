@@ -292,40 +292,5 @@ CONTAINS
 
   END SUBROUTINE allocate_laddie_timestep
 
-  subroutine print_diagnostics( mesh, laddie, tl)
-    !< Print out diagnostics
-
-    ! In- and output variables
-    type(type_mesh),         intent(in   ) :: mesh
-    type(type_laddie_model), intent(in   ) :: laddie
-    real(dp),                intent(in   ) :: tl
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'print_diagnostics'
-    real(dp)                       :: H_av, melt_max, U_max, T_max
-    integer                        :: ierr
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call average_over_domain( mesh, laddie%now%H, H_av)
-
-    melt_max = maxval( laddie%melt) * sec_per_year
-    call MPI_ALLREDUCE( MPI_IN_PLACE, melt_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    U_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2))
-    call MPI_ALLREDUCE( MPI_IN_PLACE, U_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    T_max = maxval( laddie%now%T)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, T_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    if (par%primary) write( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, &
-      '  Dmean ', H_av, '  Meltmax', melt_max, '   U', U_max, '   Tmax', T_max
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine print_diagnostics
-
 END MODULE laddie_utilities
 

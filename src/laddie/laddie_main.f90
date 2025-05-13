@@ -18,8 +18,7 @@ MODULE laddie_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
-                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c, &
-                                                                     print_diagnostics
+                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
@@ -152,9 +151,6 @@ CONTAINS
           time_to_write = time_to_write + C%time_interval_scalar_output
         end if
       end if
-
-      ! Display or save fields
-      ! CALL print_diagnostics( mesh, laddie, tl)
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
