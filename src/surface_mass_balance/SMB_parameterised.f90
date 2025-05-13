@@ -1,6 +1,6 @@
 module SMB_parameterised
 
-  ! Parameterised SMB models
+  ! Parameterised SMB models.
 
   use precisions, only: dp
   use mpi_basic, only: par, sync
@@ -140,10 +140,10 @@ contains
       ! 2.5 m of water. However, this is based on expert judgement, NOT empirical evidence.
       SMB%Refreezing_year( vi) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))), 0.25_dp * SUM(SMB%FirnDepth( vi,:)/12._dp)) ! version from IMAU-ICE dev branch
       !SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))) ! outdated version on main branch
-      
+
       IF (ice%mask_grounded_ice( vi)  .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%Refreezing_year( vi) = 0._dp
       IF (ice%mask_icefree_ocean( vi) .eqv. .TRUE.)                                                SMB%AddedFirn( vi,:)     = 0._dp ! Does it make sense to add firn over the ocean?!
-      
+
 
 
       DO m = 1, 12
@@ -163,7 +163,7 @@ contains
     ! Convert final SMB from water to ice equivalent
       SMB%SMB_monthly( mesh%vi1:mesh%vi2,:) = SMB%SMB_monthly(  mesh%vi1:mesh%vi2,:) * 1000._dp / ice_density
       SMB%SMB(         mesh%vi1:mesh%vi2)   = SMB%SMB(          mesh%vi1:mesh%vi2)   * 1000._dp / ice_density
-    
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -335,16 +335,16 @@ contains
 
     ! Assume that SMB and geometry are read from the same restart file
     SELECT CASE (region_name)
-    CASE('NAM') 
+    CASE('NAM')
       filename_restart_firn = C%filename_firn_IMAUITM_NAM
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_NAM
-    CASE('EAS') 
+    CASE('EAS')
       filename_restart_firn = C%filename_firn_IMAUITM_EAS
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_EAS
-    CASE('GRL') 
+    CASE('GRL')
       filename_restart_firn = C%filename_firn_IMAUITM_GRL
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_GRL
-    CASE('ANT') 
+    CASE('ANT')
       filename_restart_firn = C%filename_firn_IMAUITM_ANT
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_ANT
     CASE DEFAULT
