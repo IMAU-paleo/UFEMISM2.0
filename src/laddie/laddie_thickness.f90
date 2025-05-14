@@ -109,8 +109,8 @@ CONTAINS
         ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
         laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
 
-        ! If H_n > Hmax, suppress entrainment to ensure H_n <= available water column thickness
-        laddie%entr( vi) = laddie%entr( vi) + MIN( ice%Hib( vi)-ice%Hb( vi) - npx%H( vi), 0.0_dp) / dt
+        ! If H_n > Hmax, suppress entrainment to ensure H_n <= Hmax
+        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - npx%H( vi), 0.0_dp) / dt
 
         ! Prevent strong entr_dmin and strong detrainment
         if (laddie%entr_dmin(vi) > 0) then

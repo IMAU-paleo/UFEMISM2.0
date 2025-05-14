@@ -869,6 +869,7 @@ MODULE model_configuration
 
     ! Stability
     REAL(dp)            :: laddie_thickness_minimum_config              = 2.0_dp                           ! [m] Minimum layer thickness allowed
+    REAL(dp)            :: laddie_thickness_maximum_config              = 1500.0_dp                        ! [m] Maximum layer thickness allowed
     REAL(dp)            :: laddie_velocity_maximum_config               = 1.414_dp                         ! [m s^-1] Maximum velocity allowed
     REAL(dp)            :: laddie_buoyancy_minimum_config               = 5.0E-3_dp                        ! [kg m^-3] Minimum density difference allowed
 
@@ -1891,6 +1892,7 @@ MODULE model_configuration
 
     ! Stability
     REAL(dp)            :: laddie_thickness_minimum
+    REAL(dp)            :: laddie_thickness_maximum
     REAL(dp)            :: laddie_velocity_maximum
     REAL(dp)            :: laddie_buoyancy_minimum
 
@@ -2812,6 +2814,7 @@ CONTAINS
       laddie_Holland2006_cl_config                                , &
       laddie_Gaspar1988_mu_config                                 , &
       laddie_thickness_minimum_config                             , &
+      laddie_thickness_maximum_config                             , &
       laddie_velocity_maximum_config                              , &
       laddie_buoyancy_minimum_config                              , &
       choice_laddie_tides_config                                  , &
@@ -3823,6 +3826,7 @@ CONTAINS
 
     ! Stability
     C%laddie_thickness_minimum                               = laddie_thickness_minimum_config
+    C%laddie_thickness_maximum                               = laddie_thickness_maximum_config
     C%laddie_velocity_maximum                                = laddie_velocity_maximum_config
     C%laddie_buoyancy_minimum                                = laddie_buoyancy_minimum_config
 
