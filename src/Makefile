@@ -387,6 +387,7 @@ UFEMISM_source = \
   \
   validation/component_tests/ct_create_test_meshes.f90 \
   validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
+  validation/component_tests/ct_discretisation_solve_Laplace_eq.f90 \
   validation/component_tests/ct_discretisation.f90 \
   validation/component_tests/ct_remapping_basic.f90 \
   validation/component_tests/ct_remapping_grid_to_mesh.f90 \
