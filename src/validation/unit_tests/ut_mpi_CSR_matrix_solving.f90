@@ -13,7 +13,7 @@ module ut_mpi_CSR_matrix_solving
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, MPI_WIN
   use mpi_distributed_shared_memory
   use mpi_distributed_memory, only: distribute_from_primary
-  use CSR_matrix_solving, only: solve_matrix_equation_CSR_SOR_wrapper
+  use CSR_matrix_solving, only: solve_matrix_equation_CSR_Jacobi_wrapper, solve_matrix_equation_CSR_Jacobi
 
   implicit none
 
@@ -48,16 +48,16 @@ contains
     call initialise_simple_matrix_equation( A1, b1, x_ex1, .false.)
     call initialise_simple_matrix_equation( A2, b2, x_ex2, .true.)
 
-    call test_solve_CSR_SOR( test_name, A1, b1, x_ex1, 1)
-    call test_solve_CSR_SOR( test_name, A2, b2, x_ex2, 2)
+    call test_solve_CSR_Jacobi( test_name, A1, b1, x_ex1, 1)
+    call test_solve_CSR_Jacobi( test_name, A2, b2, x_ex2, 2)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
   end subroutine test_CSR_matrix_solving_main
 
-  subroutine test_solve_CSR_SOR( test_name_parent, A, b, x_ex, test_number)
-    ! Test the solve_CSR_SOR code
+  subroutine test_solve_CSR_Jacobi( test_name_parent, A, b, x_ex, test_number)
+    ! Test the solve_CSR_Jacobi code
 
     ! In/output variables:
     character(len=*),                intent(in) :: test_name_parent
@@ -67,17 +67,15 @@ contains
 
     ! Local variables:
     character(len=1024), parameter              :: routine_name = 'test_solve_CSR_SOR'
-    character(len=1024), parameter              :: test_name_local = 'SOR'
+    character(len=1024), parameter              :: test_name_local = 'Jacobi'
     character(len=1024)                         :: test_name
     type(type_par_arr_info)                     :: pai
     real(dp), dimension(1)                      :: x = 0._dp
     real(dp), dimension(:), contiguous, pointer :: b_nih => null()
     real(dp), dimension(:), contiguous, pointer :: x_nih => null()
-    real(dp), dimension(:), contiguous, pointer :: x_ex_nih => null()
-    type(MPI_WIN)                               :: wb_nih, wx_nih, wx_ex_nih
-    integer,  parameter                         :: nit   = 500
-    real(dp), parameter                         :: tol   = 1e-5_dp
-    real(dp), parameter                         :: omega = 1.5_dp
+    type(MPI_WIN)                               :: wb_nih, wx_nih
+    integer                                     :: nit
+    real(dp)                                    :: tol
     logical                                     :: test_result
     integer                                     :: ierr
 
@@ -92,12 +90,10 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local) // '_' // trim( test_name)
 
     ! Convert b,x,x_ex to nih arrays
-    call initialise_parallel_array_info( pai, &
-      b_nih, wb_nih, x_nih, wx_nih, x_ex_nih, wx_ex_nih)
+    call initialise_parallel_array_info( pai, b_nih, wb_nih, x_nih, wx_nih)
 
-    call dist_to_hybrid( pai, b   , b_nih   )
-    call dist_to_hybrid( pai, x   , x_nih   )
-    call dist_to_hybrid( pai, x_ex, x_ex_nih)
+    call dist_to_hybrid( pai, b, b_nih)
+    call dist_to_hybrid( pai, x, x_nih)
 
     ! Exchange halos
     call basic_halo_exchange( pai, x_nih)
@@ -106,78 +102,93 @@ contains
     ! ===============
 
     ! Solve matrix equation
-    call solve_matrix_equation_CSR_SOR_wrapper( A, pai, x, pai, b, nit, tol, omega, &
+    nit = 500
+    tol = 1e-7_dp
+    x   = 0._dp
+    call solve_matrix_equation_CSR_Jacobi_wrapper( A, pai, x, pai, b, nit, tol, &
       xx_is_hybrid = .false., bb_is_hybrid = .false.)
 
     ! Verify result
-    test_result = test_tol( x, x_ex, 1e-10_dp)
+    test_result = test_tol( x, x_ex, 1e-5_dp)
     call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
     call unit_test( test_result, trim( test_name) // '_dist_dist')
 
-    ! ! == Dist-hybrid ==
-    ! ! =================
+    ! == Dist-hybrid ==
+    ! =================
 
-    ! ! Perform matrix-vector multiplication
-    ! call multiply_CSR_matrix_with_vector_1D_wrapper( A, pai, x, pai, y_nih, &
-    !   xx_is_hybrid = .false., yy_is_hybrid = .true.)
+    ! Solve matrix equation
+    nit = 500
+    tol = 1e-7_dp
+    x   = 0._dp
+    call solve_matrix_equation_CSR_Jacobi_wrapper( A, pai, x, pai, b_nih, nit, tol, &
+      xx_is_hybrid = .false., bb_is_hybrid = .true.)
 
-    ! ! Convert y back to fully distributed array
-    ! call hybrid_to_dist( pai, y_nih, y)
+    ! Verify result
+    test_result = test_tol( x, x_ex, 1e-5_dp)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
+    call unit_test( test_result, trim( test_name) // '_dist_hybrid')
 
-    ! ! Verify result
-    ! test_result = test_tol( y, y_correct, 1e-10_dp)
-    ! call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
-    ! call unit_test( test_result, trim( test_name) // '_dist_hybrid')
+    ! == Hybrid-dist ==
+    ! =================
 
-    ! ! == Hybrid-dist ==
-    ! ! =================
+    ! Solve matrix equation
+    nit = 500
+    tol = 1e-7_dp
+    x   = 0._dp
+    call solve_matrix_equation_CSR_Jacobi_wrapper( A, pai, x_nih, pai, b, nit, tol, &
+      xx_is_hybrid = .true., bb_is_hybrid = .false.)
 
-    ! ! Perform matrix-vector multiplication
-    ! call multiply_CSR_matrix_with_vector_1D_wrapper( A, pai, x_nih, pai, y, &
-    !   xx_is_hybrid = .true., yy_is_hybrid = .false.)
+    ! Convert x back to fully distributed array
+    call hybrid_to_dist( pai, x_nih, x)
 
-    ! ! Verify result
-    ! test_result = test_tol( y, y_correct, 1e-10_dp)
-    ! call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
-    ! call unit_test( test_result, trim( test_name) // '_hybrid_dist')
+    ! Verify result
+    test_result = test_tol( x, x_ex, 1e-5_dp)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
+    call unit_test( test_result, trim( test_name) // '_hybrid_dist')
 
-    ! ! == Hybrid-hybrid ==
-    ! ! ===================
+    ! == Hybrid-hybrid ==
+    ! ===================
 
-    ! ! Perform matrix-vector multiplication
-    ! call multiply_CSR_matrix_with_vector_1D_wrapper( A, pai, x_nih, pai, y_nih, &
-    !   xx_is_hybrid = .true., yy_is_hybrid = .true.)
+    ! Solve matrix equation
+    nit = 500
+    tol = 1e-7_dp
+    x   = 0._dp
+    call solve_matrix_equation_CSR_Jacobi_wrapper( A, pai, x_nih, pai, b_nih, nit, tol, &
+      xx_is_hybrid = .true., bb_is_hybrid = .true.)
 
-    ! ! Convert y back to fully distributed array
-    ! call hybrid_to_dist( pai, y_nih, y)
+    ! Convert x back to fully distributed array
+    call hybrid_to_dist( pai, x_nih, x)
 
-    ! ! Verify result
-    ! test_result = test_tol( y, y_correct, 1e-10_dp)
-    ! call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
-    ! call unit_test( test_result, trim( test_name) // '_hybrid_hybrid')
+    ! Verify result
+    test_result = test_tol( x, x_ex, 1e-5_dp)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
+    call unit_test( test_result, trim( test_name) // '_hybrid_hybrid')
 
-    ! ! == Hybrid hybrid, no wrapper ==
-    ! ! ===============================
+    ! == Hybrid hybrid, no wrapper ==
+    ! ===============================
 
-    ! ! Perform matrix-vector multiplication
-    ! call multiply_CSR_matrix_with_vector_1D( A, pai, x_nih, pai, y_nih)
+    ! Solve matrix equation
+    nit = 500
+    tol = 1e-7_dp
+    x   = 0._dp
+    call solve_matrix_equation_CSR_Jacobi( A, pai, x_nih, pai, b_nih, nit, tol)
 
-    ! ! Convert y back to fully distributed array
-    ! call hybrid_to_dist( pai, y_nih, y)
+    ! Convert x back to fully distributed array
+    call hybrid_to_dist( pai, x_nih, x)
 
-    ! ! Verify result
-    ! test_result = test_tol( y, y_correct, 1e-10_dp)
-    ! call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
-    ! call unit_test( test_result, trim( test_name) // '_hybrid_hybrid_nowrapper')
+    ! Verify result
+    test_result = test_tol( x, x_ex, 1e-5_dp)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
+    call unit_test( test_result, trim( test_name) // '_hybrid_hybrid_nowrapper')
 
-    ! ! Clean up after yourself
-    ! call deallocate_dist_shared( x_nih, wx_nih)
-    ! call deallocate_dist_shared( y_nih, wy_nih)
+    ! Clean up after yourself
+    call deallocate_dist_shared( x_nih, wx_nih)
+    call deallocate_dist_shared( b_nih, wb_nih)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine test_solve_CSR_SOR
+  end subroutine test_solve_CSR_Jacobi
 
   subroutine initialise_simple_matrix_equation( A, b, x, with_halos)
 
@@ -191,15 +202,13 @@ contains
     type(type_par_arr_info)                     :: pai
     real(dp), dimension(:), contiguous, pointer :: b_nih => null()
     real(dp), dimension(:), contiguous, pointer :: x_nih => null()
-    real(dp), dimension(:), contiguous, pointer :: x_ex_nih => null()
-    type(MPI_WIN)                               :: wb_nih, wx_nih, wx_ex_nih
+    type(MPI_WIN)                               :: wb_nih, wx_nih
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
     if (with_halos) then
-      call initialise_parallel_array_info( pai, &
-        b_nih, wb_nih, x_nih, wx_nih, x_ex_nih, wx_ex_nih)
+      call initialise_parallel_array_info( pai, b_nih, wb_nih, x_nih, wx_nih)
       call allocate_matrix_CSR_dist( A, 7, 7, 1, 1, 3, pai_x = pai, pai_y = pai)
     else
       call allocate_matrix_CSR_dist( A, 7, 7, 1, 1, 3)
@@ -263,8 +272,7 @@ contains
 
   end subroutine initialise_simple_matrix_equation
 
-  subroutine initialise_parallel_array_info( pai, &
-    b_nih, wb_nih, x_nih, wx_nih, x_ex_nih, wx_ex_nih)
+  subroutine initialise_parallel_array_info( pai, b_nih, wb_nih, x_nih, wx_nih)
 
     ! In/output variables:
     type(type_par_arr_info),         intent(  out) :: pai
@@ -272,8 +280,6 @@ contains
     type(MPI_WIN),                   intent(  out) :: wb_nih
     real(dp), dimension(:), pointer, intent(  out) :: x_nih
     type(MPI_WIN),                   intent(  out) :: wx_nih
-    real(dp), dimension(:), pointer, intent(  out) :: x_ex_nih
-    type(MPI_WIN),                   intent(  out) :: wx_ex_nih
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_parallel_array_info'
@@ -347,11 +353,9 @@ contains
 
     b_nih => null()
     x_nih => null()
-    x_ex_nih => null()
 
-    call allocate_dist_shared( b_nih   , wb_nih   , pai%n_nih)
-    call allocate_dist_shared( x_nih   , wx_nih   , pai%n_nih)
-    call allocate_dist_shared( x_ex_nih, wx_ex_nih, pai%n_nih)
+    call allocate_dist_shared( b_nih, wb_nih, pai%n_nih)
+    call allocate_dist_shared( x_nih, wx_nih, pai%n_nih)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

@@ -6,7 +6,7 @@ module CSR_matrix_solving
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
   use parallel_array_info_type, only: type_par_arr_info
-  use mpi_f08, only: MPI_WIN
+  use mpi_f08, only: MPI_WIN, MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD
   use mpi_distributed_shared_memory, only: allocate_dist_shared, gather_dist_shared_to_all, &
     deallocate_dist_shared, dist_to_hybrid, hybrid_to_dist
   use halo_exchange_mod, only: basic_halo_exchange
@@ -15,11 +15,11 @@ module CSR_matrix_solving
 
   private
 
-  public :: solve_matrix_equation_CSR_SOR_wrapper
+  public :: solve_matrix_equation_CSR_Jacobi_wrapper, solve_matrix_equation_CSR_Jacobi
 
 contains
 
-  subroutine solve_matrix_equation_CSR_SOR_wrapper( AA, pai_x, xx, pai_b, bb, nit, tol, omega, &
+  subroutine solve_matrix_equation_CSR_Jacobi_wrapper( AA, pai_x, xx, pai_b, bb, nit, tol, &
     xx_is_hybrid, bb_is_hybrid, buffer_xx_nih, buffer_bb_nih)
     !< Interface between the old, purely distributed memory architecture,
     !< and the new, hybrid distributed/shared memory architecture.
@@ -32,12 +32,11 @@ contains
     real(dp), dimension(:), target,           intent(in   ) :: bb
     integer,                                  intent(in   ) :: nit
     real(dp),                                 intent(in   ) :: tol
-    real(dp),                                 intent(in   ) :: omega
     logical,                        optional, intent(in   ) :: xx_is_hybrid, bb_is_hybrid
     real(dp), dimension(:), target, optional, intent(in   ) :: buffer_xx_nih, buffer_bb_nih
 
     ! Local variables:
-    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_SOR_wrapper'
+    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_Jacobi_wrapper'
     logical                         :: xx_is_hybrid_, bb_is_hybrid_
     real(dp), dimension(:), pointer :: xx_nih => null()
     real(dp), dimension(:), pointer :: bb_nih => null()
@@ -45,6 +44,12 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Safety
+#if (DO_ASSERTIONS)
+    call assert( AA%m == AA%n, 'matrix A is not square')
+    call assert( pai_x%n == AA%m .and. pai_b%n == AA%n, 'vector sizes dont match')
+#endif
 
     if (present( xx_is_hybrid)) then
       xx_is_hybrid_ = xx_is_hybrid
@@ -81,7 +86,7 @@ contains
       call dist_to_hybrid( pai_b, bb, bb_nih)
     end if
 
-    call solve_matrix_equation_CSR_SOR( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol, omega)
+    call solve_matrix_equation_CSR_Jacobi( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol)
 
     if (xx_is_hybrid_) then
       nullify( xx_nih)
@@ -107,10 +112,10 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine solve_matrix_equation_CSR_SOR_wrapper
+  end subroutine solve_matrix_equation_CSR_Jacobi_wrapper
 
-  subroutine solve_matrix_equation_CSR_SOR( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol, omega)
-    !< Solve the matrix equation Ax = b using successive over-relaxation (SOR)
+  subroutine solve_matrix_equation_CSR_Jacobi( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol)
+    !< Solve the matrix equation Ax = b using the Jacobi algorithm
 
     ! In- and output variables:
     type(type_sparse_matrix_CSR_dp),                intent(in   ) :: AA
@@ -120,20 +125,25 @@ contains
     real(dp), dimension(pai_b%i1_nih:pai_b%i2_nih), intent(in   ) :: bb_nih
     integer,                                        intent(in   ) :: nit
     real(dp),                                       intent(in   ) :: tol
-    real(dp),                                       intent(in   ) :: omega
 
     ! Local variables:
-    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_SOR'
+    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_Jacobi'
 
     ! Add routine to path
     call init_routine( routine_name)
 
+    ! Safety
+#if (DO_ASSERTIONS)
+    call assert( AA%m == AA%n, 'matrix A is not square')
+    call assert( pai_x%n == AA%m .and. pai_b%n == AA%n, 'vector sizes dont match')
+#endif
+
     if (.not. AA%is_finalised) call crash('A is not finalised')
 
     if (AA%needs_x_tot == 1) then
-      call solve_matrix_equation_CSR_SOR_x_tot( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol, omega)
+      call solve_matrix_equation_CSR_Jacobi_x_tot( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol)
     elseif (AA%needs_x_tot == 0) then
-      call solve_matrix_equation_CSR_SOR_x_nih( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol, omega)
+      call solve_matrix_equation_CSR_Jacobi_x_nih( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol)
     else
       call crash('needs_x_tot not initialised')
     end if
@@ -141,36 +151,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine solve_matrix_equation_CSR_SOR
+  end subroutine solve_matrix_equation_CSR_Jacobi
 
-  subroutine solve_matrix_equation_CSR_SOR_x_tot( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol, omega)
-
-    ! In- and output variables:
-    type(type_sparse_matrix_CSR_dp),                intent(in   ) :: AA
-    type(type_par_arr_info),                        intent(in   ) :: pai_x
-    real(dp), dimension(pai_x%i1_nih:pai_x%i2_nih), intent(inout) :: xx_nih
-    type(type_par_arr_info),                        intent(in   ) :: pai_b
-    real(dp), dimension(pai_b%i1_nih:pai_b%i2_nih), intent(in   ) :: bb_nih
-    integer,                                        intent(in   ) :: nit
-    real(dp),                                       intent(in   ) :: tol
-    real(dp),                                       intent(in   ) :: omega
-
-    ! Local variables:
-    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_SOR_x_tot'
-    real(dp), dimension(:), pointer :: xx_tot => null()
-    type(MPI_WIN)                   :: wxx_tot
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call warning('boop')
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine solve_matrix_equation_CSR_SOR_x_tot
-
-  subroutine solve_matrix_equation_CSR_SOR_x_nih( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol, omega)
+  subroutine solve_matrix_equation_CSR_Jacobi_x_tot( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol)
 
     ! In- and output variables:
     type(type_sparse_matrix_CSR_dp),                intent(in   ) :: AA
@@ -180,67 +163,158 @@ contains
     real(dp), dimension(pai_b%i1_nih:pai_b%i2_nih), intent(in   ) :: bb_nih
     integer,                                        intent(in   ) :: nit
     real(dp),                                       intent(in   ) :: tol
-    real(dp),                                       intent(in   ) :: omega
 
     ! Local variables:
-    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_SOR_x_nih'
+    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_Jacobi_x_tot'
+    real(dp), dimension(:), pointer :: AA_diag => null()
+    type(MPI_WIN)                   :: wAA_diag
+    integer                         :: i,k,j
+    real(dp), dimension(:), pointer :: xx_old_tot => null()
+    type(MPI_WIN)                   :: wxx_old_tot
+    integer                         :: it
+    real(dp)                        :: lhs, residual, max_abs_residual
+    integer                         :: ierr
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    call warning('baap')
+    ! Save diagonal elements of A
+    call allocate_dist_shared( AA_diag, wAA_diag, AA%n_node)
+    AA_diag( AA%i1_node:AA%i2_node) => AA_diag
+
+    do i = AA%i1, AA%i2
+      do k = AA%ptr( i), AA%ptr( i+1)-1
+        j = AA%ind( k)
+        if (j == i) AA_diag( i) = AA%val( k)
+      end do
+    end do
+
+    ! Allocate memory for x_old
+    call allocate_dist_shared( xx_old_tot, wxx_old_tot, pai_x%n)
+
+    ! Run the Jacobi iteration until it converges
+    Jacobi_iterate: do it = 1, nit
+
+      ! Update x_old
+      call gather_dist_shared_to_all( pai_x, xx_nih, xx_old_tot)
+
+      max_abs_residual = 0._dp
+
+      do i = AA%i1, AA%i2
+
+        lhs = 0._dp
+        do k = AA%ptr( i), AA%ptr( i+1)-1
+          j = AA%ind( k)
+          lhs = lhs + AA%val( k) * xx_old_tot( j)
+        end do
+
+        residual = (lhs - bb_nih( i)) / AA_diag( i)
+        xx_nih( i) = xx_old_tot( i) - residual
+
+        max_abs_residual = max( max_abs_residual, abs( residual))
+
+      end do
+      call MPI_ALLREDUCE( MPI_IN_PLACE, max_abs_residual, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+      ! ! DENK DROM
+      ! if (par%primary) write(0,'(A,I5,A,E12.5)') '    Jacobi iteration ', &
+      !   it, ': max_abs_residual = ', max_abs_residual
+
+      ! If the iteration has converged, stop
+      if (max_abs_residual < tol) exit Jacobi_iterate
+
+    end do Jacobi_iterate
+
+    ! Clean up after yourself
+    call deallocate_dist_shared( AA_diag   , wAA_diag   )
+    call deallocate_dist_shared( xx_old_tot, wxx_old_tot)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine solve_matrix_equation_CSR_SOR_x_nih
+  end subroutine solve_matrix_equation_CSR_Jacobi_x_tot
 
-  ! omega_dyn = omega
+  subroutine solve_matrix_equation_CSR_Jacobi_x_nih( AA, pai_x, xx_nih, pai_b, bb_nih, nit, tol)
 
-  ! res_max = tol * 2._dp
-  ! it = 0
-  ! SOR_iterate: DO WHILE (res_max > tol .AND. it < nit)
-  !   it = it+1
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp),                intent(in   ) :: AA
+    type(type_par_arr_info),                        intent(in   ) :: pai_x
+    real(dp), dimension(pai_x%i1_nih:pai_x%i2_nih), intent(inout) :: xx_nih
+    type(type_par_arr_info),                        intent(in   ) :: pai_b
+    real(dp), dimension(pai_b%i1_nih:pai_b%i2_nih), intent(in   ) :: bb_nih
+    integer,                                        intent(in   ) :: nit
+    real(dp),                                       intent(in   ) :: tol
 
-  !   res_max = 0._dp
+    ! Local variables:
+    character(len=1024), parameter  :: routine_name = 'solve_matrix_equation_CSR_Jacobi_x_nih'
+    real(dp), dimension(:), pointer :: AA_diag => null()
+    type(MPI_WIN)                   :: wAA_diag
+    integer                         :: i,k,j
+    real(dp), dimension(:), pointer :: xx_old_nih => null()
+    type(MPI_WIN)                   :: wxx_old_nih
+    integer                         :: it
+    real(dp)                        :: lhs, residual, max_abs_residual
+    integer                         :: ierr
 
-  !   DO i = i1, i2
+    ! Add routine to path
+    call init_routine( routine_name)
 
-  !     lhs = 0._dp
-  !     cij = 0._dp
-  !     DO k = CSR%A_ptr( i), CSR%A_ptr( i+1)-1
-  !       j = CSR%A_index( k)
-  !       lhs = lhs + CSR%A_val( k) * CSR%x( j)
-  !       IF (j == i) cij = CSR%A_val( k)
-  !     END DO
+    ! Save diagonal elements of A
+    call allocate_dist_shared( AA_diag, wAA_diag, AA%n_node)
+    AA_diag( AA%i1_node:AA%i2_node) => AA_diag
 
-  !     res = (lhs - CSR%b( i)) / cij
-  !     res_max = MAX( res_max, ABS(res))
+    do i = AA%i1, AA%i2
+      do k = AA%ptr( i), AA%ptr( i+1)-1
+        j = AA%ind( k)
+        if (j == i) AA_diag( i) = AA%val( k)
+      end do
+    end do
 
-  !     CSR%x( i) = CSR%x( i) - omega_dyn * res
+    ! Allocate memory for x_old
+    call allocate_dist_shared( xx_old_nih, wxx_old_nih, pai_x%n)
+    xx_old_nih( pai_x%i1_nih:pai_x%i2_nih) => xx_old_nih
 
-  !   END DO ! DO i = i1, i2
-  !   CALL sync
+    ! Run the Jacobi iteration until it converges
+    Jacobi_iterate: do it = 1, nit
 
-  !   ! Check if we've reached a stable solution
-  !   CALL MPI_ALLREDUCE( MPI_IN_PLACE, res_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+      ! Update x_old
+      xx_old_nih( pai_x%i1:pai_x%i2) = xx_nih( pai_x%i1:pai_x%i2)
+      call basic_halo_exchange( pai_x, xx_old_nih)
 
-  !   !IF (par%master) WRITE(0,*) '      SOR iteration ', it, ': res_max = ', res_max
+      max_abs_residual = 0._dp
 
-  !   IF (it > 100 .AND. res_max > 1E3_dp ) THEN
+      do i = AA%i1, AA%i2
 
-  !     ! Divergence detected - decrease omega, reset solution to zero, restart SOR.
-  !     IF (par%master) WRITE(0,*) '  solve_matrix_equation_CSR_SOR - divergence detected; decrease omega, reset solution to zero, restart SOR'
-  !     omega_dyn = omega_dyn - 0.1_dp
-  !     it = 0
-  !     CSR%x( i1:i2) = 0._dp
-  !     CALL sync
+        lhs = 0._dp
+        do k = AA%ptr( i), AA%ptr( i+1)-1
+          j = AA%ind( k)
+          lhs = lhs + AA%val( k) * xx_old_nih( j)
+        end do
 
-  !     IF (omega_dyn <= 0.1_dp) THEN
-  !       CALL crash('divergence detected even with extremely low relaxation parameter!')
-  !     END IF
-  !   END IF
+        residual = (lhs - bb_nih( i)) / AA_diag( i)
+        xx_nih( i) = xx_old_nih( i) - residual
 
-  ! END DO SOR_iterate
+        max_abs_residual = max( max_abs_residual, abs( residual))
+
+      end do
+      call MPI_ALLREDUCE( MPI_IN_PLACE, max_abs_residual, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+
+      ! ! DENK DROM
+      ! if (par%primary) write(0,'(A,I5,A,E12.5)') '    Jacobi iteration ', &
+      !   it, ': max_abs_residual = ', max_abs_residual
+
+      ! If the iteration has converged, stop
+      if (max_abs_residual < tol) exit Jacobi_iterate
+
+    end do Jacobi_iterate
+
+    ! Clean up after yourself
+    call deallocate_dist_shared( AA_diag   , wAA_diag   )
+    call deallocate_dist_shared( xx_old_nih, wxx_old_nih)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine solve_matrix_equation_CSR_Jacobi_x_nih
 
 end module CSR_matrix_solving
