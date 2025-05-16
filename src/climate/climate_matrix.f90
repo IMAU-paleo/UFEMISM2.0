@@ -111,15 +111,15 @@ contains
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
-    type(type_global_forcing), intent(inout) :: forcing
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    type(type_global_forcing), intent(inout) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_temperature'
     INTEGER                                            :: vi ,m
     REAL(dp)                                           :: CO2, w_CO2
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            ::  w_ins,  w_ins_smooth,  w_ice,  w_tot
-    REAL(dp)                                           :: w_ins_av
+    REAL(dp)                                           :: w_ins_av, w_ins_denominator
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: T_ref_GCM
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: Hs_GCM, lambda_GCM
     REAL(dp), PARAMETER                                :: w_cutoff = 0.5_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
@@ -138,28 +138,36 @@ contains
     allocate( lambda_GCM(   mesh%vi1:mesh%vi2))
     
     IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix temperature model...'
+
+    print *, "value of vi1", mesh%vi1
+    print *, "size of w_ins to check if is parallelised", size(w_ins)
     
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
 
-    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
-      CO2 = forcing%CO2_obs
-    ELSEIF (C%choice_matrix_forcing == 'd18O_inverse_CO2') THEN
-      CALL crash('not implemented yet!')
-      !CO2 = forcing%CO2_mod
-    ELSEIF (C%choice_matrix_forcing == 'd18O_inverse_dT_glob') THEN
-      CO2 = 0._dp
-      CALL crash('must only be called with the correct forcing method, check your code!')
-    ELSE
-      CO2 = 0._dp
-      CALL crash('unknown choice_forcing_method"' // TRIM(C%choice_matrix_forcing) // '"!')
-    END IF
+    select case (C%choice_matrix_forcing)
 
+    case default
+      call crash('unknown choice_forcing_method"' // TRIM(C%choice_matrix_forcing) // '"!')
+
+    case ('CO2_direct')
+      CO2 = forcing%CO2_obs
+
+    case ('d18O_inverse_CO2')
+      call crash('d18O_inverse_CO2 not implemented yet!')
+
+    case ('d18O_inverse_dT_glob')
+      call crash('must only be called with the correct forcing method, check your code!')
+
+    end select
+    print *, "value of CO2 = ", CO2
+    call sync
+    
+    print *, '   error step 0.1...', CO2
     ! If CO2 ~= warm snap -> weight is 1. If ~= cold snap -> weight is 0.
     ! Otherwise interpolate. Berends et al., 2018 - Eq. 1
     w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / &
                                (C%matrix_high_CO2_level - C%matrix_low_CO2_level) ))
-    IF (par%primary)  WRITE(*,"(A)") '   error step 0.1...'
 
     ! Find the interpolation weights based on absorbed insolation
     ! ===========================================================
@@ -169,7 +177,8 @@ contains
     !IF (par%primary) print *, "value of Albedo",SMB%Albedo
 
     climate%matrix%I_abs( mesh%vi1:mesh%vi2) = 0._dp
-    IF (par%primary)  WRITE(*,"(A)") '   error step 0.2...'
+    print *, '   error step 0.2... print w_CO2', w_CO2
+    call sync
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
       ! Calculate modelled absorbed insolation. Berends et al., 2018 - Eq. 2
@@ -177,24 +186,34 @@ contains
                                   climate%Q_TOA( vi,m) * (1._dp - SMB%Albedo( vi, m))  
     END DO
     END DO
-    IF (par%primary)  WRITE(*,"(A)") '   error step 1...'
+    call sync
+
+    print *, "error step1..."
+    !IF (par%primary)  WRITE(*,"(A)") '   error step 1...'
     ! Calculate "direct" weighting field
     ! Berends et al., 2018 - Eq. 3
-    print *, "size of matrix%I_abs =", size(climate%matrix%I_abs, 1)
+    print *, "size of matrix%I_abs =", size(climate%matrix%I_abs)
     print *, "size of matrix%GCM_warm%I_abs =", size(climate%matrix%GCM_warm%I_abs, 1)
     print *, "size of matrix%GCM%cold%I_abs =", size(climate%matrix%GCM_cold%I_abs, 1)
     DO vi = mesh%vi1, mesh%vi2
-    print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
-    print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
-    print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
-    print *, "print value of w_ins", w_ins(vi), "and vi = ", vi
       ! If absorbed insolation ~= warm snap -> weight is 1.
       ! If ~= cold snap -> weight is 0. Otherwise interpolate
-      ! HERE ADD A IF IN CASE THAT THE DENOMINATOR IS NEAR 0 when I_ABS ARE EQUAL (this happen with NaNs?)
-      w_ins( vi) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, &
-                      ( climate%matrix%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) / &
-                      ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
+      w_ins_denominator = climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)
+      if (abs(w_ins_denominator) > 1.0e-10_dp) then
+        w_ins( vi) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, &
+                        ( climate%matrix%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) / &
+                        ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
+      else
+        w_ins( vi)= 0.0_dp ! just for now IDK if it makes sense physically
+        print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
+      end if
+    !print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
+    !print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
+    !print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
+    !print *, "print value of w_ins", w_ins(vi), "and vi = ", vi
     END DO
+    call sync
+
     IF (par%primary)  WRITE(*,"(A)") '   error step 1.5 ...'
     w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
                                                            (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
@@ -976,19 +995,19 @@ contains
 
     ! Input variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: Hs              ! Model orography (m)
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: Hs_GCM          ! Reference orography (m)           - total ice-weighted
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: T_ref_GCM       ! Reference temperature (K)         - total ice-weighted
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: P_ref_GCM       ! Reference precipitation (m/month) - total ice-weighted
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: Hs              ! Model orography (m)
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: Hs_GCM          ! Reference orography (m)           - total ice-weighted
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(IN)    :: T_ref_GCM       ! Reference temperature (K)         - total ice-weighted
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(IN)    :: P_ref_GCM       ! Reference precipitation (m/month) - total ice-weighted
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Output variables:
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Precip_GCM      ! Climate matrix precipitation
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(OUT)   :: Precip_GCM      ! Climate matrix precipitation
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_CC'
     INTEGER                                            :: vi,m
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            ::  T_inv,  T_inv_ref
+    REAL(dp), DIMENSION(:, :), ALLOCATABLE            ::  T_inv,  T_inv_ref
 
     ! Add routine to path
     CALL init_routine( routine_name)

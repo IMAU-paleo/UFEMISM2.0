@@ -15,6 +15,7 @@ MODULE climate_realistic
   USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing
   USE netcdf_io_main
   USE netcdf_basic
+  use mpi_distributed_memory, only: distribute_from_primary
 
   IMPLICIT NONE
 
@@ -482,7 +483,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
     INTEGER                                            :: ti1, ti2, til, tiu
-    REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2
+    REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2, CO2_aux
     REAL(dp), PARAMETER                                :: dt_smooth = 60._dp
 
     ! Add routine to path
@@ -495,7 +496,7 @@ CONTAINS
       CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
     END IF
 
-    IF (par%primary) THEN
+    !IF (par%primary) THEN
 
       IF     (time < MINVAL( forcing%CO2_time)) THEN
         ! Model time before start of CO2 record; using constant extrapolation
@@ -535,8 +536,13 @@ CONTAINS
         forcing%CO2_obs = intCO2 / dt_smooth
 
       END IF
-
-    END IF
+      !CO2_aux = forcing%CO2_obs
+      !call MPI_BCAST(forcing%CO2_obs, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    !END IF
+    !call distribute_from_primary_dp_1D(forcing%CO2_obs)
+    ! not working, check in the code of ice_dynamics_main what is distributing with this, a real? or more like a vector...
+    ! compare with the things that I asked to chatgpt before, doing this it calculates for every core. w_CO2 = -0.5 now. 
+    print *, "print value of forcing%CO2_obs in climate realistic...", forcing%CO2_obs
     CALL sync
 
     ! Finalise routine path
