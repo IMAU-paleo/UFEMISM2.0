@@ -486,6 +486,9 @@ contains
         vil = mesh%EV( ei,3)
         vir = mesh%EV( ei,4)
 
+        til = mesh%ETri( ei,1)
+        tir = mesh%ETri( ei,2)
+
         has_vertices_in_node_next_to  = .false.
         has_triangles_in_node_next_to = .false.
         has_edges_in_node_next_to     = .false.
