@@ -179,6 +179,7 @@ MODULE laddie_model_types
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_UV_b_c
 
     ! Timestepping types
+    TYPE(type_laddie_timestep)              :: nm12                        !                   Timestep n minus 1/2
     TYPE(type_laddie_timestep)              :: now                         !                   Timestep now
     TYPE(type_laddie_timestep)              :: np1                         !                   Timestep n plus 1
     TYPE(type_laddie_timestep)              :: np12                        !                   Timestep n plus 1/2

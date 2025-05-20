@@ -275,6 +275,7 @@ UFEMISM_source = \
   laddie/laddie_velocity.f90 \
   laddie/laddie_tracers.f90 \
   laddie/laddie_output.f90 \
+  laddie/laddie_integration.f90 \
   laddie/laddie_main.f90 \
   \
   basal_mass_balance/BMB_idealised.f90 \
