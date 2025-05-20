@@ -42,6 +42,12 @@ MODULE laddie_model_types
     real(dp), dimension(:), allocatable :: time
 
     real(dp), dimension(:), allocatable :: layer_volume
+    real(dp), dimension(:), allocatable :: area_a
+    real(dp), dimension(:), allocatable :: area_b
+
+    real(dp), dimension(:), allocatable :: thickness_mean
+    real(dp), dimension(:), allocatable :: thickness_min
+    real(dp), dimension(:), allocatable :: thickness_max
 
     real(dp), dimension(:), allocatable :: melt_max
     real(dp), dimension(:), allocatable :: uabs_max
@@ -58,8 +64,8 @@ MODULE laddie_model_types
     logical                                     :: output_fields_file_matches_current_mesh
 
     ! Time domain
-    REAL(dp)                                    :: dt                          ! [s]               Time step
-    REAL(dp)                                    :: tend                        ! [s]               Time end of Laddie cycle
+    real(dp)                                    :: dt                          ! [s]               Time step
+    real(dp)                                    :: tend                        ! [s]               Time end of Laddie cycle
 
     real(dp), dimension(:), contiguous, pointer :: dH_dt           => null()  ! [m s^-1]          Layer thickness change
     type(MPI_WIN) :: wdH_dt
@@ -144,6 +150,12 @@ MODULE laddie_model_types
     logical,  dimension(:), contiguous, pointer :: mask_oc_b       => null()  !                   Icefree ocean mask on b-grid
     type(MPI_WIN) :: wmask_a, wmask_gr_a, wmask_oc_a, wmask_b, wmask_gl_b, wmask_cf_b, wmask_oc_b
 
+    ! Domains and areas
+    real(dp), dimension(:), contiguous, pointer :: domain_a        => null()  ! []                Floating domain on a grid
+    real(dp), dimension(:), contiguous, pointer :: domain_b        => null()  ! []                Floating domain on b grid
+    type(MPI_WIN) :: wdomain_a, wdomain_b
+    real(dp)                                    :: area_a                     ! [s]               Integrated area on a grid
+    real(dp)                                    :: area_b                     ! [s]               Integrated area on b grid
 
     ! Mapping operators
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_b

@@ -10,7 +10,7 @@ module laddie_output
   use netcdf_io_main
   use mesh_integrate_over_domain, only: integrate_over_domain, average_over_domain
   use reallocate_mod
-  use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_SUM, MPI_COMM_WORLD
+  use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_MIN, MPI_SUM, MPI_COMM_WORLD
 
   implicit none
 
@@ -147,6 +147,12 @@ contains
 
     ! Write bulk scalars
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'layer_volume',      laddie%buffer%layer_volume,      n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'area_a',            laddie%buffer%area_a,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'area_b',            laddie%buffer%area_b,            n, ti+1)
+
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'thickness_mean',    laddie%buffer%thickness_mean,    n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'thickness_max',     laddie%buffer%thickness_max,     n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'thickness_min',     laddie%buffer%thickness_min,     n, ti+1)
 
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_max',          laddie%buffer%melt_max,          n, ti+1)
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'uabs_max',          laddie%buffer%uabs_max,          n, ti+1)
@@ -198,7 +204,13 @@ contains
     call add_time_dimension_to_file( laddie%output_scalar_filename, ncid)
 
     ! Integrated ice geometry
-    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'layer_volume', long_name = 'Total mixed layer volume', units = 'm^3')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'layer_volume',   long_name = 'Total mixed layer volume', units = 'm^3')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'area_a',         long_name = 'Integrated floating area a-grid', units = 'm^2')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'area_b',         long_name = 'Integrated floating area b-grid', units = 'm^2')
+
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'thickness_mean', long_name = 'Mean layer thickness', units = 'm')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'thickness_max',  long_name = 'Maximum layer thickness', units = 'm')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'thickness_min',  long_name = 'Minimum layer thickness', units = 'm')
 
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_max',     long_name = 'Maximum melt rate',        units = 'm/yr')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'uabs_max',     long_name = 'Maximum speed',            units = 'm/s')
@@ -241,6 +253,13 @@ contains
       allocate( laddie%buffer%time             ( n_mem), source = 0._dp)
 
       allocate( laddie%buffer%layer_volume     ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%area_a           ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%area_b           ( n_mem), source = 0._dp)
+
+      allocate( laddie%buffer%thickness_mean   ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%thickness_max    ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%thickness_min    ( n_mem), source = 0._dp)
+
       allocate( laddie%buffer%melt_max         ( n_mem), source = 0._dp)
       allocate( laddie%buffer%uabs_max         ( n_mem), source = 0._dp)
       allocate( laddie%buffer%T_max            ( n_mem), source = 0._dp)
@@ -263,21 +282,29 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'buffer_laddie_scalars'
     integer                        :: n, vi, ierr
-    real(dp)                       :: H_int, melt_max, Uabs_max, T_max
+    real(dp)                       :: H_int, H_mean, H_max, H_min
+    real(dp)                       :: melt_max, Uabs_max, T_max
 
     ! Add routine to path
     call init_routine( routine_name)
 
     ! == Calculate values ==
-    call integrate_over_domain( mesh, laddie%now%H, H_int)
 
-    melt_max = maxval( laddie%melt) * sec_per_year
+    ! Thickness scalars
+    call integrate_over_domain( mesh, laddie%now%H, H_int)
+    H_mean = H_int / laddie%area_a
+    H_max = maxval( laddie%now%H, laddie%mask_a)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, H_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    H_min = minval( laddie%now%H, laddie%mask_a)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, H_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+
+    melt_max = maxval( laddie%melt, laddie%mask_a) * sec_per_year
     call MPI_ALLREDUCE( MPI_IN_PLACE, melt_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    Uabs_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2))
+    Uabs_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2), laddie%mask_a)
     call MPI_ALLREDUCE( MPI_IN_PLACE, Uabs_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    T_max = maxval( laddie%now%T)
+    T_max = maxval( laddie%now%T, laddie%mask_a)
     call MPI_ALLREDUCE( MPI_IN_PLACE, T_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     ! =====================
@@ -296,6 +323,12 @@ contains
       laddie%buffer%time             ( n) = time
 
       laddie%buffer%layer_volume     ( n) = H_int
+      laddie%buffer%area_a           ( n) = laddie%area_a
+      laddie%buffer%area_b           ( n) = laddie%area_b
+
+      laddie%buffer%thickness_mean   ( n) = H_mean
+      laddie%buffer%thickness_max    ( n) = H_max
+      laddie%buffer%thickness_min    ( n) = H_min
 
       laddie%buffer%melt_max         ( n) = melt_max
       laddie%buffer%uabs_max         ( n) = Uabs_max
@@ -328,6 +361,12 @@ contains
     call reallocate( laddie%buffer%time             , n_mem, source = 0._dp)
 
     call reallocate( laddie%buffer%layer_volume     , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%area_a           , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%area_b           , n_mem, source = 0._dp)
+
+    call reallocate( laddie%buffer%thickness_mean   , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%thickness_max    , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%thickness_min    , n_mem, source = 0._dp)
 
     call reallocate( laddie%buffer%melt_max         , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%uabs_max         , n_mem, source = 0._dp)

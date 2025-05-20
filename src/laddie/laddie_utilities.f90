@@ -245,6 +245,12 @@ CONTAINS
     laddie%mask_cf_b     ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%mask_cf_b
     laddie%mask_oc_b     ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%mask_oc_b
 
+    ! Domains
+    call allocate_dist_shared( laddie%domain_a      , laddie%wdomain_a      , mesh%pai_V%n_nih  )    ! []              Floating domain on a-grid
+    call allocate_dist_shared( laddie%domain_b      , laddie%wdomain_b      , mesh%pai_Tri%n_nih)    ! []              Floating domain on b-grid
+    laddie%domain_a      ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%domain_a
+    laddie%domain_b      ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%domain_b
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

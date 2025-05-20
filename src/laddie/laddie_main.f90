@@ -24,6 +24,7 @@ MODULE laddie_main
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  use mesh_integrate_over_domain                             , only: integrate_over_domain
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
@@ -498,13 +499,23 @@ CONTAINS
         laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)
         laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
       END IF
+
+      ! Define domain for area integration
+      if (laddie%mask_a( vi)) then
+        laddie%domain_a( vi) = 1.0_dp
+      else
+        laddie%domain_a( vi) = 0.0_dp
+      end if
     END DO
 
-    ! Mask on b-grid
     call exchange_halos( mesh, laddie%mask_a)
     call exchange_halos( mesh, laddie%mask_gr_a)
     call exchange_halos( mesh, laddie%mask_oc_a)
+    call exchange_halos( mesh, laddie%domain_a)
 
+    call integrate_over_domain( mesh, laddie%domain_a, laddie%area_a)
+
+    ! Mask on b-grid
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
       laddie%mask_b( ti)    = .false.
@@ -569,12 +580,21 @@ CONTAINS
         laddie%mask_oc_b( ti) = .true.
       END IF
 
+      ! Define domain for area integration
+      if (laddie%mask_b( ti)) then
+        laddie%domain_b( ti) = 1.0_dp
+      else
+        laddie%domain_b( ti) = 0.0_dp
+      end if
     END DO !ti = mesh%ti1, mesh%ti2
 
     call exchange_halos( mesh, laddie%mask_b)
     call exchange_halos( mesh, laddie%mask_gl_b)
     call exchange_halos( mesh, laddie%mask_cf_b)
     call exchange_halos( mesh, laddie%mask_oc_b)
+    call exchange_halos( mesh, laddie%domain_b)
+
+    call integrate_over_domain( mesh, laddie%domain_b, laddie%area_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -806,6 +826,12 @@ CONTAINS
     laddie%mask_gl_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_gl_b
     laddie%mask_cf_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_cf_b
     laddie%mask_oc_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_oc_b
+
+    ! Domain
+    call reallocate_dist_shared( laddie%domain_a      , laddie%wdomain_a      , mesh_new%pai_V%n_nih  )
+    call reallocate_dist_shared( laddie%domain_b      , laddie%wdomain_b      , mesh_new%pai_Tri%n_nih)
+    laddie%domain_a      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%domain_a
+    laddie%domain_b      ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%domain_b
 
     ! == Re-initialise masks ==
     CALL update_laddie_masks( mesh_new, ice, laddie)
