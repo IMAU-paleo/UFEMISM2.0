@@ -52,6 +52,7 @@ MODULE laddie_model_types
     real(dp), dimension(:), allocatable :: melt_mean
     real(dp), dimension(:), allocatable :: melt_max
     real(dp), dimension(:), allocatable :: melt_min
+    real(dp), dimension(:), allocatable :: melt_tot
 
     real(dp), dimension(:), allocatable :: uabs_max
 

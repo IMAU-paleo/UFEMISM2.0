@@ -157,6 +157,7 @@ contains
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_mean',         laddie%buffer%melt_mean,         n, ti+1)
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_max',          laddie%buffer%melt_max,          n, ti+1)
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_min',          laddie%buffer%melt_min,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_tot',          laddie%buffer%melt_tot,          n, ti+1)
 
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'uabs_max',          laddie%buffer%uabs_max,          n, ti+1)
 
@@ -225,6 +226,7 @@ contains
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_mean',    long_name = 'Mean melt rate',           units = 'm/yr')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_max',     long_name = 'Maximum melt rate',        units = 'm/yr')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_min',     long_name = 'Minimum melt rate',        units = 'm/yr')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_tot',     long_name = 'Total melt rate  = BMB',   units = 'Gt/yr')
 
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'uabs_max',     long_name = 'Maximum speed',            units = 'm/s')
 
@@ -282,6 +284,7 @@ contains
       allocate( laddie%buffer%melt_mean        ( n_mem), source = 0._dp)
       allocate( laddie%buffer%melt_max         ( n_mem), source = 0._dp)
       allocate( laddie%buffer%melt_min         ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%melt_tot         ( n_mem), source = 0._dp)
 
       allocate( laddie%buffer%uabs_max         ( n_mem), source = 0._dp)
 
@@ -311,7 +314,7 @@ contains
     character(len=1024), parameter :: routine_name = 'buffer_laddie_scalars'
     integer                        :: n, vi, ierr
     real(dp)                       :: H_int, H_mean, H_max, H_min
-    real(dp)                       :: melt_mean, melt_max, melt_min, melt_int
+    real(dp)                       :: melt_mean, melt_max, melt_min, melt_int, melt_tot
     real(dp)                       :: Uabs_max
     real(dp)                       :: T_mean, T_max, T_min, T_int
     real(dp)                       :: S_mean, S_max, S_min, S_int
@@ -336,7 +339,7 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, melt_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
     melt_min = minval( laddie%melt, laddie%mask_a) * sec_per_year
     call MPI_ALLREDUCE( MPI_IN_PLACE, melt_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-    ! melt_tot = melt_int * sec_per_year * 1.0E-09_dp ! [Gt/yr] 
+    melt_tot = melt_int * sec_per_year * 1.0E-09_dp ! [Gt/yr] 
 
     Uabs_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2), laddie%mask_b)
     call MPI_ALLREDUCE( MPI_IN_PLACE, Uabs_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -382,6 +385,7 @@ contains
       laddie%buffer%melt_mean        ( n) = melt_mean
       laddie%buffer%melt_max         ( n) = melt_max
       laddie%buffer%melt_min         ( n) = melt_min
+      laddie%buffer%melt_tot         ( n) = melt_tot
 
       laddie%buffer%uabs_max         ( n) = Uabs_max
 
@@ -430,6 +434,7 @@ contains
     call reallocate( laddie%buffer%melt_mean        , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%melt_max         , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%melt_min         , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%melt_tot         , n_mem, source = 0._dp)
 
     call reallocate( laddie%buffer%uabs_max         , n_mem, source = 0._dp)
 
