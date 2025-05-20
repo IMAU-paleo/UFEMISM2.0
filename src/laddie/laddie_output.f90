@@ -154,9 +154,19 @@ contains
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'thickness_max',     laddie%buffer%thickness_max,     n, ti+1)
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'thickness_min',     laddie%buffer%thickness_min,     n, ti+1)
 
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_mean',         laddie%buffer%melt_mean,         n, ti+1)
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_max',          laddie%buffer%melt_max,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'melt_min',          laddie%buffer%melt_min,          n, ti+1)
+
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'uabs_max',          laddie%buffer%uabs_max,          n, ti+1)
+
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'T_mean',            laddie%buffer%T_mean,            n, ti+1)
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'T_max',             laddie%buffer%T_max,             n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'T_min',             laddie%buffer%T_min,             n, ti+1)
+
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'S_mean',            laddie%buffer%S_mean,            n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'S_max',             laddie%buffer%S_max,             n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'S_min',             laddie%buffer%S_min,             n, ti+1)
 
     ! Reset buffer
     laddie%buffer%n = 0
@@ -204,18 +214,27 @@ contains
     call add_time_dimension_to_file( laddie%output_scalar_filename, ncid)
 
     ! Integrated ice geometry
-    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'layer_volume',   long_name = 'Total mixed layer volume', units = 'm^3')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'layer_volume',   long_name = 'Total mixed layer volume',        units = 'm^3')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'area_a',         long_name = 'Integrated floating area a-grid', units = 'm^2')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'area_b',         long_name = 'Integrated floating area b-grid', units = 'm^2')
 
-    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'thickness_mean', long_name = 'Mean layer thickness', units = 'm')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'thickness_mean', long_name = 'Mean layer thickness',    units = 'm')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'thickness_max',  long_name = 'Maximum layer thickness', units = 'm')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'thickness_min',  long_name = 'Minimum layer thickness', units = 'm')
 
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_mean',    long_name = 'Mean melt rate',           units = 'm/yr')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_max',     long_name = 'Maximum melt rate',        units = 'm/yr')
-    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'uabs_max',     long_name = 'Maximum speed',            units = 'm/s')
-    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'T_max',        long_name = 'Maximum temperature',      units = 'degC')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'melt_min',     long_name = 'Minimum melt rate',        units = 'm/yr')
 
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'uabs_max',     long_name = 'Maximum speed',            units = 'm/s')
+
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'T_mean',       long_name = 'Mean temperature',         units = 'degC')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'T_max',        long_name = 'Maximum temperature',      units = 'degC')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'T_min',        long_name = 'Minimum temperature',      units = 'degC')
+
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'S_mean',       long_name = 'Mean salinity',            units = 'psu')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'S_max',        long_name = 'Maximum salinity',         units = 'psu')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'S_min',        long_name = 'Minimum salinity',         units = 'psu')
     ! Close the file
     call close_netcdf_file( ncid)
 
@@ -260,10 +279,19 @@ contains
       allocate( laddie%buffer%thickness_max    ( n_mem), source = 0._dp)
       allocate( laddie%buffer%thickness_min    ( n_mem), source = 0._dp)
 
+      allocate( laddie%buffer%melt_mean        ( n_mem), source = 0._dp)
       allocate( laddie%buffer%melt_max         ( n_mem), source = 0._dp)
-      allocate( laddie%buffer%uabs_max         ( n_mem), source = 0._dp)
-      allocate( laddie%buffer%T_max            ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%melt_min         ( n_mem), source = 0._dp)
 
+      allocate( laddie%buffer%uabs_max         ( n_mem), source = 0._dp)
+
+      allocate( laddie%buffer%T_mean           ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%T_max            ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%T_min            ( n_mem), source = 0._dp)
+
+      allocate( laddie%buffer%S_mean           ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%S_max            ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%S_min            ( n_mem), source = 0._dp)
     end if
 
     ! Finalise routine path
@@ -283,7 +311,10 @@ contains
     character(len=1024), parameter :: routine_name = 'buffer_laddie_scalars'
     integer                        :: n, vi, ierr
     real(dp)                       :: H_int, H_mean, H_max, H_min
-    real(dp)                       :: melt_max, Uabs_max, T_max
+    real(dp)                       :: melt_mean, melt_max, melt_min, melt_int
+    real(dp)                       :: Uabs_max
+    real(dp)                       :: T_mean, T_max, T_min, T_int
+    real(dp)                       :: S_mean, S_max, S_min, S_int
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -298,15 +329,33 @@ contains
     H_min = minval( laddie%now%H, laddie%mask_a)
     call MPI_ALLREDUCE( MPI_IN_PLACE, H_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
+    ! Melt scalars
+    call integrate_over_domain( mesh, laddie%melt, melt_int)
+    melt_mean = melt_int / laddie%area_a * sec_per_year
     melt_max = maxval( laddie%melt, laddie%mask_a) * sec_per_year
     call MPI_ALLREDUCE( MPI_IN_PLACE, melt_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    melt_min = minval( laddie%melt, laddie%mask_a) * sec_per_year
+    call MPI_ALLREDUCE( MPI_IN_PLACE, melt_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    ! melt_tot = melt_int * sec_per_year * 1.0E-09_dp ! [Gt/yr] 
 
-    Uabs_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2), laddie%mask_a)
+    Uabs_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2), laddie%mask_b)
     call MPI_ALLREDUCE( MPI_IN_PLACE, Uabs_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
+    ! Temperature scalars
+    call integrate_over_domain( mesh, laddie%now%T, T_int)
+    T_mean = T_int / laddie%area_a
     T_max = maxval( laddie%now%T, laddie%mask_a)
     call MPI_ALLREDUCE( MPI_IN_PLACE, T_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    T_min = minval( laddie%now%T, laddie%mask_a)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, T_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
+    ! Salinity scalars
+    call integrate_over_domain( mesh, laddie%now%S, S_int)
+    S_mean = S_int / laddie%area_a
+    S_max = maxval( laddie%now%S, laddie%mask_a)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, S_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    S_min = minval( laddie%now%S, laddie%mask_a)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, S_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
     ! =====================
 
     ! Only the primary does this
@@ -330,9 +379,19 @@ contains
       laddie%buffer%thickness_max    ( n) = H_max
       laddie%buffer%thickness_min    ( n) = H_min
 
+      laddie%buffer%melt_mean        ( n) = melt_mean
       laddie%buffer%melt_max         ( n) = melt_max
+      laddie%buffer%melt_min         ( n) = melt_min
+
       laddie%buffer%uabs_max         ( n) = Uabs_max
+
+      laddie%buffer%T_mean           ( n) = T_mean
       laddie%buffer%T_max            ( n) = T_max
+      laddie%buffer%T_min            ( n) = T_min
+
+      laddie%buffer%S_mean           ( n) = S_mean
+      laddie%buffer%S_max            ( n) = S_max
+      laddie%buffer%S_min            ( n) = S_min
     end if
 
     ! Finalise routine path
@@ -368,9 +427,19 @@ contains
     call reallocate( laddie%buffer%thickness_max    , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%thickness_min    , n_mem, source = 0._dp)
 
+    call reallocate( laddie%buffer%melt_mean        , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%melt_max         , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%melt_min         , n_mem, source = 0._dp)
+
     call reallocate( laddie%buffer%uabs_max         , n_mem, source = 0._dp)
+
+    call reallocate( laddie%buffer%T_mean           , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%T_max            , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%T_min            , n_mem, source = 0._dp)
+
+    call reallocate( laddie%buffer%S_mean           , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%S_max            , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%S_min            , n_mem, source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

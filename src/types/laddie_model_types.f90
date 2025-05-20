@@ -49,9 +49,19 @@ MODULE laddie_model_types
     real(dp), dimension(:), allocatable :: thickness_min
     real(dp), dimension(:), allocatable :: thickness_max
 
+    real(dp), dimension(:), allocatable :: melt_mean
     real(dp), dimension(:), allocatable :: melt_max
+    real(dp), dimension(:), allocatable :: melt_min
+
     real(dp), dimension(:), allocatable :: uabs_max
+
+    real(dp), dimension(:), allocatable :: T_mean
     real(dp), dimension(:), allocatable :: T_max
+    real(dp), dimension(:), allocatable :: T_min
+
+    real(dp), dimension(:), allocatable :: S_mean
+    real(dp), dimension(:), allocatable :: S_max
+    real(dp), dimension(:), allocatable :: S_min
 
   end type type_scalar_output_buffer
 
