@@ -64,6 +64,11 @@ MODULE laddie_model_types
     real(dp), dimension(:), allocatable :: S_max
     real(dp), dimension(:), allocatable :: S_min
 
+    real(dp), dimension(:), allocatable :: entr_tot
+    real(dp), dimension(:), allocatable :: entr_dmin_tot
+    real(dp), dimension(:), allocatable :: detr_tot
+    real(dp), dimension(:), allocatable :: divQH_sum
+
   end type type_scalar_output_buffer
 
   TYPE type_laddie_model

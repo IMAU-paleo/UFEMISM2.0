@@ -169,6 +169,11 @@ contains
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'S_max',             laddie%buffer%S_max,             n, ti+1)
     call write_buffer_to_scalar_file_single_variable( filename, ncid, 'S_min',             laddie%buffer%S_min,             n, ti+1)
 
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'entr_tot',          laddie%buffer%entr_tot,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'entr_dmin_tot',     laddie%buffer%entr_dmin_tot,     n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'detr_tot',          laddie%buffer%detr_tot,          n, ti+1)
+    call write_buffer_to_scalar_file_single_variable( filename, ncid, 'divQH_sum',         laddie%buffer%divQH_sum,         n, ti+1)
+
     ! Reset buffer
     laddie%buffer%n = 0
 
@@ -237,6 +242,12 @@ contains
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'S_mean',       long_name = 'Mean salinity',            units = 'psu')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'S_max',        long_name = 'Maximum salinity',         units = 'psu')
     call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'S_min',        long_name = 'Minimum salinity',         units = 'psu')
+
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'entr_tot',     long_name = 'Integrated entrainment',   units = 'Sv')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'entr_dmin_tot',long_name = 'Integrated entrainment for Dmin', units = 'Sv')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'detr_tot',     long_name = 'Integrated detrainment',   units = 'Sv')
+    call add_field_dp_0D( laddie%output_scalar_filename, ncid, 'divQH_sum',    long_name = 'Integrated volume divergence', units = 'Sv')
+
     ! Close the file
     call close_netcdf_file( ncid)
 
@@ -295,6 +306,11 @@ contains
       allocate( laddie%buffer%S_mean           ( n_mem), source = 0._dp)
       allocate( laddie%buffer%S_max            ( n_mem), source = 0._dp)
       allocate( laddie%buffer%S_min            ( n_mem), source = 0._dp)
+
+      allocate( laddie%buffer%entr_tot         ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%entr_dmin_tot    ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%detr_tot         ( n_mem), source = 0._dp)
+      allocate( laddie%buffer%divQH_sum        ( n_mem), source = 0._dp)
     end if
 
     ! Finalise routine path
@@ -318,6 +334,7 @@ contains
     real(dp)                       :: Uabs_max
     real(dp)                       :: T_mean, T_max, T_min, T_int
     real(dp)                       :: S_mean, S_max, S_min, S_int
+    real(dp)                       :: entr_tot, entr_dmin_tot, detr_tot, divQH_sum
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -359,6 +376,14 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, S_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
     S_min = minval( laddie%now%S, laddie%mask_a)
     call MPI_ALLREDUCE( MPI_IN_PLACE, S_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+
+    ! Volume fluxes
+    call integrate_over_domain( mesh, laddie%entr, entr_tot)
+    call integrate_over_domain( mesh, laddie%entr_dmin, entr_dmin_tot)
+    call integrate_over_domain( mesh, laddie%detr, detr_tot)
+    divQH_sum = sum( laddie%divQH)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, divQH_sum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
     ! =====================
 
     ! Only the primary does this
@@ -396,6 +421,11 @@ contains
       laddie%buffer%S_mean           ( n) = S_mean
       laddie%buffer%S_max            ( n) = S_max
       laddie%buffer%S_min            ( n) = S_min
+
+      laddie%buffer%entr_tot         ( n) = entr_tot * 1.0E-6_dp
+      laddie%buffer%entr_dmin_tot    ( n) = entr_dmin_tot * 1.0E-6_dp
+      laddie%buffer%detr_tot         ( n) = detr_tot * 1.0E-6_dp
+      laddie%buffer%divQH_sum        ( n) = divQH_sum * 1.0E-6_dp
     end if
 
     ! Finalise routine path
@@ -445,6 +475,11 @@ contains
     call reallocate( laddie%buffer%S_mean           , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%S_max            , n_mem, source = 0._dp)
     call reallocate( laddie%buffer%S_min            , n_mem, source = 0._dp)
+
+    call reallocate( laddie%buffer%entr_tot         , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%entr_dmin_tot    , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%detr_tot         , n_mem, source = 0._dp)
+    call reallocate( laddie%buffer%divQH_sum        , n_mem, source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
