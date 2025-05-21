@@ -112,7 +112,7 @@ contains
     call compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
 
     ! Integrate T and S 1/3 time step
-    call compute_TS_npx( mesh, laddie, laddie%now, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
+    call compute_TS_npx( mesh, laddie, laddie%now, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
 
     ! == Stage 2: explicit 1/2 timestep ==
     ! == RHS terms defined at n + 1/3 ====
@@ -134,7 +134,7 @@ contains
     call compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
-    call compute_TS_npx( mesh, laddie, laddie%np13, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
+    call compute_TS_npx( mesh, laddie, laddie%np13, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
 
     ! == Stage 3: explicit 1 timestep ====
     ! == RHS terms defined at n + 1/2 ====
@@ -156,7 +156,7 @@ contains
     call compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
 
     ! Integrate T and S 1 time step
-    call compute_TS_npx( mesh, laddie, laddie%np12, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
+    call compute_TS_npx( mesh, laddie, laddie%np12, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
 
     ! ===============
     ! == Move time ==
