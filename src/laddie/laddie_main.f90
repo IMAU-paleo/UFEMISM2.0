@@ -209,6 +209,7 @@ CONTAINS
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
       CASE ('lfra')
+        call warning('LeapFrog RobertAsselin scheme does not work yet, use euler or fbrk3')
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%nm1)
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
     END SELECT

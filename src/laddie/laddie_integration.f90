@@ -63,7 +63,7 @@ contains
     call compute_TS_npx( mesh, laddie, laddie%now, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! == Move time ==
-    call move_laddie_timestep( mesh, laddie%np1, laddie%now, tl, dt)
+    call move_laddie_timestep( mesh, laddie%np1, laddie%now, tl, dt, .true.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -160,7 +160,7 @@ contains
 
     ! ===============
     ! == Move time ==
-    call move_laddie_timestep( mesh, laddie%np1, laddie%now, tl, dt)
+    call move_laddie_timestep( mesh, laddie%np1, laddie%now, tl, dt, .true.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -235,15 +235,15 @@ contains
     call exchange_halos( mesh, laddie%now%V_c)
 
     ! == Move time ==
-    call move_laddie_timestep( mesh, laddie%now, laddie%nm1, tl, dt)
-    call move_laddie_timestep( mesh, laddie%np1, laddie%now, tl, dt)
+    call move_laddie_timestep( mesh, laddie%now, laddie%nm1, tl, dt, .false.)
+    call move_laddie_timestep( mesh, laddie%np1, laddie%now, tl, dt, .true.)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine integrate_lfra
 
-  subroutine move_laddie_timestep( mesh, npx_src, npx_dst, tl, dt)
+  subroutine move_laddie_timestep( mesh, npx_src, npx_dst, tl, dt, update_tl)
     ! Increase laddie time tl by timestep dt and overwrite now timestep
 
     ! In- and output variables
@@ -252,6 +252,7 @@ contains
     type(type_laddie_timestep),             intent(inout) :: npx_dst
     real(dp),                               intent(inout) :: tl
     real(dp),                               intent(in)    :: dt
+    logical,                                intent(in)    :: update_tl
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'move_laddie_timestep'
@@ -259,8 +260,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Increase laddie time
-    tl = tl + dt
+    if (update_tl) then
+      ! Increase laddie time
+      tl = tl + dt
+    end if
 
     ! Move main variables by 1 time step
     npx_dst%H  ( mesh%vi1:mesh%vi2) = npx_src%H  ( mesh%vi1:mesh%vi2)
