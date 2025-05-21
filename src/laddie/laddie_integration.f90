@@ -24,7 +24,7 @@ module laddie_integration
 
   private
 
-  public :: integrate_euler, integrate_fbrk3
+  public :: integrate_euler, integrate_fbrk3, integrate_lfra
 
 contains
 
@@ -166,6 +166,45 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine integrate_fbrk3
+
+  subroutine integrate_lfra( mesh, ice, ocean, laddie, tl, time, dt)
+    ! Integrate 1 timestep Leap Frog scheme with Robert-Asselin filter
+
+    ! In- and output variables
+
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_ice_model),                   intent(in)    :: ice
+    type(type_ocean_model),                 intent(in)    :: ocean
+    type(type_laddie_model),                intent(inout) :: laddie
+    real(dp),                               intent(inout) :: tl
+    real(dp),                               intent(in)    :: time
+    real(dp),                               intent(in)    :: dt
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'integrate_lfra'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Integrate H 1 time step
+    call compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
+
+    ! Update diffusive terms based on now time step
+    call update_diffusive_terms( mesh, laddie, laddie%now)
+
+    ! Integrate U and V 1 time step
+    call compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+
+    ! Integrate T and S 1 time step
+    call compute_TS_npx( mesh, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+
+    ! == Move time ==
+    call move_laddie_timestep( mesh, laddie, tl, dt)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine integrate_lfra
 
   subroutine move_laddie_timestep( mesh, laddie, tl, dt)
     ! Increase laddie time tl by timestep dt and overwrite now timestep

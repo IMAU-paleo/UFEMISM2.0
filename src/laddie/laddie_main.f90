@@ -27,7 +27,7 @@ MODULE laddie_main
   use mesh_halo_exchange, only: exchange_halos
   use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, & 
       write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, buffer_laddie_scalars
-  use laddie_integration, only: integrate_euler, integrate_fbrk3
+  use laddie_integration, only: integrate_euler, integrate_fbrk3, integrate_lfra
 
   IMPLICIT NONE
 
@@ -133,6 +133,8 @@ CONTAINS
           CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
         CASE ('fbrk3')
           CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
+        CASE ('lfra')
+          CALL integrate_lfra( mesh, ice, ocean, laddie, tl, time, dt)
       END SELECT
 
       ! Write to output
@@ -205,6 +207,9 @@ CONTAINS
       CASE ('fbrk3')
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np13)
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+      CASE ('lfra')
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%nm1)
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
     END SELECT
 
@@ -648,6 +653,9 @@ CONTAINS
       CASE ('fbrk3')
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np13)
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np12)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
+      CASE ('lfra')
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%nm1)
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
     END SELECT
 
