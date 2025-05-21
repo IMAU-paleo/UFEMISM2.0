@@ -21,13 +21,13 @@ MODULE laddie_main
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
-  use mesh_integrate_over_domain                             , only: integrate_over_domain
+  use mesh_integrate_over_domain                             , only: integrate_over_domain, calc_and_print_min_mean_max
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
   use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, & 
       write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, buffer_laddie_scalars
-  use laddie_integration, only: integrate_euler, integrate_fbrk3, integrate_lfra
+  use laddie_integration, only: integrate_euler, integrate_fbrk3, integrate_lfra, move_laddie_timestep
 
   IMPLICIT NONE
 
@@ -115,6 +115,12 @@ CONTAINS
     last_write_time = 0.0_dp
     time_to_write = C%time_interval_scalar_output
 
+    ! Perform first integration with half the time step for LFRA scheme
+    dt = C%dt_laddie / fac_dt_relax
+    if (C%choice_laddie_integration_scheme == 'lfra') then
+      call integrate_lfra( mesh, ice, ocean, laddie, tl, time, dt)
+    end if
+
     DO WHILE (tl < duration * sec_per_day)
 
       ! Set time step
@@ -134,7 +140,7 @@ CONTAINS
         CASE ('fbrk3')
           CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
         CASE ('lfra')
-          CALL integrate_lfra( mesh, ice, ocean, laddie, tl, time, dt)
+          CALL integrate_lfra( mesh, ice, ocean, laddie, tl, time, 2*dt)
       END SELECT
 
       ! Write to output
@@ -154,12 +160,6 @@ CONTAINS
       end if
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
-
-    ! Write any remaining buffered scalars
-    ! if (par%primary .and. laddie%buffer%n > 0) then
-    ! if (C%do_write_laddie_output_scalar .and. tl > last_write_time * sec_per_day) then
-    !    call write_to_laddie_output_scalar_file( laddie)
-    !  end if
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

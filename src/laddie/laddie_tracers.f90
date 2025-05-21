@@ -25,15 +25,16 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, laddie, npxref, npx, Hstar, dt, include_diffusive_terms)
+  SUBROUTINE compute_TS_npx( mesh, laddie, npx_old, npx_ref, npx_new, Hstar, dt, include_diffusive_terms)
     ! Integrate T and S by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_old   ! Old time step
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_ref   ! Reference time step for RHS terms
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx_new   ! New timestep as output
     REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
     REAL(dp),                               INTENT(IN)    :: dt
     LOGICAL,                                INTENT(IN)    :: include_diffusive_terms
@@ -47,7 +48,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Compute divergence of heat and salt
-    CALL compute_divQTS( mesh, laddie, npx, Hstar)
+    CALL compute_divQTS( mesh, laddie, npx_ref, Hstar)
 
     ! Loop over vertices
     DO vi = mesh%vi1, mesh%vi2
@@ -60,13 +61,13 @@ CONTAINS
                + laddie%melt( vi) * laddie%T_base( vi) &
                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
-               - laddie%detr( vi) * npxref%T( vi)
+               - laddie%detr( vi) * npx_ref%T( vi)
 
         ! Time-derivative salt equation
         dHSdt = -laddie%divQS( vi) &
                + MAX(0.0_dp,laddie%entr( vi)) * laddie%S_amb( vi) &
                + laddie%entr_dmin( vi) * laddie%S_amb( vi) &
-               - laddie%detr( vi) * npxref%S( vi)
+               - laddie%detr( vi) * npx_ref%S( vi)
 
         ! Add diffusive terms if requested
         IF (include_diffusive_terms) THEN
@@ -77,12 +78,12 @@ CONTAINS
         ! == Apply time-integration ==
 
         ! HT_n = HT + dHT_dt * dt
-        HT_next = laddie%now%T( vi)*laddie%now%H( vi) + dHTdt * dt
-        npx%T( vi) = HT_next / npx%H( vi)
+        HT_next = npx_old%T( vi)*npx_old%H( vi) + dHTdt * dt
+        npx_new%T( vi) = HT_next / npx_new%H( vi)
 
         ! HS_n = HS + dHS_dt * dt
-        HS_next = laddie%now%S( vi)*laddie%now%H( vi) + dHSdt * dt
-        npx%S( vi) = HS_next / npx%H( vi)
+        HS_next = npx_old%S( vi)*npx_old%H( vi) + dHSdt * dt
+        npx_new%S( vi) = HS_next / npx_new%H( vi)
       END IF !(laddie%mask_a( vi)) THEN
     END DO !vi = mesh%vi, mesh%v2
 
