@@ -1359,6 +1359,8 @@ CONTAINS
 
       ! If no more non-checked neighbours could be found, terminate and throw an error.
       IF (stackN2 == 0 .AND. .NOT. FoundIt) THEN
+        ! Write the problem-causing mesh to a text file for debugging
+        call write_mesh_to_text_file( mesh, trim(C%output_dir) // '/problem_mesh.txt')
         CALL crash('find_containing_triangle - couldnt find triangle containing p = [{dp_01}, {dp_02}]', dp_01 = p(1), dp_02 = p(2))
       END IF
 
