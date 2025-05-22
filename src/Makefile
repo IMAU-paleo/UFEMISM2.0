@@ -156,6 +156,7 @@ UFEMISM_source = \
   basic/analytical_solutions.f90 \
   basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
   basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
+  basic/CSR_matrix_algebra/CSR_matrix_solving.f90 \
   basic/petsc_basic.f90 \
   \
   basic/grid/grid_basic.f90 \
@@ -247,6 +248,10 @@ UFEMISM_source = \
   \
   io/transects/transects_main.f90 \
   \
+  io/main_regional_output/scalar_output_files.f90 \
+  io/main_regional_output/grid_output_files.f90 \
+  io/main_regional_output/mesh_output_files.f90 \
+  \
   reference_geometries/idealised_geometries.f90 \
   reference_geometries/preprocess_geometry.f90 \
   reference_geometries/reference_geometries_main.f90 \
@@ -335,10 +340,6 @@ UFEMISM_source = \
   tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
   \
-  io/main_regional_output/scalar_output_files.f90 \
-  io/main_regional_output/grid_output_files.f90 \
-  io/main_regional_output/mesh_output_files.f90 \
-  \
   main/UFEMISM_main_model.f90 \
   \
   validation/unit_tests/ut_basic.f90 \
@@ -380,11 +381,14 @@ UFEMISM_source = \
   validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
   validation/unit_tests/ut_halo_exchange.f90 \
   validation/unit_tests/ut_halo_exchange_mesh.f90 \
+  validation/unit_tests/ut_mpi_CSR_matrix_vector_multiplication.f90 \
+  validation/unit_tests/ut_mpi_CSR_matrix_solving.f90 \
   validation/unit_tests/ut_mpi_CSR_matrix_algebra.f90 \
   validation/unit_tests/unit_tests_multinode.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \
   validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
+  validation/component_tests/ct_discretisation_solve_Laplace_eq.f90 \
   validation/component_tests/ct_discretisation.f90 \
   validation/component_tests/ct_remapping_basic.f90 \
   validation/component_tests/ct_remapping_grid_to_mesh.f90 \

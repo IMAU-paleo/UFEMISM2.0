@@ -486,6 +486,9 @@ contains
         vil = mesh%EV( ei,3)
         vir = mesh%EV( ei,4)
 
+        til = mesh%ETri( ei,1)
+        tir = mesh%ETri( ei,2)
+
         has_vertices_in_node_next_to  = .false.
         has_triangles_in_node_next_to = .false.
         has_edges_in_node_next_to     = .false.
@@ -612,82 +615,82 @@ contains
       write(0,*) ''
       write(0,'(A,I8)')  'nV = ', mesh%nV
       write(0,*) ''
-    !   write(0,'(A,7I8)') 'vi1      :', vi1
-    !   write(0,'(A,7I8)') 'vi2      :', vi2
-    !   write(0,'(A,7I8)') 'vi1_node :', vi1_node
-    !   write(0,'(A,7I8)') 'vi2_node :', vi2_node
-    !   write(0,'(A,7I8)') 'vi1_nih  :', vi1_nih
-    !   write(0,'(A,7I8)') 'vi2_nih  :', vi2_nih
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nV_hle   :', nV_hle
-    !   write(0,'(A,7I8)') 'vi1_hle  :', vi1_hle
-    !   write(0,'(A,7I8)') 'vi2_hle  :', vi2_hle
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nV_hli   :', nV_hli
-    !   write(0,'(A,7I8)') 'vi1_hli  :', vi1_hli
-    !   write(0,'(A,7I8)') 'vi2_hli  :', vi2_hli
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nV_hre   :', nV_hre
-    !   write(0,'(A,7I8)') 'vi1_hre  :', vi1_hre
-    !   write(0,'(A,7I8)') 'vi2_hre  :', vi2_hre
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nV_hri   :', nV_hri
-    !   write(0,'(A,7I8)') 'vi1_hri  :', vi1_hri
-    !   write(0,'(A,7I8)') 'vi2_hri  :', vi2_hri
-    !   write(0,*) ''
-    !   write(0,*) '-= TRIANGLES =-'
-    !   write(0,*) ''
-    !   write(0,'(A,I8)')  'nTri = ', mesh%nTri
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'ti1      :', ti1
-    !   write(0,'(A,7I8)') 'ti2      :', ti2
-    !   write(0,'(A,7I8)') 'ti1_node :', ti1_node
-    !   write(0,'(A,7I8)') 'ti2_node :', ti2_node
-    !   write(0,'(A,7I8)') 'ti1_nih  :', ti1_nih
-    !   write(0,'(A,7I8)') 'ti2_nih  :', ti2_nih
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nTri_hle :', nTri_hle
-    !   write(0,'(A,7I8)') 'ti1_hle  :', ti1_hle
-    !   write(0,'(A,7I8)') 'ti2_hle  :', ti2_hle
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nTri_hli :', nTri_hli
-    !   write(0,'(A,7I8)') 'ti1_hli  :', ti1_hli
-    !   write(0,'(A,7I8)') 'ti2_hli  :', ti2_hli
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nTri_hre :', nTri_hre
-    !   write(0,'(A,7I8)') 'ti1_hre  :', ti1_hre
-    !   write(0,'(A,7I8)') 'ti2_hre  :', ti2_hre
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nTri_hri :', nTri_hri
-    !   write(0,'(A,7I8)') 'ti1_hri  :', ti1_hri
-    !   write(0,'(A,7I8)') 'ti2_hri  :', ti2_hri
-    !   write(0,*) ''
-    !   write(0,*) '-= EDGES =-'
-    !   write(0,*) ''
-    !   write(0,'(A,I8)')  'nE = ', mesh%nE
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'ei1      :', ei1
-    !   write(0,'(A,7I8)') 'ei2      :', ei2
-    !   write(0,'(A,7I8)') 'ei1_node :', ei1_node
-    !   write(0,'(A,7I8)') 'ei2_node :', ei2_node
-    !   write(0,'(A,7I8)') 'ei1_nih  :', ei1_nih
-    !   write(0,'(A,7I8)') 'ei2_nih  :', ei2_nih
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nE_hle   :', nE_hle
-    !   write(0,'(A,7I8)') 'ei1_hle  :', ei1_hle
-    !   write(0,'(A,7I8)') 'ei2_hle  :', ei2_hle
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nE_hli   :', nE_hli
-    !   write(0,'(A,7I8)') 'ei1_hli  :', ei1_hli
-    !   write(0,'(A,7I8)') 'ei2_hli  :', ei2_hli
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nE_hre   :', nE_hre
-    !   write(0,'(A,7I8)') 'ei1_hre  :', ei1_hre
-    !   write(0,'(A,7I8)') 'ei2_hre  :', ei2_hre
-    !   write(0,*) ''
-    !   write(0,'(A,7I8)') 'nE_hri   :', nE_hri
-    !   write(0,'(A,7I8)') 'ei1_hri  :', ei1_hri
-    !   write(0,'(A,7I8)') 'ei2_hri  :', ei2_hri
+      write(0,'(A,7I8)') 'vi1      :', vi1
+      write(0,'(A,7I8)') 'vi2      :', vi2
+      write(0,'(A,7I8)') 'vi1_node :', vi1_node
+      write(0,'(A,7I8)') 'vi2_node :', vi2_node
+      write(0,'(A,7I8)') 'vi1_nih  :', vi1_nih
+      write(0,'(A,7I8)') 'vi2_nih  :', vi2_nih
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nV_hle   :', nV_hle
+      write(0,'(A,7I8)') 'vi1_hle  :', vi1_hle
+      write(0,'(A,7I8)') 'vi2_hle  :', vi2_hle
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nV_hli   :', nV_hli
+      write(0,'(A,7I8)') 'vi1_hli  :', vi1_hli
+      write(0,'(A,7I8)') 'vi2_hli  :', vi2_hli
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nV_hre   :', nV_hre
+      write(0,'(A,7I8)') 'vi1_hre  :', vi1_hre
+      write(0,'(A,7I8)') 'vi2_hre  :', vi2_hre
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nV_hri   :', nV_hri
+      write(0,'(A,7I8)') 'vi1_hri  :', vi1_hri
+      write(0,'(A,7I8)') 'vi2_hri  :', vi2_hri
+      write(0,*) ''
+      write(0,*) '-= TRIANGLES =-'
+      write(0,*) ''
+      write(0,'(A,I8)')  'nTri = ', mesh%nTri
+      write(0,*) ''
+      write(0,'(A,7I8)') 'ti1      :', ti1
+      write(0,'(A,7I8)') 'ti2      :', ti2
+      write(0,'(A,7I8)') 'ti1_node :', ti1_node
+      write(0,'(A,7I8)') 'ti2_node :', ti2_node
+      write(0,'(A,7I8)') 'ti1_nih  :', ti1_nih
+      write(0,'(A,7I8)') 'ti2_nih  :', ti2_nih
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nTri_hle :', nTri_hle
+      write(0,'(A,7I8)') 'ti1_hle  :', ti1_hle
+      write(0,'(A,7I8)') 'ti2_hle  :', ti2_hle
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nTri_hli :', nTri_hli
+      write(0,'(A,7I8)') 'ti1_hli  :', ti1_hli
+      write(0,'(A,7I8)') 'ti2_hli  :', ti2_hli
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nTri_hre :', nTri_hre
+      write(0,'(A,7I8)') 'ti1_hre  :', ti1_hre
+      write(0,'(A,7I8)') 'ti2_hre  :', ti2_hre
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nTri_hri :', nTri_hri
+      write(0,'(A,7I8)') 'ti1_hri  :', ti1_hri
+      write(0,'(A,7I8)') 'ti2_hri  :', ti2_hri
+      write(0,*) ''
+      write(0,*) '-= EDGES =-'
+      write(0,*) ''
+      write(0,'(A,I8)')  'nE = ', mesh%nE
+      write(0,*) ''
+      write(0,'(A,7I8)') 'ei1      :', ei1
+      write(0,'(A,7I8)') 'ei2      :', ei2
+      write(0,'(A,7I8)') 'ei1_node :', ei1_node
+      write(0,'(A,7I8)') 'ei2_node :', ei2_node
+      write(0,'(A,7I8)') 'ei1_nih  :', ei1_nih
+      write(0,'(A,7I8)') 'ei2_nih  :', ei2_nih
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nE_hle   :', nE_hle
+      write(0,'(A,7I8)') 'ei1_hle  :', ei1_hle
+      write(0,'(A,7I8)') 'ei2_hle  :', ei2_hle
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nE_hli   :', nE_hli
+      write(0,'(A,7I8)') 'ei1_hli  :', ei1_hli
+      write(0,'(A,7I8)') 'ei2_hli  :', ei2_hli
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nE_hre   :', nE_hre
+      write(0,'(A,7I8)') 'ei1_hre  :', ei1_hre
+      write(0,'(A,7I8)') 'ei2_hre  :', ei2_hre
+      write(0,*) ''
+      write(0,'(A,7I8)') 'nE_hri   :', nE_hri
+      write(0,'(A,7I8)') 'ei1_hri  :', ei1_hri
+      write(0,'(A,7I8)') 'ei2_hri  :', ei2_hri
     end if
     call sync
 
