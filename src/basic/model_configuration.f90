@@ -107,7 +107,7 @@ MODULE model_configuration
     ! Some pre-processing stuff for reference ice geometry
     REAL(dp)            :: refgeo_Hi_min_config                         = 2.0_dp                           ! [m]             [default: 2.0]     Remove ice thinner than this value in the reference ice geometry. Particularly useful for BedMachine Greenland, which somehow covers the entire tundra with half a meter of ice...
     LOGICAL             :: do_smooth_geometry_config                    = .FALSE.                          ! Whether or not to smooth the reference bedrock
-    REAL(dp)            :: r_smooth_geometry_config                     = 0.5_dp                           ! Geometry smoothing radius (in number of reference grid cells)
+    REAL(dp)            :: r_smooth_geometry_config                     = 0.5_dp                           ! [m]             Geometry smoothing radius
     LOGICAL             :: remove_Lake_Vostok_config                    = .TRUE.                           ! Whether or not to replace subglacial Lake Vostok in Antarctica with ice (recommended to set to TRUE, otherwise it will really slow down your model for the first few hundred years...)
 
 

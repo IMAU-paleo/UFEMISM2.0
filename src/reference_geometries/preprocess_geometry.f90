@@ -27,7 +27,7 @@ contains
     character(len=1024), parameter                             :: routine_name = 'smooth_model_geometry'
     integer                                                    :: n
     real(dp), dimension(refgeo%grid_raw%n1:refgeo%grid_raw%n2) :: Hb_old
-    real(dp)                                                   :: r_smooth, dHb
+    real(dp)                                                   :: dHb
     logical                                                    :: is_grounded
 
     ! Add routine to path
@@ -41,11 +41,8 @@ contains
     ! Store the unsmoothed bed topography so we can determine the smoothing anomaly later
     Hb_old = refgeo%Hb_grid_raw
 
-    ! Geometry smoothing radius (in m)
-    r_smooth = refgeo%grid_raw%dx * C%r_smooth_geometry
-
     ! Apply smoothing to the bed topography
-    call smooth_Gaussian_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, r_smooth)
+    call smooth_Gaussian_grid( refgeo%grid_raw, refgeo%Hb_grid_raw, C%r_smooth_geometry)
 
     ! Correct smoothed geometry if necessary
     do n = refgeo%grid_raw%n1, refgeo%grid_raw%n2
