@@ -247,6 +247,10 @@ UFEMISM_source = \
   \
   io/transects/transects_main.f90 \
   \
+  io/main_regional_output/scalar_output_files.f90 \
+  io/main_regional_output/grid_output_files.f90 \
+  io/main_regional_output/mesh_output_files.f90 \
+  \
   reference_geometries/idealised_geometries.f90 \
   reference_geometries/preprocess_geometry.f90 \
   reference_geometries/reference_geometries_main.f90 \
@@ -333,10 +337,6 @@ UFEMISM_source = \
   tracer_tracking/tracer_tracking_particles_io.f90 \
   tracer_tracking/tracer_tracking_particles_main.f90 \
   tracer_tracking/tracer_tracking_main.f90 \
-  \
-  io/main_regional_output/scalar_output_files.f90 \
-  io/main_regional_output/grid_output_files.f90 \
-  io/main_regional_output/mesh_output_files.f90 \
   \
   main/UFEMISM_main_model.f90 \
   \

@@ -11,6 +11,7 @@ module laddie_output
   use mesh_integrate_over_domain, only: integrate_over_domain, average_over_domain
   use reallocate_mod
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_MIN, MPI_SUM, MPI_COMM_WORLD
+  use scalar_output_files, only: write_buffer_to_scalar_file_single_variable
 
   implicit none
 
@@ -19,11 +20,6 @@ module laddie_output
   public :: create_laddie_output_fields_file, create_laddie_output_scalar_file, &
             write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, &
             buffer_laddie_scalars            
-
-  interface write_buffer_to_scalar_file_single_variable
-    procedure :: write_buffer_to_scalar_file_single_variable_int
-    procedure :: write_buffer_to_scalar_file_single_variable_dp
-  end interface write_buffer_to_scalar_file_single_variable
 
 contains
 
@@ -485,72 +481,6 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine extend_laddie_buffer
-
-  subroutine write_buffer_to_scalar_file_single_variable_int( filename, ncid, var_name, d, n, ti)
-    !< Write buffered scalar data of a single variable to the scalar output file
-
-    ! In/output variables:
-    character(len=*),       intent(in   ) :: filename
-    integer,                intent(in   ) :: ncid
-    character(len=*),       intent(in   ) :: var_name
-    integer,  dimension(:), intent(in   ) :: d
-    integer,                intent(in   ) :: n
-    integer,                intent(in   ) :: ti
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'write_buffer_to_scalar_file_single_variable_int'
-    integer                        :: id_var
-    integer, dimension(1)          :: start, count
-    integer,  dimension(n)         :: d_to_write
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call inquire_var( filename, ncid, var_name, id_var)
-
-    start = ti
-    count = n
-    d_to_write = d(1:n)
-
-    call write_var_primary(  filename, ncid, id_var, d_to_write, start = start, count = count)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine write_buffer_to_scalar_file_single_variable_int
-
-  subroutine write_buffer_to_scalar_file_single_variable_dp( filename, ncid, var_name, d, n, ti)
-    !< Write buffered scalar data of a single variable to the scalar output file
-
-    ! In/output variables:
-    character(len=*),       intent(in   ) :: filename
-    integer,                intent(in   ) :: ncid
-    character(len=*),       intent(in   ) :: var_name
-    real(dp), dimension(:), intent(in   ) :: d
-    integer,                intent(in   ) :: n
-    integer,                intent(in   ) :: ti
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'write_buffer_to_scalar_file_single_variable_dp'
-    integer                        :: id_var
-    integer, dimension(1)          :: start, count
-    real(dp), dimension(n)         :: d_to_write
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call inquire_var( filename, ncid, var_name, id_var)
-
-    start = ti
-    count = n
-    d_to_write = d(1:n)
-
-    call write_var_primary(  filename, ncid, id_var, d_to_write, start = start, count = count)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine write_buffer_to_scalar_file_single_variable_dp
 
 end module laddie_output
 

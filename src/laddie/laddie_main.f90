@@ -155,12 +155,6 @@ CONTAINS
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
-    ! Write any remaining buffered scalars
-    ! if (par%primary .and. laddie%buffer%n > 0) then
-    ! if (C%do_write_laddie_output_scalar .and. tl > last_write_time * sec_per_day) then
-    !    call write_to_laddie_output_scalar_file( laddie)
-    !  end if
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
