@@ -19,17 +19,15 @@ MODULE laddie_main
   USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
-  USE laddie_thickness                                       , ONLY: compute_H_npx
-  USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
-  USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
-  use mesh_integrate_over_domain                             , only: integrate_over_domain
+  use mesh_integrate_over_domain                             , only: integrate_over_domain, calc_and_print_min_mean_max
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
   use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, & 
       write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, buffer_laddie_scalars
+  use laddie_integration, only: integrate_euler, integrate_fbrk3, integrate_lfra, move_laddie_timestep
 
   IMPLICIT NONE
 
@@ -117,6 +115,12 @@ CONTAINS
     last_write_time = 0.0_dp
     time_to_write = C%time_interval_scalar_output
 
+    ! Perform first integration with half the time step for LFRA scheme
+    dt = C%dt_laddie / fac_dt_relax
+    if (C%choice_laddie_integration_scheme == 'lfra') then
+      call integrate_lfra( mesh, ice, ocean, laddie, tl, time, dt)
+    end if
+
     DO WHILE (tl < duration * sec_per_day)
 
       ! Set time step
@@ -135,6 +139,8 @@ CONTAINS
           CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
         CASE ('fbrk3')
           CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
+        CASE ('lfra')
+          CALL integrate_lfra( mesh, ice, ocean, laddie, tl, time, 2*dt)
       END SELECT
 
       ! Write to output
@@ -202,6 +208,10 @@ CONTAINS
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np13)
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
         CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+      CASE ('lfra')
+        call crash('LeapFrog RobertAsselin scheme does not work yet, use euler or fbrk3')
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%nm1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
     END SELECT
 
     ! Create output file
@@ -261,206 +271,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_laddie_model_timestep
-
-  SUBROUTINE integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
-    ! Integrate 1 timestep Euler scheme
-
-    ! In- and output variables
-
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp),                               INTENT(INOUT) :: tl
-    REAL(dp),                               INTENT(IN)    :: time
-    REAL(dp),                               INTENT(IN)    :: dt
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_euler'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
-
-    ! Update diffusive terms based on now time step
-    CALL update_diffusive_terms( mesh, laddie, laddie%now)
-
-    ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
-
-    ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
-
-    ! == Move time ==
-    CALL move_laddie_timestep( mesh, laddie, tl, dt)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE integrate_euler
-
-  SUBROUTINE integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
-    ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme
-
-    ! Based on Lilly et al (2023, MWR) doi:10.1175/MWR-D-23-0113.1
-
-    ! In- and output variables
-
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp),                               INTENT(INOUT) :: tl
-    REAL(dp),                               INTENT(IN)    :: time
-    REAL(dp),                               INTENT(IN)    :: dt
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
-    integer                                               :: vi
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! == Stage 1: explicit 1/3 timestep ==
-    ! == RHS terms defined at n ==========
-    ! ====================================
-
-    ! Integrate H 1/3 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, time, dt/3)
-
-    ! Compute Hstar
-    do vi = mesh%vi1, mesh%vi2
-      laddie%Hstar( vi) = C%laddie_fbrk3_beta1 * laddie%np13%H( vi) + (1-C%laddie_fbrk3_beta1) * laddie%now%H( vi)
-    end do
-    call exchange_halos( mesh, laddie%Hstar)
-
-    ! Update diffusive terms
-    CALL update_diffusive_terms( mesh, laddie, laddie%now)
-
-    ! Integrate U and V 1/3 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
-
-    ! Integrate T and S 1/3 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
-
-    ! == Stage 2: explicit 1/2 timestep ==
-    ! == RHS terms defined at n + 1/3 ====
-    ! ====================================
-
-    ! Integrate H 1/2 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, time, dt/2)
-
-    ! Compute new Hstar
-    do vi = mesh%vi1, mesh%vi2
-      laddie%Hstar( vi) = C%laddie_fbrk3_beta2 * laddie%np12%H( vi) + (1-C%laddie_fbrk3_beta2) * laddie%now%H( vi)
-    end do
-    call exchange_halos( mesh, laddie%Hstar)
-
-    ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, laddie, laddie%np13)
-
-    ! Integrate U and V 1/2 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
-
-    ! Integrate T and S 1/2 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
-
-    ! == Stage 3: explicit 1 timestep ====
-    ! == RHS terms defined at n + 1/2 ====
-    ! ====================================
-
-    ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, time, dt)
-
-    ! Compute new Hstar
-    do vi = mesh%vi1, mesh%vi2
-      laddie%Hstar( vi) = C%laddie_fbrk3_beta3 * laddie%np1%H( vi) + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H( vi) + C%laddie_fbrk3_beta3 * laddie%now%H( vi)
-    end do
-    call exchange_halos( mesh, laddie%Hstar)
-
-    ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, laddie, laddie%np12)
-
-    ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
-
-    ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
-
-    ! ===============
-    ! == Move time ==
-    CALL move_laddie_timestep( mesh, laddie, tl, dt)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE integrate_fbrk3
-
-  SUBROUTINE move_laddie_timestep( mesh, laddie, tl, dt)
-    ! Increase laddie time tl by timestep dt and overwrite now timestep
-
-    ! In- and output variables
-    type(type_mesh),                        intent(in   ) :: mesh
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp),                               INTENT(INOUT) :: tl
-    REAL(dp),                               INTENT(IN)    :: dt
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'move_laddie_timestep'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Increase laddie time
-    tl = tl + dt
-
-    ! Move main variables by 1 time step
-    laddie%now%H  ( mesh%vi1:mesh%vi2) = laddie%np1%H  ( mesh%vi1:mesh%vi2)
-    laddie%now%T  ( mesh%vi1:mesh%vi2) = laddie%np1%T  ( mesh%vi1:mesh%vi2)
-    laddie%now%S  ( mesh%vi1:mesh%vi2) = laddie%np1%S  ( mesh%vi1:mesh%vi2)
-    laddie%now%U  ( mesh%ti1:mesh%ti2) = laddie%np1%U  ( mesh%ti1:mesh%ti2)
-    laddie%now%V  ( mesh%ti1:mesh%ti2) = laddie%np1%V  ( mesh%ti1:mesh%ti2)
-    laddie%now%H_b( mesh%ti1:mesh%ti2) = laddie%np1%H_b( mesh%ti1:mesh%ti2)
-    laddie%now%H_c( mesh%ei1:mesh%ei2) = laddie%np1%H_c( mesh%ei1:mesh%ei2)
-    laddie%now%U_a( mesh%vi1:mesh%vi2) = laddie%np1%U_a( mesh%vi1:mesh%vi2)
-    laddie%now%U_c( mesh%ei1:mesh%ei2) = laddie%np1%U_c( mesh%ei1:mesh%ei2)
-    laddie%now%V_a( mesh%vi1:mesh%vi2) = laddie%np1%V_a( mesh%vi1:mesh%vi2)
-    laddie%now%V_c( mesh%ei1:mesh%ei2) = laddie%np1%V_c( mesh%ei1:mesh%ei2)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE move_laddie_timestep
-
-  SUBROUTINE update_diffusive_terms( mesh, laddie, npxref)
-    ! Update diffusivity and viscosity. Based on reference timestep npxref
-
-    ! For stability, most studies base diffusive terms on the now timestep
-
-    ! In- and output variables
-
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_diffusive_terms'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Compute diffusivities
-    CALL compute_diffTS( mesh, laddie, npxref)
-
-    ! Compute viscosities
-    CALL compute_viscUV( mesh, laddie, npxref)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE update_diffusive_terms
 
   SUBROUTINE update_laddie_masks( mesh, ice, laddie)
     ! Update bunch of masks for laddie at the start of a new run
@@ -844,6 +654,9 @@ CONTAINS
       CASE ('fbrk3')
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np13)
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np12)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
+      CASE ('lfra')
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%nm1)
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
     END SELECT
 

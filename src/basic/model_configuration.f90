@@ -830,10 +830,11 @@ MODULE model_configuration
     REAL(dp)            :: time_duration_laddie_init_config             = 30._dp                           ! [days] Duration of initial run cycle
 
     ! Integration
-    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                               ! Choose integration scheme. Options: 'euler', 'fbrk3'
+    CHARACTER(LEN=256)  :: choice_laddie_integration_scheme_config      = ''                               ! Choose integration scheme. Options: 'euler', 'fbrk3', 'lfra'
     REAL(dp)            :: laddie_fbrk3_beta1_config                    = 0.0_dp                           ! [] beta1 factor in FBRK3 integration. Must be between 0 and 1
     REAL(dp)            :: laddie_fbrk3_beta2_config                    = 0.0_dp                           ! [] beta2 factor in FBRK3 integration. Must be between 0 and 1
     REAL(dp)            :: laddie_fbrk3_beta3_config                    = 0.0_dp                           ! [] beta3 factor in FBRK3 integration. Must be between 0 and 1
+    REAL(dp)            :: laddie_lfra_nu_config                        = 0.1_dp                           ! [] nu factor in LFRA integration. Must be between 0 and 1
 
     ! Momentum advection
     CHARACTER(LEN=256)  :: choice_laddie_momentum_advection_config      = ''                               ! Choose momentum advection scheme. Options: 'none', 'upstream'
@@ -1859,6 +1860,7 @@ MODULE model_configuration
     REAL(dp)            :: laddie_fbrk3_beta1
     REAL(dp)            :: laddie_fbrk3_beta2
     REAL(dp)            :: laddie_fbrk3_beta3
+    REAL(dp)            :: laddie_lfra_nu
 
     ! Momentum advection
     CHARACTER(LEN=256)  :: choice_laddie_momentum_advection
@@ -2801,6 +2803,7 @@ CONTAINS
       laddie_fbrk3_beta1_config                                   , &
       laddie_fbrk3_beta2_config                                   , &
       laddie_fbrk3_beta3_config                                   , &
+      laddie_lfra_nu_config                                       , &
       choice_laddie_momentum_advection_config                     , &
       laddie_initial_thickness_config                             , &
       laddie_initial_T_offset_config                              , &
@@ -3796,6 +3799,7 @@ CONTAINS
     C%laddie_fbrk3_beta1                                     = laddie_fbrk3_beta1_config
     C%laddie_fbrk3_beta2                                     = laddie_fbrk3_beta2_config
     C%laddie_fbrk3_beta3                                     = laddie_fbrk3_beta3_config
+    C%laddie_lfra_nu                                         = laddie_lfra_nu_config
 
     ! Momentum advection
     C%choice_laddie_momentum_advection                       = choice_laddie_momentum_advection_config

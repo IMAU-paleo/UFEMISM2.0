@@ -28,7 +28,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_H_npx( mesh, ice, ocean, laddie, npxref, npx, time, dt)
+  SUBROUTINE compute_H_npx( mesh, ice, ocean, laddie, npx_old, npx_ref, npx_new, time, dt)
     ! Integrate H by time step dt
 
     ! In- and output variables
@@ -37,8 +37,9 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref    ! Reference time step as input
-    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx       ! New timestep as output
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_old   ! Old time step
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_ref   ! Reference time step for RHS terms
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx_new   ! New timestep as output
     REAL(dp),                               INTENT(IN)    :: time
     REAL(dp),                               INTENT(IN)    :: dt
 
@@ -49,43 +50,44 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Compute thickness divergence
-    CALL compute_divQH( mesh, laddie, npxref)
+    CALL compute_divQH( mesh, laddie, npx_ref)
 
     ! Compute freezing temperature
-    CALL compute_freezing_temperature( mesh, ice, laddie, npxref)
+    CALL compute_freezing_temperature( mesh, ice, laddie, npx_ref)
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npxref%H)
+    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npx_ref%H)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, laddie, npx, npxref%H)
+    CALL compute_buoyancy( mesh, laddie, npx_ref, npx_ref%H)
 
     ! Compute melt rate
-    CALL compute_melt_rate( mesh, ice, laddie, npxref, npxref%H, time)
+    CALL compute_melt_rate( mesh, ice, laddie, npx_ref, npx_ref%H, time)
 
     ! Compute entrainment
-    CALL compute_entrainment( mesh, ice, laddie, npxref, npxref%H)
+    CALL compute_entrainment( mesh, ice, laddie, npx_ref, npx_ref%H)
 
     ! Do integration
-    CALL integrate_H( mesh, ice, laddie, npx, dt)
+    CALL integrate_H( mesh, ice, laddie, npx_old, npx_new, dt)
 
     ! Map new values of H to b grid and c grid
-    CALL map_H_a_b( mesh, laddie, npx%H, npx%H_b)
-    CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
+    CALL map_H_a_b( mesh, laddie, npx_new%H, npx_new%H_b)
+    CALL map_H_a_c( mesh, laddie, npx_new%H, npx_new%H_c)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE compute_H_npx
 
-  subroutine integrate_H( mesh, ice, laddie, npx, dt)
+  subroutine integrate_H( mesh, ice, laddie, npx_old, npx_new, dt)
     ! Do the actual computation of npx%H
 
     ! In/output variables:
     type(type_mesh),                        intent(in)    :: mesh
     type(type_ice_model),                   intent(in)    :: ice
     type(type_laddie_model),                intent(inout) :: laddie
-    type(type_laddie_timestep),             intent(inout) :: npx       ! New timestep as output
+    type(type_laddie_timestep),             intent(in   ) :: npx_old   ! Old timestep as input
+    type(type_laddie_timestep),             intent(inout) :: npx_new   ! New timestep as output
     real(dp),                               intent(in)    :: dt
 
     ! Local variables:
@@ -104,13 +106,13 @@ CONTAINS
         dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi)
 
         ! First guess at H_n
-        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
+        npx_new%H( vi) = npx_old%H( vi) + dHdt * dt
 
         ! If H_n < Hmin, enhance entrainment to ensure H_n >= Hmin
-        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx%H( vi), 0.0_dp) / dt
+        laddie%entr_dmin( vi) = MAX( C%laddie_thickness_minimum - npx_new%H( vi), 0.0_dp) / dt
 
         ! If H_n > Hmax, suppress entrainment to ensure H_n <= Hmax
-        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - npx%H( vi), 0.0_dp) / dt
+        laddie%entr( vi) = laddie%entr( vi) + MIN( C%laddie_thickness_maximum - npx_new%H( vi), 0.0_dp) / dt
 
         ! Prevent strong entr_dmin and strong detrainment
         if (laddie%entr_dmin(vi) > 0) then
@@ -124,7 +126,7 @@ CONTAINS
         dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
 
         ! Get actual H_n
-        npx%H( vi) = laddie%now%H( vi) + dHdt * dt
+        npx_new%H( vi) = npx_old%H( vi) + dHdt * dt
 
       end if !(laddie%mask_a( vi)) THEN
     end do !vi = mesh%vi, mesh%v2
