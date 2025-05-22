@@ -18,17 +18,18 @@ MODULE laddie_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
-                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c, &
-                                                                     print_diagnostics
+                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c
   USE laddie_thickness                                       , ONLY: compute_H_npx
   USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
   USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  use mesh_integrate_over_domain                             , only: integrate_over_domain
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
-  use laddie_output, only: create_laddie_output_file, write_to_laddie_output_file
+  use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, & 
+      write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, buffer_laddie_scalars
 
   IMPLICIT NONE
 
@@ -37,7 +38,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, duration, region_name)
+  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, is_initial, region_name)
     ! Run the laddie model
 
     ! In- and output variables
@@ -47,7 +48,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp),                               INTENT(IN)    :: time
-    REAL(dp),                               INTENT(IN)    :: duration
+    logical,                                intent(in   ) :: is_initial
     character(len=3),                       intent(in   ) :: region_name
 
     ! Local variables:
@@ -55,8 +56,12 @@ CONTAINS
     INTEGER                                               :: vi, ti
     REAL(dp)                                              :: tl               ! [s] Laddie time
     REAL(dp)                                              :: dt               ! [s] Laddie time step
+    REAL(dp)                                              :: duration         ! [days] Duration of run
+    REAL(dp)                                              :: ref_time         ! [s] Reference time for writing
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
     REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
+    REAL(dp)                                              :: time_to_write    ! [days] 
+    REAL(dp)                                              :: last_write_time  ! [days] 
 
 
     ! Add routine to path
@@ -99,7 +104,18 @@ CONTAINS
     ! == Main time loop ==
     ! ====================
 
+    ! Determine run duration and apply offset for initial run
+    if (is_initial) then
+      duration = C%time_duration_laddie_init
+      ref_time = time*sec_per_year - duration*sec_per_day
+    else
+      duration = C%time_duration_laddie
+      ref_time = time*sec_per_year
+    end if
+
     tl = 0.0_dp
+    last_write_time = 0.0_dp
+    time_to_write = C%time_interval_scalar_output
 
     DO WHILE (tl < duration * sec_per_day)
 
@@ -122,12 +138,20 @@ CONTAINS
       END SELECT
 
       ! Write to output
-      if (C%do_write_laddie_output) then
-        call write_to_laddie_output_file( mesh, laddie, region_name, time*sec_per_year + tl)
+      if (C%do_write_laddie_output_fields) then
+        call write_to_laddie_output_fields_file( mesh, laddie, region_name, ref_time + tl)
       end if
 
-      ! Display or save fields
-      ! CALL print_diagnostics( mesh, laddie, tl)
+      if (C%do_write_laddie_output_scalar) then
+        call buffer_laddie_scalars( mesh, laddie, ref_time + tl)
+
+        ! Write if required
+        if (tl > time_to_write * sec_per_day) then
+          call write_to_laddie_output_scalar_file( laddie)
+          last_write_time = time_to_write
+          time_to_write = time_to_write + C%time_interval_scalar_output
+        end if
+      end if
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
@@ -181,7 +205,8 @@ CONTAINS
     END SELECT
 
     ! Create output file
-    if (C%do_write_laddie_output) call create_laddie_output_file( mesh, laddie, region_name)
+    if (C%do_write_laddie_output_fields) call create_laddie_output_fields_file( mesh, laddie, region_name)
+    if (C%do_write_laddie_output_scalar) call create_laddie_output_scalar_file( laddie, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -468,13 +493,23 @@ CONTAINS
         laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)
         laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
       END IF
+
+      ! Define domain for area integration
+      if (laddie%mask_a( vi)) then
+        laddie%domain_a( vi) = 1.0_dp
+      else
+        laddie%domain_a( vi) = 0.0_dp
+      end if
     END DO
 
-    ! Mask on b-grid
     call exchange_halos( mesh, laddie%mask_a)
     call exchange_halos( mesh, laddie%mask_gr_a)
     call exchange_halos( mesh, laddie%mask_oc_a)
+    call exchange_halos( mesh, laddie%domain_a)
 
+    call integrate_over_domain( mesh, laddie%domain_a, laddie%area_a)
+
+    ! Mask on b-grid
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
       laddie%mask_b( ti)    = .false.
@@ -539,12 +574,21 @@ CONTAINS
         laddie%mask_oc_b( ti) = .true.
       END IF
 
+      ! Define domain for area integration
+      if (laddie%mask_b( ti)) then
+        laddie%domain_b( ti) = 1.0_dp
+      else
+        laddie%domain_b( ti) = 0.0_dp
+      end if
     END DO !ti = mesh%ti1, mesh%ti2
 
     call exchange_halos( mesh, laddie%mask_b)
     call exchange_halos( mesh, laddie%mask_gl_b)
     call exchange_halos( mesh, laddie%mask_cf_b)
     call exchange_halos( mesh, laddie%mask_oc_b)
+    call exchange_halos( mesh, laddie%domain_b)
+
+    call integrate_over_domain( mesh, laddie%domain_b, laddie%area_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -777,6 +821,12 @@ CONTAINS
     laddie%mask_cf_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_cf_b
     laddie%mask_oc_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_oc_b
 
+    ! Domain
+    call reallocate_dist_shared( laddie%domain_a      , laddie%wdomain_a      , mesh_new%pai_V%n_nih  )
+    call reallocate_dist_shared( laddie%domain_b      , laddie%wdomain_b      , mesh_new%pai_Tri%n_nih)
+    laddie%domain_a      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%domain_a
+    laddie%domain_b      ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%domain_b
+
     ! == Re-initialise masks ==
     CALL update_laddie_masks( mesh_new, ice, laddie)
 
@@ -798,7 +848,7 @@ CONTAINS
     END SELECT
 
     ! == Re-initialise ==
-    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init, region_name)
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, .TRUE., region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

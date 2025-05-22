@@ -129,7 +129,7 @@ CONTAINS
       CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, region%time)
 
       ! Calculate the basal mass balance
-      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time)
+      CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, region%time, is_initial=.FALSE.)
 
       ! Calculate the lateral mass balance
       CALL run_LMB_model( region%mesh, region%ice, region%LMB, region%name, region%time)
@@ -529,7 +529,7 @@ CONTAINS
     CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, C%start_time_of_run)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
-    CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run)
+    CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
     CALL run_LMB_model( region%mesh, region%ice, region%LMB, region%name, region%time)
 
     ! Reset the timers
@@ -635,7 +635,7 @@ CONTAINS
     ! and set to true whenever a new set of output files is created)
 
     region%output_files_match_current_mesh             = .TRUE.
-    region%BMB%laddie%output_file_matches_current_mesh = .TRUE.
+    region%BMB%laddie%output_fields_file_matches_current_mesh = .TRUE.
 
     ! ===== Finalisation =====
     ! ========================
@@ -1196,7 +1196,7 @@ CONTAINS
     ! and set to true whenever a new set of output files is created)
 
     region%output_files_match_current_mesh             = .FALSE.
-    region%BMB%laddie%output_file_matches_current_mesh = .FALSE.
+    region%BMB%laddie%output_fields_file_matches_current_mesh = .FALSE.
 
     ! Remap the reference geometries to the new mesh (deallocation of old data happens in there)
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
