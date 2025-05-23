@@ -51,6 +51,7 @@ MODULE UFEMISM_main_model
   use tracer_tracking_model_main, only: initialise_tracer_tracking_model, run_tracer_tracking_model, &
     remap_tracer_tracking_model
   use transects_main, only: initialise_transects, write_to_transect_netcdf_output_files
+  use climate_realistic, only: initialise_global_forcings
 
   IMPLICIT NONE
 
@@ -120,7 +121,7 @@ CONTAINS
       CALL run_thermodynamics_model( region)
 
       ! Calculate the climate
-      CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, region%time)
+      CALL run_climate_model( region%mesh, region%ice, region%climate, region%forcing, region%name, region%time)
 
       ! Calculate the ocean
       CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, region%time)
@@ -482,15 +483,18 @@ CONTAINS
        dx_grid_smooth, region%grid_smooth, &
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
+    ! ===== Global forcings =====
+    ! ===========================
+    call initialise_global_forcings(region%mesh, region%forcing)
+    
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name)
+    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, region%forcing)
 
     ! ===== Climate =====
     ! ===================
-
-    CALL initialise_climate_model( region%mesh, region%climate, region%name)
+    CALL initialise_climate_model( region%mesh, region%ice, region%climate, region%forcing, region%name)
 
     ! ===== Ocean =====
     ! =================
@@ -500,7 +504,7 @@ CONTAINS
     ! ===== Surface mass balance =====
     ! ================================
 
-    CALL initialise_SMB_model( region%mesh, region%SMB, region%name)
+    CALL initialise_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name)
 
     ! ===== Basal mass balance =====
     ! ==============================
@@ -526,7 +530,7 @@ CONTAINS
     ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, C%start_time_of_run)
+    CALL run_climate_model( region%mesh, region%ice, region%climate, region%forcing, region%name, C%start_time_of_run)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
@@ -1202,14 +1206,14 @@ CONTAINS
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Remap all the model data from the old mesh to the new mesh
-    CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
-    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name)
-    CALL remap_ocean_model(           region%mesh, mesh_new,             region%ocean  , region%name)
-    CALL remap_SMB_model(             region%mesh, mesh_new,             region%SMB    , region%name)
-    CALL remap_BMB_model(             region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
-    CALL remap_LMB_model(             region%mesh, mesh_new,             region%LMB    , region%name)
-    CALL remap_AMB_model(             region%mesh, mesh_new,             region%AMB                 )
-    CALL remap_GIA_model(             region%mesh, mesh_new,             region%GIA    , region%refgeo_GIAeq, region%ELRA)
+    CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice,     region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
+    CALL remap_climate_model(         region%mesh, mesh_new, region%climate, region%forcing, region%name)
+    CALL remap_ocean_model(           region%mesh, mesh_new, region%ice,     region%ocean  , region%name)
+    CALL remap_SMB_model(             region%mesh, mesh_new,                 region%SMB    , region%name)
+    CALL remap_BMB_model(             region%mesh, mesh_new, region%ice,     region%ocean,   region%BMB    , region%name, region%time)
+    CALL remap_LMB_model(             region%mesh, mesh_new,                 region%LMB    , region%name)
+    CALL remap_AMB_model(             region%mesh, mesh_new,                 region%AMB                 )
+    CALL remap_GIA_model(             region%mesh, mesh_new,                 region%GIA    , region%refgeo_GIAeq, region%ELRA)
     call remap_tracer_tracking_model( region%mesh, mesh_new, region%tracer_tracking, region%time)
 
     ! Set all model component timers so that they will all be run right after the mesh update

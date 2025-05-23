@@ -231,7 +231,7 @@ contains
     ! Get complete gridded bedrock elevation on all processes
     allocate( Hb_grid_tot( refgeo%grid_raw%nx, refgeo%grid_raw%ny))
     call gather_gridded_data_to_primary( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
-    call MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_doUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( Hb_grid_tot(:,:), refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_doUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for list of bedrock elevations
     allocate( Hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
@@ -350,7 +350,7 @@ contains
     ! Get complete gridded bedrock elevation on all processes
     allocate( Hb_grid_tot( refgeo%grid_raw%nx, refgeo%grid_raw%ny))
     call gather_gridded_data_to_primary( refgeo%grid_raw, refgeo%Hb_grid_raw, Hb_grid_tot)
-    call MPI_BCAST( Hb_grid_tot, refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_doUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( Hb_grid_tot(:,:), refgeo%grid_raw%nx * refgeo%grid_raw%ny, MPI_doUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! allocate memory for list of bedrock elevations
     allocate( Hb_list( refgeo%grid_raw%nx * refgeo%grid_raw%ny ))
