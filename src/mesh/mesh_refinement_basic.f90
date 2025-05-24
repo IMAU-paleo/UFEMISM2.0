@@ -28,11 +28,12 @@ subroutine refine_mesh_uniform( mesh, res_max, alpha_min)
 
   ! Local variables:
   character(len=256), parameter                 :: routine_name = 'refine_mesh_uniform'
-  integer                                       :: ti, via, vib, vic
+  integer                                       :: ti, via, vib, vic, n, tj
   real(dp), dimension(2)                        :: va, vb, vc
   real(dp)                                      :: longest_leg, smallest_angle
   logical                                       :: meets_resolution_criterion
   logical                                       :: meets_geometry_criterion
+  logical                                       :: is_cocircular_with_neighbour
   real(dp), dimension(2)                        :: p_new
 
   ! Add routine to path
@@ -73,8 +74,19 @@ subroutine refine_mesh_uniform( mesh, res_max, alpha_min)
     longest_leg = longest_triangle_leg( va, vb, vc)
     meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
 
+    ! Check if it is cocircular with any of its neighbours
+    is_cocircular_with_neighbour = .false.
+    do n = 1, 3
+      tj  = mesh%TriC( ti,n)
+      if (tj == 0) cycle
+      if (norm2( mesh%Tricc( ti,:) - mesh%Tricc( tj,:)) < mesh%tol_dist*10._dp) then
+        is_cocircular_with_neighbour = .true.
+      end if
+    end do
+
     ! if either of the two criteria is not met, split the triangle
-    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion) then
+    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion &
+      .or. is_cocircular_with_neighbour) then
       ! Split triangle ti at its circumcenter
       p_new = circumcenter( va, vb, vc)
       call split_triangle( mesh, ti, p_new)
@@ -105,11 +117,12 @@ subroutine refine_mesh_point( mesh, POI, res_max, alpha_min)
   ! Local variables:
   character(len=256), parameter                 :: routine_name = 'refine_mesh_point'
   integer                                       :: ti_in
-  integer                                       :: ti, via, vib, vic
+  integer                                       :: ti, via, vib, vic, n, tj
   real(dp), dimension(2)                        :: va, vb, vc
   real(dp)                                      :: longest_leg, smallest_angle
   logical                                       :: meets_resolution_criterion
   logical                                       :: meets_geometry_criterion
+  logical                                       :: is_cocircular_with_neighbour
   real(dp), dimension(2)                        :: p_new
 
   ! Add routine to path
@@ -163,8 +176,19 @@ subroutine refine_mesh_point( mesh, POI, res_max, alpha_min)
       meets_resolution_criterion = .true.
     end if
 
+    ! Check if it is cocircular with any of its neighbours
+    is_cocircular_with_neighbour = .false.
+    do n = 1, 3
+      tj  = mesh%TriC( ti,n)
+      if (tj == 0) cycle
+      if (norm2( mesh%Tricc( ti,:) - mesh%Tricc( tj,:)) < mesh%tol_dist*10._dp) then
+        is_cocircular_with_neighbour = .true.
+      end if
+    end do
+
     ! if either of the two criteria is not met, split the triangle
-    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion) then
+    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion &
+      .or. is_cocircular_with_neighbour) then
       ! Split triangle ti at its circumcenter
 
       p_new = circumcenter( va, vb, vc)
@@ -202,7 +226,7 @@ subroutine refine_mesh_line( mesh, p_line, res_max, width, alpha_min)
   ! Local variables:
   character(len=256), parameter                 :: routine_name = 'refine_mesh_line'
   integer                                       :: nl
-  integer                                       :: ti,li
+  integer                                       :: ti,li, n, tj
   real(dp), dimension(2)                        :: pp,qq,pp2,qq2,pp_cropped,qq_cropped,dd
   logical                                       :: is_valid_line
   integer                                       :: tip, tiq, via, vib, vic, tip2, tiq2
@@ -212,6 +236,7 @@ subroutine refine_mesh_line( mesh, p_line, res_max, width, alpha_min)
   real(dp)                                      :: longest_leg, smallest_angle
   logical                                       :: meets_resolution_criterion
   logical                                       :: meets_geometry_criterion
+  logical                                       :: is_cocircular_with_neighbour
   real(dp), dimension(2)                        :: p_new
 
   ! Add routine to path
@@ -461,8 +486,19 @@ subroutine refine_mesh_line( mesh, p_line, res_max, width, alpha_min)
 
     end if ! if (.not. meets_geometry_criterion) then
 
+    ! Check if it is cocircular with any of its neighbours
+    is_cocircular_with_neighbour = .false.
+    do n = 1, 3
+      tj  = mesh%TriC( ti,n)
+      if (tj == 0) cycle
+      if (norm2( mesh%Tricc( ti,:) - mesh%Tricc( tj,:)) < mesh%tol_dist*10._dp) then
+        is_cocircular_with_neighbour = .true.
+      end if
+    end do
+
     ! if either of the two criteria is not met, split the triangle
-    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion) then
+    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion &
+      .or. is_cocircular_with_neighbour) then
       ! Split triangle ti at its circumcenter
       p_new = circumcenter( va, vb, vc)
       call split_triangle( mesh, ti, p_new)
@@ -494,12 +530,13 @@ subroutine refine_mesh_polygon( mesh, poly, res_max, alpha_min, poly_mult_not)
   ! Local variables:
   character(len=256), parameter                     :: routine_name = 'refine_mesh_polygon'
   real(dp), dimension(:,:  ), allocatable           :: p_line
-  integer                                           :: ti, via, vib, vic
+  integer                                           :: ti, via, vib, vic, n, tj
   real(dp), dimension(2)                            :: va, vb, vc
   logical                                           :: has_any_overlap, is_in_poly_not
   real(dp)                                          :: longest_leg, smallest_angle
   logical                                           :: meets_resolution_criterion
   logical                                           :: meets_geometry_criterion
+  logical                                           :: is_cocircular_with_neighbour
   real(dp), dimension(2)                            :: p_new
   real(dp), dimension(:,:  ), allocatable           :: poly_not
   integer                                           :: n1,nn,n2
@@ -628,8 +665,19 @@ subroutine refine_mesh_polygon( mesh, poly, res_max, alpha_min, poly_mult_not)
 
     end if ! if (.not. meets_geometry_criterion) then
 
+    ! Check if it is cocircular with any of its neighbours
+    is_cocircular_with_neighbour = .false.
+    do n = 1, 3
+      tj  = mesh%TriC( ti,n)
+      if (tj == 0) cycle
+      if (norm2( mesh%Tricc( ti,:) - mesh%Tricc( tj,:)) < mesh%tol_dist*10._dp) then
+        is_cocircular_with_neighbour = .true.
+      end if
+    end do
+
     ! if either of the two criteria is not met, split the triangle
-    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion) then
+    if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion &
+      .or. is_cocircular_with_neighbour) then
       ! Split triangle ti at its circumcenter
       p_new = circumcenter( va, vb, vc)
       call split_triangle( mesh, ti, p_new)
@@ -664,12 +712,13 @@ subroutine refine_mesh_split_encroaching_triangles( mesh, alpha_min)
 
   ! Local variables:
   character(len=256), parameter                 :: routine_name = 'refine_mesh_split_encroaching_triangles'
-  integer                                       :: ti, n, vi, n_vertices_on_border
+  integer                                       :: ti, n, vi, n_vertices_on_border, tj
   integer                                       :: via, vib, vic
   real(dp), dimension(2)                        :: va, vb, vc
   real(dp)                                      :: smallest_angle
   logical                                       :: meets_geometry_criterion
   logical                                       :: meets_encroachment_criterion
+  logical                                       :: is_cocircular_with_neighbour
   real(dp), dimension(2)                        :: p_new
 
   ! Add routine to path
@@ -727,8 +776,19 @@ subroutine refine_mesh_split_encroaching_triangles( mesh, alpha_min)
       meets_encroachment_criterion = .false.
     end if
 
+    ! Check if it is cocircular with any of its neighbours
+    is_cocircular_with_neighbour = .false.
+    do n = 1, 3
+      tj  = mesh%TriC( ti,n)
+      if (tj == 0) cycle
+      if (norm2( mesh%Tricc( ti,:) - mesh%Tricc( tj,:)) < mesh%tol_dist*10._dp) then
+        is_cocircular_with_neighbour = .true.
+      end if
+    end do
+
     ! if either of the two criteria is not met, split the triangle
-    if (.not. meets_geometry_criterion .or. .not. meets_encroachment_criterion) then
+    if (.not. meets_geometry_criterion .or. .not. meets_encroachment_criterion &
+      .or. is_cocircular_with_neighbour) then
       ! Split triangle ti at its circumcenter
       p_new = circumcenter( va, vb, vc)
       call split_triangle( mesh, ti, p_new)
@@ -767,12 +827,13 @@ subroutine refine_mesh_split_encroaching_triangles_all( mesh, alpha_min)
 
   ! Local variables:
   character(len=256), parameter                 :: routine_name = 'refine_mesh_split_encroaching_triangles_all'
-  integer                                       :: ti
+  integer                                       :: ti, n, tj
   integer                                       :: via, vib, vic
   real(dp), dimension(2)                        :: va, vb, vc
   real(dp)                                      :: smallest_angle
   logical                                       :: meets_geometry_criterion
   logical                                       :: meets_encroachment_criterion
+  logical                                       :: is_cocircular_with_neighbour
   real(dp), dimension(2)                        :: p_new
 
   ! Add routine to path
@@ -816,8 +877,19 @@ subroutine refine_mesh_split_encroaching_triangles_all( mesh, alpha_min)
       meets_encroachment_criterion = .false.
     end if
 
+    ! Check if it is cocircular with any of its neighbours
+    is_cocircular_with_neighbour = .false.
+    do n = 1, 3
+      tj  = mesh%TriC( ti,n)
+      if (tj == 0) cycle
+      if (norm2( mesh%Tricc( ti,:) - mesh%Tricc( tj,:)) < mesh%tol_dist*10._dp) then
+        is_cocircular_with_neighbour = .true.
+      end if
+    end do
+
     ! if either of the two criteria is not met, split the triangle
-    if (.not. meets_geometry_criterion .or. .not. meets_encroachment_criterion) then
+    if (.not. meets_geometry_criterion .or. .not. meets_encroachment_criterion &
+      .or. is_cocircular_with_neighbour) then
       ! Split triangle ti at its circumcenter
       p_new = circumcenter( va, vb, vc)
       call split_triangle( mesh, ti, p_new)
