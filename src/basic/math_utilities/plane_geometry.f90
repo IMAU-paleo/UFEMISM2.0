@@ -336,6 +336,7 @@ contains
     logical                            :: isso
     real(dp)                           :: as_x, as_y, s1, s2, s3
     real(dp), parameter                :: tol = 1E-9_dp
+    real(dp)                           :: tol_dist
 
     as_x = p( 1) - pa( 1)
     as_y = p( 2) - pa( 2)
@@ -350,6 +351,11 @@ contains
       isso = .true.
       return
     end if
+
+    tol_dist = tol * norm2( pa - pb)
+    isso = isso .or. lies_on_line_segment( pa, pb, p, tol_dist)
+    isso = isso .or. lies_on_line_segment( pb, pc, p, tol_dist)
+    isso = isso .or. lies_on_line_segment( pc, pa, p, tol_dist)
 
   end function is_in_triangle
 
