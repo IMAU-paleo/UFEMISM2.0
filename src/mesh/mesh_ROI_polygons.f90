@@ -866,13 +866,13 @@ subroutine calc_polygon_Dotson_channel( poly)
   ! Add routine to path
   call init_routine( routine_name)
 
-  allocate( poly( 49,2))
+  allocate( poly( 5,2))
 
   poly(  1,:) = [ -1564290_dp, -673200_dp]
-  poly(  1,:) = [ -1555650_dp, -673200_dp]
-  poly(  1,:) = [ -1541070_dp, -664560_dp]
-  poly(  1,:) = [ -1545660_dp, -656730_dp]
-  poly(  1,:) = [ -1565910_dp, -662400_dp]
+  poly(  2,:) = [ -1555650_dp, -673200_dp]
+  poly(  3,:) = [ -1541070_dp, -664560_dp]
+  poly(  4,:) = [ -1545660_dp, -656730_dp]
+  poly(  5,:) = [ -1565910_dp, -662400_dp]
 
   ! Finalise routine path
   call finalise_routine( routine_name)
