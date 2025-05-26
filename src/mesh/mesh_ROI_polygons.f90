@@ -854,5 +854,30 @@ subroutine calc_polygon_Franka_WAIS( poly)
 
 end subroutine calc_polygon_Franka_WAIS
 
+subroutine calc_polygon_Dotson_channel( poly)
+  ! Return a polygon of the Dotson channel
+
+  ! In/output variables:
+  real(dp), dimension(:,:), allocatable, intent(out) :: poly
+
+  ! Local variables:
+  character(len=256), parameter :: routine_name = 'calc_polygon_Dotson_channel'
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  allocate( poly( 49,2))
+
+  poly(  1,:) = [ -1564290_dp, -673200_dp]
+  poly(  1,:) = [ -1555650_dp, -673200_dp]
+  poly(  1,:) = [ -1541070_dp, -664560_dp]
+  poly(  1,:) = [ -1545660_dp, -656730_dp]
+  poly(  1,:) = [ -1565910_dp, -662400_dp]
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine calc_polygon_Dotson_channel
+
 
 end module mesh_ROI_polygons
