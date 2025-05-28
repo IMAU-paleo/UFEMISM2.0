@@ -10,11 +10,11 @@ from utils import *
 class Mesh(object):
     """ Properties and functions of a single mesh """
 
-    def __init__(self, directory, mesh, file='main_output_ANT'):
+    def __init__(self, directory, mesh_number, file='main_output_ANT'):
         """ Gather basic info from run """
 
         self.directory = directory
-        self.mesh = mesh
+        self.mesh_number = mesh_number
         self.file = file
 
         self.got_voronois = False
@@ -24,10 +24,10 @@ class Mesh(object):
         self.close()
 
     def __repr__(self):
-        return f"Mesh('{self.directory}',{self.mesh},'{self.file}')"
+        return f"Mesh('{self.directory}',{self.mesh_number},'{self.file}')"
 
     def __str__(self):
-        return f"Mesh number {self.mesh} of Run '{self.directory}'"
+        return f"Mesh number {self.mesh_number} of Run '{self.directory}'"
 
     def make_plot(self,variables,t,f=None,ncols=1,dpi=1200,format='png',purpose='single'):
         """ Make a figure of requested variables at time slice t """
@@ -87,7 +87,7 @@ class Mesh(object):
         self.close()
 
     def open(self):
-        self.ds = xr.open_dataset(f'{self.directory}/{self.file}_{self.mesh:05d}.nc')
+        self.ds = xr.open_dataset(f'{self.directory}/{self.file}_{self.mesh_number:05d}.nc')
         self.Ntimes = len(self.ds.time)
     
     def close(self):
@@ -96,6 +96,9 @@ class Mesh(object):
     def get_voronois(self):
         """ Extract Voronoi cells as patches """
         self.voronois = []
+
+        print(f"Computing {len(self.ds.vi)} voronoi polygons ...")
+
         for vi in range(0,len(self.ds.vi)):
             nVVor = self.ds.nVVor[vi].values
             VVor = self.ds.VVor[:nVVor,vi].values
@@ -104,15 +107,22 @@ class Mesh(object):
         
         self.got_voronois = True
 
+        return f"Finished computing voronoi polygons"
+
     def get_triangles(self):
         """ Extract triangles as patches """
         self.triangles = []
+
+        print(f"Computing {len(self.ds.ti)} triangle polygons ...")
+
         for ti in range(0,len(self.ds.ti)):
             Tri = self.ds.Tri[:,ti].values
             V = self.ds.V[:,Tri-1].values
             self.triangles.append(Polygon(V.T))
         
         self.got_triangles = True
+
+        return f"Finished computing triangle polygons"
 
     def get_pcoll(self,varname,t):
         """ Get patch collection """
@@ -182,3 +192,57 @@ class Mesh(object):
             return
     
         return var
+
+
+class Timeframe(object):
+    """ Single timeframe of a mesh """
+
+    def __init__(self, Mesh, t):
+        """ Gather basic info from run """
+
+        self.Mesh = Mesh
+        self.t = t
+
+        self.ds = self.Mesh.ds.isel(time=t)
+
+        self.got_gl = False
+        self.got_mask = False
+
+    def __repr__(self):
+        return f"Timeframe({repr(self.Mesh)},{self.t})"
+
+    def __str__(self):
+        return f"Timeframe {self.t} of Mesh number {self.mesh_number} of Run '{self.directory}'"
+
+    def get_gl(self):
+        """ Extract grounding line """
+
+        # Read variable
+
+        try:
+            var = self.ds['grounding_line'].values
+        except KeyError:
+            print(f"ERROR: 'grounding_line' not in output files")
+            return
+
+        self.gl = var
+        self.got_gl = True
+
+        return
+
+    def get_mask(self):
+        """ Get a reduced mask separating grounded ice, ice shelf and ocean """
+
+        mask = self.ds['mask']
+        mask = xr.where(mask==1,3,mask)
+        mask = xr.where(mask==5,3,mask)
+        mask = xr.where(mask==7,3,mask)
+        mask = xr.where(mask==9,3,mask)
+        mask = xr.where(mask==10,3,mask)
+        mask = xr.where(mask==6,4,mask)
+        mask = xr.where(mask==8,2,mask)
+
+        self.mask = mask.values
+        self.got_mask = True
+
+        return
