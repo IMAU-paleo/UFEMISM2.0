@@ -23,6 +23,12 @@ class Mesh(object):
         self.open()
         self.close()
 
+    def __repr__(self):
+        return f"Mesh('{self.directory}',{self.mesh},'{self.file}')"
+
+    def __str__(self):
+        return f"Mesh number {self.mesh} of Run '{self.directory}'"
+
     def make_plot(self,variables,t,f=None,ncols=1,dpi=1200,format='png',purpose='single'):
         """ Make a figure of requested variables at time slice t """
 
