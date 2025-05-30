@@ -93,6 +93,10 @@ contains
       end if
     end if
 
+    ! If the two triangles are cocircular to within tolerance, don't flip them
+    ! - instead, they will be split later on.
+    if (norm2( mesh%Tricc( ti,:) - mesh%Tricc( tj,:)) < mesh%tol_dist) isso = .true.
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
