@@ -15,7 +15,16 @@ module mesh_repartitioning
 
   private
 
-  public :: repartition_mesh
+  public :: repartition_mesh, repartition
+
+  interface repartition
+    procedure :: repartition_logical_2D
+    procedure :: repartition_logical_3D
+    procedure :: repartition_int_2D
+    procedure :: repartition_int_3D
+    procedure :: repartition_dp_2D
+    procedure :: repartition_dp_3D
+  end interface repartition
 
 contains
 
@@ -86,11 +95,798 @@ contains
     call deallocate_dist_shared( mask_active_a_tot, wmask_active_a_tot)
     call deallocate_dist_shared( mask_active_b_tot, wmask_active_b_tot)
 
-    call crash('whoopsiedaisy')
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine repartition_mesh
+
+  subroutine repartition_logical_2D( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'repartition_logical_2D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih) == mesh_src%pai_V%n_nih) then
+      call repartition_logical_2D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih) == mesh_src%pai_Tri%n_nih) then
+      call repartition_logical_2D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih) == mesh_src%pai_E%n_nih) then
+      call repartition_logical_2D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+    else
+      call crash('invalid array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_2D
+
+  subroutine repartition_logical_2D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_logical_2D_a'
+    logical, dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nV)
+    call gather_dist_shared_to_all( mesh_src%pai_V, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_V%n_nih)
+    d_nih( mesh_dst%pai_V%i1_nih:mesh_dst%pai_V%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%vi1:mesh_dst%vi2) = d_tot( mesh_dst%vi1:mesh_dst%vi2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_2D_a
+
+  subroutine repartition_logical_2D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_logical_2D_b'
+    logical, dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nTri)
+    call gather_dist_shared_to_all( mesh_src%pai_Tri, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_Tri%n_nih)
+    d_nih( mesh_dst%pai_Tri%i1_nih:mesh_dst%pai_Tri%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ti1:mesh_dst%ti2) = d_tot( mesh_dst%ti1:mesh_dst%ti2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_2D_b
+
+  subroutine repartition_logical_2D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_logical_2D_c'
+    logical, dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nE)
+    call gather_dist_shared_to_all( mesh_src%pai_E, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_E%n_nih)
+    d_nih( mesh_dst%pai_E%i1_nih:mesh_dst%pai_E%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ei1:mesh_dst%ei2) = d_tot( mesh_dst%ei1:mesh_dst%ei2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_2D_c
+
+  subroutine repartition_logical_3D( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_logical_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh_src%pai_V%n_nih) then
+      call repartition_logical_3D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih,1) == mesh_src%pai_Tri%n_nih) then
+      call repartition_logical_3D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih,1) == mesh_src%pai_E%n_nih) then
+      call repartition_logical_3D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+    else
+      call crash('invalid array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_3D
+
+  subroutine repartition_logical_3D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_logical_3D_a'
+    integer                                       :: nz
+    logical, dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nV, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_V, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_V%n_nih, nz)
+    d_nih( mesh_dst%pai_V%i1_nih:mesh_dst%pai_V%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%vi1:mesh_dst%vi2,:) = d_tot( mesh_dst%vi1:mesh_dst%vi2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_3D_a
+
+  subroutine repartition_logical_3D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_logical_3D_b'
+    integer                                       :: nz
+    logical, dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nTri, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_Tri, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_Tri%n_nih, nz)
+    d_nih( mesh_dst%pai_Tri%i1_nih:mesh_dst%pai_Tri%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ti1:mesh_dst%ti2,:) = d_tot( mesh_dst%ti1:mesh_dst%ti2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_3D_b
+
+  subroutine repartition_logical_3D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    logical, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_logical_3D_c'
+    integer                                       :: nz
+    logical, dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nE, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_E, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_E%n_nih, nz)
+    d_nih( mesh_dst%pai_E%i1_nih:mesh_dst%pai_E%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ei1:mesh_dst%ei2,:) = d_tot( mesh_dst%ei1:mesh_dst%ei2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_logical_3D_c
+
+  subroutine repartition_int_2D( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'repartition_int_2D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih) == mesh_src%pai_V%n_nih) then
+      call repartition_int_2D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih) == mesh_src%pai_Tri%n_nih) then
+      call repartition_int_2D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih) == mesh_src%pai_E%n_nih) then
+      call repartition_int_2D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+    else
+      call crash('invalid array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_2D
+
+  subroutine repartition_int_2D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_int_2D_a'
+    integer, dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nV)
+    call gather_dist_shared_to_all( mesh_src%pai_V, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_V%n_nih)
+    d_nih( mesh_dst%pai_V%i1_nih:mesh_dst%pai_V%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%vi1:mesh_dst%vi2) = d_tot( mesh_dst%vi1:mesh_dst%vi2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_2D_a
+
+  subroutine repartition_int_2D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_int_2D_b'
+    integer, dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nTri)
+    call gather_dist_shared_to_all( mesh_src%pai_Tri, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_Tri%n_nih)
+    d_nih( mesh_dst%pai_Tri%i1_nih:mesh_dst%pai_Tri%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ti1:mesh_dst%ti2) = d_tot( mesh_dst%ti1:mesh_dst%ti2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_2D_b
+
+  subroutine repartition_int_2D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_int_2D_c'
+    integer, dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nE)
+    call gather_dist_shared_to_all( mesh_src%pai_E, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_E%n_nih)
+    d_nih( mesh_dst%pai_E%i1_nih:mesh_dst%pai_E%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ei1:mesh_dst%ei2) = d_tot( mesh_dst%ei1:mesh_dst%ei2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_2D_c
+
+  subroutine repartition_int_3D( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_int_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh_src%pai_V%n_nih) then
+      call repartition_int_3D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih,1) == mesh_src%pai_Tri%n_nih) then
+      call repartition_int_3D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih,1) == mesh_src%pai_E%n_nih) then
+      call repartition_int_3D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+    else
+      call crash('invalid array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_3D
+
+  subroutine repartition_int_3D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_int_3D_a'
+    integer                                       :: nz
+    integer, dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nV, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_V, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_V%n_nih, nz)
+    d_nih( mesh_dst%pai_V%i1_nih:mesh_dst%pai_V%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%vi1:mesh_dst%vi2,:) = d_tot( mesh_dst%vi1:mesh_dst%vi2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_3D_a
+
+  subroutine repartition_int_3D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_int_3D_b'
+    integer                                       :: nz
+    integer, dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nTri, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_Tri, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_Tri%n_nih, nz)
+    d_nih( mesh_dst%pai_Tri%i1_nih:mesh_dst%pai_Tri%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ti1:mesh_dst%ti2,:) = d_tot( mesh_dst%ti1:mesh_dst%ti2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_3D_b
+
+  subroutine repartition_int_3D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    integer, dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_int_3D_c'
+    integer                                       :: nz
+    integer, dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nE, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_E, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_E%n_nih, nz)
+    d_nih( mesh_dst%pai_E%i1_nih:mesh_dst%pai_E%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ei1:mesh_dst%ei2,:) = d_tot( mesh_dst%ei1:mesh_dst%ei2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_int_3D_c
+
+  subroutine repartition_dp_2D( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'repartition_dp_2D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih) == mesh_src%pai_V%n_nih) then
+      call repartition_dp_2D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih) == mesh_src%pai_Tri%n_nih) then
+      call repartition_dp_2D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih) == mesh_src%pai_E%n_nih) then
+      call repartition_dp_2D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+    else
+      call crash('invalid array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_2D
+
+  subroutine repartition_dp_2D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_dp_2D_a'
+    real(dp), dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nV)
+    call gather_dist_shared_to_all( mesh_src%pai_V, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_V%n_nih)
+    d_nih( mesh_dst%pai_V%i1_nih:mesh_dst%pai_V%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%vi1:mesh_dst%vi2) = d_tot( mesh_dst%vi1:mesh_dst%vi2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_2D_a
+
+  subroutine repartition_dp_2D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_dp_2D_b'
+    real(dp), dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nTri)
+    call gather_dist_shared_to_all( mesh_src%pai_Tri, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_Tri%n_nih)
+    d_nih( mesh_dst%pai_Tri%i1_nih:mesh_dst%pai_Tri%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ti1:mesh_dst%ti2) = d_tot( mesh_dst%ti1:mesh_dst%ti2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_2D_b
+
+  subroutine repartition_dp_2D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                             intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                               intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'repartition_dp_2D_c'
+    real(dp), dimension(:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                               :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nE)
+    call gather_dist_shared_to_all( mesh_src%pai_E, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_E%n_nih)
+    d_nih( mesh_dst%pai_E%i1_nih:mesh_dst%pai_E%i2_nih) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ei1:mesh_dst%ei2) = d_tot( mesh_dst%ei1:mesh_dst%ei2)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_2D_c
+
+  subroutine repartition_dp_3D( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_dp_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (size( d_nih,1) == mesh_src%pai_V%n_nih) then
+      call repartition_dp_3D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih,1) == mesh_src%pai_Tri%n_nih) then
+      call repartition_dp_3D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+    elseif (size( d_nih,1) == mesh_src%pai_E%n_nih) then
+      call repartition_dp_3D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+    else
+      call crash('invalid array size')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_3D
+
+  subroutine repartition_dp_3D_a( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_dp_3D_a'
+    integer                                       :: nz
+    real(dp), dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nV, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_V, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_V%n_nih, nz)
+    d_nih( mesh_dst%pai_V%i1_nih:mesh_dst%pai_V%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%vi1:mesh_dst%vi2,:) = d_tot( mesh_dst%vi1:mesh_dst%vi2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_3D_a
+
+  subroutine repartition_dp_3D_b( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_dp_3D_b'
+    integer                                       :: nz
+    real(dp), dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nTri, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_Tri, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_Tri%n_nih, nz)
+    d_nih( mesh_dst%pai_Tri%i1_nih:mesh_dst%pai_Tri%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ti1:mesh_dst%ti2,:) = d_tot( mesh_dst%ti1:mesh_dst%ti2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_3D_b
+
+  subroutine repartition_dp_3D_c( mesh_src, mesh_dst, d_nih, wd_nih)
+
+    ! In/output variables:
+    type(type_mesh),                               intent(in   ) :: mesh_src, mesh_dst
+    real(dp), dimension(:,:), pointer, contiguous, intent(inout) :: d_nih
+    type(MPI_WIN),                                 intent(inout) :: wd_nih
+
+    ! Local variables:
+    character(len=1024), parameter                :: routine_name = 'repartition_dp_3D_c'
+    integer                                       :: nz
+    real(dp), dimension(:,:), contiguous, pointer :: d_tot => null()
+    type(MPI_WIN)                                 :: wd_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    nz = size( d_nih,2)
+
+    ! Gather data to d_tot
+    call allocate_dist_shared( d_tot, wd_tot, mesh_src%nE, nz)
+    call gather_dist_shared_to_all( mesh_src%pai_E, nz, d_nih, d_tot)
+
+    ! Reallocate d_nih
+    call deallocate_dist_shared( d_nih, wd_nih)
+    call allocate_dist_shared( d_nih, wd_nih, mesh_dst%pai_E%n_nih, nz)
+    d_nih( mesh_dst%pai_E%i1_nih:mesh_dst%pai_E%i2_nih,1:nz) => d_nih
+
+    ! Copy data back from d_tot
+    d_nih( mesh_dst%ei1:mesh_dst%ei2,:) = d_tot( mesh_dst%ei1:mesh_dst%ei2,:)
+    call deallocate_dist_shared( d_tot, wd_tot)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_dp_3D_c
 
 end module mesh_repartitioning
