@@ -195,6 +195,7 @@ UFEMISM_source = \
   mesh/creation/mesh_creation_refine_in_ROIs.f90 \
   mesh/creation/mesh_creation_from_reduced_geometry.f90 \
   mesh/creation/mesh_creation_main.f90 \
+  mesh/mesh_repartitioning.f90 \
   \
   io/netcdf_basic/netcdf_basic_wrappers.f90 \
   io/netcdf_basic/netcdf_field_name_options.f90 \
