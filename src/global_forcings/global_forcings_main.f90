@@ -296,7 +296,6 @@ CONTAINS
 
     ! Interpolate the two timeframes - constant sea level over the entire region
     computed_sea_level = wt0 * forcing%sl_at_t0 + wt1 * forcing%sl_at_t1
-    call warning('interpolate_sea_level computed SL as {dp_01}', dp_01=computed_sea_level)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
