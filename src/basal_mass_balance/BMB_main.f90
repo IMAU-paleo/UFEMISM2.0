@@ -583,7 +583,7 @@ CONTAINS
       CASE ('idealised')
         ! No need to do anything
       CASE ('parameterised')
-        CALL remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name)
+        !CALL remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name)
         CALL run_BMB_model_parameterised( mesh_new, ice, ocean, BMB)
       CASE ('inverted')
         ! No need to do anything

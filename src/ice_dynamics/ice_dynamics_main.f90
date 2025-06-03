@@ -16,7 +16,7 @@ module ice_dynamics_main
   use BMB_model_types, only: type_BMB_model
   use LMB_model_types, only: type_LMB_model
   use AMB_model_types, only: type_AMB_model
-  use climate_model_types, only: type_global_forcing
+  use global_forcing_types, only: type_global_forcing
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use remapping_main, only: Atlas
   use conservation_of_momentum_main, only: solve_stress_balance, remap_velocity_solver, &
@@ -45,7 +45,7 @@ module ice_dynamics_main
   use direct_scheme, only: run_ice_dynamics_model_direct
   use ice_model_memory, only: allocate_ice_model
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D
-  use climate_realistic, only: update_sealevel_at_model_time
+  use climate_realistic, only: update_sealevel_in_model
   use ice_shelf_base_slopes_onesided, only: calc_ice_shelf_base_slopes_onesided
 
   implicit none
@@ -126,12 +126,6 @@ contains
 
     ! Calculate all other ice geometry quantities
     ! ===========================================
-
-    ! Update sea level if necessary
-    if  (C%choice_sealevel_model == 'prescribed') then
-      call update_sealevel_at_model_time(region%forcing, region%mesh, region%time,region%ice)
-    end if
-
     do vi = region%mesh%vi1, region%mesh%vi2
 
       ! Basic geometry
@@ -196,7 +190,7 @@ contains
     type(type_reference_geometry), intent(in   ) :: refgeo_PD
     type(type_reference_geometry), intent(in   ) :: refgeo_GIAeq
     type(type_GIA_model),          intent(in   ) :: GIA
-    type(type_global_forcing),     intent(inout) :: forcing
+    type(type_global_forcing),     intent(in   ) :: forcing
     character(len=3),              intent(in   ) :: region_name
 
     ! Local variables:
@@ -231,9 +225,8 @@ contains
       ice%SL = C%fixed_sealevel
 
     case ('prescribed')
-      ! Sea-level prescribed from external record file
-      call update_sealevel_at_model_time(forcing,mesh,C%start_time_of_run,ice)
-      ! ice%SL = forcing%sealevel_obs
+      ! Sea-level from an external record, stored in the global_forcings type
+      ice%SL = forcing%sl_at_time
 
     case ('eustatic')
       ! Eustatic sea level

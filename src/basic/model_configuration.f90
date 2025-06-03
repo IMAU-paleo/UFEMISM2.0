@@ -763,14 +763,6 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_GRL_config          = 1E9_dp
     REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
 
-    ! Parameterised SMB forcing
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_config              = ''
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM_config          = ''
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS_config          = ''
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL_config          = ''
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT_config          = ''
-
-    ! IMAU-ITM SMB model
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS_config     = 'uniform'
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL_config     = 'uniform'
@@ -806,6 +798,10 @@ MODULE model_configuration
     REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp
     REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp
     REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_water_config              = 0.1_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_soil_config               = 0.2_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_ice_config                = 0.5_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_snow_config               = 0.85_dp
 
 
   ! == Basal mass balance
@@ -1851,13 +1847,6 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_GRL
     REAL(dp)            :: timeframe_SMB_prescribed_ANT
 
-    ! Parameterised SMB forcing
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_NAM
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_EAS
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_GRL
-    CHARACTER(LEN=256)  :: choice_SMB_parameterised_ANT
-
     ! IMAU-ITM SMB model
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM
     CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS
@@ -1894,6 +1883,10 @@ MODULE model_configuration
     REAL(dp)            :: SMB_IMAUITM_C_refr_EAS
     REAL(dp)            :: SMB_IMAUITM_C_refr_GRL
     REAL(dp)            :: SMB_IMAUITM_C_refr_ANT
+    REAL(dp)            :: SMB_IMAUITM_albedo_water
+    REAL(dp)            :: SMB_IMAUITM_albedo_soil
+    REAL(dp)            :: SMB_IMAUITM_albedo_ice
+    REAL(dp)            :: SMB_IMAUITM_albedo_snow
 
 
 
@@ -2893,11 +2886,6 @@ CONTAINS
       timeframe_SMB_prescribed_EAS_config                         , &
       timeframe_SMB_prescribed_GRL_config                         , &
       timeframe_SMB_prescribed_ANT_config                         , &
-      choice_SMB_parameterised_config                             , &
-      choice_SMB_parameterised_NAM_config                         , &
-      choice_SMB_parameterised_EAS_config                         , &
-      choice_SMB_parameterised_GRL_config                         , &
-      choice_SMB_parameterised_ANT_config                         , &
       choice_SMB_IMAUITM_init_firn_NAM_config                     , &
       choice_SMB_IMAUITM_init_firn_EAS_config                     , &
       choice_SMB_IMAUITM_init_firn_GRL_config                     , &
@@ -2927,6 +2915,10 @@ CONTAINS
       SMB_IMAUITM_C_refr_EAS_config                               , &
       SMB_IMAUITM_C_refr_GRL_config                               , &
       SMB_IMAUITM_C_refr_ANT_config                               , &
+      SMB_IMAUITM_albedo_water_config                             , &
+      SMB_IMAUITM_albedo_soil_config                              , &
+      SMB_IMAUITM_albedo_ice_config                               , &
+      SMB_IMAUITM_albedo_snow_config                              , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
       do_BMB_inversion_config                                     , &
@@ -3900,13 +3892,6 @@ CONTAINS
     C%timeframe_SMB_prescribed_GRL                           = timeframe_SMB_prescribed_GRL_config
     C%timeframe_SMB_prescribed_ANT                           = timeframe_SMB_prescribed_ANT_config
 
-    ! Parameterised SMB forcing
-    C%choice_SMB_parameterised                               = choice_SMB_parameterised_config
-    C%choice_SMB_parameterised_NAM                           = choice_SMB_parameterised_NAM_config
-    C%choice_SMB_parameterised_EAS                           = choice_SMB_parameterised_EAS_config
-    C%choice_SMB_parameterised_GRL                           = choice_SMB_parameterised_GRL_config
-    C%choice_SMB_parameterised_ANT                           = choice_SMB_parameterised_ANT_config
-
     ! IMAU-ITM SMB model
     C%choice_SMB_IMAUITM_init_firn_NAM                       = choice_SMB_IMAUITM_init_firn_NAM_config
     C%choice_SMB_IMAUITM_init_firn_EAS                       = choice_SMB_IMAUITM_init_firn_EAS_config
@@ -3943,6 +3928,10 @@ CONTAINS
     C%SMB_IMAUITM_C_refr_EAS                                 = SMB_IMAUITM_C_refr_EAS_config
     C%SMB_IMAUITM_C_refr_GRL                                 = SMB_IMAUITM_C_refr_GRL_config
     C%SMB_IMAUITM_C_refr_ANT                                 = SMB_IMAUITM_C_refr_ANT_config
+    C%SMB_IMAUITM_albedo_water                               = SMB_IMAUITM_albedo_water_config
+    C%SMB_IMAUITM_albedo_soil                                = SMB_IMAUITM_albedo_soil_config 
+    C%SMB_IMAUITM_albedo_ice                                 = SMB_IMAUITM_albedo_ice_config  
+    c%SMB_IMAUITM_albedo_snow                                = SMB_IMAUITM_albedo_snow_config
 
 
   ! == Basal mass balance

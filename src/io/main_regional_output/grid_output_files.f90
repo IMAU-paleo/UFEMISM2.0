@@ -651,13 +651,13 @@ contains
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%SMB%SMB, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SMB', d_grid_vec_partial_2D)
       case ('Albedo')
-        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%SMB%Albedo, d_grid_vec_partial_2D_monthly)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%SMB%IMAUITM%Albedo, d_grid_vec_partial_2D_monthly)
         call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Albedo', d_grid_vec_partial_2D_monthly)      
       case ('FirnDepth')
-        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%SMB%FirnDepth, d_grid_vec_partial_2D_monthly)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%SMB%IMAUITM%FirnDepth, d_grid_vec_partial_2D_monthly)
         call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'FirnDepth', d_grid_vec_partial_2D_monthly)    
       case ('MeltPreviousYear')  
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%SMB%MeltPreviousYear, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%SMB%IMAUITM%MeltPreviousYear, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'MeltPreviousYear', d_grid_vec_partial_2D)  
 
     ! == Basal mass balance ==
@@ -780,12 +780,6 @@ contains
       case ('dHb_next')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%GIA%dHb_next, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHb_next', d_grid_vec_partial_2D)
-
-    ! == Sea level ==
-    ! ===============
-    !case ('SL')
-    !    call map_from_mesh_to_xy_grid_2D( region%mesh, grid, region%ice%SL, d_grid_vec_partial_2D)
-    !    call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SL', d_grid_vec_partial_2D)
 
     ! == Tracer tracking ==
     ! =====================
@@ -1462,11 +1456,6 @@ contains
       ! Main GIA variables
       case ('dHb_next')
         call add_field_grid_dp_2D( filename, ncid, 'dHb_next', long_name = 'Bedrock elevation difference from ELRA', units = 'm')
-
-    ! == Sea level ==
-    ! ===============
-    !case ('SL')
-    !    call add_field_grid_dp_2D( filename, ncid, 'SL', long_name = 'Sea level change wrt present day', units = 'm')
 
     ! == Tracer tracking ==
     ! =====================

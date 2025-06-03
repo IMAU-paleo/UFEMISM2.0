@@ -16,10 +16,10 @@ module SMB_parameterised
 
   implicit none
 
-  REAL(dp), PARAMETER :: albedo_water        = 0.1_dp
-  REAL(dp), PARAMETER :: albedo_soil         = 0.2_dp
-  REAL(dp), PARAMETER :: albedo_ice          = 0.5_dp
-  REAL(dp), PARAMETER :: albedo_snow         = 0.85_dp
+  !REAL(dp), PARAMETER :: albedo_water        = 0.1_dp
+  !REAL(dp), PARAMETER :: albedo_soil         = 0.2_dp
+  !REAL(dp), PARAMETER :: albedo_ice          = 0.5_dp
+  !REAL(dp), PARAMETER :: albedo_snow         = 0.85_dp
 
 contains
 
@@ -41,8 +41,8 @@ contains
 
     ! Run the chosen parameterised SMB model
     SELECT CASE (C%choice_SMB_parameterised)
-      CASE ('IMAU-ITM')
-        CALL run_SMB_model_parameterised_IMAUITM( mesh, ice, climate, SMB)
+      !CASE ('IMAU-ITM')
+      !  CALL run_SMB_model_parameterised_IMAUITM( mesh, ice, climate, SMB)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_parameterised "' // TRIM( C%choice_SMB_parameterised) // '"')
     END SELECT

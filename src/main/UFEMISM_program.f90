@@ -32,11 +32,14 @@ PROGRAM UFEMISM_program
   USE model_configuration                                    , ONLY: C, initialise_model_configuration, initialise_model_configuration_unit_tests
   use netcdf_io_main
   USE region_types                                           , ONLY: type_model_region
+  USE global_forcing_types                                   , ONLY: type_global_forcing
   USE UFEMISM_main_model                                     , ONLY: initialise_model_region, run_model_region
+  use global_forcings_main                                   , ONLY: initialise_global_forcings, update_global_forcings
   use inversion_utilities, only: MISMIPplus_adapt_flow_factor
   use unit_tests, only: run_all_unit_tests
   use component_tests, only: run_all_component_tests
   use unit_tests_multinode, only: run_all_multinode_unit_tests
+
 
   IMPLICIT NONE
 
@@ -45,6 +48,9 @@ PROGRAM UFEMISM_program
 
   ! The four model regions
   TYPE(type_model_region)                :: NAM, EAS, GRL, ANT
+
+  ! The global forcings
+  TYPE(type_global_forcing)              :: forcing
 
   ! Coupling
   REAL(dp)                               :: t_coupling, t_end_models
@@ -109,13 +115,17 @@ PROGRAM UFEMISM_program
     ! Initialise surface elevations for the automated flow factor tuning in MISMIP+
     Hs_cur = 1._dp
 
+    ! ===== Global forcings =====
+    ! ===========================
+    CALL initialise_global_forcings(forcing)
+
     ! == Initialise the model regions
     ! ===============================
 
-    IF (C%do_NAM) CALL initialise_model_region( NAM, 'NAM')
-    IF (C%do_EAS) CALL initialise_model_region( EAS, 'EAS')
-    IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL')
-    IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT')
+    IF (C%do_NAM) CALL initialise_model_region( NAM, 'NAM', forcing)
+    IF (C%do_EAS) CALL initialise_model_region( EAS, 'EAS', forcing)
+    IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL', forcing)
+    IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT', forcing)
 
     ! == The coupling time loop
     ! =========================
@@ -127,10 +137,12 @@ PROGRAM UFEMISM_program
       ! Run all model regions forward in time for one coupling interval
       t_end_models = MIN( C%end_time_of_run, t_coupling + C%dt_coupling)
 
-      IF (C%do_NAM) CALL run_model_region( NAM, t_end_models)
-      IF (C%do_EAS) CALL run_model_region( EAS, t_end_models)
-      IF (C%do_GRL) CALL run_model_region( GRL, t_end_models)
-      IF (C%do_ANT) CALL run_model_region( ANT, t_end_models)
+      CALL update_global_forcings(forcing, t_coupling)
+
+      IF (C%do_NAM) CALL run_model_region( NAM, t_end_models, forcing)
+      IF (C%do_EAS) CALL run_model_region( EAS, t_end_models, forcing)
+      IF (C%do_GRL) CALL run_model_region( GRL, t_end_models, forcing)
+      IF (C%do_ANT) CALL run_model_region( ANT, t_end_models, forcing)
 
       ! Advance coupling time
       t_coupling = t_end_models

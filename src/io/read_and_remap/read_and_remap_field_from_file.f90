@@ -30,7 +30,7 @@ module read_and_remap_field_from_file
   private
 
   public :: read_field_from_file_2D, read_field_from_file_2D_monthly, read_field_from_file_3D, &
-    read_field_from_file_3D_ocean, read_field_from_file_0D, read_field_from_file_1D_monthly, read_field_from_file_1D
+    read_field_from_file_3D_ocean, read_field_from_file_0D, read_field_from_file_1D
 
 contains
 
@@ -94,7 +94,7 @@ contains
   end subroutine read_field_from_file_1D
 
 
-  subroutine read_field_from_file_1D_monthly( filename, field_name_options, &
+  subroutine read_field_from_file_1D_monthly_DEPRECATED( filename, field_name_options, &
     mesh, d_partial, time_to_read)
     !< Read a data field from a NetCDF file, and map it to the model mesh.
 
@@ -108,7 +108,7 @@ contains
     real(dp), optional,       intent(in   ) :: time_to_read
 
     ! Local variables:
-    character(len=1024), parameter        :: routine_name = 'read_field_from_file_1D_monthly'
+    character(len=1024), parameter        :: routine_name = 'read_field_from_file_1D_monthly_DEPRECATED'
     logical                               :: file_exists
     logical                               :: has_lat_grid, has_mesh
     integer                               :: ncid
@@ -190,7 +190,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine read_field_from_file_1D_monthly
+  end subroutine read_field_from_file_1D_monthly_DEPRECATED
 
   subroutine read_field_from_file_2D( filename, field_name_options, &
     mesh, d_partial, time_to_read)
@@ -332,10 +332,11 @@ contains
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'read_field_from_file_2D_monthly'
     logical                               :: file_exists
-    logical                               :: has_xy_grid, has_lonlat_grid, has_mesh
+    logical                               :: has_xy_grid, has_lonlat_grid, has_mesh, has_lat_grid
     integer                               :: ncid
     type(type_grid)                       :: grid_from_file
     type(type_grid_lonlat)                :: grid_lonlat_from_file
+    type(type_grid_lat)                   :: grid_lat_from_file
     type(type_mesh)                       :: mesh_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
@@ -354,6 +355,7 @@ contains
     ! Find out on what kind of grid the file is defined
     call inquire_xy_grid(     filename, has_xy_grid    )
     call inquire_lonlat_grid( filename, has_lonlat_grid)
+    call inquire_lat_grid(    filename, has_lat_grid)
     call inquire_mesh(        filename, has_mesh       )
 
     ! Files with more than one grid are not recognised
@@ -402,6 +404,28 @@ contains
 
       ! Clean up after yourself
       call deallocate_lonlat_grid( grid_lonlat_from_file)
+      deallocate( d_grid_lonlat_vec_partial_from_file)
+
+    elseif (has_lat_grid) then
+    
+      ! Data is provided on a lat-only grid
+      ! Set up the grid from the file
+      call open_existing_netcdf_file_for_reading( filename, ncid)
+      call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file, grid_lat_from_file)
+      call close_netcdf_file( ncid)
+      
+      ! allocate memory for gridded data
+      allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))
+
+      ! Read gridded data
+      call read_field_from_lat_file_1D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
+
+      ! Remap data
+      call map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      call deallocate_lonlat_grid( grid_lonlat_from_file)
+      call deallocate_lat_grid( grid_lat_from_file)
       deallocate( d_grid_lonlat_vec_partial_from_file)
 
     elseif (has_mesh) then
