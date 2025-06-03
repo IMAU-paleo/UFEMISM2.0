@@ -22,9 +22,9 @@ module remapping_mesh_to_mesh
 
   private
 
-  public :: create_map_from_mesh_to_mesh_nearest_neighbour
-  public :: create_map_from_mesh_to_mesh_trilin
-  public :: create_map_from_mesh_to_mesh_2nd_order_conservative
+  public :: create_map_from_mesh_to_mesh_nearest_neighbour, create_map_from_mesh_to_mesh_trilin, &
+    create_map_from_mesh_to_mesh_2nd_order_conservative, &
+    create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative
 
 contains
 
@@ -266,6 +266,59 @@ contains
 
   end subroutine create_map_from_mesh_to_mesh_2nd_order_conservative
 
+  subroutine create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( mesh_src, mesh_dst, map)
+
+    ! In/output variables
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
+    type(type_map),  intent(inout) :: map
+
+    ! Local variables:
+    character(len=1024), parameter      :: routine_name = 'create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative'
+    type(tMat)                          :: A_xdy, A_mxydx, A_xydy
+    type(tMat)                          :: w0, w1x, w1y
+    type(tMat)                          :: M_cons_1st_order
+    character(len=1024)                 :: filename_mesh_src, filename_mesh_dst
+    integer                             :: stat
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
+    ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_tri_cons_mesh_src_dump.nc'
+    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_tri_cons_mesh_dst_dump.nc'
+    call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
+    call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
+
+    ! Initialise map metadata
+    if (map%is_in_use) call crash('this map is already in use!')
+    map%is_in_use = .true.
+    map%name_src  = trim(mesh_src%name) // '_triangles'
+    map%name_dst  = trim(mesh_dst%name) // '_triangles'
+    map%method    = '2nd_order_conservative'
+
+    call calc_A_matrices_tri( mesh_src, mesh_dst, A_xdy, A_mxydx, A_xydy)
+
+    call calc_w_matrices_tri( mesh_src, mesh_dst, A_xdy, A_mxydx, A_xydy, w0, w1x, w1y)
+
+    call calc_remapping_matrix_tri( mesh_src, w0, w1x, w1y, M_cons_1st_order, map%M)
+
+    ! call correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
+
+    ! Delete mesh netcdf dumps
+    if (par%primary) then
+      open(unit = 1234, iostat = stat, file = filename_mesh_src, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+      open(unit = 1234, iostat = stat, file = filename_mesh_dst, status = 'old')
+      if (stat == 0) close(1234, status = 'delete')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative
+
   subroutine calc_A_matrices( mesh_src, mesh_dst, A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b)
     !< Calculate the A-matrices for the mesh-to-mesh remapping operator
 
@@ -306,6 +359,47 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_A_matrices
+
+  subroutine calc_A_matrices_tri( mesh_src, mesh_dst, A_xdy, A_mxydx, A_xydy)
+    !< Calculate the A-matrices for the mesh-to-mesh triangles remapping operator
+
+    ! In/output variables
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
+    type(tMat),      intent(  out) :: A_xdy, A_mxydx, A_xydy
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_A_matrices_tri'
+    logical                        :: count_coincidences
+    type(tMat)                     :: A_xdy_src_dst  , A_mxydx_src_dst  , A_xydy_src_dst
+    type(tMat)                     :: A_xdy_src_dst_T, A_mxydx_src_dst_T, A_xydy_src_dst_T
+    type(PetscErrorCode)           :: perr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Integrate around the triangles of the destination mesh through the triangles of the source mesh
+    count_coincidences = .true.
+    call integrate_triangles_through_triangles( mesh_dst, mesh_src, A_xdy, A_mxydx, A_xydy, count_coincidences)
+
+    ! Integrate around the triangles of the source mesh through the triangles of the destination mesh
+    count_coincidences = .false.
+    call integrate_triangles_through_triangles( mesh_src, mesh_dst, A_xdy_src_dst, A_mxydx_src_dst, A_xydy_src_dst, count_coincidences)
+
+    ! Transpose line integral matrices
+    call MatCreateTranspose( A_xdy_src_dst  , A_xdy_src_dst_T  , perr)
+    call MatCreateTranspose( A_mxydx_src_dst, A_mxydx_src_dst_T, perr)
+    call MatCreateTranspose( A_xydy_src_dst , A_xydy_src_dst_T , perr)
+
+    ! Combine line integrals around areas of overlap to get surface integrals over areas of overlap
+    call MatAXPY( A_xdy  , 1._dp, A_xdy_src_dst_T  , UNKNOWN_NONZERO_PATTERN, perr)
+    call MatAXPY( A_mxydx, 1._dp, A_mxydx_src_dst_T, UNKNOWN_NONZERO_PATTERN, perr)
+    call MatAXPY( A_xydy , 1._dp, A_xydy_src_dst_T , UNKNOWN_NONZERO_PATTERN, perr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_A_matrices_tri
 
   subroutine calc_w_matrices( mesh_src, mesh_dst, A_xdy_a_b, A_mxydx_a_b, A_xydy_a_b, w0, w1x, w1y)
     !< Calculate the w-matrices for the mesh-to-mesh remapping operator
@@ -412,6 +506,111 @@ contains
 
   end subroutine calc_w_matrices
 
+  subroutine calc_w_matrices_tri( mesh_src, mesh_dst, A_xdy, A_mxydx, A_xydy, w0, w1x, w1y)
+    !< Calculate the w-matrices for the mesh-to-mesh triangles remapping operator
+
+    ! In/output variables
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(type_mesh), intent(in   ) :: mesh_dst
+    type(tMat),      intent(in   ) :: A_xdy, A_mxydx, A_xydy
+    type(tMat),      intent(  out) :: w0, w1x, w1y
+
+    ! Local variables:
+    character(len=1024), parameter              :: routine_name = 'calc_w_matrices_tri'
+    type(PetscErrorCode)                        :: perr
+    integer                                     :: nnz_per_row_max
+    integer                                     :: istart, iend, n, k, ti
+    integer                                     :: ncols
+    integer,  dimension(:), allocatable, target :: cols
+    real(dp), dimension(:), allocatable, target :: vals, w0_row, w1x_row, w1y_row
+    integer,  dimension(:), pointer             :: cols_
+    real(dp), dimension(:), pointer             :: vals_, w0_row_, w1x_row_, w1y_row_
+    real(dp)                                    :: A_overlap_tot
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Calculate w0, w1x, w1y for the mesh-to-grid remapping operator
+    call MatConvert( A_xdy, MATAIJ, MAT_INITIAL_MATRIX, w0, perr)
+    call MatConvert( A_xdy, MATAIJ, MAT_INITIAL_MATRIX, w1x, perr)
+    call MatConvert( A_xdy, MATAIJ, MAT_INITIAL_MATRIX, w1y, perr)
+
+    ! Estimate maximum number of non-zeros per row (i.e. maximum number of grid cells overlapping with a mesh triangle)
+    nnz_per_row_max = max( 32, max( ceiling( 2._dp * maxval( mesh_src%TriA) / minval( mesh_dst%A   )), &
+                                    ceiling( 2._dp * maxval( mesh_dst%A   ) / minval( mesh_src%TriA))) )
+
+    ! allocate memory for a single matrix row
+    allocate( cols(    nnz_per_row_max))
+    allocate( vals(    nnz_per_row_max))
+    allocate( w0_row(  nnz_per_row_max))
+    allocate( w1x_row( nnz_per_row_max))
+    allocate( w1y_row( nnz_per_row_max))
+
+    cols_    => cols
+    vals_    => vals
+    w0_row_  => w0_row
+    w1x_row_ => w1x_row
+    w1y_row_ => w1y_row
+
+    call MatGetOwnershipRange( A_xdy  , istart, iend, perr)
+
+    do n = istart+1, iend ! +1 because PETSc indexes from 0
+
+      ! Calculate area of overlap
+      call MatGetRow( A_xdy, n-1, ncols, cols_, vals_, perr)
+      A_overlap_tot = sum( vals_( 1:ncols))
+      call MatRestoreRow( A_xdy, n-1, ncols, cols_, vals_, perr)
+
+      ! Skip vertices with zero overlap (which can happen if the boundary
+      ! of their Voronoi cell coincides with that of this one)
+      if (A_overlap_tot <= tiny( A_overlap_tot) * 16._dp) cycle
+
+      ! w0
+      call MatGetRow( A_xdy, n-1, ncols, cols_, vals_, perr)
+      do k = 1, ncols
+        w0_row_( k) = vals_( k) / A_overlap_tot
+        call MatSetValues( w0, 1, [n-1], 1, [cols_( k)], [w0_row_( k)], INSERT_VALUES, perr)
+      end do
+      call MatRestoreRow( A_xdy, n-1, ncols, cols_, vals_, perr)
+
+      ! w1x
+      call MatGetRow( A_mxydx, n-1, ncols, cols_, vals_, perr)
+      do k = 1, ncols
+        ti = cols_( k)+1
+        w1x_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
+        call MatSetValues( w1x, 1, [n-1], 1, [cols_( k)], [w1x_row_( k)], INSERT_VALUES, perr)
+      end do
+      call MatRestoreRow( A_mxydx, n-1, ncols, cols_, vals_, perr)
+
+      ! w1y
+      call MatGetRow( A_xydy, n-1, ncols, cols_, vals_, perr)
+      do k = 1, ncols
+        ti = cols_( k)+1
+        w1y_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
+        call MatSetValues( w1y, 1, [n-1], 1, [cols_( k)], [w1y_row_( k)], INSERT_VALUES, perr)
+      end do
+      call MatRestoreRow( A_xydy, n-1, ncols, cols_, vals_, perr)
+
+    end do
+
+    call MatAssemblyBegin( w0, MAT_FINAL_ASSEMBLY, perr)
+    call MatAssemblyEnd(   w0, MAT_FINAL_ASSEMBLY, perr)
+    call MatAssemblyBegin( w1x, MAT_FINAL_ASSEMBLY, perr)
+    call MatAssemblyEnd(   w1x, MAT_FINAL_ASSEMBLY, perr)
+    call MatAssemblyBegin( w1y, MAT_FINAL_ASSEMBLY, perr)
+    call MatAssemblyEnd(   w1y, MAT_FINAL_ASSEMBLY, perr)
+
+    deallocate( cols)
+    deallocate( vals)
+    deallocate( w0_row)
+    deallocate( w1x_row)
+    deallocate( w1y_row)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_w_matrices_tri
+
   subroutine calc_remapping_matrix( mesh_src, w0, w1x, w1y, M_cons_1st_order, M)
     !< Calculate the mesh-to-mesh remapping matrix M
 
@@ -454,6 +653,48 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_remapping_matrix
+
+  subroutine calc_remapping_matrix_tri( mesh_src, w0, w1x, w1y, M_cons_1st_order, M)
+    !< Calculate the mesh-to-mesh triangles remapping matrix M
+
+    ! In/output variables
+    type(type_mesh), intent(in   ) :: mesh_src
+    type(tMat),      intent(in   ) :: w0, w1x, w1y
+    type(tMat),      intent(  out) :: M_cons_1st_order, M
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_remapping_matrix_tri'
+    type(PetscErrorCode)           :: perr
+    type(tMat)                     :: M_ddx_b_b, M_ddy_b_b
+    type(tMat)                     :: M1, M2
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if (.not. allocated( mesh_src%vi2n)) then
+      call crash('matrix operators for mesh "' // trim( mesh_src%name) // '" have not been calculated!')
+    end if
+
+    ! Convert matrices to PETSc format
+    call mat_CSR2petsc( mesh_src%M_ddx_b_b, M_ddx_b_b)
+    call mat_CSR2petsc( mesh_src%M_ddy_b_b, M_ddy_b_b)
+
+    ! 1st-order = w0
+    call MatConvert( w0, MATAIJ, MAT_INITIAL_MATRIX, M_cons_1st_order, perr)
+
+    ! 2nd-order = 1st-order + w1x * ddx_b_b + w1y * ddy_b_b
+    call MatMatMult( w1x, M_ddx_b_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_real, M1, perr)  ! This can be done more efficiently now that the non-zero structure is known...
+    call MatMatMult( w1y, M_ddy_b_b, MAT_INITIAL_MATRIX, PETSC_DEFAULT_real, M2, perr)
+
+    call MatConvert( M_cons_1st_order, MATAIJ, MAT_INITIAL_MATRIX, M, perr)
+    call MatAXPY( M, 1._dp, M1, DifFERENT_NONZERO_PATTERN, perr)
+    call MatAXPY( M, 1._dp, M2, DifFERENT_NONZERO_PATTERN, perr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_remapping_matrix_tri
 
   subroutine correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, M_cons_2nd_order)
     !< Apply some final corrections to the 2nd-order conservative mesh-to-mesh remapping operator
@@ -916,5 +1157,114 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine integrate_Voronoi_cells_through_triangles
+
+  !> Integrate around the triangles of mesh_top through the triangles of mesh_bot
+  subroutine integrate_triangles_through_triangles( mesh_top, mesh_bot, &
+    A_xdy_top_bot, A_mxydx_top_bot, A_xydy_top_bot, count_coincidences)
+
+    ! In/output variables
+    type(type_mesh), intent(in)    :: mesh_top
+    type(type_mesh), intent(in)    :: mesh_bot
+    type(tMat),      intent(out)   :: A_xdy_top_bot
+    type(tMat),      intent(out)   :: A_mxydx_top_bot
+    type(tMat),      intent(out)   :: A_xydy_top_bot
+    logical,         intent(in)    :: count_coincidences
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'integrate_triangles_through_triangles'
+    integer                                :: nrows, ncols, nrows_loc, ncols_loc, nnz_est, nnz_est_proc, nnz_per_row_max
+    type(type_sparse_matrix_CSR_dp)        :: A_xdy_top_bot_CSR, A_mxydx_top_bot_CSR, A_xydy_top_bot_CSR
+    type(type_single_row_mapping_matrices) :: single_row
+    integer                                :: via, vib, vic, ti_top, ti_bot_hint, k
+    real(dp), dimension(2)                 :: p, q
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! == Initialise the three matrices using the native UFEMISM CSR-matrix format
+    ! ===========================================================================
+
+    ! Matrix sise
+    nrows           = mesh_top%nTri  ! to
+    nrows_loc       = mesh_top%nTri_loc
+    ncols           = mesh_bot%nTri    ! from
+    ncols_loc       = mesh_bot%nTri_loc
+    nnz_est         = 4 * max( nrows, ncols)
+    nnz_est_proc    = ceiling( real( nnz_est, dp) / real( par%n, dp))
+    nnz_per_row_max = max( 32, max( ceiling( 2._dp * maxval( mesh_top%TriA) / minval( mesh_bot%TriA)), &
+                                    ceiling( 2._dp * maxval( mesh_bot%TriA) / minval( mesh_top%TriA)) ))
+
+    call allocate_matrix_CSR_dist( A_xdy_top_bot_CSR  , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_mxydx_top_bot_CSR, nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+    call allocate_matrix_CSR_dist( A_xydy_top_bot_CSR , nrows, ncols, nrows_loc, ncols_loc, nnz_est_proc)
+
+    ! Initialise results from integrating a single top-mesh triangle through the bottom mesh's triangles
+    single_row%n_max = 100
+    single_row%n     = 0
+    allocate( single_row%index_left( single_row%n_max))
+    allocate( single_row%LI_xdy(     single_row%n_max))
+    allocate( single_row%LI_mxydx(   single_row%n_max))
+    allocate( single_row%LI_xydy(    single_row%n_max))
+
+    ! == Trace all the line segments to fill the matrices
+    ! ===================================================
+
+    ti_bot_hint = 1
+
+    do ti_top = mesh_top%ti1, mesh_top%ti2
+
+      ! Clean up single row results
+      single_row%n            = 0
+      single_row%index_left   = 0
+      single_row%LI_xdy       = 0
+      single_row%LI_mxydx     = 0
+      single_row%LI_xydy      = 0
+
+      ! The three vertices spanning this top-mesh triangle
+      via = mesh_top%Tri( ti_top,1)
+      vib = mesh_top%Tri( ti_top,2)
+      vic = mesh_top%Tri( ti_top,3)
+
+      ! Integrate over the three top-mesh triangle sides
+      p = mesh_top%V( via,:)
+      q = mesh_top%V( vib,:)
+      call trace_line_tri( mesh_bot, p, q, single_row, count_coincidences, ti_bot_hint)
+
+      p = mesh_top%V( vib,:)
+      q = mesh_top%V( vic,:)
+      call trace_line_tri( mesh_bot, p, q, single_row, count_coincidences, ti_bot_hint)
+
+      p = mesh_top%V( vic,:)
+      q = mesh_top%V( via,:)
+      call trace_line_tri( mesh_bot, p, q, single_row, count_coincidences, ti_bot_hint)
+
+      ! Add the results for this triangle to the sparse matrix
+      if (single_row%n == 0) then
+        call add_empty_row_CSR_dist( A_xdy_top_bot_CSR  , ti_top)
+        call add_empty_row_CSR_dist( A_mxydx_top_bot_CSR, ti_top)
+        call add_empty_row_CSR_dist( A_xydy_top_bot_CSR , ti_top)
+      else
+        do k = 1, single_row%n
+          call add_entry_CSR_dist( A_xdy_top_bot_CSR  , ti_top, single_row%index_left( k), single_row%LI_xdy(   k))
+          call add_entry_CSR_dist( A_mxydx_top_bot_CSR, ti_top, single_row%index_left( k), single_row%LI_mxydx( k))
+          call add_entry_CSR_dist( A_xydy_top_bot_CSR , ti_top, single_row%index_left( k), single_row%LI_xydy(  k))
+        end do
+      end if
+
+    end do
+
+    call finalise_matrix_CSR_dist( A_xdy_top_bot_CSR  )
+    call finalise_matrix_CSR_dist( A_mxydx_top_bot_CSR)
+    call finalise_matrix_CSR_dist( A_xydy_top_bot_CSR )
+
+    ! Convert matrices from Fortran to PETSc types
+    call mat_CSR2petsc( A_xdy_top_bot_CSR  , A_xdy_top_bot  )
+    call mat_CSR2petsc( A_mxydx_top_bot_CSR, A_mxydx_top_bot)
+    call mat_CSR2petsc( A_xydy_top_bot_CSR , A_xydy_top_bot )
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine integrate_triangles_through_triangles
 
 end module remapping_mesh_to_mesh
