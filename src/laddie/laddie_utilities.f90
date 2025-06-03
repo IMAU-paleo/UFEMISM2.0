@@ -134,6 +134,17 @@ CONTAINS
     call allocate_dist_shared( laddie%Ti                , laddie%wTi                , mesh%pai_V%n_nih, mesh%nz)
     call allocate_dist_shared( laddie%T_ocean           , laddie%wT_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
     call allocate_dist_shared( laddie%S_ocean           , laddie%wS_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
+    laddie%Hi                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%Hi
+    laddie%Hib               ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%Hib
+    laddie%dHib_dx_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => laddie%dHib_dx_b
+    laddie%dHib_dy_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => laddie%dHib_dy_b
+    laddie%mask_icefree_land ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_icefree_land
+    laddie%mask_icefree_ocean( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_icefree_ocean
+    laddie%mask_grounded_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_grounded_ice
+    laddie%mask_floating_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_floating_ice
+    laddie%Ti                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:mesh%nz   ) => laddie%Ti
+    laddie%T_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%T_ocean
+    laddie%S_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%S_ocean
 
     ! Temperatures
     call allocate_dist_shared( laddie%T_amb         , laddie%wT_amb         , mesh%pai_V%n_nih  )    ! [degC]          Temperature layer bottom
