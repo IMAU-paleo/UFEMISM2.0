@@ -25,7 +25,7 @@ MODULE laddie_main
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
-  use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, & 
+  use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, &
       write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, buffer_laddie_scalars
   use laddie_integration, only: integrate_euler, integrate_fbrk3, integrate_lfra, move_laddie_timestep
 
@@ -58,9 +58,8 @@ CONTAINS
     REAL(dp)                                              :: ref_time         ! [s] Reference time for writing
     REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
     REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
-    REAL(dp)                                              :: time_to_write    ! [days] 
-    REAL(dp)                                              :: last_write_time  ! [days] 
-
+    REAL(dp)                                              :: time_to_write    ! [days]
+    REAL(dp)                                              :: last_write_time  ! [days]
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -68,11 +67,13 @@ CONTAINS
     ! == Preparation ==
     ! =================
 
+    call update_laddie_forcing( mesh, ice, ocean, laddie)
+
     ! Extrapolate data into new cells
-    CALL extrapolate_laddie_variables( mesh, ice, laddie)
+    CALL extrapolate_laddie_variables( mesh, laddie)
 
     ! == Update masks ==
-    CALL update_laddie_masks( mesh, ice, laddie)
+    CALL update_laddie_masks( mesh, laddie)
 
     ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
@@ -97,7 +98,7 @@ CONTAINS
     laddie%now%H_c( mesh%ei1:mesh%ei2) = 0.0_dp
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    CALL update_laddie_operators( mesh, laddie)
 
     ! == Main time loop ==
     ! ====================
@@ -118,7 +119,7 @@ CONTAINS
     ! Perform first integration with half the time step for LFRA scheme
     dt = C%dt_laddie / fac_dt_relax
     if (C%choice_laddie_integration_scheme == 'lfra') then
-      call integrate_lfra( mesh, ice, ocean, laddie, tl, time, dt)
+      call integrate_lfra( mesh, laddie, tl, time, dt)
     end if
 
     DO WHILE (tl < duration * sec_per_day)
@@ -136,11 +137,11 @@ CONTAINS
         CASE DEFAULT
           CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
         CASE ('euler')
-          CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
+          CALL integrate_euler( mesh, laddie, tl, time, dt)
         CASE ('fbrk3')
-          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
+          CALL integrate_fbrk3( mesh, laddie, tl, time, dt)
         CASE ('lfra')
-          CALL integrate_lfra( mesh, ice, ocean, laddie, tl, time, 2*dt)
+          CALL integrate_lfra( mesh, laddie, tl, time, 2*dt)
       END SELECT
 
       ! Write to output
@@ -190,28 +191,30 @@ CONTAINS
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
 
+    call update_laddie_forcing( mesh, ice, ocean, laddie)
+
     ! == Update masks ==
-    call update_laddie_masks( mesh, ice, laddie)
+    call update_laddie_masks( mesh, laddie)
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    CALL update_laddie_operators( mesh, laddie)
 
     ! Initialise requested timesteps
-    CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
+    CALL initialise_laddie_model_timestep( mesh, laddie, laddie%now)
 
     SELECT CASE(C%choice_laddie_integration_scheme)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
       CASE ('euler')
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
       CASE ('fbrk3')
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np13)
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np13)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np12)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
       CASE ('lfra')
         call crash('LeapFrog RobertAsselin scheme does not work yet, use euler or fbrk3')
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%nm1)
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%nm1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
     END SELECT
 
     ! Create output file
@@ -223,15 +226,13 @@ CONTAINS
 
   END SUBROUTINE initialise_laddie_model
 
-  SUBROUTINE initialise_laddie_model_timestep( mesh, laddie, ocean, ice, npx)
+  SUBROUTINE initialise_laddie_model_timestep( mesh, laddie, npx)
     ! Initialise the laddie model for given timestep
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
 
     ! Local variables:
@@ -257,7 +258,7 @@ CONTAINS
     CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npx%H)
+    CALL compute_ambient_TS( mesh, laddie, npx%H)
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
@@ -272,13 +273,12 @@ CONTAINS
 
   END SUBROUTINE initialise_laddie_model_timestep
 
-  SUBROUTINE update_laddie_masks( mesh, ice, laddie)
+  SUBROUTINE update_laddie_masks( mesh, laddie)
     ! Update bunch of masks for laddie at the start of a new run
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
 
     ! Local variables:
@@ -294,14 +294,14 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_gr_a( vi) = .true.
-      ELSE IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) THEN
+      ELSE IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_oc_a( vi) = .true.
       ELSE
         ! Inherit regular masks
-        laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
-        laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)
-        laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
+        laddie%mask_a( vi)    = laddie%mask_floating_ice( vi)
+        laddie%mask_gr_a( vi) = laddie%mask_grounded_ice( vi) .OR. laddie%mask_icefree_land( vi)
+        laddie%mask_oc_a( vi) = laddie%mask_icefree_ocean( vi)
       END IF
 
       ! Define domain for area integration
@@ -405,13 +405,12 @@ CONTAINS
 
   END SUBROUTINE update_laddie_masks
 
-  SUBROUTINE extrapolate_laddie_variables( mesh, ice, laddie)
+  SUBROUTINE extrapolate_laddie_variables( mesh, laddie)
     ! Update bunch of masks for laddie at the start of a new run
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
 
     ! Local variables:
@@ -433,13 +432,13 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) CYCLE
 
       IF (C%choice_calving_law == 'threshold_thickness') THEN
-        IF (ice%Hi( vi) < C%calving_threshold_thickness_shelf .and. ice%mask_floating_ice( vi)) CYCLE
+        IF (laddie%Hi( vi) < C%calving_threshold_thickness_shelf .and. laddie%mask_floating_ice( vi)) CYCLE
       ELSE
-        IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+        IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) CYCLE
       END IF
 
       ! Currently floating ice, so either seed or fill here
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_floating_ice( vi)) THEN
         IF (laddie%mask_a( vi)) THEN
           ! Data already available here, so use as seed
           mask( vi) = 2
@@ -469,13 +468,13 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) CYCLE
 
       IF (C%choice_calving_law == 'threshold_thickness') THEN
-        IF (ice%Hi( vi) < C%calving_threshold_thickness_shelf .and. ice%mask_floating_ice( vi)) CYCLE
+        IF (laddie%Hi( vi) < C%calving_threshold_thickness_shelf .and. laddie%mask_floating_ice( vi)) CYCLE
       ELSE
-        IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+        IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) CYCLE
       END IF
 
       ! Currently floating ice, so either seed or fill here
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_floating_ice( vi)) THEN
         IF (laddie%now%H( vi) == 0.0_dp) THEN
           laddie%now%H( vi) = C%laddie_thickness_minimum
           laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
@@ -637,11 +636,13 @@ CONTAINS
     laddie%domain_a      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%domain_a
     laddie%domain_b      ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%domain_b
 
+    call update_laddie_forcing( mesh_new, ice, ocean, laddie)
+
     ! == Re-initialise masks ==
-    CALL update_laddie_masks( mesh_new, ice, laddie)
+    CALL update_laddie_masks( mesh_new, laddie)
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh_new, ice, laddie)
+    CALL update_laddie_operators( mesh_new, laddie)
 
     ! == Timestep variables ==
     CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%now)
@@ -737,6 +738,37 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE remap_laddie_timestep
+
+  subroutine update_laddie_forcing( mesh, ice, ocean, laddie)
+
+    ! In/output variables
+    type(type_mesh),         intent(in   ) :: mesh
+    type(type_ice_model),    intent(in   ) :: ice
+    type(type_ocean_model),  intent(in   ) :: ocean
+    type(type_laddie_model), intent(inout) :: laddie
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'update_laddie_forcing'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    laddie%Hi                ( mesh%vi1:mesh%vi2  ) = ice%Hi                ( mesh%vi1:mesh%vi2  )
+    laddie%Hib               ( mesh%vi1:mesh%vi2  ) = ice%Hib               ( mesh%vi1:mesh%vi2  )
+    laddie%dHib_dx_b         ( mesh%ti1:mesh%ti2  ) = ice%dHib_dx_b         ( mesh%ti1:mesh%ti2  )
+    laddie%dHib_dy_b         ( mesh%ti1:mesh%ti2  ) = ice%dHib_dy_b         ( mesh%ti1:mesh%ti2  )
+    laddie%mask_icefree_land ( mesh%vi1:mesh%vi2  ) = ice%mask_icefree_land ( mesh%vi1:mesh%vi2  )
+    laddie%mask_icefree_ocean( mesh%vi1:mesh%vi2  ) = ice%mask_icefree_ocean( mesh%vi1:mesh%vi2  )
+    laddie%mask_grounded_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_grounded_ice ( mesh%vi1:mesh%vi2  )
+    laddie%mask_floating_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_floating_ice ( mesh%vi1:mesh%vi2  )
+    laddie%Ti                ( mesh%vi1:mesh%vi2,:) = ice%Ti                ( mesh%vi1:mesh%vi2,:)
+    laddie%T_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%T               ( mesh%vi1:mesh%vi2,:)
+    laddie%S_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%S               ( mesh%vi1:mesh%vi2,:)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine update_laddie_forcing
 
 END MODULE laddie_main
 
