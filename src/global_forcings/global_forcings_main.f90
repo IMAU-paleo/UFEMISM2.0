@@ -177,13 +177,13 @@ CONTAINS
     nt = size(forcing%sea_level_time)
     if (forcing%sea_level_time( 1) > time) then
       ! Desired time beyond lower limit
-      call warning('desired timeframe at t = {dp_01} before start of sea level record time; reading data from t = {dp_02} instead!', &
-        dp_01 = time, dp_02 = forcing%sea_level_time( 1))
+      !call warning('desired timeframe at t = {dp_01} before start of sea level record time; reading data from t = {dp_02} instead!', &
+      !  dp_01 = time, dp_02 = forcing%sea_level_time( 1))
       ti0 = 1
     elseif (forcing%sea_level_time( nt) < time) then
       ! Desired time beyond upper limit
-      call warning('desired timeframe at t = {dp_01} after end of sea level record time; reading data from t = {dp_02} instead!', &
-        dp_01 = time, dp_02 = forcing%sea_level_time( nt))
+      !call warning('desired timeframe at t = {dp_01} after end of sea level record time; reading data from t = {dp_02} instead!', &
+      !  dp_01 = time, dp_02 = forcing%sea_level_time( nt))
       ti0 = nt
     else
       ! Desired time is within the file time
@@ -195,8 +195,8 @@ CONTAINS
         end if
       end do
       if (dt_min > 0._dp) then
-        call warning('desired timeframe at t = {dp_01} not present in sea level record; reading data from closest match at t = {dp_02} instead!', &
-          dp_01 = time, dp_02 = forcing%sea_level_time( ti0))
+        !call warning('desired timeframe at t = {dp_01} not present in sea level record; reading data from closest match at t = {dp_02} instead!', &
+        !  dp_01 = time, dp_02 = forcing%sea_level_time( ti0))
       end if
     end if
       
