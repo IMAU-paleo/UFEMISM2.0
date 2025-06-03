@@ -207,7 +207,7 @@ CONTAINS
     ! if the desired time is after t0, we take one record after for t1
     if (time >= forcing%sl_t0) then
       if (ti0 == size(forcing%sea_level_time)) then
-        call warning('desired timeframe is at or beyond the last record. Using last available value for both timeframes...')
+        IF (par%primary) WRITE(0,*) 'desired timeframe is at or beyond the last record. Using last available value for both timeframes...'
         forcing%sl_t1    = forcing%sea_level_time(ti0)
         forcing%sl_at_t1 = forcing%sea_level_record(ti0)
       else
@@ -217,7 +217,7 @@ CONTAINS
     else
       ! otherwise we read one record before for t0, and that record is t1
       if (ti0 == 1) then
-        call warning('desired timeframe is at or before the first record. Using first available value for both timeframes...')
+        IF (par%primary) WRITE(0,*) 'desired timeframe is at or before the first record. Using first available value for both timeframes...'
         forcing%sl_t1    = forcing%sea_level_time(ti0)
         forcing%sl_at_t1 = forcing%sea_level_record(ti0)
       else

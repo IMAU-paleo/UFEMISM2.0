@@ -120,7 +120,6 @@ CONTAINS
 
       ! Update sea level if necessary
       IF  (C%choice_sealevel_model == 'prescribed') THEN
-      IF (par%primary) WRITE(0,*) 'Updating sea level in run_model_region...'
         CALL update_sealevel_at_model_time(regional_forcing, region%time)
         CALL update_sealevel_in_model(regional_forcing, region%mesh, region%ice, region%time)
       END IF
