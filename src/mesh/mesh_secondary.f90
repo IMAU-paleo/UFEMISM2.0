@@ -29,16 +29,19 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-  SUBROUTINE calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
+  SUBROUTINE calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo, &
+    mask_active_a_tot, mask_active_b_tot)
     ! Calculate all secondary mesh data
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),               INTENT(INOUT)       :: mesh
-    REAL(dp),                      INTENT(IN)          :: lambda_M     ! [degrees east]  Longitude of the pole of the oblique stereographic projection
-    REAL(dp),                      INTENT(IN)          :: phi_M        ! [degrees north] Latitude  of the pole of the oblique stereographic projection
-    REAL(dp),                      INTENT(IN)          :: beta_stereo  ! [degrees]       Standard parallel     of the oblique stereographic projection
+    TYPE(type_mesh),                         INTENT(INOUT) :: mesh
+    REAL(dp),                                INTENT(IN   ) :: lambda_M     ! [degrees east]  Longitude of the pole of the oblique stereographic projection
+    REAL(dp),                                INTENT(IN   ) :: phi_M        ! [degrees north] Latitude  of the pole of the oblique stereographic projection
+    REAL(dp),                                INTENT(IN   ) :: beta_stereo  ! [degrees]       Standard parallel     of the oblique stereographic projection
+    logical, dimension(mesh%nV),   optional, intent(in   ) :: mask_active_a_tot
+    logical, dimension(mesh%nTri), optional, intent(in   ) :: mask_active_b_tot
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_all_secondary_mesh_data'
@@ -60,7 +63,7 @@ CONTAINS
     CALL calc_triangle_geometric_centres(       mesh)
     CALL calc_lonlat(                           mesh, lambda_M, phi_M, beta_stereo)
     CALL initialise_scaled_vertical_coordinate( mesh)
-    CALL setup_mesh_parallelisation(            mesh)
+    CALL setup_mesh_parallelisation(            mesh, mask_active_a_tot, mask_active_b_tot)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -35,7 +35,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, SMB, BMB, region_name, time)
+  SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, SMB, BMB, region_name, time, is_initial)
     ! Calculate the basal mass balance
 
     ! In/output variables:
@@ -47,6 +47,7 @@ CONTAINS
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
+    logical,                                intent(in)    :: is_initial 
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model'
@@ -133,11 +134,7 @@ CONTAINS
       CASE ('laddie_py')
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .FALSE.)
       CASE ('laddie')
-        IF (time == C%start_time_of_run) THEN
-          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init, region_name)
-        ELSE
-          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie, region_name)
-        END IF
+        CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, is_initial, region_name)
 
         DO vi = mesh%vi1, mesh%vi2
           BMB%BMB( vi) = -BMB%laddie%melt( vi) * sec_per_year

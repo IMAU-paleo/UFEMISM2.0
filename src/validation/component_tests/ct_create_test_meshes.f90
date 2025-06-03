@@ -18,6 +18,7 @@ module ct_create_test_meshes
   use mesh_refinement_fun, only: mesh_add_smileyface, mesh_add_UFEMISM_letters
   use mesh_Lloyds_algorithm, only: Lloyds_algorithm_single_iteration
   use mesh_secondary, only: calc_all_secondary_mesh_data
+  use mesh_disc_calc_matrix_operators_2D, only: calc_all_matrix_operators_mesh
   use netcdf_io_main
 
   implicit none
@@ -293,10 +294,14 @@ contains
     ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
     call calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
 
+    ! Calculate all matrix operators
+    call calc_all_matrix_operators_mesh( mesh)
+
     ! Write to NetCDF file
     filename = trim( foldername_test_meshes)//'/'//trim( mesh_name)//'.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    call write_matrix_operators_to_netcdf_file( filename, ncid, mesh)
     call close_netcdf_file( ncid)
 
     ! Add it to the list of test meshes
@@ -398,10 +403,14 @@ contains
     ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
     call calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
 
+    ! Calculate all matrix operators
+    call calc_all_matrix_operators_mesh( mesh)
+
     ! Write to NetCDF file
     filename = trim( foldername_test_meshes)//'/'//trim( mesh_name)//'.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    call write_matrix_operators_to_netcdf_file( filename, ncid, mesh)
     call close_netcdf_file( ncid)
 
     ! Add it to the list of test meshes
@@ -470,10 +479,14 @@ contains
     ! Calculate secondary geometry data (needed in order to be able to write to NetCDF)
     call calc_all_secondary_mesh_data( mesh, lambda_M, phi_M, beta_stereo)
 
+    ! Calculate all matrix operators
+    call calc_all_matrix_operators_mesh( mesh)
+
     ! Write to NetCDF file
     filename = trim( foldername_test_meshes)//'/'//trim( mesh_name)//'.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
+    call write_matrix_operators_to_netcdf_file( filename, ncid, mesh)
     call close_netcdf_file( ncid)
 
     ! Add it to the list of test meshes
