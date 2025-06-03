@@ -143,7 +143,7 @@ CONTAINS
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time < forcing%sl_t0 .OR. time > forcing%sl_t1) THEN
-      IF (par%primary)  WRITE(0,*) '   Model time is out of the current sea level timeframes. Updating timeframes...'
+      !IF (par%primary)  WRITE(0,*) '   Model time is out of the current sea level timeframes. Updating timeframes...'
       CALL update_sealevel_timeframes_from_curve( forcing, time)
     END IF
     CALL interpolate_sea_level(forcing, time, forcing%sl_at_time) ! TODO: do we need this here?
