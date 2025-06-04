@@ -17,12 +17,6 @@ module SMB_IMAU_ITM
 
   implicit none
 
-  ! TODO: make these configurable
-  !REAL(dp), PARAMETER :: albedo_water        = 0.1_dp
-  !REAL(dp), PARAMETER :: albedo_soil         = 0.2_dp
-  !REAL(dp), PARAMETER :: albedo_ice          = 0.5_dp
-  !REAL(dp), PARAMETER :: albedo_snow         = 0.85_dp
-
 contains
 
 subroutine run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
