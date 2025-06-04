@@ -11,9 +11,7 @@ MODULE laddie_velocity
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
-  USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
@@ -29,14 +27,12 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_npx( mesh, ice, ocean, laddie, npx_old, npx_ref, npx_new, Hstar, dt, include_viscosity_terms)
+  SUBROUTINE compute_UV_npx( mesh, laddie, npx_old, npx_ref, npx_new, Hstar, dt, include_viscosity_terms)
     ! Integrate U and V by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_old   ! Old time step
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_ref   ! Reference time step for RHS terms
@@ -57,7 +53,7 @@ CONTAINS
 
     ! Initialise ambient T and S
     ! TODO costly, see whether necessary to recompute with Hstar
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
+    CALL compute_ambient_TS( mesh, laddie, Hstar)
 
     ! Compute buoyancy
     CALL compute_buoyancy( mesh, laddie, npx_ref, Hstar)
@@ -107,19 +103,19 @@ CONTAINS
           ! Assume dH/dx and ddrho/dx = 0
 
           ! Define PGF at calving front / grounding line
-          PGF_x = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
+          PGF_x = grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
-          PGF_y = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
+          PGF_y = grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
         ELSE
           ! Regular full expression
           PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
-                  + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
           PGF_y = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
-                  + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
         END IF
 
