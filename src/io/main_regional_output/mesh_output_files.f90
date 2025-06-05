@@ -213,6 +213,8 @@ contains
         call write_calving_front_to_file( filename, ncid, region%mesh, region%ice)
       case ('coastline')
         call write_coastline_to_file( filename, ncid, region%mesh, region%ice)
+      case ('grounded_ice_contour')
+        call write_grounded_ice_contour_to_file( filename, ncid, region%mesh, region%ice)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -771,6 +773,7 @@ contains
     integer                        :: id_var_calving_front
     integer                        :: id_var_ice_margin
     integer                        :: id_var_coastline
+    integer                        :: id_var_grounded_ice_contour
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -880,6 +883,14 @@ contains
         call add_attribute_char( filename, ncid, id_var_coastline, 'long_name', 'Coastline coordinates')
         call add_attribute_char( filename, ncid, id_var_coastline, 'units', 'm')
         call add_attribute_char( filename, ncid, id_var_coastline, 'format', 'Matlab contour format')
+      case ('grounded_ice_contour')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'grounded_ice_contour', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_grounded_ice_contour)
+        call add_attribute_char( filename, ncid, id_var_grounded_ice_contour, 'long_name', 'Grounded ice contour coordinates')
+        call add_attribute_char( filename, ncid, id_var_grounded_ice_contour, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_grounded_ice_contour, 'format', 'Matlab contour format')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -1324,7 +1335,7 @@ contains
       end if
     end do
 
-    ! Calculate grounding line contour
+    ! Calculate calving front contour
     if (par%primary) allocate( CC( mesh%nE,2))
     call calc_mesh_contour( mesh, Hi_for_GL, 0.05_dp, CC)
 
@@ -1346,15 +1357,12 @@ contains
 
     ! Local variables:
     character(len=1024), parameter          :: routine_name = 'write_ice_margin_to_file'
-    real(dp)                                :: NaN
     real(dp), dimension(:,:  ), allocatable :: CC
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    NaN = ieee_value( NaN, ieee_signaling_nan)
-
-    ! Calculate grounding line contour
+    ! Calculate ice margin contour
     if (par%primary) allocate( CC( mesh%nE,2))
     call calc_mesh_contour( mesh, ice%Hi, 0.05_dp, CC)
 
@@ -1395,7 +1403,7 @@ contains
       end if
     end do
 
-    ! Calculate grounding line contour
+    ! Calculate coastline contour
     if (par%primary) allocate( CC( mesh%nE,2))
     call calc_mesh_contour( mesh, water_depth_for_coastline, 0._dp, CC)
 
@@ -1406,6 +1414,44 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine write_coastline_to_file
+
+  subroutine write_grounded_ice_contour_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_grounded_ice_contour_to_file'
+    integer                                 :: vi
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: Hi_grounded_only
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Remove floating ice
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%mask_grounded_ice( vi)) then
+        Hi_grounded_only( vi) = ice%Hi( vi)
+      else
+        Hi_grounded_only( vi) = 0._dp
+      end if
+    end do
+
+    ! Calculate grounding ice contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, Hi_grounded_only, 0.05_dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'grounded_ice_contour')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_grounded_ice_contour_to_file
 
   subroutine write_contour_to_file( filename, ncid, mesh, CC, var_name)
 
