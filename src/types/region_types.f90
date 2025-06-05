@@ -17,7 +17,7 @@ MODULE region_types
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE AMB_model_types                                        , ONLY: type_AMB_model
   USE GIA_model_types                                        , ONLY: type_GIA_model, type_ELRA_model
-  USE basal_inversion_types                                  , ONLY: type_basal_inversion, type_hydrology_inversion
+  USE basal_inversion_types                                  , ONLY: type_basal_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
   use tracer_tracking_model_types, only: type_tracer_tracking_model
   use transect_types, only: type_transect
@@ -78,9 +78,6 @@ MODULE region_types
 
     ! The basal roughness inversion model
     TYPE(type_basal_inversion)              :: BIV
-
-    ! The basal hydrology inversion model
-    TYPE(type_hydrology_inversion)          :: HIV
 
     ! The tracer tracking model
     type(type_tracer_tracking_model)        :: tracer_tracking
