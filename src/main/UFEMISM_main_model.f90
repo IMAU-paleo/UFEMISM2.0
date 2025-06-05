@@ -19,7 +19,7 @@ MODULE UFEMISM_main_model
   use reference_geometries_main, only: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
-  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
+  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model
   USE bed_roughness                                          , ONLY: run_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
@@ -106,7 +106,7 @@ CONTAINS
       END IF ! IF (C%allow_mesh_updates) THEN
 
       ! Run the subglacial hydrology model
-      CALL run_basal_hydrology_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
+      CALL run_basal_hydrology_model( region%mesh, region%ice)
 
       ! Run the bed roughness model
       CALL run_bed_roughness_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV, region%time)
@@ -141,11 +141,6 @@ CONTAINS
       ! Run the basal inversion model
       IF (C%do_bed_roughness_nudging) THEN
         CALL run_basal_inversion( region)
-      END IF
-
-      ! Run the pore water fraction inversion model
-      IF (C%do_pore_water_nudging) THEN
-        CALL run_pore_water_fraction_inversion( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
       END IF
 
       ! Run the tracer-tracking model
@@ -368,11 +363,6 @@ CONTAINS
       time_of_next_action = MIN( time_of_next_action, region%BIV%t_next)
     END IF
 
-    ! Hydrology inversion
-    IF (C%do_pore_water_nudging) THEN
-      time_of_next_action = MIN( time_of_next_action, region%HIV%t_next)
-    END IF
-
     ! Target dHi_dt: make sure we don't overshoot its turnoff time
     IF (C%do_target_dHi_dt) THEN
       IF (C%target_dHi_dt_t_end > region%time) THEN
@@ -557,10 +547,6 @@ CONTAINS
 
     IF (C%do_bed_roughness_nudging) THEN
       CALL initialise_basal_inversion( region%mesh, region%ice, region%BIV, region%name)
-    END IF
-
-    IF (C%do_pore_water_nudging) THEN
-      CALL initialise_pore_water_fraction_inversion( region%mesh, region%ice, region%HIV, region%name)
     END IF
 
     ! ===== Corrections =====

@@ -1,61 +1,57 @@
-MODULE basal_inversion_main
+module basal_inversion_main
 
   ! Contains all the routines for managing the basal inversion model
 
-! ===== Preamble =====
-! ====================
+  use precisions, only: dp
+  use mpi_basic, only: par
+  use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine, colour_string
+  use model_configuration, only: C
+  use parameters
+  use mesh_types, only: type_mesh
+  use ice_model_types, only: type_ice_model
+  use basal_inversion_types, only: type_basal_inversion
+  use region_types, only: type_model_region
+  use basal_inversion_H_dHdt_flowline, only: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
 
-  USE precisions                                             , ONLY: dp
-  USE mpi_basic                                              , ONLY: par
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE parameters
-  USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
-  USE basal_inversion_types                                  , ONLY: type_basal_inversion
-  USE region_types                                           , ONLY: type_model_region
-  USE basal_inversion_H_dHdt_flowline                        , ONLY: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
+  implicit none
 
-  IMPLICIT NONE
+  private
 
-CONTAINS
+  public :: initialise_basal_inversion, run_basal_inversion
 
-  ! ===== Main routines =====
-  ! =========================
+contains
 
-  SUBROUTINE run_basal_inversion( region)
+  subroutine run_basal_inversion( region)
     ! Run the main basal inversion model
 
-    IMPLICIT NONE
-
     ! Input variables:
-    TYPE(type_model_region),             INTENT(INOUT) :: region
+    type(type_model_region), intent(inout) :: region
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_basal_inversion'
-    INTEGER                                            :: vi
-    REAL(dp)                                           :: wt_prev, wt_next
+    character(len=256), parameter :: routine_name = 'run_basal_inversion'
+    integer                       :: vi
+    real(dp)                      :: wt_prev, wt_next
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Only do basal inversion within the specified time window
-    IF (region%time < C%bed_roughness_nudging_t_start) THEN
+    if (region%time < C%bed_roughness_nudging_t_start) then
       region%BIV%t_next = C%bed_roughness_nudging_t_start
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
-    IF (region%time == C%bed_roughness_nudging_t_end) THEN
+      call finalise_routine( routine_name)
+      return
+    end if
+    if (region%time == C%bed_roughness_nudging_t_end) then
       region%BIV%t_next = C%end_time_of_run
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+      call finalise_routine( routine_name)
+      return
+    end if
 
     ! If the desired time is beyond the time of the next modelled bed roughness,
     ! run the basal inversion model to calculate a new next modelled bed roughness.
     ! =============================================================================
 
-    IF (region%time == region%BIV%t_next) THEN
+    if (region%time == region%BIV%t_next) then
       ! Need to calculate new predicted bed roughness
 
       ! Store previous modelled bed roughness
@@ -65,29 +61,28 @@ CONTAINS
       region%BIV%t_next = region%BIV%t_prev + C%bed_roughness_nudging_dt
 
       ! Run the basal inversion model to calculate a new next modelled bed roughness
-      SELECT CASE (C%choice_bed_roughness_nudging_method)
-        CASE ('H_dHdt_flowline')
+      select case (C%choice_bed_roughness_nudging_method)
+      case default
+        call crash('unknown choice_bed_roughness_nudging_method "' // trim( C%choice_bed_roughness_nudging_method) // '"')
+      case ('H_dHdt_flowline')
+        ! Run with the specified target geometry
+        select case (C%choice_inversion_target_geometry)
+        case default
+          call crash('unknown choice_inversion_target_geometry "' // trim( C%choice_inversion_target_geometry) // '"')
+        case ('init')
+          call run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%BIV)
+        case ('PD')
+          call run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV)
+      end select
 
-          ! Run with the specified target geometry
-          SELECT CASE (C%choice_inversion_target_geometry)
-            CASE ('init')
-              CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%BIV)
-            CASE ('PD')
-              CALL run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV)
-            CASE DEFAULT
-              CALL crash('unknown choice_inversion_target_geometry "' // TRIM( C%choice_inversion_target_geometry) // '"!')
-          END SELECT
+      end select
 
-        CASE DEFAULT
-          CALL crash('unknown choice_bed_roughness_nudging_method "' // TRIM( C%choice_bed_roughness_nudging_method) // '"!')
-      END SELECT
-
-    ELSEIF (region%time > region%BIV%t_next) THEN
+    elseif (region%time > region%BIV%t_next) then
       ! This should not be possible
-      CALL crash('overshot the basal inversion time step')
-    ELSE
+      call crash('overshot the basal inversion time step')
+    else
       ! We're within the current BIV prediction window
-    END IF ! IF (region%time == region%BIV%t_next) THEN
+    end IF
 
     ! Interpolate between previous and next modelled bed roughness
     ! to find the bed roughness at the desired time
@@ -98,81 +93,80 @@ CONTAINS
     wt_next = 1._dp - wt_prev
 
     ! Interpolate modelled bed roughness to desired time
-    DO vi = region%mesh%vi1, region%mesh%vi2
+    do vi = region%mesh%vi1, region%mesh%vi2
       region%BIV%generic_bed_roughness_1( vi) = wt_prev * region%BIV%generic_bed_roughness_1_prev( vi) + wt_next * region%BIV%generic_bed_roughness_1_next( vi)
       region%BIV%generic_bed_roughness_2( vi) = wt_prev * region%BIV%generic_bed_roughness_2_prev( vi) + wt_next * region%BIV%generic_bed_roughness_2_next( vi)
-    END DO
+    end do
 
     ! Update sliding law-specific bed roughness
     ! =========================================
 
-    SELECT CASE (C%choice_sliding_law)
-      CASE ('no_sliding')
-        CALL crash('cannot run basal inversion for choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-      CASE ('idealised')
-        CALL crash('cannot run basal inversion for choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-      CASE ('Weertman')
-        ! Weertman sliding law; bed roughness is described by slid_beta_sq
-        region%ice%slid_beta_sq = region%BIV%generic_bed_roughness_1
-      CASE ('Coulomb')
-        ! Coulomb sliding law; bed roughness is described by till_friction_angle
-        region%ice%till_friction_angle = region%BIV%generic_bed_roughness_1
-      CASE ('Budd')
-        ! Budd-type sliding law; bed roughness is described by till_friction_angle
-        region%ice%till_friction_angle = region%BIV%generic_bed_roughness_1
-      CASE ('Tsai2015')
-        ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
-        region%ice%slid_alpha_sq = region%BIV%generic_bed_roughness_1
-        region%ice%slid_beta_sq  = region%BIV%generic_bed_roughness_2
-      CASE ('Schoof2005')
-        ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
-        region%ice%slid_alpha_sq = region%BIV%generic_bed_roughness_1
-        region%ice%slid_beta_sq  = region%BIV%generic_bed_roughness_2
-      CASE ('Zoet-Iverson')
-        ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
-        region%ice%till_friction_angle = region%BIV%generic_bed_roughness_1
-      CASE DEFAULT
-        CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-    END SELECT
+    select case (C%choice_sliding_law)
+    case default
+      call crash('unknown choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('no_sliding')
+      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('idealised')
+      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('Weertman')
+      ! Weertman sliding law; bed roughness is described by slid_beta_sq
+      region%ice%slid_beta_sq = region%BIV%generic_bed_roughness_1
+    case ('Coulomb')
+      ! Coulomb sliding law; bed roughness is described by till_friction_angle
+      region%ice%till_friction_angle = region%BIV%generic_bed_roughness_1
+    case ('Budd')
+      ! Budd-type sliding law; bed roughness is described by till_friction_angle
+      region%ice%till_friction_angle = region%BIV%generic_bed_roughness_1
+    case ('Tsai2015')
+      ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+      region%ice%slid_alpha_sq = region%BIV%generic_bed_roughness_1
+      region%ice%slid_beta_sq  = region%BIV%generic_bed_roughness_2
+    case ('Schoof2005')
+      ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+      region%ice%slid_alpha_sq = region%BIV%generic_bed_roughness_1
+      region%ice%slid_beta_sq  = region%BIV%generic_bed_roughness_2
+    case ('Zoet-Iverson')
+      ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
+      region%ice%till_friction_angle = region%BIV%generic_bed_roughness_1
+    end select
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE run_basal_inversion
+  end subroutine run_basal_inversion
 
-  SUBROUTINE initialise_basal_inversion( mesh, ice, BIV, region_name)
+  subroutine initialise_basal_inversion( mesh, ice, BIV, region_name)
     ! Initialise the main basal inversion model
 
-    IMPLICIT NONE
-
     ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_basal_inversion),          INTENT(OUT)   :: BIV
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    type(type_mesh),                     intent(in   ) :: mesh
+    type(type_ice_model),                intent(in   ) :: ice
+    type(type_basal_inversion),          intent(  out) :: BIV
+    character(len=3),                    intent(in   ) :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_inversion'
+    character(len=1024), parameter :: routine_name = 'initialise_basal_inversion'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Print to terminal
-    IF (par%primary) WRITE(0,*) ' Initialising basal inversion model "' // colour_string( TRIM( C%choice_bed_roughness_nudging_method),'light blue') // '"...'
+    if (par%primary) write(0,*) ' Initialising basal inversion model "' // &
+      colour_string( trim( C%choice_bed_roughness_nudging_method),'light blue') // '"...'
 
     ! Allocate memory for main variables
     ! ==================================
 
-    ALLOCATE( BIV%generic_bed_roughness_1( mesh%vi1:mesh%vi2))
-    ALLOCATE( BIV%generic_bed_roughness_2( mesh%vi1:mesh%vi2))
+    allocate( BIV%generic_bed_roughness_1( mesh%vi1:mesh%vi2))
+    allocate( BIV%generic_bed_roughness_2( mesh%vi1:mesh%vi2))
 
     BIV%generic_bed_roughness_1 = 0._dp
     BIV%generic_bed_roughness_2 = 0._dp
 
-    ALLOCATE( BIV%generic_bed_roughness_1_prev( mesh%vi1:mesh%vi2))
-    ALLOCATE( BIV%generic_bed_roughness_2_prev( mesh%vi1:mesh%vi2))
-    ALLOCATE( BIV%generic_bed_roughness_1_next( mesh%vi1:mesh%vi2))
-    ALLOCATE( BIV%generic_bed_roughness_2_next( mesh%vi1:mesh%vi2))
+    allocate( BIV%generic_bed_roughness_1_prev( mesh%vi1:mesh%vi2))
+    allocate( BIV%generic_bed_roughness_2_prev( mesh%vi1:mesh%vi2))
+    allocate( BIV%generic_bed_roughness_1_next( mesh%vi1:mesh%vi2))
+    allocate( BIV%generic_bed_roughness_2_next( mesh%vi1:mesh%vi2))
 
     BIV%generic_bed_roughness_1_prev = 0._dp
     BIV%generic_bed_roughness_2_prev = 0._dp
@@ -186,76 +180,76 @@ CONTAINS
     ! Get sliding law-specific bed roughness
     ! ======================================
 
-    SELECT CASE (C%choice_sliding_law)
-      CASE ('no_sliding')
-        CALL crash('cannot run basal inversion for choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-      CASE ('idealised')
-        CALL crash('cannot run basal inversion for choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-      CASE ('Weertman')
-        ! Weertman sliding law; bed roughness is described by slid_beta_sq
-        BIV%generic_bed_roughness_1      = ice%slid_beta_sq
-        BIV%generic_bed_roughness_1_prev = ice%slid_beta_sq
-        BIV%generic_bed_roughness_1_next = ice%slid_beta_sq
-        BIV%generic_bed_roughness_2      = 0._dp
-        BIV%generic_bed_roughness_2_prev = 0._dp
-        BIV%generic_bed_roughness_2_next = 0._dp
-      CASE ('Coulomb')
-        ! Coulomb sliding law; bed roughness is described by till_friction_angle
-        BIV%generic_bed_roughness_1      = ice%till_friction_angle
-        BIV%generic_bed_roughness_1_prev = ice%till_friction_angle
-        BIV%generic_bed_roughness_1_next = ice%till_friction_angle
-        BIV%generic_bed_roughness_2      = 0._dp
-        BIV%generic_bed_roughness_2_prev = 0._dp
-        BIV%generic_bed_roughness_2_next = 0._dp
-      CASE ('Budd')
-        ! Budd-type sliding law; bed roughness is described by till_friction_angle
-        BIV%generic_bed_roughness_1      = ice%till_friction_angle
-        BIV%generic_bed_roughness_1_prev = ice%till_friction_angle
-        BIV%generic_bed_roughness_1_next = ice%till_friction_angle
-        BIV%generic_bed_roughness_2      = 0._dp
-        BIV%generic_bed_roughness_2_prev = 0._dp
-        BIV%generic_bed_roughness_2_next = 0._dp
-      CASE ('Tsai2015')
-        ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
-        BIV%generic_bed_roughness_1      = ice%slid_alpha_sq
-        BIV%generic_bed_roughness_1_prev = ice%slid_alpha_sq
-        BIV%generic_bed_roughness_1_next = ice%slid_alpha_sq
-        BIV%generic_bed_roughness_2      = ice%slid_beta_sq
-        BIV%generic_bed_roughness_2_prev = ice%slid_beta_sq
-        BIV%generic_bed_roughness_2_next = ice%slid_beta_sq
-      CASE ('Schoof2005')
-        ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
-        BIV%generic_bed_roughness_1      = ice%slid_alpha_sq
-        BIV%generic_bed_roughness_1_prev = ice%slid_alpha_sq
-        BIV%generic_bed_roughness_1_next = ice%slid_alpha_sq
-        BIV%generic_bed_roughness_2      = ice%slid_beta_sq
-        BIV%generic_bed_roughness_2_prev = ice%slid_beta_sq
-        BIV%generic_bed_roughness_2_next = ice%slid_beta_sq
-      CASE ('Zoet-Iverson')
-        ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
-        BIV%generic_bed_roughness_1      = ice%till_friction_angle
-        BIV%generic_bed_roughness_1_prev = ice%till_friction_angle
-        BIV%generic_bed_roughness_1_next = ice%till_friction_angle
-        BIV%generic_bed_roughness_2      = 0._dp
-        BIV%generic_bed_roughness_2_prev = 0._dp
-        BIV%generic_bed_roughness_2_next = 0._dp
-      CASE DEFAULT
-        CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-    END SELECT
+    select case (C%choice_sliding_law)
+    case default
+      call crash('unknown choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('no_sliding')
+      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('idealised')
+      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('Weertman')
+      ! Weertman sliding law; bed roughness is described by slid_beta_sq
+      BIV%generic_bed_roughness_1      = ice%slid_beta_sq
+      BIV%generic_bed_roughness_1_prev = ice%slid_beta_sq
+      BIV%generic_bed_roughness_1_next = ice%slid_beta_sq
+      BIV%generic_bed_roughness_2      = 0._dp
+      BIV%generic_bed_roughness_2_prev = 0._dp
+      BIV%generic_bed_roughness_2_next = 0._dp
+    case ('Coulomb')
+      ! Coulomb sliding law; bed roughness is described by till_friction_angle
+      BIV%generic_bed_roughness_1      = ice%till_friction_angle
+      BIV%generic_bed_roughness_1_prev = ice%till_friction_angle
+      BIV%generic_bed_roughness_1_next = ice%till_friction_angle
+      BIV%generic_bed_roughness_2      = 0._dp
+      BIV%generic_bed_roughness_2_prev = 0._dp
+      BIV%generic_bed_roughness_2_next = 0._dp
+    case ('Budd')
+      ! Budd-type sliding law; bed roughness is described by till_friction_angle
+      BIV%generic_bed_roughness_1      = ice%till_friction_angle
+      BIV%generic_bed_roughness_1_prev = ice%till_friction_angle
+      BIV%generic_bed_roughness_1_next = ice%till_friction_angle
+      BIV%generic_bed_roughness_2      = 0._dp
+      BIV%generic_bed_roughness_2_prev = 0._dp
+      BIV%generic_bed_roughness_2_next = 0._dp
+    case ('Tsai2015')
+      ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+      BIV%generic_bed_roughness_1      = ice%slid_alpha_sq
+      BIV%generic_bed_roughness_1_prev = ice%slid_alpha_sq
+      BIV%generic_bed_roughness_1_next = ice%slid_alpha_sq
+      BIV%generic_bed_roughness_2      = ice%slid_beta_sq
+      BIV%generic_bed_roughness_2_prev = ice%slid_beta_sq
+      BIV%generic_bed_roughness_2_next = ice%slid_beta_sq
+    case ('Schoof2005')
+      ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+      BIV%generic_bed_roughness_1      = ice%slid_alpha_sq
+      BIV%generic_bed_roughness_1_prev = ice%slid_alpha_sq
+      BIV%generic_bed_roughness_1_next = ice%slid_alpha_sq
+      BIV%generic_bed_roughness_2      = ice%slid_beta_sq
+      BIV%generic_bed_roughness_2_prev = ice%slid_beta_sq
+      BIV%generic_bed_roughness_2_next = ice%slid_beta_sq
+    case ('Zoet-Iverson')
+      ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
+      BIV%generic_bed_roughness_1      = ice%till_friction_angle
+      BIV%generic_bed_roughness_1_prev = ice%till_friction_angle
+      BIV%generic_bed_roughness_1_next = ice%till_friction_angle
+      BIV%generic_bed_roughness_2      = 0._dp
+      BIV%generic_bed_roughness_2_prev = 0._dp
+      BIV%generic_bed_roughness_2_next = 0._dp
+    end select
 
     ! Initialise chosen basal inversion model
     ! =======================================
 
-    SELECT CASE (C%choice_bed_roughness_nudging_method)
-      CASE ('H_dHdt_flowline')
-        CALL initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
-      CASE DEFAULT
-        CALL crash('unknown choice_bed_roughness_nudging_method "' // TRIM( C%choice_bed_roughness_nudging_method) // '"')
-    END SELECT
+    select case (C%choice_bed_roughness_nudging_method)
+    case default
+      call crash('unknown choice_bed_roughness_nudging_method "' // trim( C%choice_bed_roughness_nudging_method) // '"')
+    case ('H_dHdt_flowline')
+      call initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
+    end select
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_basal_inversion
+  end subroutine initialise_basal_inversion
 
-END MODULE basal_inversion_main
+end module basal_inversion_main

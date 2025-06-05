@@ -487,46 +487,6 @@ MODULE model_configuration
     REAL(dp)            :: Martin2011_hydro_Hb_min_config               = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
     REAL(dp)            :: Martin2011_hydro_Hb_max_config               = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
-    ! Initialisation of the pore water fraction
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_NAM_config = 'zero'                       ! How to initialise the pore water fraction: 'zero', 'read_from_file'
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_EAS_config = 'zero'
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_GRL_config = 'zero'
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_ANT_config = 'zero'
-    ! Paths to files containing pore water fraction fields
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_NAM_config      = ''
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_EAS_config      = ''
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_GRL_config      = ''
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_ANT_config      = ''
-    ! Timeframes to read from the pore water fraction file (set to 1E9    if the file has no time dimension)
-    REAL(dp)            :: timeframe_pore_water_fraction_NAM_config     = 1E9_dp                           ! Can be different from C%start_time_of_run, be careful though!
-    REAL(dp)            :: timeframe_pore_water_fraction_EAS_config     = 1E9_dp
-    REAL(dp)            :: timeframe_pore_water_fraction_GRL_config     = 1E9_dp
-    REAL(dp)            :: timeframe_pore_water_fraction_ANT_config     = 1E9_dp
-
-  ! == Basal hydrology inversion by nudging
-  ! =======================================
-
-    ! General
-    LOGICAL             :: do_pore_water_nudging_config                 = .FALSE.                          !           Whether or not to nudge the pore water pressure
-    CHARACTER(LEN=256)  :: choice_pore_water_nudging_method_config      = 'local'                          !           Choice of pore water nudging method: "local", "flowline"
-    REAL(dp)            :: pore_water_nudging_dt_config                 = 5._dp                            ! [yr]      Time step for pore water updates
-    REAL(dp)            :: pore_water_nudging_t_start_config            = -9.9E9_dp                        ! [yr]      Earliest model time when nudging is allowed
-    REAL(dp)            :: pore_water_nudging_t_end_config              = +9.9E9_dp                        ! [yr]      Latest   model time when nudging is allowed
-    REAL(dp)            :: pore_water_fraction_min_config               = 0._dp                            ! [?]       Smallest allowed value for the first  inverted pore water pressure field
-    REAL(dp)            :: pore_water_fraction_max_config               = 0.9999_dp                        ! [?]       Largest  allowed value for the first  inverted pore water pressure field
-    CHARACTER(LEN=256)  :: filename_inverted_pore_water_config          = 'pore_water_inv.nc'              !           NetCDF file where the final inverted pore water fields will be saved
-
-    ! Basal hydrology inversion model based on local and flowline-averaged values of H and dH/dt
-    REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale_config     = 150._dp                          ! [yr]      Timescale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dH0_config         = 200._dp                          ! [m]       Ice thickness error scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0_config       = 0.7_dp                           ! [m yr^-1] Thinning rate scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dU0_config         = 200._dp                          ! [m yr^-1] Surface speed error scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale_config    = 100._dp                          ! [m]       Ice thickness weight scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale_config     = 1000._dp                         ! [m yr^-1] Ice velocity  weight scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth_config    = 5000._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
-    REAL(dp)            :: porenudge_H_dHdt_flowline_w_smooth_config    = 0.0_dp                           ! [-]       Relative contribution of smoothed dC/dt in regularisation
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max_config    = 1000.0_dp                        ! [km]      Max total distance the trace is allowed to move before ending it
-
   ! == Bed roughness
   ! ==================
 
@@ -1512,46 +1472,6 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_basal_hydrology_model
     REAL(dp)            :: Martin2011_hydro_Hb_min
     REAL(dp)            :: Martin2011_hydro_Hb_max
-
-    ! Initialisation of the pore water fraction
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_NAM
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_EAS
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_GRL
-    CHARACTER(LEN=256)  :: pore_water_fraction_choice_initialise_ANT
-    ! Paths to files containing pore water fraction fields
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_NAM
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_EAS
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_GRL
-    CHARACTER(LEN=256)  :: filename_pore_water_fraction_ANT
-    ! Timeframes to read from the pore water fraction file (set to 1E9    if the file has no time dimension)
-    REAL(dp)            :: timeframe_pore_water_fraction_NAM
-    REAL(dp)            :: timeframe_pore_water_fraction_EAS
-    REAL(dp)            :: timeframe_pore_water_fraction_GRL
-    REAL(dp)            :: timeframe_pore_water_fraction_ANT
-
-  ! == Basal hydrology inversion by nudging
-  ! =======================================
-
-    ! General
-    LOGICAL             :: do_pore_water_nudging
-    CHARACTER(LEN=256)  :: choice_pore_water_nudging_method
-    REAL(dp)            :: pore_water_nudging_dt
-    REAL(dp)            :: pore_water_nudging_t_start
-    REAL(dp)            :: pore_water_nudging_t_end
-    REAL(dp)            :: pore_water_fraction_min
-    REAL(dp)            :: pore_water_fraction_max
-    CHARACTER(LEN=256)  :: filename_inverted_pore_water
-
-    ! Basal hydrology inversion model based on local and flowline-averaged values of H and dH/dt
-    REAL(dp)            :: porenudge_H_dHdt_flowline_t_scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dH0
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dHdt0
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dU0
-    REAL(dp)            :: porenudge_H_dHdt_flowline_Hi_scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_u_scale
-    REAL(dp)            :: porenudge_H_dHdt_flowline_r_smooth
-    REAL(dp)            :: porenudge_H_dHdt_flowline_w_smooth
-    REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max
 
   ! == Bed roughness
   ! ==================
@@ -2594,35 +2514,6 @@ CONTAINS
       choice_basal_hydrology_model_config                         , &
       Martin2011_hydro_Hb_min_config                              , &
       Martin2011_hydro_Hb_max_config                              , &
-      pore_water_fraction_choice_initialise_NAM_config            , &
-      pore_water_fraction_choice_initialise_EAS_config            , &
-      pore_water_fraction_choice_initialise_GRL_config            , &
-      pore_water_fraction_choice_initialise_ANT_config            , &
-      filename_pore_water_fraction_NAM_config                     , &
-      filename_pore_water_fraction_EAS_config                     , &
-      filename_pore_water_fraction_GRL_config                     , &
-      filename_pore_water_fraction_ANT_config                     , &
-      timeframe_pore_water_fraction_NAM_config                    , &
-      timeframe_pore_water_fraction_EAS_config                    , &
-      timeframe_pore_water_fraction_GRL_config                    , &
-      timeframe_pore_water_fraction_ANT_config                    , &
-      do_pore_water_nudging_config                                , &
-      choice_pore_water_nudging_method_config                     , &
-      pore_water_nudging_dt_config                                , &
-      pore_water_nudging_t_start_config                           , &
-      pore_water_nudging_t_end_config                             , &
-      pore_water_fraction_min_config                              , &
-      pore_water_fraction_max_config                              , &
-      filename_inverted_pore_water_config                         , &
-      porenudge_H_dHdt_flowline_t_scale_config                    , &
-      porenudge_H_dHdt_flowline_dH0_config                        , &
-      porenudge_H_dHdt_flowline_dHdt0_config                      , &
-      porenudge_H_dHdt_flowline_dU0_config                        , &
-      porenudge_H_dHdt_flowline_Hi_scale_config                   , &
-      porenudge_H_dHdt_flowline_u_scale_config                    , &
-      porenudge_H_dHdt_flowline_r_smooth_config                   , &
-      porenudge_H_dHdt_flowline_w_smooth_config                   , &
-      porenudge_H_dHdt_flowline_dist_max_config                   , &
       choice_bed_roughness_config                                 , &
       choice_bed_roughness_parameterised_config                   , &
       filename_bed_roughness_NAM_config                           , &
@@ -3452,46 +3343,6 @@ CONTAINS
     C%choice_basal_hydrology_model                           = choice_basal_hydrology_model_config
     C%Martin2011_hydro_Hb_min                                = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                                = Martin2011_hydro_Hb_max_config
-
-    ! Initialisation of the pore water fraction
-    C%pore_water_fraction_choice_initialise_NAM              = pore_water_fraction_choice_initialise_NAM_config
-    C%pore_water_fraction_choice_initialise_EAS              = pore_water_fraction_choice_initialise_EAS_config
-    C%pore_water_fraction_choice_initialise_GRL              = pore_water_fraction_choice_initialise_GRL_config
-    C%pore_water_fraction_choice_initialise_ANT              = pore_water_fraction_choice_initialise_ANT_config
-    ! Paths to files containing pore water fraction fields
-    C%filename_pore_water_fraction_NAM                       = filename_pore_water_fraction_NAM_config
-    C%filename_pore_water_fraction_EAS                       = filename_pore_water_fraction_EAS_config
-    C%filename_pore_water_fraction_GRL                       = filename_pore_water_fraction_GRL_config
-    C%filename_pore_water_fraction_ANT                       = filename_pore_water_fraction_ANT_config
-    ! Timeframes to read from the pore water fraction file (set to 1E9    if the file has no time dimension)
-    C%timeframe_pore_water_fraction_NAM                      = timeframe_pore_water_fraction_NAM_config
-    C%timeframe_pore_water_fraction_EAS                      = timeframe_pore_water_fraction_EAS_config
-    C%timeframe_pore_water_fraction_GRL                      = timeframe_pore_water_fraction_GRL_config
-    C%timeframe_pore_water_fraction_ANT                      = timeframe_pore_water_fraction_ANT_config
-
-  ! == Basal hydrology inversion by nudging
-  ! =======================================
-
-    ! General
-    C%do_pore_water_nudging                                  = do_pore_water_nudging_config
-    C%choice_pore_water_nudging_method                       = choice_pore_water_nudging_method_config
-    C%pore_water_nudging_dt                                  = pore_water_nudging_dt_config
-    C%pore_water_nudging_t_start                             = pore_water_nudging_t_start_config
-    C%pore_water_nudging_t_end                               = pore_water_nudging_t_end_config
-    C%pore_water_fraction_min                                = pore_water_fraction_min_config
-    C%pore_water_fraction_max                                = pore_water_fraction_max_config
-    C%filename_inverted_pore_water                           = filename_inverted_pore_water_config
-
-    ! Basal hydrology inversion model based on local and flowline-averaged values of H and dH/dt
-    C%porenudge_H_dHdt_flowline_t_scale                      = porenudge_H_dHdt_flowline_t_scale_config
-    C%porenudge_H_dHdt_flowline_dH0                          = porenudge_H_dHdt_flowline_dH0_config
-    C%porenudge_H_dHdt_flowline_dHdt0                        = porenudge_H_dHdt_flowline_dHdt0_config
-    C%porenudge_H_dHdt_flowline_dU0                          = porenudge_H_dHdt_flowline_dU0_config
-    C%porenudge_H_dHdt_flowline_Hi_scale                     = porenudge_H_dHdt_flowline_Hi_scale_config
-    C%porenudge_H_dHdt_flowline_u_scale                      = porenudge_H_dHdt_flowline_u_scale_config
-    C%porenudge_H_dHdt_flowline_r_smooth                     = porenudge_H_dHdt_flowline_r_smooth_config
-    C%porenudge_H_dHdt_flowline_w_smooth                     = porenudge_H_dHdt_flowline_w_smooth_config
-    C%porenudge_H_dHdt_flowline_dist_max                     = porenudge_H_dHdt_flowline_dist_max_config
 
   ! == Bed roughness
   ! ==================

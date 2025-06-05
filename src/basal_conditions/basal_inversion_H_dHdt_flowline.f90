@@ -1,132 +1,130 @@
-MODULE basal_inversion_H_dHdt_flowline
+module basal_inversion_H_dHdt_flowline
 
   ! Contains all the routines for the basal inversion model
   ! based on flowline-averaged values of H and dH/dt
 
-! ===== Preamble =====
-! ====================
-
-  USE precisions                                             , ONLY: dp
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
-  USE parameters
-  USE mesh_types                                             , ONLY: type_mesh
-  USE grid_basic                                             , ONLY: type_grid
-  USE ice_model_types                                        , ONLY: type_ice_model
-  USE reference_geometry_types                               , ONLY: type_reference_geometry
-  USE basal_inversion_types                                  , ONLY: type_basal_inversion
-  USE mesh_utilities                                         , ONLY: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
+  use precisions, only: dp
+  use control_resources_and_error_messaging, only: warning, crash, init_routine, finalise_routine
+  use model_configuration, only: C
+  use parameters
+  use mesh_types, only: type_mesh
+  use grid_basic, only: type_grid
+  use ice_model_types, only: type_ice_model
+  use reference_geometry_types, only: type_reference_geometry
+  use basal_inversion_types, only: type_basal_inversion
+  use mesh_utilities, only: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   use mesh_data_smoothing, only: smooth_Gaussian
 
+  implicit none
 
-  IMPLICIT NONE
+  private
 
-CONTAINS
+  public :: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
 
-  SUBROUTINE run_basal_inversion_H_dHdt_flowline( mesh, grid_smooth, ice, refgeo, BIV)
+contains
+
+  subroutine run_basal_inversion_H_dHdt_flowline( mesh, grid_smooth, ice, refgeo, BIV)
     ! Run the basal inversion model based on flowline-averaged values of H and dH/dt
 
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_grid),                     INTENT(IN)    :: grid_smooth
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
-    TYPE(type_basal_inversion),          INTENT(INOUT) :: BIV
+    ! In/output variables:
+    type(type_mesh),                     intent(in   ) :: mesh
+    type(type_grid),                     intent(in   ) :: grid_smooth
+    type(type_ice_model),                intent(in   ) :: ice
+    type(type_reference_geometry),       intent(in   ) :: refgeo
+    type(type_basal_inversion),          intent(inout) :: BIV
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_basal_inversion_H_dHdt_flowline'
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask
-    REAL(dp), DIMENSION(mesh%nV)                       :: Hi_tot
-    REAL(dp), DIMENSION(mesh%nV)                       :: Hs_tot
-    REAL(dp), DIMENSION(mesh%nV)                       :: Hs_target_tot
-    REAL(dp), DIMENSION(mesh%nV)                       :: dHs_dt_tot
-    REAL(dp), DIMENSION(mesh%nTri)                     :: u_b_tot
-    REAL(dp), DIMENSION(mesh%nTri)                     :: v_b_tot
-    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_grounded_ice_tot
-    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_gl_gr_tot
-    LOGICAL,  DIMENSION(mesh%nV)                       :: mask_margin_tot
-    REAL(dp), DIMENSION(mesh%nV)                       :: fraction_gr_tot
-    INTEGER                                            :: vi
-    REAL(dp), DIMENSION(2)                             :: p
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: trace_up, trace_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: s_up, s_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: deltaHs_up, deltaHs_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dt_up, dHs_dt_down
-    INTEGER                                            :: n_up,n_down
-    INTEGER                                            :: k
-    REAL(dp), DIMENSION(2)                             :: pt
-    INTEGER                                            :: ti,via,vib,vic
-    REAL(dp), DIMENSION(2)                             :: pa, pb, pc
-    REAL(dp)                                           :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
-    REAL(dp)                                           :: wa, wb, wc
-    REAL(dp)                                           :: Hs_mod, Hs_target, dHs_dt_mod
-    REAL(dp)                                           :: s1, s2, w1, w2, deltaHs1, deltaHs2, dHs_dt1, dHs_dt2, w_av, deltaHs_av, dHs_dt_av, ds
-    REAL(dp)                                           :: int_w_deltaHs_up, int_w_dHs_dt_up, int_w_up
-    REAL(dp)                                           :: int_w_deltaHs_down, int_w_dHs_dt_down, int_w_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: deltaHs_av_up, deltaHs_av_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dt_av_up, dHs_dt_av_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: I_tot, R
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt, dC2_dt
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dHs_dx, dHs_dy, abs_grad_Hs
-    REAL(dp)                                           :: fg_exp_mod
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: dC1_dt_smoothed, dC2_dt_smoothed
-    REAL(dp)                                           :: misfit
+    character(len=256), parameter           :: routine_name = 'run_basal_inversion_H_dHdt_flowline'
+    integer,  dimension(:    ), allocatable :: mask
+    real(dp), dimension(mesh%nV)            :: Hi_tot
+    real(dp), dimension(mesh%nV)            :: Hs_tot
+    real(dp), dimension(mesh%nV)            :: Hs_target_tot
+    real(dp), dimension(mesh%nV)            :: dHs_dt_tot
+    real(dp), dimension(mesh%nTri)          :: u_b_tot
+    real(dp), dimension(mesh%nTri)          :: v_b_tot
+    logical,  dimension(mesh%nV)            :: mask_grounded_ice_tot
+    logical,  dimension(mesh%nV)            :: mask_gl_gr_tot
+    logical,  dimension(mesh%nV)            :: mask_margin_tot
+    real(dp), dimension(mesh%nV)            :: fraction_gr_tot
+    integer                                 :: vi
+    real(dp), dimension(2)                  :: p
+    real(dp), dimension(:,:  ), allocatable :: trace_up, trace_down
+    real(dp), dimension(:    ), allocatable :: s_up, s_down
+    real(dp), dimension(:    ), allocatable :: deltaHs_up, deltaHs_down
+    real(dp), dimension(:    ), allocatable :: dHs_dt_up, dHs_dt_down
+    integer                                 :: n_up,n_down
+    integer                                 :: k
+    real(dp), dimension(2)                  :: pt
+    integer                                 :: ti,via,vib,vic
+    real(dp), dimension(2)                  :: pa, pb, pc
+    real(dp)                                :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
+    real(dp)                                :: wa, wb, wc
+    real(dp)                                :: Hs_mod, Hs_target, dHs_dt_mod
+    real(dp)                                :: s1, s2, w1, w2, deltaHs1, deltaHs2, dHs_dt1, dHs_dt2, w_av, deltaHs_av, dHs_dt_av, ds
+    real(dp)                                :: int_w_deltaHs_up, int_w_dHs_dt_up, int_w_up
+    real(dp)                                :: int_w_deltaHs_down, int_w_dHs_dt_down, int_w_down
+    real(dp), dimension(:    ), allocatable :: deltaHs_av_up, deltaHs_av_down
+    real(dp), dimension(:    ), allocatable :: dHs_dt_av_up, dHs_dt_av_down
+    real(dp), dimension(:    ), allocatable :: I_tot, R
+    real(dp), dimension(:    ), allocatable :: dC1_dt, dC2_dt
+    real(dp), dimension(:    ), allocatable :: dHs_dx, dHs_dy, abs_grad_Hs
+    real(dp)                                :: fg_exp_mod
+    real(dp), dimension(:    ), allocatable :: dC1_dt_smoothed, dC2_dt_smoothed
+    real(dp)                                :: misfit
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Allocate memory
-    ALLOCATE( mask(            mesh%vi1:mesh%vi2), source = 0      )
-    ALLOCATE( trace_up(        mesh%nV, 2       ), source = 0._dp  )
-    ALLOCATE( trace_down(      mesh%nV, 2       ), source = 0._dp  )
-    ALLOCATE( s_up(            mesh%nV          ), source = 0._dp  )
-    ALLOCATE( s_down(          mesh%nV          ), source = 0._dp  )
-    ALLOCATE( deltaHs_up(      mesh%nV          ), source = 0._dp  )
-    ALLOCATE( deltaHs_down(    mesh%nV          ), source = 0._dp  )
-    ALLOCATE( dHs_dt_up(       mesh%nV          ), source = 0._dp  )
-    ALLOCATE( dHs_dt_down(     mesh%nV          ), source = 0._dp  )
-    ALLOCATE( deltaHs_av_up(   mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( deltaHs_av_down( mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dt_av_up(    mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dt_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( R(               mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( I_tot(           mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC1_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC2_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC1_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
-    ALLOCATE( dC2_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( mask(            mesh%vi1:mesh%vi2), source = 0      )
+    allocate( trace_up(        mesh%nV, 2       ), source = 0._dp  )
+    allocate( trace_down(      mesh%nV, 2       ), source = 0._dp  )
+    allocate( s_up(            mesh%nV          ), source = 0._dp  )
+    allocate( s_down(          mesh%nV          ), source = 0._dp  )
+    allocate( deltaHs_up(      mesh%nV          ), source = 0._dp  )
+    allocate( deltaHs_down(    mesh%nV          ), source = 0._dp  )
+    allocate( dHs_dt_up(       mesh%nV          ), source = 0._dp  )
+    allocate( dHs_dt_down(     mesh%nV          ), source = 0._dp  )
+    allocate( deltaHs_av_up(   mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( deltaHs_av_down( mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dHs_dt_av_up(    mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dHs_dt_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( R(               mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( I_tot(           mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dC1_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dC2_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dC1_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dC2_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
 
     ! Gather ice model data from all processes
-    CALL gather_to_all(      ice%Hi               , Hi_tot               )
-    CALL gather_to_all(      ice%Hs               , Hs_tot               )
-    CALL gather_to_all(      refgeo%Hs            , Hs_target_tot        )
-    CALL gather_to_all(      ice%dHs_dt           , dHs_dt_tot           )
-    CALL gather_to_all(      ice%u_vav_b          , u_b_tot              )
-    CALL gather_to_all(      ice%v_vav_b          , v_b_tot              )
-    CALL gather_to_all( ice%mask_grounded_ice, mask_grounded_ice_tot)
-    CALL gather_to_all( ice%mask_gl_gr       , mask_gl_gr_tot       )
-    CALL gather_to_all( ice%mask_margin      , mask_margin_tot      )
-    CALL gather_to_all(      ice%fraction_gr      , fraction_gr_tot      )
+    call gather_to_all( ice%Hi               , Hi_tot               )
+    call gather_to_all( ice%Hs               , Hs_tot               )
+    call gather_to_all( refgeo%Hs            , Hs_target_tot        )
+    call gather_to_all( ice%dHs_dt           , dHs_dt_tot           )
+    call gather_to_all( ice%u_vav_b          , u_b_tot              )
+    call gather_to_all( ice%v_vav_b          , v_b_tot              )
+    call gather_to_all( ice%mask_grounded_ice, mask_grounded_ice_tot)
+    call gather_to_all( ice%mask_gl_gr       , mask_gl_gr_tot       )
+    call gather_to_all( ice%mask_margin      , mask_margin_tot      )
+    call gather_to_all( ice%fraction_gr      , fraction_gr_tot      )
 
-  ! == Calculate bed roughness rates of changes
-  ! ===========================================
+    ! == Calculate bed roughness rates of changes
+    ! ===========================================
 
-    DO vi = mesh%vi1, mesh%vi2
+    do vi = mesh%vi1, mesh%vi2
 
       ! Determine whether bed roughness should be
       ! updated by inversion or by extrapolation
 
       ! Only perform the inversion on fully grounded vertices
-      IF (ice%mask_grounded_ice( vi) .AND. &
-        .NOT. (ice%mask_margin( vi) .OR. ice%mask_gl_gr( vi) .OR. ice%mask_cf_gr( vi))) THEN
+      if (ice%mask_grounded_ice( vi) .and. &
+        .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi))) then
 
         ! Perform the inversion here
         mask( vi) = 2
@@ -135,18 +133,18 @@ CONTAINS
         misfit = ice%Hs( vi) - refgeo%Hs( vi)
 
         ! Is it improving already?
-        IF (ice%dHs_dt( vi)*misfit < 0._dp) THEN
+        if (ice%dHs_dt( vi)*misfit < 0._dp) then
           ! Yes, so leave this vertex alone
-          CYCLE
-        END IF
+          cycle
+        end if
 
       ELSE
 
         ! Extrapolate here
         mask( vi) = 1
-        CYCLE
+        cycle
 
-      END IF
+      end if
 
       ! Trace both halves of the flowline
       ! =================================
@@ -155,27 +153,27 @@ CONTAINS
       p = [mesh%V( vi,1), mesh%V( vi,2)]
 
       ! Trace both halves of the flowline
-      CALL trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  )
-      CALL trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down)
+      call trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  )
+      call trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down)
 
-      ! If we couldn't trace the flowline here, extrapolate instead of inverting
-      IF (n_up < 3 .OR. n_down < 3) THEN
+      ! if we couldn't trace the flowline here, extrapolate instead of inverting
+      if (n_up < 3 .or. n_down < 3) then
         ! Mark for first extrapolation
         mask( vi) = 1
         ! Skip inversion and go to next vertex
-        CYCLE
-      END IF
+        cycle
+      end if
 
       ! Calculate distance along both halves of the flowline
       s_up = 0._dp
-      DO k = 2, n_up
+      do k = 2, n_up
         s_up( k) = s_up( k-1) + NORM2( trace_up( k,:) - trace_up( k-1,:))
-      END DO
+      end do
 
       s_down = 0._dp
-      DO k = 2, n_down
+      do k = 2, n_down
         s_down( k) = s_down( k-1) + NORM2( trace_down( k,:) - trace_down( k-1,:))
-      END DO
+      end do
 
       ! Calculate thickness error and thinning rates on both halves of the flowline
       ! ===========================================================================
@@ -184,13 +182,13 @@ CONTAINS
       dHs_dt_up  = 0._dp
       ti         = mesh%iTri( vi,1)
 
-      DO k = 1, n_up
+      do k = 1, n_up
 
         ! The point along the flowline
         pt = trace_up( k,:)
 
         ! The mesh triangle containing the point
-        CALL find_containing_triangle( mesh, pt, ti)
+        call find_containing_triangle( mesh, pt, ti)
 
         ! The three vertices spanning ti
         via = mesh%Tri( ti,1)
@@ -219,19 +217,19 @@ CONTAINS
         deltaHs_up( k) = Hs_mod - Hs_target
         dHs_dt_up(  k) = dHs_dt_mod
 
-      END DO !  DO k = 1, n_up
+      end do
 
       deltaHs_down = 0._dp
       dHs_dt_down  = 0._dp
       ti           = mesh%iTri( vi,1)
 
-      DO k = 1, n_down
+      do k = 1, n_down
 
         ! The point along the flowline
         pt = trace_down( k,:)
 
         ! The mesh triangle containing the point
-        CALL find_containing_triangle( mesh, pt, ti)
+        call find_containing_triangle( mesh, pt, ti)
 
         ! The three vertices spanning ti
         via = mesh%Tri( ti,1)
@@ -260,7 +258,7 @@ CONTAINS
         deltaHs_down( k) = Hs_mod - Hs_target
         dHs_dt_down(  k) = dHs_dt_mod
 
-      END DO !  DO k = 1, n_down
+      end do
 
       ! Calculate weighted average of thickness error and thinning rates on both halves of the flowline
       ! ===============================================================================================
@@ -269,7 +267,7 @@ CONTAINS
       int_w_dHs_dt_up  = 0._dp
       int_w_up         = 0._dp
 
-      DO k = 2, n_up
+      do k = 2, n_up
 
         ! Distance of both points
         s1 = s_up( k-1)
@@ -294,7 +292,7 @@ CONTAINS
         int_w_dHs_dt_up  = int_w_dHs_dt_up  + (w_av * dHs_dt_av  * ds)
         int_w_up         = int_w_up         + (w_av              * ds)
 
-      END DO ! DO k = 2, n_up
+      end do
 
       deltaHs_av_up( vi) = int_w_deltaHs_up / int_w_up
       dHs_dt_av_up(  vi) = int_w_dHs_dt_up  / int_w_up
@@ -303,7 +301,7 @@ CONTAINS
       int_w_dHs_dt_down  = 0._dp
       int_w_down         = 0._dp
 
-      DO k = 2, n_down
+      do k = 2, n_down
 
         ! Distance of both points
         s1 = s_down( k-1)
@@ -328,7 +326,7 @@ CONTAINS
         int_w_dHs_dt_down  = int_w_dHs_dt_down  + (w_av * dHs_dt_av  * ds)
         int_w_down         = int_w_down         + (w_av              * ds)
 
-      END DO ! DO k = 2, n_down
+      end do
 
       deltaHs_av_down( vi) = int_w_deltaHs_down / int_w_down
       dHs_dt_av_down(  vi) = int_w_dHs_dt_down  / int_w_down
@@ -336,7 +334,7 @@ CONTAINS
       ! Calculate bed roughness rates of change
       ! =======================================
 
-      R(     vi) = MAX( 0._dp, MIN( 1._dp, &
+      R( vi) = max( 0._dp, min( 1._dp, &
         ((ice%uabs_vav( vi) * ice%Hi( vi)) / (C%bednudge_H_dHdt_flowline_u_scale * C%bednudge_H_dHdt_flowline_Hi_scale)) ))
 
       I_tot( vi) = R( vi) * (&
@@ -346,40 +344,40 @@ CONTAINS
       dC1_dt( vi) = -1._dp * (I_tot( vi) * BIV%generic_bed_roughness_1( vi)) / C%bednudge_H_dHdt_flowline_t_scale
       dC2_dt( vi) = -1._dp * (I_tot( vi) * BIV%generic_bed_roughness_2( vi)) / C%bednudge_H_dHdt_flowline_t_scale
 
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+    end do
 
-  ! == Extrapolated inverted roughness rates of change to the whole domain
-  ! ======================================================================
+    ! == Extrapolated inverted roughness rates of change to the whole domain
+    ! ======================================================================
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask, dC1_dt, C%bednudge_H_dHdt_flowline_r_smooth)
-    CALL extrapolate_Gaussian( mesh, mask, dC2_dt, C%bednudge_H_dHdt_flowline_r_smooth)
+    call extrapolate_Gaussian( mesh, mask, dC1_dt, C%bednudge_H_dHdt_flowline_r_smooth)
+    call extrapolate_Gaussian( mesh, mask, dC2_dt, C%bednudge_H_dHdt_flowline_r_smooth)
 
     ! Regularise tricky extrapolated areas
 
     ! Calculate surface slopes
-    CALL ddx_a_a_2D( mesh, ice%Hs, dHs_dx)
-    CALL ddy_a_a_2D( mesh, ice%Hs, dHs_dy)
+    call ddx_a_a_2D( mesh, ice%Hs, dHs_dx)
+    call ddy_a_a_2D( mesh, ice%Hs, dHs_dy)
 
     ! Calculate absolute surface gradient
-    abs_grad_Hs = SQRT( dHs_dx**2 + dHs_dy**2)
+    abs_grad_Hs = sqrt( dHs_dx**2 + dHs_dy**2)
 
     ! Scale bed roughness rate of change for partially grounded, steep-sloped areas
-    DO vi = mesh%vi1, mesh%vi2
+    do vi = mesh%vi1, mesh%vi2
 
       ! Ice margin and grounding lines
-      IF (ice%mask_grounded_ice( vi)) THEN
+      if (ice%mask_grounded_ice( vi)) then
 
         ! Strengthen the effect of grounded fractions for steep slopes
-        fg_exp_mod = MIN( 1.0_dp, MAX( 0._dp, MAX( 0._dp, abs_grad_Hs( vi) - 0.02_dp) / (0.06_dp - 0.02_dp) ))
+        fg_exp_mod = min( 1.0_dp, max( 0._dp, max( 0._dp, abs_grad_Hs( vi) - 0.02_dp) / (0.06_dp - 0.02_dp) ))
 
         ! Scale based on grounded fraction
         dC1_dt( vi) = dC1_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
         dC2_dt( vi) = dC2_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
 
-      END IF
+      end if
 
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+    end do
 
     ! Smoothing
     ! =========
@@ -388,13 +386,13 @@ CONTAINS
     dC2_dt_smoothed = dC2_dt
 
     ! Smooth the local variable
-    CALL smooth_Gaussian( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
-    CALL smooth_Gaussian( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    call smooth_Gaussian( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    call smooth_Gaussian( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
 
-    DO vi = mesh%vi1, mesh%vi2
+    do vi = mesh%vi1, mesh%vi2
       dC1_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC1_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC1_dt_smoothed( vi)
       dC2_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC2_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC2_dt_smoothed( vi)
-    END DO ! DO vi = mesh%vi1, mesh%vi2
+    end do ! do vi = mesh%vi1, mesh%vi2
 
     ! Final bed roughness field
     ! =========================
@@ -406,52 +404,50 @@ CONTAINS
       BIV%generic_bed_roughness_2_prev + C%bed_roughness_nudging_dt * dC2_dt ))
 
     ! Clean up after yourself
-    DEALLOCATE( mask           )
-    DEALLOCATE( trace_up       )
-    DEALLOCATE( trace_down     )
-    DEALLOCATE( s_up           )
-    DEALLOCATE( s_down         )
-    DEALLOCATE( deltaHs_up     )
-    DEALLOCATE( deltaHs_down   )
-    DEALLOCATE( dHs_dt_up      )
-    DEALLOCATE( dHs_dt_down    )
-    DEALLOCATE( deltaHs_av_up  )
-    DEALLOCATE( deltaHs_av_down)
-    DEALLOCATE( dHs_dt_av_up   )
-    DEALLOCATE( dHs_dt_av_down )
-    DEALLOCATE( R              )
-    DEALLOCATE( I_tot          )
-    DEALLOCATE( dC1_dt         )
-    DEALLOCATE( dC2_dt         )
-    DEALLOCATE( dHs_dx         )
-    DEALLOCATE( dHs_dy         )
-    DEALLOCATE( abs_grad_Hs    )
-    DEALLOCATE( dC1_dt_smoothed)
-    DEALLOCATE( dC2_dt_smoothed)
+    deallocate( mask           )
+    deallocate( trace_up       )
+    deallocate( trace_down     )
+    deallocate( s_up           )
+    deallocate( s_down         )
+    deallocate( deltaHs_up     )
+    deallocate( deltaHs_down   )
+    deallocate( dHs_dt_up      )
+    deallocate( dHs_dt_down    )
+    deallocate( deltaHs_av_up  )
+    deallocate( deltaHs_av_down)
+    deallocate( dHs_dt_av_up   )
+    deallocate( dHs_dt_av_down )
+    deallocate( R              )
+    deallocate( I_tot          )
+    deallocate( dC1_dt         )
+    deallocate( dC2_dt         )
+    deallocate( dHs_dx         )
+    deallocate( dHs_dy         )
+    deallocate( abs_grad_Hs    )
+    deallocate( dC1_dt_smoothed)
+    deallocate( dC2_dt_smoothed)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE run_basal_inversion_H_dHdt_flowline
+  end subroutine run_basal_inversion_H_dHdt_flowline
 
-  SUBROUTINE initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
+  subroutine initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
     ! Initialise the basal inversion model based on flowline-averaged values of H and dH/dt
 
-    IMPLICIT NONE
-
     ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_basal_inversion),          INTENT(INOUT) :: BIV
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    type(type_mesh),            intent(in   ) :: mesh
+    type(type_ice_model),       intent(in   ) :: ice
+    type(type_basal_inversion), intent(inout) :: BIV
+    character(len=3),           intent(in   ) :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_inversion_H_dHdt_flowline'
-    REAL(dp)                                           :: dummy_dp
-    CHARACTER                                          :: dummy_char
+    character(len=1024), parameter :: routine_name = 'initialise_basal_inversion_H_dHdt_flowline'
+    real(dp)                       :: dummy_dp
+    character                      :: dummy_char
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! To prevent compiler warnings
     dummy_dp = mesh%xmin
@@ -460,14 +456,14 @@ CONTAINS
     dummy_char = region_name( 1:1)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_basal_inversion_H_dHdt_flowline
+  end subroutine initialise_basal_inversion_H_dHdt_flowline
 
   ! == Flowline tracing
   ! ===================
 
-  SUBROUTINE trace_flowline_upstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n)
+  subroutine trace_flowline_upstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n)
     ! Trace the flowline passing through point p upstream through
     ! the 2-D velocity field u_b,v_b.
     !
@@ -475,33 +471,31 @@ CONTAINS
     !
     ! Stop the trace when it encounters the ice divide (defined as an ice velocity lower than 1 m/yr)
 
-    IMPLICIT NONE
-
     ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%nV),        INTENT(IN)    :: Hi_tot
-    REAL(dp), DIMENSION(mesh%nTri),      INTENT(IN)    :: u_b_tot, v_b_tot
-    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: T
-    INTEGER,                             INTENT(OUT)   :: n
+    type(type_mesh),                     intent(in   ) :: mesh
+    real(dp), dimension(mesh%nV),        intent(in   ) :: Hi_tot
+    real(dp), dimension(mesh%nTri),      intent(in   ) :: u_b_tot, v_b_tot
+    real(dp), dimension(2),              intent(in   ) :: p
+    real(dp), dimension(:,:  ),          intent(  out) :: T
+    integer,                             intent(  out) :: n
 
     ! Local variables:
-    REAL(dp), DIMENSION(2)                             :: pt
-    INTEGER                                            :: vi, iti, ti
-    REAL(dp)                                           :: dist, w, w_tot
-    REAL(dp)                                           :: u_pt, v_pt, uabs_pt
-    REAL(dp), DIMENSION(2)                             :: u_hat_pt
-    REAL(dp)                                           :: dist_prev
+    real(dp), dimension(2) :: pt
+    integer                :: vi, iti, ti
+    real(dp)               :: dist, w, w_tot
+    real(dp)               :: u_pt, v_pt, uabs_pt
+    real(dp), dimension(2) :: u_hat_pt
+    real(dp)               :: dist_prev
 
     ! Safety - if there's no ice, we can't do a trace
     vi = 1
-    CALL find_containing_vertex( mesh, p, vi)
-    IF (Hi_tot( vi) < 1._dp) THEN
+    call find_containing_vertex( mesh, p, vi)
+    if (Hi_tot( vi) < 1._dp) then
       T = 0._dp
       n = 1
       T( 1,:) = p
-      RETURN
-    END IF
+      return
+    end if
 
     ! Initialise
     T  = 0._dp
@@ -511,10 +505,10 @@ CONTAINS
     ! Safety
     dist_prev = 0._dp
 
-    DO WHILE (.TRUE.)
+    do while (.true.)
 
       ! Find the vertex vi containing the tracer
-      CALL find_containing_vertex( mesh, pt, vi)
+      call find_containing_vertex( mesh, pt, vi)
 
       ! Interpolate between the surrounding triangles to find
       ! the velocities at the tracer's location
@@ -523,24 +517,24 @@ CONTAINS
       u_pt  = 0._dp
       v_pt  = 0._dp
 
-      DO iti = 1, mesh%niTri( vi)
+      do iti = 1, mesh%niTri( vi)
         ti = mesh%iTri( vi,iti)
-        dist = NORM2( mesh%TriGC( ti,:) - pt)
+        dist = norm2( mesh%TriGC( ti,:) - pt)
         w = 1._dp / dist**2
         w_tot = w_tot + w
         u_pt  = u_pt  + w * u_b_tot( ti)
         v_pt  = v_pt  + w * v_b_tot( ti)
-      END DO
+      end do
 
       u_pt = u_pt / w_tot
       v_pt = v_pt / w_tot
 
       ! Calculate absolute velocity at the tracer's location
-      uabs_pt = SQRT( u_pt**2 + v_pt**2)
+      uabs_pt = sqrt( u_pt**2 + v_pt**2)
 
-      ! If we've reached the ice divide (defined as the place where
+      ! if we've reached the ice divide (defined as the place where
       ! we find velocities below 1 m/yr), end the trace
-      IF (uabs_pt < 1._dp) EXIT
+      if (uabs_pt < 1._dp) exit
 
       ! Calculate the normalised velocity vector at the tracer's location
       u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]
@@ -548,38 +542,33 @@ CONTAINS
       ! Add current position to the traces
       n = n + 1
       ! Safety
-      IF (n > SIZE( T,1)) THEN
-        ! DO iti = 1, MIN( SIZE(T,1), 1000)
-        !   print*, T(iti,1), ',', T(iti,2)
-        ! END DO
-        CALL crash('upstream flowline tracer got stuck!')
-      END IF
+      if (n > size( T,1)) call crash('upstream flowline tracer got stuck!')
       T( n,:) = pt
 
       ! Save previous distance-to-origin
-      dist_prev = NORM2( pt - p)
+      dist_prev = norm2( pt - p)
 
       ! Move the tracer upstream by a distance of one local resolution
       pt = pt - u_hat_pt * mesh%R( vi)
 
-      ! If the new distance-to-origin is shorter than the previous one, end the trace
-      IF (NORM2( pt - p) < dist_prev) EXIT
+      ! if the new distance-to-origin is shorter than the previous one, end the trace
+      if (norm2( pt - p) < dist_prev) EXIT
 
-      ! If the new tracer location is outside the domain, end the trace
-      IF (pt( 1) <= mesh%xmin .OR. pt( 2) >= mesh%xmax .OR. &
-          pt( 2) <= mesh%ymin .OR. pt( 2) >= mesh%ymax) EXIT
+      ! if the new tracer location is outside the domain, end the trace
+      if (pt( 1) <= mesh%xmin .or. pt( 2) >= mesh%xmax .or. &
+          pt( 2) <= mesh%ymin .or. pt( 2) >= mesh%ymax) exit
 
-    END DO ! DO WHILE (.TRUE.)
+    end do
 
     ! Safety
-    IF (n == 0) THEN
+    if (n == 0) then
       n = 1
       T( 1,:) = p
-    END IF
+    end if
 
-  END SUBROUTINE trace_flowline_upstream
+  end subroutine trace_flowline_upstream
 
-  SUBROUTINE trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n)
+  subroutine trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n)
     ! Trace the flowline passing through point p downstream through
     ! the 2-D velocity field u_b,v_b.
     !
@@ -587,33 +576,31 @@ CONTAINS
     !
     ! Stop the trace when it encounters the ice margin
 
-    IMPLICIT NONE
-
     ! Input variables:
-    TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(mesh%nV),        INTENT(IN)    :: Hi_tot
-    REAL(dp), DIMENSION(mesh%nTri),      INTENT(IN)    :: u_b_tot, v_b_tot
-    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: T
-    INTEGER,                             INTENT(OUT)   :: n
+    type(type_mesh),                intent(in   ) :: mesh
+    real(dp), dimension(mesh%nV),   intent(in   ) :: Hi_tot
+    real(dp), dimension(mesh%nTri), intent(in   ) :: u_b_tot, v_b_tot
+    real(dp), dimension(2),         intent(in   ) :: p
+    real(dp), dimension(:,:  ),     intent(  out) :: T
+    integer,                        intent(  out) :: n
 
     ! Local variables:
-    REAL(dp), DIMENSION(2)                             :: pt
-    INTEGER                                            :: vi, iti, ti
-    REAL(dp)                                           :: dist, w, w_tot
-    REAL(dp)                                           :: u_pt, v_pt, uabs_pt
-    REAL(dp), DIMENSION(2)                             :: u_hat_pt
-    REAL(dp)                                           :: dist_prev
+    real(dp), dimension(2) :: pt
+    integer                :: vi, iti, ti
+    real(dp)               :: dist, w, w_tot
+    real(dp)               :: u_pt, v_pt, uabs_pt
+    real(dp), dimension(2) :: u_hat_pt
+    real(dp)               :: dist_prev
 
     ! Safety - if there's no ice, we can't do a trace
     vi = 1
-    CALL find_containing_vertex( mesh, p, vi)
-    IF (Hi_tot( vi) < 1._dp) THEN
+    call find_containing_vertex( mesh, p, vi)
+    if (Hi_tot( vi) < 1._dp) then
       T = 0._dp
       n = 1
       T( 1,:) = p
-      RETURN
-    END IF
+      return
+    end if
 
     ! Initialise
     T  = 0._dp
@@ -623,14 +610,14 @@ CONTAINS
     ! Safety
     dist_prev = 0._dp
 
-    DO WHILE (.TRUE.)
+    do while (.true.)
 
       ! Find the vertex vi containing the tracer
-      CALL find_containing_vertex( mesh, pt, vi)
+      call find_containing_vertex( mesh, pt, vi)
 
-      ! If ice thickness in this vertex is below 1 m, assume we've found the
+      ! if ice thickness in this vertex is below 1 m, assume we've found the
       ! ice margin, and end the trace
-      IF (Hi_tot( vi) < 1._dp) EXIT
+      if (Hi_tot( vi) < 1._dp) exit
 
       ! Interpolate between the surrounding triangles to find
       ! the velocities at the tracer's location
@@ -639,25 +626,25 @@ CONTAINS
       u_pt  = 0._dp
       v_pt  = 0._dp
 
-      DO iti = 1, mesh%niTri( vi)
+      do iti = 1, mesh%niTri( vi)
         ti = mesh%iTri( vi,iti)
-        dist = NORM2( mesh%TriGC( ti,:) - pt)
-        IF (dist == 0._dp) CALL crash('whaa!')
+        dist = norm2( mesh%TriGC( ti,:) - pt)
+        if (dist == 0._dp) call crash('whaa!')
         w = 1._dp / dist**2
         w_tot = w_tot + w
         u_pt  = u_pt  + w * u_b_tot( ti)
         v_pt  = v_pt  + w * v_b_tot( ti)
-      END DO
+      end do
 
       u_pt = u_pt / w_tot
       v_pt = v_pt / w_tot
 
       ! Calculate absolute velocity at the tracer's location
-      uabs_pt = SQRT( u_pt**2 + v_pt**2)
+      uabs_pt = sqrt( u_pt**2 + v_pt**2)
 
-      ! If we're at the ice divide (defined as the place where
+      ! if we're at the ice divide (defined as the place where
       ! we find velocities below 1 m/yr), we can't do the trace
-      IF (uabs_pt < 1._dp) EXIT
+      if (uabs_pt < 1._dp) exit
 
       ! Calculate the normalised velocity vector at the tracer's location
       u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]
@@ -665,35 +652,30 @@ CONTAINS
       ! Add current position to the traces
       n = n + 1
       ! Safety
-      IF (n > SIZE( T,1)) THEN
-        ! DO iti = 1, MIN( SIZE(T,1), 1000)
-        !   print*, T(iti,1), ',', T(iti,2)
-        ! END DO
-        CALL crash('downstream flowline tracer got stuck!')
-      END IF
+      if (n > size( T,1)) call crash('downstream flowline tracer got stuck!')
       T( n,:) = pt
 
       ! Save previous distance-to-origin
-      dist_prev = NORM2( pt - p)
+      dist_prev = norm2( pt - p)
 
       ! Move the tracer downstream by a distance of one local resolution
       pt = pt + u_hat_pt * mesh%R( vi)
 
-      ! If the new distance-to-origin is shorter than the previous one, end the trace
-      IF (NORM2( pt - p) < dist_prev) EXIT
+      ! if the new distance-to-origin is shorter than the previous one, end the trace
+      if (norm2( pt - p) < dist_prev) exit
 
-      ! If the new tracer location is outside the domain, end the trace
-      IF (pt( 1) <= mesh%xmin .OR. pt( 2) >= mesh%xmax .OR. &
-          pt( 2) <= mesh%ymin .OR. pt( 2) >= mesh%ymax) EXIT
+      ! if the new tracer location is outside the domain, end the trace
+      if (pt( 1) <= mesh%xmin .or. pt( 2) >= mesh%xmax .or. &
+          pt( 2) <= mesh%ymin .or. pt( 2) >= mesh%ymax) exit
 
-    END DO ! DO WHILE (.TRUE.)
+    end do
 
     ! Safety
-    IF (n == 0) THEN
+    if (n == 0) then
       n = 1
       T( 1,:) = p
-    END IF
+    end if
 
-  END SUBROUTINE trace_flowline_downstream
+  end subroutine trace_flowline_downstream
 
-END MODULE basal_inversion_H_dHdt_flowline
+end module basal_inversion_H_dHdt_flowline
