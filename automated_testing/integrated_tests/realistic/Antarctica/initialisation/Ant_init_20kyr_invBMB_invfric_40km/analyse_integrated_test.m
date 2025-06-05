@@ -1,10 +1,10 @@
 function analyse_integrated_test( varargin)
 % Analyse the results of the Antarctic initialisation run
 
-disp('Analysing integrated test realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km...')
+disp('Analysing integrated test realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km...')
 disp('')
   
-test_name = 'Ant_init_20kyr_invBMB_invpwf_40km';
+test_name = 'Ant_init_20kyr_invBMB_invfric_40km';
 test_path = 'integrated_tests/realistic/Antarctica/initialisation';
 
 %%
