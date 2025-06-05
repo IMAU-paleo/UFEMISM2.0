@@ -1,13 +1,13 @@
 # NOTE: this script is created automatically by running
 # 'automated_testing/integrated_tests/add_all_integrated_tests_to_Github_workflow.m'
 
-name: UFEMISM Test Suite - run and analyse integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
-run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
+name: UFEMISM Test Suite - run and analyse integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
+run-name: ${{ github.actor }} - UFEMISM Test Suite - run and analyse integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
 on:
   workflow_call:
 
 jobs:
-  Ant_init_20kyr_invBMB_invpwf_40km:
+  Ant_init_20kyr_invBMB_invfric_40km:
     runs-on: macos-latest
     steps:
 
@@ -41,18 +41,18 @@ jobs:
           path: UFEMISM_program
           key: UFEMISM_program_perf_${{ github.ref_name }}_${{ github.run_id }}
 
-      - name: Run integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km/config.cfg
+      - name: Run integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km/config.cfg
 
-      - name: Analyse integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
+      - name: Analyse integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
         uses: matlab-actions/run-command@v2
         with:
           command: |
-            addpath('automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km')
+            addpath('automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km')
             analyse_integrated_test('${{github.workspace}}/automated_testing')
 
       - name: Upload scoreboard file as artifact
         uses: actions/upload-artifact@v4.3.4
         with:
-          name: scoreboard_file_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km
+          name: scoreboard_file_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invfric_40km
           path: automated_testing/scoreboard/temporary_scoreboard_files/*.xml
