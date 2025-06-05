@@ -618,7 +618,7 @@ contains
     ! Gather partial gridded data to the primary and broadcast the total field to all processes
     allocate( mask_int_grid( grid%nx, grid%ny))
     call gather_gridded_data_to_primary( grid, mask_int_grid_vec_partial, mask_int_grid)
-    call MPI_BCAST( mask_int_grid, grid%nx * grid%ny, MPI_integer, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( mask_int_grid(:,:), grid%nx * grid%ny, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Calculate logical mask (assumes data from file is integer 0 for FALSE and integer 1 for true)
     allocate( mask_grid( grid%nx, grid%ny), source = .false.)
