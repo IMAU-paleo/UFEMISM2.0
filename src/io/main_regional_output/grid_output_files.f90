@@ -347,6 +347,8 @@ contains
         ! Do nothing; only written to mesh files
       case ('coastline')
         ! Do nothing; only written to mesh files
+      case ('grounded_ice_contour')
+        ! Do nothing; only written to mesh files
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -1096,6 +1098,8 @@ contains
       case ('calving_front')
         ! Do nothing; only written to mesh files
       case ('coastline')
+        ! Do nothing; only written to mesh files
+      case ('grounded_ice_contour')
         ! Do nothing; only written to mesh files
 
     ! ===== Geometry changes w.r.t. reference =====
