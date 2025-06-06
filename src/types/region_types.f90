@@ -17,7 +17,7 @@ MODULE region_types
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE AMB_model_types                                        , ONLY: type_AMB_model
   USE GIA_model_types                                        , ONLY: type_GIA_model, type_ELRA_model
-  USE basal_inversion_types                                  , ONLY: type_basal_inversion
+  use bed_roughness_model_types, only: type_basal_inversion
   USE scalar_types                                           , ONLY: type_regional_scalars
   use tracer_tracking_model_types, only: type_tracer_tracking_model
   use transect_types, only: type_transect

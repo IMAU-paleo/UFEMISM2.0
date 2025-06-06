@@ -9,7 +9,7 @@ module bed_roughness_nudging_main
   use parameters
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
-  use basal_inversion_types, only: type_basal_inversion
+  use bed_roughness_model_types, only: type_basal_inversion
   use region_types, only: type_model_region
   use bed_roughness_nudging_H_dHdt_flowline, only: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
 
