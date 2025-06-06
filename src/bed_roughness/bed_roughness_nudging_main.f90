@@ -1,6 +1,6 @@
-module basal_inversion_main
+module bed_roughness_nudging_main
 
-  ! Contains all the routines for managing the basal inversion model
+  ! Contains all the routines for nudging the bed roughness
 
   use precisions, only: dp
   use mpi_basic, only: par
@@ -11,7 +11,7 @@ module basal_inversion_main
   use ice_model_types, only: type_ice_model
   use basal_inversion_types, only: type_basal_inversion
   use region_types, only: type_model_region
-  use basal_inversion_H_dHdt_flowline, only: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
+  use bed_roughness_nudging_H_dHdt_flowline, only: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
 
   implicit none
 
@@ -252,4 +252,4 @@ contains
 
   end subroutine initialise_basal_inversion
 
-end module basal_inversion_main
+end module bed_roughness_nudging_main

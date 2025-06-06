@@ -257,12 +257,11 @@ UFEMISM_source = \
   reference_geometries/preprocess_geometry.f90 \
   reference_geometries/reference_geometries_main.f90 \
   \
-  basal_conditions/geothermal_heat_flux.f90 \
-  basal_conditions/basal_hydrology.f90 \
-  basal_conditions/basal_inversion_H_dHdt_flowline.f90 \
-  basal_conditions/basal_inversion_main.f90 \
-  basal_conditions/bed_roughness.f90 \
-  basal_conditions/sliding_laws.f90 \
+  basal_hydrology/basal_hydrology_main.f90 \
+  \
+  bed_roughness/bed_roughness_nudging_H_dHdt_flowline.f90 \
+  bed_roughness/bed_roughness_nudging_main.f90 \
+  bed_roughness/bed_roughness_main.f90 \
   \
   surface_mass_balance/SMB_idealised.f90 \
   surface_mass_balance/SMB_prescribed.f90 \
@@ -307,7 +306,14 @@ UFEMISM_source = \
   ice_dynamics/utilities/time_step_criteria.f90 \
   ice_dynamics/utilities/ice_mass_and_fluxes.f90 \
   ice_dynamics/utilities/ice_shelf_base_slopes_onesided.f90 \
+  \
+  thermodynamics/thermodynamics_utilities.f90 \
+  thermodynamics/geothermal_heat_flux.f90 \
+  thermodynamics/thermodynamics_3D_heat_equation.f90 \
+  thermodynamics/thermodynamics_main.f90 \
+  \
   ice_dynamics/rheology/constitutive_equation.f90 \
+  ice_dynamics/conservation_of_momentum/sliding_laws.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_DIVA_utilities.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/solve_linearised_SSA_DIVA.f90 \
@@ -322,10 +328,6 @@ UFEMISM_source = \
   ice_dynamics/time_stepping/direct_scheme.f90 \
   ice_dynamics/time_stepping/predictor_corrector_scheme.f90 \
   ice_dynamics/ice_dynamics_main.f90 \
-  \
-  thermodynamics/thermodynamics_utilities.f90 \
-  thermodynamics/thermodynamics_3D_heat_equation.f90 \
-  thermodynamics/thermodynamics_main.f90 \
   \
   climate/climate_idealised.f90 \
   climate/climate_realistic.f90 \

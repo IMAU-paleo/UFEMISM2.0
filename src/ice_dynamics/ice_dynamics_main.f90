@@ -37,7 +37,7 @@ module ice_dynamics_main
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   use bedrock_cumulative_density_functions, only: calc_bedrock_CDFs, initialise_bedrock_CDFs
   use geothermal_heat_flux, only: initialise_geothermal_heat_flux
-  use bed_roughness, only: initialise_bed_roughness
+  use bed_roughness_main, only: initialise_bed_roughness
   use predictor_corrector_scheme, only: remap_pc_scheme, create_restart_file_pc_scheme, &
     write_to_restart_file_pc_scheme, initialise_pc_scheme, run_ice_dynamics_model_pc
   use direct_scheme, only: run_ice_dynamics_model_direct

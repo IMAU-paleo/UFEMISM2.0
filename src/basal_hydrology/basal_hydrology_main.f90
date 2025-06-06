@@ -1,4 +1,4 @@
-module basal_hydrology
+module basal_hydrology_main
 
   ! Contains all the different basal hydrology models.
 
@@ -107,4 +107,4 @@ contains
 
   end subroutine calc_pore_water_pressure_Martin2011
 
-end module basal_hydrology
+end module basal_hydrology_main

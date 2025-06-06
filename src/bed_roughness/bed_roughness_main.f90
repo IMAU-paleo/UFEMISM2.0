@@ -1,7 +1,8 @@
-module bed_roughness
+module bed_roughness_main
 
   ! Contains all the routines for calculating the parameters
   ! that determine bed roughness.
+  !
   ! NOTE: the variable ice%bed_roughness itself is computed
   ! from these parameters within each sliding law in their
   ! respective module
@@ -520,4 +521,4 @@ contains
 
   end subroutine initialise_bed_roughness_from_file
 
-end module bed_roughness
+end module bed_roughness_main

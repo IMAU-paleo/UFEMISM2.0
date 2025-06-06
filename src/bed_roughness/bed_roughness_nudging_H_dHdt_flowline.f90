@@ -1,4 +1,4 @@
-module basal_inversion_H_dHdt_flowline
+module bed_roughness_nudging_H_dHdt_flowline
 
   ! Contains all the routines for the basal inversion model
   ! based on flowline-averaged values of H and dH/dt
@@ -678,4 +678,4 @@ contains
 
   end subroutine trace_flowline_downstream
 
-end module basal_inversion_H_dHdt_flowline
+end module bed_roughness_nudging_H_dHdt_flowline
