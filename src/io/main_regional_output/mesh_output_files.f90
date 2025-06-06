@@ -486,8 +486,6 @@ contains
       ! Sliding law coefficients
       case ('till_friction_angle')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%ice%till_friction_angle)
-      case ('bed_roughness')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'bed_roughness', region%ice%bed_roughness)
       case ('till_yield_stress')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_yield_stress', region%ice%till_yield_stress)
       case ('slid_alpha_sq')

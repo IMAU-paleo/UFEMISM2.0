@@ -210,7 +210,6 @@ contains
 
     ! Sliding law coefficients
     allocate( ice%till_friction_angle( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( ice%bed_roughness      ( mesh%vi1:mesh%vi2), source = 0._dp)
     allocate( ice%till_yield_stress  ( mesh%vi1:mesh%vi2), source = 0._dp)
     allocate( ice%slid_alpha_sq      ( mesh%vi1:mesh%vi2), source = 0._dp)
     allocate( ice%slid_beta_sq       ( mesh%vi1:mesh%vi2), source = 0._dp)

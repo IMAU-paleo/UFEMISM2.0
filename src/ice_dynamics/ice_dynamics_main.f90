@@ -693,7 +693,6 @@ contains
 
     ! Sliding law coefficients
     call reallocate_bounds( ice%till_friction_angle, mesh_new%vi1, mesh_new%vi2)  ! [degrees]          Till friction angle (degrees)
-    call reallocate_bounds( ice%bed_roughness      , mesh_new%vi1, mesh_new%vi2)  ! [0-1]              Bed roughness fraction
     call reallocate_bounds( ice%till_yield_stress  , mesh_new%vi1, mesh_new%vi2)  ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
     call reallocate_bounds( ice%slid_alpha_sq      , mesh_new%vi1, mesh_new%vi2)  ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
     call reallocate_bounds( ice%slid_beta_sq       , mesh_new%vi1, mesh_new%vi2)  ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
