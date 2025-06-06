@@ -4,8 +4,7 @@ module bed_roughness_model_types
 
   implicit none
 
-  type type_basal_inversion
-    ! The main basal roughness inversion model
+  type type_bed_roughness_model
 
     ! Main data fields
     real(dp), dimension(:), allocatable :: generic_bed_roughness_1
@@ -18,7 +17,7 @@ module bed_roughness_model_types
     real(dp), dimension(:), allocatable :: generic_bed_roughness_2_next
     real(dp)                            :: t_prev, t_next
 
-  end type type_basal_inversion
+  end type type_bed_roughness_model
 
 contains
 

@@ -11,7 +11,7 @@ module bed_roughness_nudging_H_dHdt_flowline
   use grid_basic, only: type_grid
   use ice_model_types, only: type_ice_model
   use reference_geometry_types, only: type_reference_geometry
-  use bed_roughness_model_types, only: type_basal_inversion
+  use bed_roughness_model_types, only: type_bed_roughness_model
   use mesh_utilities, only: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
@@ -34,7 +34,7 @@ contains
     type(type_grid),                     intent(in   ) :: grid_smooth
     type(type_ice_model),                intent(in   ) :: ice
     type(type_reference_geometry),       intent(in   ) :: refgeo
-    type(type_basal_inversion),          intent(inout) :: BIV
+    type(type_bed_roughness_model),          intent(inout) :: BIV
 
     ! Local variables:
     character(len=256), parameter           :: routine_name = 'run_basal_inversion_H_dHdt_flowline'
@@ -438,7 +438,7 @@ contains
     ! Input variables:
     type(type_mesh),            intent(in   ) :: mesh
     type(type_ice_model),       intent(in   ) :: ice
-    type(type_basal_inversion), intent(inout) :: BIV
+    type(type_bed_roughness_model), intent(inout) :: BIV
     character(len=3),           intent(in   ) :: region_name
 
     ! Local variables:
