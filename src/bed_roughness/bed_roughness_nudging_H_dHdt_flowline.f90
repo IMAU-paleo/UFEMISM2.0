@@ -26,7 +26,7 @@ module bed_roughness_nudging_H_dHdt_flowline
 
 contains
 
-  subroutine run_bed_roughness_nudging_H_dHdt_flowline( mesh, grid_smooth, ice, refgeo, BIV)
+  subroutine run_bed_roughness_nudging_H_dHdt_flowline( mesh, grid_smooth, ice, refgeo, bed_roughness)
     ! Run the bed roughness nuding model based on flowline-averaged values of H and dH/dt
 
     ! In/output variables:
@@ -34,7 +34,7 @@ contains
     type(type_grid),                     intent(in   ) :: grid_smooth
     type(type_ice_model),                intent(in   ) :: ice
     type(type_reference_geometry),       intent(in   ) :: refgeo
-    type(type_bed_roughness_model),      intent(inout) :: BIV
+    type(type_bed_roughness_model),      intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=256), parameter           :: routine_name = 'run_bed_roughness_nudging_H_dHdt_flowline'
@@ -341,8 +341,8 @@ contains
         (deltaHs_av_up( vi)                       ) / C%bednudge_H_dHdt_flowline_dH0 + &
         (dHs_dt_av_up(  vi) + dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
 
-      dC1_dt( vi) = -1._dp * (I_tot( vi) * BIV%generic_bed_roughness_1( vi)) / C%bednudge_H_dHdt_flowline_t_scale
-      dC2_dt( vi) = -1._dp * (I_tot( vi) * BIV%generic_bed_roughness_2( vi)) / C%bednudge_H_dHdt_flowline_t_scale
+      dC1_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness_1( vi)) / C%bednudge_H_dHdt_flowline_t_scale
+      dC2_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness_2( vi)) / C%bednudge_H_dHdt_flowline_t_scale
 
     end do
 
@@ -398,10 +398,10 @@ contains
     ! =========================
 
     ! Calculate predicted bed roughness at t+dt
-    BIV%generic_bed_roughness_1_next = MAX( C%generic_bed_roughness_1_min, MIN( C%generic_bed_roughness_1_max, &
-      BIV%generic_bed_roughness_1_prev + C%bed_roughness_nudging_dt * dC1_dt ))
-    BIV%generic_bed_roughness_2_next = MAX( C%generic_bed_roughness_2_min, MIN( C%generic_bed_roughness_2_max, &
-      BIV%generic_bed_roughness_2_prev + C%bed_roughness_nudging_dt * dC2_dt ))
+    bed_roughness%generic_bed_roughness_1_next = MAX( C%generic_bed_roughness_1_min, MIN( C%generic_bed_roughness_1_max, &
+      bed_roughness%generic_bed_roughness_1_prev + C%bed_roughness_nudging_dt * dC1_dt ))
+    bed_roughness%generic_bed_roughness_2_next = MAX( C%generic_bed_roughness_2_min, MIN( C%generic_bed_roughness_2_max, &
+      bed_roughness%generic_bed_roughness_2_prev + C%bed_roughness_nudging_dt * dC2_dt ))
 
     ! Clean up after yourself
     deallocate( mask           )
@@ -432,13 +432,13 @@ contains
 
   end subroutine run_bed_roughness_nudging_H_dHdt_flowline
 
-  subroutine initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, ice, BIV, region_name)
+  subroutine initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, ice, bed_roughness, region_name)
     ! Initialise the bed roughness nudging model based on flowline-averaged values of H and dH/dt
 
     ! Input variables:
     type(type_mesh),                intent(in   ) :: mesh
     type(type_ice_model),           intent(in   ) :: ice
-    type(type_bed_roughness_model), intent(inout) :: BIV
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
     character(len=3),               intent(in   ) :: region_name
 
     ! Local variables:
@@ -452,7 +452,7 @@ contains
     ! To prevent compiler warnings
     dummy_dp = mesh%xmin
     dummy_dp = ice%Hi( mesh%vi1)
-    dummy_dp = BIV%generic_bed_roughness_1( mesh%vi1)
+    dummy_dp = bed_roughness%generic_bed_roughness_1( mesh%vi1)
     dummy_char = region_name( 1:1)
 
     ! Finalise routine path

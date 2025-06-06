@@ -77,7 +77,7 @@ MODULE region_types
     TYPE(type_ELRA_model)                   :: ELRA
 
     ! The bed roughness model
-    TYPE(type_bed_roughness_model)          :: BIV
+    TYPE(type_bed_roughness_model)          :: bed_roughness
 
     ! The tracer tracking model
     type(type_tracer_tracking_model)        :: tracer_tracking

@@ -360,7 +360,7 @@ CONTAINS
 
     ! Basal inversion
     IF (C%do_bed_roughness_nudging) THEN
-      time_of_next_action = MIN( time_of_next_action, region%BIV%t_next)
+      time_of_next_action = MIN( time_of_next_action, region%bed_roughness%t_next)
     END IF
 
     ! Target dHi_dt: make sure we don't overshoot its turnoff time
@@ -546,7 +546,7 @@ CONTAINS
     ! ===========================
 
     IF (C%do_bed_roughness_nudging) THEN
-      CALL initialise_bed_roughness_nudging_model( region%mesh, region%ice, region%BIV, region%name)
+      CALL initialise_bed_roughness_nudging_model( region%mesh, region%ice, region%bed_roughness, region%name)
     END IF
 
     ! ===== Corrections =====
