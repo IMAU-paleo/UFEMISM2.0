@@ -21,7 +21,7 @@ module bed_roughness_main
 
   private
 
-  public :: run_bed_roughness_model, initialise_bed_roughness
+  public :: run_bed_roughness_model, initialise_bed_roughness_model
 
 contains
 
@@ -69,7 +69,7 @@ contains
 
   end subroutine run_bed_roughness_model
 
-  subroutine initialise_bed_roughness( mesh, ice, region_name)
+  subroutine initialise_bed_roughness_model( mesh, ice, region_name)
     ! Initialise the bed roughness
 
     ! Input variables:
@@ -78,7 +78,7 @@ contains
     character(len=3),                    intent(in   ) :: region_name
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'initialise_bed_roughness'
+    character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_model'
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -108,9 +108,9 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine initialise_bed_roughness
+  end subroutine initialise_bed_roughness_model
 
-  subroutine remap_bed_roughness( mesh_old, mesh_new, ice)
+  subroutine remap_bed_roughness_model( mesh_old, mesh_new, ice)
     ! Remap or reallocate all the data fields
 
     ! In/output variables:
@@ -119,7 +119,7 @@ contains
     type(type_ice_model),                intent(inout) :: ice
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'remap_bed_roughness'
+    character(len=1024), parameter :: routine_name = 'remap_bed_roughness_model'
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -130,7 +130,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine remap_bed_roughness
+  end subroutine remap_bed_roughness_model
 
 ! ===== Different bed roughness models ====
 ! =========================================

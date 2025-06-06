@@ -22,22 +22,22 @@ module bed_roughness_nudging_H_dHdt_flowline
 
   private
 
-  public :: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
+  public :: initialise_bed_roughness_nudging_H_dHdt_flowline, run_bed_roughness_nudging_H_dHdt_flowline
 
 contains
 
-  subroutine run_basal_inversion_H_dHdt_flowline( mesh, grid_smooth, ice, refgeo, BIV)
-    ! Run the basal inversion model based on flowline-averaged values of H and dH/dt
+  subroutine run_bed_roughness_nudging_H_dHdt_flowline( mesh, grid_smooth, ice, refgeo, BIV)
+    ! Run the bed roughness nuding model based on flowline-averaged values of H and dH/dt
 
     ! In/output variables:
     type(type_mesh),                     intent(in   ) :: mesh
     type(type_grid),                     intent(in   ) :: grid_smooth
     type(type_ice_model),                intent(in   ) :: ice
     type(type_reference_geometry),       intent(in   ) :: refgeo
-    type(type_bed_roughness_model),          intent(inout) :: BIV
+    type(type_bed_roughness_model),      intent(inout) :: BIV
 
     ! Local variables:
-    character(len=256), parameter           :: routine_name = 'run_basal_inversion_H_dHdt_flowline'
+    character(len=256), parameter           :: routine_name = 'run_bed_roughness_nudging_H_dHdt_flowline'
     integer,  dimension(:    ), allocatable :: mask
     real(dp), dimension(mesh%nV)            :: Hi_tot
     real(dp), dimension(mesh%nV)            :: Hs_tot
@@ -430,19 +430,19 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine run_basal_inversion_H_dHdt_flowline
+  end subroutine run_bed_roughness_nudging_H_dHdt_flowline
 
-  subroutine initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
-    ! Initialise the basal inversion model based on flowline-averaged values of H and dH/dt
+  subroutine initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, ice, BIV, region_name)
+    ! Initialise the bed roughness nudging model based on flowline-averaged values of H and dH/dt
 
     ! Input variables:
-    type(type_mesh),            intent(in   ) :: mesh
-    type(type_ice_model),       intent(in   ) :: ice
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_ice_model),           intent(in   ) :: ice
     type(type_bed_roughness_model), intent(inout) :: BIV
-    character(len=3),           intent(in   ) :: region_name
+    character(len=3),               intent(in   ) :: region_name
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'initialise_basal_inversion_H_dHdt_flowline'
+    character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_nudging_H_dHdt_flowline'
     real(dp)                       :: dummy_dp
     character                      :: dummy_char
 
@@ -458,7 +458,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine initialise_basal_inversion_H_dHdt_flowline
+  end subroutine initialise_bed_roughness_nudging_H_dHdt_flowline
 
   ! == Flowline tracing
   ! ===================

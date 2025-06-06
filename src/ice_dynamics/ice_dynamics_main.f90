@@ -37,7 +37,7 @@ module ice_dynamics_main
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   use bedrock_cumulative_density_functions, only: calc_bedrock_CDFs, initialise_bedrock_CDFs
   use geothermal_heat_flux, only: initialise_geothermal_heat_flux
-  use bed_roughness_main, only: initialise_bed_roughness
+  use bed_roughness_main, only: initialise_bed_roughness_model
   use predictor_corrector_scheme, only: remap_pc_scheme, create_restart_file_pc_scheme, &
     write_to_restart_file_pc_scheme, initialise_pc_scheme, run_ice_dynamics_model_pc
   use direct_scheme, only: run_ice_dynamics_model_direct
@@ -350,7 +350,7 @@ contains
 
     ! allocate and initialise basal conditions
     call initialise_geothermal_heat_flux(  mesh, ice)
-    call initialise_bed_roughness(         mesh, ice, region_name)
+    call initialise_bed_roughness_model( mesh, ice, region_name)
 
     ! Velocities
     ! ==========
@@ -821,7 +821,7 @@ contains
     call initialise_geothermal_heat_flux(  mesh_new, ice)
 
     ! FIXME: something should happen here once we start working on remapping of inverted bed roughness!
-    call initialise_bed_roughness(         mesh_new, ice, region_name)
+    call initialise_bed_roughness_model( mesh_new, ice, region_name)
 
     ! Velocities
     ! ==========

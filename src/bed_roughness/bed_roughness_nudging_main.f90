@@ -11,24 +11,24 @@ module bed_roughness_nudging_main
   use ice_model_types, only: type_ice_model
   use bed_roughness_model_types, only: type_bed_roughness_model
   use region_types, only: type_model_region
-  use bed_roughness_nudging_H_dHdt_flowline, only: initialise_basal_inversion_H_dHdt_flowline, run_basal_inversion_H_dHdt_flowline
+  use bed_roughness_nudging_H_dHdt_flowline, only: initialise_bed_roughness_nudging_H_dHdt_flowline, run_bed_roughness_nudging_H_dHdt_flowline
 
   implicit none
 
   private
 
-  public :: initialise_basal_inversion, run_basal_inversion
+  public :: initialise_bed_roughness_nudging_model, run_bed_roughness_nudging_model
 
 contains
 
-  subroutine run_basal_inversion( region)
-    ! Run the main basal inversion model
+  subroutine run_bed_roughness_nudging_model( region)
+    ! Run the main bed roughness nudging model
 
     ! Input variables:
     type(type_model_region), intent(inout) :: region
 
     ! Local variables:
-    character(len=256), parameter :: routine_name = 'run_basal_inversion'
+    character(len=256), parameter :: routine_name = 'run_bed_roughness_nudging_model'
     integer                       :: vi
     real(dp)                      :: wt_prev, wt_next
 
@@ -70,9 +70,9 @@ contains
         case default
           call crash('unknown choice_inversion_target_geometry "' // trim( C%choice_inversion_target_geometry) // '"')
         case ('init')
-          call run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%BIV)
+          call run_bed_roughness_nudging_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%BIV)
         case ('PD')
-          call run_basal_inversion_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV)
+          call run_bed_roughness_nudging_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV)
       end select
 
       end select
@@ -133,19 +133,19 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine run_basal_inversion
+  end subroutine run_bed_roughness_nudging_model
 
-  subroutine initialise_basal_inversion( mesh, ice, BIV, region_name)
-    ! Initialise the main basal inversion model
+  subroutine initialise_bed_roughness_nudging_model( mesh, ice, BIV, region_name)
+    ! Initialise the main bed roughness nudging model
 
     ! Input variables:
-    type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_model),                intent(in   ) :: ice
-    type(type_bed_roughness_model),          intent(  out) :: BIV
-    character(len=3),                    intent(in   ) :: region_name
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_ice_model),           intent(in   ) :: ice
+    type(type_bed_roughness_model), intent(  out) :: BIV
+    character(len=3),               intent(in   ) :: region_name
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'initialise_basal_inversion'
+    character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_nudging_model'
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -244,12 +244,12 @@ contains
     case default
       call crash('unknown choice_bed_roughness_nudging_method "' // trim( C%choice_bed_roughness_nudging_method) // '"')
     case ('H_dHdt_flowline')
-      call initialise_basal_inversion_H_dHdt_flowline( mesh, ice, BIV, region_name)
+      call initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, ice, BIV, region_name)
     end select
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine initialise_basal_inversion
+  end subroutine initialise_bed_roughness_nudging_model
 
 end module bed_roughness_nudging_main

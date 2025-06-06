@@ -35,7 +35,7 @@ MODULE UFEMISM_main_model
   USE AMB_main                                               , ONLY: initialise_AMB_model, remap_AMB_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
-  use bed_roughness_nudging_main, only: initialise_basal_inversion, run_basal_inversion
+  use bed_roughness_nudging_main, only: initialise_bed_roughness_nudging_model, run_bed_roughness_nudging_model
   use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
@@ -140,7 +140,7 @@ CONTAINS
 
       ! Run the basal inversion model
       IF (C%do_bed_roughness_nudging) THEN
-        CALL run_basal_inversion( region)
+        CALL run_bed_roughness_nudging_model( region)
       END IF
 
       ! Run the tracer-tracking model
@@ -546,7 +546,7 @@ CONTAINS
     ! ===========================
 
     IF (C%do_bed_roughness_nudging) THEN
-      CALL initialise_basal_inversion( region%mesh, region%ice, region%BIV, region%name)
+      CALL initialise_bed_roughness_nudging_model( region%mesh, region%ice, region%BIV, region%name)
     END IF
 
     ! ===== Corrections =====
