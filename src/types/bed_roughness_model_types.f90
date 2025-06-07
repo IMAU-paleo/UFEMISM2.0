@@ -12,14 +12,11 @@ module bed_roughness_model_types
     real(dp), dimension(:), allocatable :: beta_sq                     ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
 
     ! Main data fields
-    real(dp), dimension(:), allocatable :: generic_bed_roughness_1
-    real(dp), dimension(:), allocatable :: generic_bed_roughness_2
+    real(dp), dimension(:), allocatable :: generic_bed_roughness
 
     ! Timestepping
-    real(dp), dimension(:), allocatable :: generic_bed_roughness_1_prev
-    real(dp), dimension(:), allocatable :: generic_bed_roughness_2_prev
-    real(dp), dimension(:), allocatable :: generic_bed_roughness_1_next
-    real(dp), dimension(:), allocatable :: generic_bed_roughness_2_next
+    real(dp), dimension(:), allocatable :: generic_bed_roughness_prev
+    real(dp), dimension(:), allocatable :: generic_bed_roughness_next
     real(dp)                            :: t_prev, t_next
 
   end type type_bed_roughness_model

@@ -69,10 +69,10 @@ contains
     real(dp), dimension(:    ), allocatable :: deltaHs_av_up, deltaHs_av_down
     real(dp), dimension(:    ), allocatable :: dHs_dt_av_up, dHs_dt_av_down
     real(dp), dimension(:    ), allocatable :: I_tot, R
-    real(dp), dimension(:    ), allocatable :: dC1_dt, dC2_dt
+    real(dp), dimension(:    ), allocatable :: dC_dt
     real(dp), dimension(:    ), allocatable :: dHs_dx, dHs_dy, abs_grad_Hs
     real(dp)                                :: fg_exp_mod
-    real(dp), dimension(:    ), allocatable :: dC1_dt_smoothed, dC2_dt_smoothed
+    real(dp), dimension(:    ), allocatable :: dC_dt_smoothed
     real(dp)                                :: misfit
 
     ! Add routine to path
@@ -94,13 +94,11 @@ contains
     allocate( dHs_dt_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
     allocate( R(               mesh%vi1:mesh%vi2), source = 0._dp  )
     allocate( I_tot(           mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dC1_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dC2_dt(          mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dC_dt(           mesh%vi1:mesh%vi2), source = 0._dp  )
     allocate( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
     allocate( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
     allocate( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dC1_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dC2_dt_smoothed( mesh%vi1:mesh%vi2), source = 0._dp  )
+    allocate( dC_dt_smoothed(  mesh%vi1:mesh%vi2), source = 0._dp  )
 
     ! Gather ice model data from all processes
     call gather_to_all( ice%Hi               , Hi_tot               )
@@ -341,8 +339,7 @@ contains
         (deltaHs_av_up( vi)                       ) / C%bednudge_H_dHdt_flowline_dH0 + &
         (dHs_dt_av_up(  vi) + dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
 
-      dC1_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness_1( vi)) / C%bednudge_H_dHdt_flowline_t_scale
-      dC2_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness_2( vi)) / C%bednudge_H_dHdt_flowline_t_scale
+      dC_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
 
     end do
 
@@ -350,8 +347,7 @@ contains
     ! ======================================================================
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    call extrapolate_Gaussian( mesh, mask, dC1_dt, C%bednudge_H_dHdt_flowline_r_smooth)
-    call extrapolate_Gaussian( mesh, mask, dC2_dt, C%bednudge_H_dHdt_flowline_r_smooth)
+    call extrapolate_Gaussian( mesh, mask, dC_dt, C%bednudge_H_dHdt_flowline_r_smooth)
 
     ! Regularise tricky extrapolated areas
 
@@ -372,8 +368,7 @@ contains
         fg_exp_mod = min( 1.0_dp, max( 0._dp, max( 0._dp, abs_grad_Hs( vi) - 0.02_dp) / (0.06_dp - 0.02_dp) ))
 
         ! Scale based on grounded fraction
-        dC1_dt( vi) = dC1_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
-        dC2_dt( vi) = dC2_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
+        dC_dt( vi) = dC_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
 
       end if
 
@@ -382,26 +377,21 @@ contains
     ! Smoothing
     ! =========
 
-    dC1_dt_smoothed = dC1_dt
-    dC2_dt_smoothed = dC2_dt
+    dC_dt_smoothed = dC_dt
 
     ! Smooth the local variable
-    call smooth_Gaussian( mesh, grid_smooth, dC1_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
-    call smooth_Gaussian( mesh, grid_smooth, dC2_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    call smooth_Gaussian( mesh, grid_smooth, dC_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
 
     do vi = mesh%vi1, mesh%vi2
-      dC1_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC1_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC1_dt_smoothed( vi)
-      dC2_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC2_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC2_dt_smoothed( vi)
+      dC_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC_dt_smoothed( vi)
     end do ! do vi = mesh%vi1, mesh%vi2
 
     ! Final bed roughness field
     ! =========================
 
     ! Calculate predicted bed roughness at t+dt
-    bed_roughness%generic_bed_roughness_1_next = MAX( C%generic_bed_roughness_1_min, MIN( C%generic_bed_roughness_1_max, &
-      bed_roughness%generic_bed_roughness_1_prev + C%bed_roughness_nudging_dt * dC1_dt ))
-    bed_roughness%generic_bed_roughness_2_next = MAX( C%generic_bed_roughness_2_min, MIN( C%generic_bed_roughness_2_max, &
-      bed_roughness%generic_bed_roughness_2_prev + C%bed_roughness_nudging_dt * dC2_dt ))
+    bed_roughness%generic_bed_roughness_next = MAX( C%generic_bed_roughness_min, MIN( C%generic_bed_roughness_max, &
+      bed_roughness%generic_bed_roughness_prev + C%bed_roughness_nudging_dt * dC_dt ))
 
     ! Clean up after yourself
     deallocate( mask           )
@@ -419,13 +409,11 @@ contains
     deallocate( dHs_dt_av_down )
     deallocate( R              )
     deallocate( I_tot          )
-    deallocate( dC1_dt         )
-    deallocate( dC2_dt         )
+    deallocate( dC_dt          )
     deallocate( dHs_dx         )
     deallocate( dHs_dy         )
     deallocate( abs_grad_Hs    )
-    deallocate( dC1_dt_smoothed)
-    deallocate( dC2_dt_smoothed)
+    deallocate( dC_dt_smoothed )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -452,7 +440,7 @@ contains
     ! To prevent compiler warnings
     dummy_dp = mesh%xmin
     dummy_dp = ice%Hi( mesh%vi1)
-    dummy_dp = bed_roughness%generic_bed_roughness_1( mesh%vi1)
+    dummy_dp = bed_roughness%generic_bed_roughness( mesh%vi1)
     dummy_char = region_name( 1:1)
 
     ! Finalise routine path

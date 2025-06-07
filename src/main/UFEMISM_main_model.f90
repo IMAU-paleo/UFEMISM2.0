@@ -139,9 +139,7 @@ CONTAINS
       CALL run_GIA_model( region)
 
       ! Run the basal inversion model
-      IF (C%do_bed_roughness_nudging) THEN
-        CALL run_bed_roughness_nudging_model( region)
-      END IF
+      CALL run_bed_roughness_nudging_model( region)
 
       ! Run the tracer-tracking model
       call run_tracer_tracking_model( region%mesh, region%ice, region%SMB, &

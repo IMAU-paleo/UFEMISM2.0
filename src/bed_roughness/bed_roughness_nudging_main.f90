@@ -35,6 +35,21 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    if (.not. C%do_bed_roughness_nudging) then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    select case (C%choice_sliding_law)
+    case default
+      call crash('unknown choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('Tsai2015','Schoof2005','no_sliding','idealised')
+      call crash('Bed roughness nudging not supported for choice_sliding_law "' // &
+        trim(C%choice_sliding_law) // '"')
+    case ('Weertman','Coulomb','Budd','Zoet-Iverson')
+      ! Nudging should work for these sliding laws
+    end select
+
     ! Only do basal inversion within the specified time window
     if (region%time < C%bed_roughness_nudging_t_start) then
       region%bed_roughness%t_next = C%bed_roughness_nudging_t_start
@@ -55,8 +70,7 @@ contains
       ! Need to calculate new predicted bed roughness
 
       ! Store previous modelled bed roughness
-      region%bed_roughness%generic_bed_roughness_1_prev = region%bed_roughness%generic_bed_roughness_1_next
-      region%bed_roughness%generic_bed_roughness_2_prev = region%bed_roughness%generic_bed_roughness_2_next
+      region%bed_roughness%generic_bed_roughness_prev = region%bed_roughness%generic_bed_roughness_next
       region%bed_roughness%t_prev = region%bed_roughness%t_next
       region%bed_roughness%t_next = region%bed_roughness%t_prev + C%bed_roughness_nudging_dt
 
@@ -94,8 +108,7 @@ contains
 
     ! Interpolate modelled bed roughness to desired time
     do vi = region%mesh%vi1, region%mesh%vi2
-      region%bed_roughness%generic_bed_roughness_1( vi) = wt_prev * region%bed_roughness%generic_bed_roughness_1_prev( vi) + wt_next * region%bed_roughness%generic_bed_roughness_1_next( vi)
-      region%bed_roughness%generic_bed_roughness_2( vi) = wt_prev * region%bed_roughness%generic_bed_roughness_2_prev( vi) + wt_next * region%bed_roughness%generic_bed_roughness_2_next( vi)
+      region%bed_roughness%generic_bed_roughness( vi) = wt_prev * region%bed_roughness%generic_bed_roughness_prev( vi) + wt_next * region%bed_roughness%generic_bed_roughness_next( vi)
     end do
 
     ! Update sliding law-specific bed roughness
@@ -103,31 +116,19 @@ contains
 
     select case (C%choice_sliding_law)
     case default
-      call crash('unknown choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
-    case ('no_sliding')
-      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
-    case ('idealised')
-      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+      call crash('unknown/unsupported choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
     case ('Weertman')
       ! Weertman sliding law; bed roughness is described by beta_sq
-      region%bed_roughness%beta_sq = region%bed_roughness%generic_bed_roughness_1
+      region%bed_roughness%beta_sq = region%bed_roughness%generic_bed_roughness
     case ('Coulomb')
       ! Coulomb sliding law; bed roughness is described by till_friction_angle
-      region%bed_roughness%till_friction_angle = region%bed_roughness%generic_bed_roughness_1
+      region%bed_roughness%till_friction_angle = region%bed_roughness%generic_bed_roughness
     case ('Budd')
       ! Budd-type sliding law; bed roughness is described by till_friction_angle
-      region%bed_roughness%till_friction_angle = region%bed_roughness%generic_bed_roughness_1
-    case ('Tsai2015')
-      ! Tsai2015 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
-      region%bed_roughness%alpha_sq = region%bed_roughness%generic_bed_roughness_1
-      region%bed_roughness%beta_sq  = region%bed_roughness%generic_bed_roughness_2
-    case ('Schoof2005')
-      ! Schoof2005 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
-      region%bed_roughness%alpha_sq = region%bed_roughness%generic_bed_roughness_1
-      region%bed_roughness%beta_sq  = region%bed_roughness%generic_bed_roughness_2
+      region%bed_roughness%till_friction_angle = region%bed_roughness%generic_bed_roughness
     case ('Zoet-Iverson')
       ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
-      region%bed_roughness%till_friction_angle = region%bed_roughness%generic_bed_roughness_1
+      region%bed_roughness%till_friction_angle = region%bed_roughness%generic_bed_roughness
     end select
 
     ! Finalise routine path
@@ -150,19 +151,31 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    if (.not. C%do_bed_roughness_nudging) then
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    select case (C%choice_sliding_law)
+    case default
+      call crash('unknown choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+    case ('Tsai2015','Schoof2005','no_sliding','idealised')
+      call crash('Bed roughness nudging not supported for choice_sliding_law "' // &
+        trim(C%choice_sliding_law) // '"')
+    case ('Weertman','Coulomb','Budd','Zoet-Iverson')
+      ! Nudging should work for these sliding laws
+    end select
+
     ! Print to terminal
-    if (par%primary) write(0,*) ' Initialising basal inversion model "' // &
+    if (par%primary) write(0,*) ' Initialising bed roughness nudging model "' // &
       colour_string( trim( C%choice_bed_roughness_nudging_method),'light blue') // '"...'
 
     ! Allocate memory for main variables
     ! ==================================
 
-    allocate( bed_roughness%generic_bed_roughness_1     ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( bed_roughness%generic_bed_roughness_1_prev( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( bed_roughness%generic_bed_roughness_1_next( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( bed_roughness%generic_bed_roughness_2     ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( bed_roughness%generic_bed_roughness_2_prev( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( bed_roughness%generic_bed_roughness_2_next( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( bed_roughness%generic_bed_roughness     ( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( bed_roughness%generic_bed_roughness_prev( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( bed_roughness%generic_bed_roughness_next( mesh%vi1:mesh%vi2), source = 0._dp)
 
     ! Timeframes
     bed_roughness%t_prev   = C%start_time_of_run
@@ -173,59 +186,27 @@ contains
 
     select case (C%choice_sliding_law)
     case default
-      call crash('unknown choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
-    case ('no_sliding')
-      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
-    case ('idealised')
-      call crash('cannot run basal inversion for choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
+      call crash('unknown/unsupported choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
     case ('Weertman')
       ! Weertman sliding law; bed roughness is described by beta_sq
-      bed_roughness%generic_bed_roughness_1      = bed_roughness%beta_sq
-      bed_roughness%generic_bed_roughness_1_prev = bed_roughness%beta_sq
-      bed_roughness%generic_bed_roughness_1_next = bed_roughness%beta_sq
-      bed_roughness%generic_bed_roughness_2      = 0._dp
-      bed_roughness%generic_bed_roughness_2_prev = 0._dp
-      bed_roughness%generic_bed_roughness_2_next = 0._dp
+      bed_roughness%generic_bed_roughness      = bed_roughness%beta_sq
+      bed_roughness%generic_bed_roughness_prev = bed_roughness%beta_sq
+      bed_roughness%generic_bed_roughness_next = bed_roughness%beta_sq
     case ('Coulomb')
       ! Coulomb sliding law; bed roughness is described by till_friction_angle
-      bed_roughness%generic_bed_roughness_1      = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_1_prev = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_1_next = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_2      = 0._dp
-      bed_roughness%generic_bed_roughness_2_prev = 0._dp
-      bed_roughness%generic_bed_roughness_2_next = 0._dp
+      bed_roughness%generic_bed_roughness      = bed_roughness%till_friction_angle
+      bed_roughness%generic_bed_roughness_prev = bed_roughness%till_friction_angle
+      bed_roughness%generic_bed_roughness_next = bed_roughness%till_friction_angle
     case ('Budd')
       ! Budd-type sliding law; bed roughness is described by till_friction_angle
-      bed_roughness%generic_bed_roughness_1      = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_1_prev = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_1_next = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_2      = 0._dp
-      bed_roughness%generic_bed_roughness_2_prev = 0._dp
-      bed_roughness%generic_bed_roughness_2_next = 0._dp
-    case ('Tsai2015')
-      ! Tsai2015 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
-      bed_roughness%generic_bed_roughness_1      = bed_roughness%alpha_sq
-      bed_roughness%generic_bed_roughness_1_prev = bed_roughness%alpha_sq
-      bed_roughness%generic_bed_roughness_1_next = bed_roughness%alpha_sq
-      bed_roughness%generic_bed_roughness_2      = bed_roughness%beta_sq
-      bed_roughness%generic_bed_roughness_2_prev = bed_roughness%beta_sq
-      bed_roughness%generic_bed_roughness_2_next = bed_roughness%beta_sq
-    case ('Schoof2005')
-      ! Schoof2005 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
-      bed_roughness%generic_bed_roughness_1      = bed_roughness%alpha_sq
-      bed_roughness%generic_bed_roughness_1_prev = bed_roughness%alpha_sq
-      bed_roughness%generic_bed_roughness_1_next = bed_roughness%alpha_sq
-      bed_roughness%generic_bed_roughness_2      = bed_roughness%beta_sq
-      bed_roughness%generic_bed_roughness_2_prev = bed_roughness%beta_sq
-      bed_roughness%generic_bed_roughness_2_next = bed_roughness%beta_sq
+      bed_roughness%generic_bed_roughness      = bed_roughness%till_friction_angle
+      bed_roughness%generic_bed_roughness_prev = bed_roughness%till_friction_angle
+      bed_roughness%generic_bed_roughness_next = bed_roughness%till_friction_angle
     case ('Zoet-Iverson')
       ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
-      bed_roughness%generic_bed_roughness_1      = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_1_prev = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_1_next = bed_roughness%till_friction_angle
-      bed_roughness%generic_bed_roughness_2      = 0._dp
-      bed_roughness%generic_bed_roughness_2_prev = 0._dp
-      bed_roughness%generic_bed_roughness_2_next = 0._dp
+      bed_roughness%generic_bed_roughness      = bed_roughness%till_friction_angle
+      bed_roughness%generic_bed_roughness_prev = bed_roughness%till_friction_angle
+      bed_roughness%generic_bed_roughness_next = bed_roughness%till_friction_angle
     end select
 
     ! Initialise chosen basal inversion model
