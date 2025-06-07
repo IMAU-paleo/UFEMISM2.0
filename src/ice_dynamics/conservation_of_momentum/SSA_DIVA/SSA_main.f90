@@ -26,6 +26,7 @@ module SSA_main
     apply_velocity_limits, calc_L2_norm_uv
   use solve_linearised_SSA_DIVA, only: solve_SSA_DIVA_linearised
   use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D
+  use bed_roughness_model_types, only: type_bed_roughness_model
 
   implicit none
 
@@ -84,13 +85,14 @@ contains
 
   end subroutine initialise_SSA_solver
 
-  subroutine solve_SSA( mesh, ice, SSA, n_visc_its, n_Axb_its, &
+  subroutine solve_SSA( mesh, ice, bed_roughness, SSA, n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     !< Calculate ice velocities by solving the Shallow Shelf Approximation
 
     ! In/output variables:
     type(type_mesh),                    intent(in   ) :: mesh
     type(type_ice_model),               intent(inout) :: ice
+    type(type_bed_roughness_model),     intent(in   ) :: bed_roughness
     type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
     integer,                            intent(  out) :: n_visc_its            ! Number of non-linear viscosity iterations
     integer,                            intent(  out) :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
@@ -171,7 +173,7 @@ contains
       call calc_effective_viscosity( mesh, ice, SSA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
-      call calc_applied_basal_friction_coefficient( mesh, ice, SSA)
+      call calc_applied_basal_friction_coefficient( mesh, ice, bed_roughness, SSA)
 
       ! Solve the linearised SSA to calculate a new velocity solution
       call solve_SSA_DIVA_linearised( mesh, SSA%u_b, SSA%v_b, SSA%N_b, SSA%dN_dx_b, SSA%dN_dy_b, &
@@ -390,7 +392,7 @@ contains
 
   end subroutine calc_effective_viscosity
 
-  subroutine calc_applied_basal_friction_coefficient( mesh, ice, SSA)
+  subroutine calc_applied_basal_friction_coefficient( mesh, ice, bed_roughness, SSA)
     !< Calculate the applied basal friction coefficient beta_b, i.e. on the b-grid
     !< and scaled with the sub-grid grounded fraction
 
@@ -399,6 +401,7 @@ contains
     ! In/output variables:
     type(type_mesh),                    intent(in   ) :: mesh
     type(type_ice_model),               intent(inout) :: ice
+    type(type_bed_roughness_model),     intent(in   ) :: bed_roughness
     type(type_ice_velocity_solver_SSA), intent(inout) :: SSA
 
     ! Local variables:
@@ -410,7 +413,7 @@ contains
 
     ! Calculate the basal friction coefficient for the current velocity solution
     ! This is where the sliding law is called!
-    call calc_basal_friction_coefficient( mesh, ice, SSA%u_b, SSA%v_b)
+    call calc_basal_friction_coefficient( mesh, ice, bed_roughness, SSA%u_b, SSA%v_b)
 
     ! Map the basal friction coefficient to the b-grid
     call map_a_b_2D( mesh, ice%basal_friction_coefficient, SSA%basal_friction_coefficient_b)

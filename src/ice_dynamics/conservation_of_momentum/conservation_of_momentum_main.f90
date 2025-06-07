@@ -25,6 +25,7 @@ module conservation_of_momentum_main
   use mesh_zeta, only: vertical_average
   use map_velocities_to_c_grid
   use vertical_velocities
+  use bed_roughness_model_types, only: type_bed_roughness_model
 
   implicit none
 
@@ -74,13 +75,14 @@ contains
 
   end subroutine initialise_velocity_solver
 
-  subroutine solve_stress_balance( mesh, ice, BMB, region_name, n_visc_its, n_Axb_its, &
+  subroutine solve_stress_balance( mesh, ice, bed_roughness, BMB, region_name, n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     !< Calculate all ice velocities based on the chosen stress balance approximation
 
     ! In/output variables:
     type(type_mesh),                        intent(inout) :: mesh
     type(type_ice_model),                   intent(inout) :: ice
+    type(type_bed_roughness_model),         intent(in   ) :: bed_roughness
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: BMB
     character(len=3),                       intent(in   ) :: region_name
     integer,                                intent(out)   :: n_visc_its            ! Number of non-linear viscosity iterations
@@ -117,7 +119,7 @@ contains
       case ('SSA')
         ! Calculate velocities according to the Shallow Shelf Approximation
 
-        call solve_SSA( mesh, ice, ice%SSA, &
+        call solve_SSA( mesh, ice, bed_roughness, ice%SSA, &
           n_visc_its, n_Axb_its, &
           BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         call set_ice_velocities_to_SSA_results( mesh, ice, ice%SSA)
@@ -126,7 +128,7 @@ contains
         ! Calculate velocities according to the hybrid SIA/SSA
 
         call solve_SIA( mesh, ice, ice%SIA)
-        call solve_SSA( mesh, ice, ice%SSA, &
+        call solve_SSA( mesh, ice, bed_roughness, ice%SSA, &
           n_visc_its, n_Axb_its, &
           BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         call set_ice_velocities_to_SIASSA_results( mesh, ice, ice%SIA, ice%SSA)
@@ -134,7 +136,7 @@ contains
       case ('DIVA')
         ! Calculate velocities according to the Depth-Integrated Viscosity Approximation
 
-        call solve_DIVA( mesh, ice, ice%DIVA, &
+        call solve_DIVA( mesh, ice, bed_roughness, ice%DIVA, &
           n_visc_its, n_Axb_its, &
           BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         call set_ice_velocities_to_DIVA_results( mesh, ice, ice%DIVA)
@@ -142,7 +144,7 @@ contains
       case ('BPA')
         ! Calculate velocities according to the Blatter-Pattyn Approximation
 
-        call solve_BPA( mesh, ice, ice%BPA, &
+        call solve_BPA( mesh, ice, bed_roughness, ice%BPA, &
           n_visc_its, n_Axb_its, &
           BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
         call set_ice_velocities_to_BPA_results( mesh, ice, ice%BPA)
@@ -150,7 +152,7 @@ contains
       case ('hybrid DIVA/BPA')
         ! Calculate velocities according to the hybrid DIVA/BPA
 
-        call solve_hybrid_DIVA_BPA( mesh, ice, ice%hybrid, region_name, &
+        call solve_hybrid_DIVA_BPA( mesh, ice, bed_roughness, ice%hybrid, region_name, &
           n_visc_its, n_Axb_its, &
           BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
         call set_ice_velocities_to_hybrid_DIVA_BPA_results( mesh, ice, ice%hybrid)

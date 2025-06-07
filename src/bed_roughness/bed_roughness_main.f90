@@ -13,26 +13,26 @@ module bed_roughness_main
   use parameters
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
+  use bed_roughness_model_types, only: type_bed_roughness_model
   use reference_geometry_types, only: type_reference_geometry
-  use analytical_solutions, only: Schoof2006_icestream
   use netcdf_io_main
+  use reallocate_mod, only: reallocate_bounds
 
   implicit none
 
   private
 
-  public :: run_bed_roughness_model, initialise_bed_roughness_model
+  public :: run_bed_roughness_model, initialise_bed_roughness_model, remap_bed_roughness_model
 
 contains
 
-  subroutine run_bed_roughness_model( mesh, ice, refgeo, time)
+  subroutine run_bed_roughness_model( mesh, ice, bed_roughness)
     ! Run the chosen bed roughness model
 
     ! Input variables:
     type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_model),                intent(inout) :: ice
-    type(type_reference_geometry),       intent(in   ) :: refgeo
-    real(dp),                            intent(in   ) :: time
+    type(type_ice_model),                intent(in   ) :: ice
+    type(type_bed_roughness_model),      intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'run_bed_roughness_model'
@@ -55,7 +55,7 @@ contains
     case ('parameterised')
       ! Apply the chosen parameterisation of bed roughness
 
-      call calc_bed_roughness_parameterised( mesh, ice)
+      call calc_bed_roughness_parameterised( mesh, ice, bed_roughness)
 
     case ('read_from_file')
       ! Initialise bed roughness from a NetCDF file
@@ -69,12 +69,13 @@ contains
 
   end subroutine run_bed_roughness_model
 
-  subroutine initialise_bed_roughness_model( mesh, ice, region_name)
+  subroutine initialise_bed_roughness_model( mesh, ice, bed_roughness, region_name)
     ! Initialise the bed roughness
 
     ! Input variables:
     type(type_mesh),                     intent(in   ) :: mesh
-    type(type_ice_model),                intent(inout) :: ice
+    type(type_ice_model),                intent(in   ) :: ice
+    type(type_bed_roughness_model),      intent(  out) :: bed_roughness
     character(len=3),                    intent(in   ) :: region_name
 
     ! Local variables:
@@ -83,23 +84,24 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Initialisation
-    ! ==============
+    allocate( bed_roughness%till_friction_angle( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( bed_roughness%alpha_sq           ( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( bed_roughness%beta_sq            ( mesh%vi1:mesh%vi2), source = 0._dp)
 
     if (C%choice_bed_roughness == 'uniform') then
       ! Apply a uniform bed roughness
 
-      call initialise_bed_roughness_uniform( mesh, ice)
+      call initialise_bed_roughness_uniform( mesh, bed_roughness)
 
     elseif (C%choice_bed_roughness == 'parameterised') then
       ! Apply the chosen parameterisation of bed roughness
 
-      call initialise_bed_roughness_parameterised( mesh, ice)
+      call initialise_bed_roughness_parameterised( mesh, ice, bed_roughness)
 
     elseif (C%choice_bed_roughness == 'read_from_file') then
       ! Initialise bed roughness from a NetCDF file
 
-      call initialise_bed_roughness_from_file( mesh, ice, region_name)
+      call initialise_bed_roughness_from_file( mesh, bed_roughness, region_name)
 
     else
       call crash('unknown choice_bed_roughness "' // trim( C%choice_bed_roughness) // '"')
@@ -110,13 +112,13 @@ contains
 
   end subroutine initialise_bed_roughness_model
 
-  subroutine remap_bed_roughness_model( mesh_old, mesh_new, ice)
-    ! Remap or reallocate all the data fields
+  subroutine remap_bed_roughness_model( mesh_old, mesh_new, ice, bed_roughness)
 
     ! In/output variables:
     type(type_mesh),                     intent(in   ) :: mesh_old
     type(type_mesh),                     intent(in   ) :: mesh_new
-    type(type_ice_model),                intent(inout) :: ice
+    type(type_ice_model),                intent(in   ) :: ice
+    type(type_bed_roughness_model),      intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'remap_bed_roughness_model'
@@ -124,8 +126,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! DENK DROM
-    call crash('fixme')
+    call crash('FIXME')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -136,14 +137,14 @@ contains
 ! =========================================
 
   ! == Uniform bed roughness
-  subroutine initialise_bed_roughness_uniform( mesh, ice)
+  subroutine initialise_bed_roughness_uniform( mesh, bed_roughness)
     ! Initialise bed roughness
     !
     ! Use a uniform value over the whole domain
 
     ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_uniform'
@@ -164,30 +165,30 @@ contains
       ! No need to do anything
 
     case ('Weertman')
-      ! Weertman sliding law; bed roughness is described by slid_beta_sq
-      ice%slid_beta_sq = C%slid_Weertman_beta_sq_uniform
+      ! Weertman sliding law; bed roughness is described by beta_sq
+      bed_roughness%beta_sq = C%slid_Weertman_beta_sq_uniform
 
     case ('Coulomb')
       ! Coulomb sliding law; bed roughness is described by till_friction_angle
-      ice%till_friction_angle = C%slid_Coulomb_phi_fric_uniform
+      bed_roughness%till_friction_angle = C%slid_Coulomb_phi_fric_uniform
 
     case ('Budd')
       ! Budd-type sliding law; bed roughness is described by till_friction_angle
-      ice%till_friction_angle = C%slid_Coulomb_phi_fric_uniform
+      bed_roughness%till_friction_angle = C%slid_Coulomb_phi_fric_uniform
 
     case ('Tsai2015')
-      ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
-      ice%slid_alpha_sq = C%slid_Tsai2015_alpha_sq_uniform
-      ice%slid_beta_sq  = C%slid_Tsai2015_beta_sq_uniform
+      ! Tsai2015 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
+      bed_roughness%alpha_sq = C%slid_Tsai2015_alpha_sq_uniform
+      bed_roughness%beta_sq  = C%slid_Tsai2015_beta_sq_uniform
 
     case ('Schoof2005')
-      ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
-      ice%slid_alpha_sq = C%slid_Schoof2005_alpha_sq_uniform
-      ice%slid_beta_sq  = C%slid_Schoof2005_beta_sq_uniform
+      ! Schoof2005 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
+      bed_roughness%alpha_sq = C%slid_Schoof2005_alpha_sq_uniform
+      bed_roughness%beta_sq  = C%slid_Schoof2005_beta_sq_uniform
 
     case ('Zoet-Iverson')
       ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
-      ice%till_friction_angle = C%slid_ZI_phi_fric_uniform
+      bed_roughness%till_friction_angle = C%slid_ZI_phi_fric_uniform
 
     end select
 
@@ -197,13 +198,14 @@ contains
   end subroutine initialise_bed_roughness_uniform
 
   ! == parameterised bed roughness
-  subroutine calc_bed_roughness_parameterised( mesh, ice)
+  subroutine calc_bed_roughness_parameterised( mesh, ice, bed_roughness)
     ! Compute bed roughness
     ! Use a simple parameterisation to calculate bed roughness
 
     ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_ice_model),           intent(in   ) :: ice
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_bed_roughness_parameterised'
@@ -215,7 +217,7 @@ contains
     case default
       call crash('unknown choice_bed_roughness_parameterised "' // trim( C%choice_bed_roughness_parameterised) // '"')
     case ('Martin2011')
-      call calc_bed_roughness_Martin2011( mesh, ice)
+      call calc_bed_roughness_Martin2011( mesh, ice, bed_roughness)
     case ('SSA_icestream')
       ! No need to do anything
     case ('MISMIPplus')
@@ -229,13 +231,14 @@ contains
 
   end subroutine calc_bed_roughness_parameterised
 
-  subroutine initialise_bed_roughness_parameterised( mesh, ice)
+  subroutine initialise_bed_roughness_parameterised( mesh, ice, bed_roughness)
     ! Initialise the bed roughness
     ! Use a simple parameterisation to calculate bed roughness
 
     ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_ice_model),           intent(in   ) :: ice
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_parameterised'
@@ -247,13 +250,9 @@ contains
     case default
       call crash('unknown choice_bed_roughness_parameterised "' // trim( C%choice_bed_roughness_parameterised) // '"')
     case ('Martin2011')
-      call initialise_bed_roughness_Martin2011( mesh, ice)
-    case ('SSA_icestream')
-      call initialise_bed_roughness_SSA_icestream( mesh, ice)
-    case ('MISMIPplus')
-      call initialise_bed_roughness_MISMIPplus( mesh, ice)
-    case ('MISMIP+')
-      call initialise_bed_roughness_MISMIPplus( mesh, ice)
+      call initialise_bed_roughness_Martin2011( mesh, ice, bed_roughness)
+    case ('MISMIPplus','MISMIP+')
+      call initialise_bed_roughness_MISMIPplus( mesh, bed_roughness)
     end select
 
     ! Finalise routine path
@@ -262,14 +261,15 @@ contains
   end subroutine initialise_bed_roughness_parameterised
 
   ! The Martin et al. (2011) till parameterisation
-  subroutine calc_bed_roughness_Martin2011( mesh, ice)
+  subroutine calc_bed_roughness_Martin2011( mesh, ice, bed_roughness)
     ! Calculate the till friction angle using the till model by Martin et al. (2011).
     !
     ! Only applicable when choice_sliding_law = "Coulomb", "Budd", or "Zoet-Iverson"
 
     ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_ice_model),           intent(in   ) :: ice
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_bed_roughness_Martin2011'
@@ -293,7 +293,7 @@ contains
       weight_Hb = min( 1._dp, max( 0._dp, &
         (ice%Hb( vi) - C%Martin2011till_phi_Hb_min) / (C%Martin2011till_phi_Hb_max - C%Martin2011till_phi_Hb_min) ))
 
-      ice%till_friction_angle( vi) = (1._dp - weight_Hb) * C%Martin2011till_phi_min + weight_Hb * C%Martin2011till_phi_max
+      bed_roughness%till_friction_angle( vi) = (1._dp - weight_Hb) * C%Martin2011till_phi_min + weight_Hb * C%Martin2011till_phi_max
 
     end do
 
@@ -302,14 +302,15 @@ contains
 
   end subroutine calc_bed_roughness_Martin2011
 
-  subroutine initialise_bed_roughness_Martin2011( mesh, ice)
+  subroutine initialise_bed_roughness_Martin2011( mesh, ice, bed_roughness)
     ! Calculate the till friction angle using the till model by Martin et al. (2011).
     !
     ! Only applicable when choice_sliding_law = "Coulomb", "Budd", or "Zoet-Iverson"
 
     ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_ice_model),           intent(in   ) :: ice
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_Martin2011'
@@ -330,7 +331,7 @@ contains
       weight_Hb = min( 1._dp, max( 0._dp, &
         (ice%Hb( vi) - C%Martin2011till_phi_Hb_min) / (C%Martin2011till_phi_Hb_max - C%Martin2011till_phi_Hb_min) ))
 
-      ice%till_friction_angle( vi) = (1._dp - weight_Hb) * C%Martin2011till_phi_min + weight_Hb * C%Martin2011till_phi_max
+      bed_roughness%till_friction_angle( vi) = (1._dp - weight_Hb) * C%Martin2011till_phi_min + weight_Hb * C%Martin2011till_phi_max
 
     end do
 
@@ -340,43 +341,14 @@ contains
   end subroutine initialise_bed_roughness_Martin2011
 
   ! Idealised cases
-  subroutine initialise_bed_roughness_SSA_icestream( mesh, ice)
-    ! Determine the basal conditions underneath the ice
-    !
-    ! Idealised case: SSA_icestream (i.e. the Schoof 2006 analytical solution)
-
-    ! Input variables:
-    type(type_mesh),     intent(in   ) :: mesh
-    type(type_ice_model),intent(inout) :: ice
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_SSA_icestream'
-    integer                        :: vi
-    real(dp)                       :: y, u
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    do vi = mesh%vi1, mesh%vi2
-      y = mesh%V( vi,2)
-      call Schoof2006_icestream( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_SSA_icestream_Hi, &
-        C%refgeo_idealised_SSA_icestream_dhdx, C%refgeo_idealised_SSA_icestream_L, C%refgeo_idealised_SSA_icestream_m, &
-        y, u, ice%till_yield_stress( vi))
-    end DO
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine initialise_bed_roughness_SSA_icestream
-
-  subroutine initialise_bed_roughness_MISMIPplus( mesh, ice)
+  subroutine initialise_bed_roughness_MISMIPplus( mesh, bed_roughness)
     ! Determine the basal conditions underneath the ice
     !
     ! Idealised case: MISMIP+ (i.e. just a uniform value)
 
     ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_MISMIPplus'
@@ -393,19 +365,19 @@ contains
     case ('Weertman')
       ! Uniform sliding factor for the MISMIP+ configuration, using the first (Weertman) sliding law option
 
-      ice%slid_beta_sq  = MISMIPplus_beta_sq
+      bed_roughness%beta_sq  = MISMIPplus_beta_sq
 
     case ('Tsai2015')
       ! Uniform sliding factor for the MISMIP+ configuration, using the second (Tsai et al., 2015) sliding law option
 
-      ice%slid_alpha_sq = MISMIPplus_alpha_sq
-      ice%slid_beta_sq  = MISMIPplus_beta_sq
+      bed_roughness%alpha_sq = MISMIPplus_alpha_sq
+      bed_roughness%beta_sq  = MISMIPplus_beta_sq
 
     case ('Schoof2005')
       ! Uniform sliding factor for the MISMIP+ configuration, using the third (Schoof, 2005) sliding law option
 
-      ice%slid_alpha_sq = MISMIPplus_alpha_sq
-      ice%slid_beta_sq  = MISMIPplus_beta_sq
+      bed_roughness%alpha_sq = MISMIPplus_alpha_sq
+      bed_roughness%beta_sq  = MISMIPplus_beta_sq
 
     end select
 
@@ -415,13 +387,13 @@ contains
   end subroutine initialise_bed_roughness_MISMIPplus
 
   ! == Bed roughness from an external file
-  subroutine initialise_bed_roughness_from_file( mesh, ice, region_name)
+  subroutine initialise_bed_roughness_from_file( mesh, bed_roughness, region_name)
     ! Initialise bed roughness with data from an external NetCDF file
 
     ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
-    character(len=3),     intent(in   ) :: region_name
+    type(type_mesh),                intent(in   ) :: mesh
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
+    character(len=3),               intent(in   ) :: region_name
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_from_file'
@@ -457,61 +429,61 @@ contains
     case ('idealised')
       ! No need to do anything
     case ('Weertman')
-      ! Weertman sliding law; bed roughness is described by slid_beta_sq
+      ! Weertman sliding law; bed roughness is described by beta_sq
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq', mesh, ice%slid_beta_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, bed_roughness%beta_sq)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq', mesh, ice%slid_beta_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, bed_roughness%beta_sq, timeframe_bed_roughness)
       end if
 
     case ('Coulomb')
       ! Coulomb sliding law; bed roughness is described by till_friction_angle
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle, timeframe_bed_roughness)
       end if
 
     case ('Budd')
       ! Budd-type sliding law; bed roughness is described by till_friction_angle
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle, timeframe_bed_roughness)
       end if
 
     case ('Tsai2015')
-      ! Tsai2015 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+      ! Tsai2015 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq)
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq, timeframe_bed_roughness)
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq, timeframe_bed_roughness)
       end if
 
     case ('Schoof2005')
-      ! Schoof2005 sliding law; bed roughness is described by slid_alpha_sq for the Coulomb part, and slid_beta_sq for the Weertman part
+      ! Schoof2005 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq)
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_alpha_sq', mesh, ice%slid_alpha_sq, timeframe_bed_roughness)
-        call read_field_from_file_2D( filename_bed_roughness, 'slid_beta_sq' , mesh, ice%slid_beta_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq, timeframe_bed_roughness)
       end if
 
     case ('Zoet-Iverson')
       ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, ice%till_friction_angle, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle, timeframe_bed_roughness)
       end if
 
     end select
