@@ -12,7 +12,8 @@ module bed_roughness_nudging_H_dHdt_flowline
   use ice_model_types, only: type_ice_model
   use reference_geometry_types, only: type_reference_geometry
   use bed_roughness_model_types, only: type_bed_roughness_model
-  use mesh_utilities, only: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian
+  use mesh_utilities, only: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian, &
+    interpolate_to_point_dp_2D_singlecore
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
@@ -58,12 +59,8 @@ contains
     integer                                 :: n_up,n_down
     integer                                 :: k
     real(dp), dimension(2)                  :: pt
-    integer                                 :: ti,via,vib,vic
-    real(dp), dimension(2)                  :: pa, pb, pc
-    real(dp)                                :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
-    real(dp)                                :: wa, wb, wc
+    integer                                 :: ti
     real(dp)                                :: Hs_mod, Hs_target, dHs_dt_mod
-    real(dp)                                :: Hs_mod2, Hs_target2, dHs_dt_mod2
     real(dp)                                :: s1, s2, w1, w2, deltaHs1, deltaHs2, dHs_dt1, dHs_dt2, w_av, deltaHs_av, dHs_dt_av, ds
     real(dp)                                :: int_w_deltaHs_up, int_w_dHs_dt_up, int_w_up
     real(dp)                                :: int_w_deltaHs_down, int_w_dHs_dt_down, int_w_down
@@ -183,35 +180,11 @@ contains
 
       do k = 1, n_up
 
-        ! The point along the flowline
         pt = trace_up( k,:)
 
-        ! The mesh triangle containing the point
-        call find_containing_triangle( mesh, pt, ti)
-
-        ! The three vertices spanning ti
-        via = mesh%Tri( ti,1)
-        vib = mesh%Tri( ti,2)
-        vic = mesh%Tri( ti,3)
-
-        ! Trilinearly interpolate between a,b,c to find d_int
-        pa = mesh%V( via,:)
-        pb = mesh%V( vib,:)
-        pc = mesh%V( vic,:)
-
-        Atri_abp = triangle_area( pa, pb, pt)
-        Atri_bcp = triangle_area( pb, pc, pt)
-        Atri_cap = triangle_area( pc, pa, pt)
-
-        Atri_tot = Atri_abp + Atri_bcp + Atri_cap
-
-        wc = Atri_abp / Atri_tot
-        wa = Atri_bcp / Atri_tot
-        wb = Atri_cap / Atri_tot
-
-        Hs_mod     = Hs_tot(        via) * wa + Hs_tot(        vib) * wb + Hs_tot(        vic) * wc
-        Hs_target  = Hs_target_tot( via) * wa + Hs_target_tot( vib) * wb + Hs_target_tot( vic) * wc
-        dHs_dt_mod = dHs_dt_tot(    via) * wa + dHs_dt_tot(    vib) * wb + dHs_dt_tot(    vic) * wc
+        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
+        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
+        call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
 
         deltaHs_up( k) = Hs_mod - Hs_target
         dHs_dt_up(  k) = dHs_dt_mod
@@ -224,35 +197,11 @@ contains
 
       do k = 1, n_down
 
-        ! The point along the flowline
         pt = trace_down( k,:)
 
-        ! The mesh triangle containing the point
-        call find_containing_triangle( mesh, pt, ti)
-
-        ! The three vertices spanning ti
-        via = mesh%Tri( ti,1)
-        vib = mesh%Tri( ti,2)
-        vic = mesh%Tri( ti,3)
-
-        ! Trilinearly interpolate between a,b,c to find d_int
-        pa = mesh%V( via,:)
-        pb = mesh%V( vib,:)
-        pc = mesh%V( vic,:)
-
-        Atri_abp = triangle_area( pa, pb, pt)
-        Atri_bcp = triangle_area( pb, pc, pt)
-        Atri_cap = triangle_area( pc, pa, pt)
-
-        Atri_tot = Atri_abp + Atri_bcp + Atri_cap
-
-        wc = Atri_abp / Atri_tot
-        wa = Atri_bcp / Atri_tot
-        wb = Atri_cap / Atri_tot
-
-        Hs_mod     = Hs_tot(        via) * wa + Hs_tot(        vib) * wb + Hs_tot(        vic) * wc
-        Hs_target  = Hs_target_tot( via) * wa + Hs_target_tot( vib) * wb + Hs_target_tot( vic) * wc
-        dHs_dt_mod = dHs_dt_tot(    via) * wa + dHs_dt_tot(    vib) * wb + dHs_dt_tot(    vic) * wc
+        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
+        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
+        call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
 
         deltaHs_down( k) = Hs_mod - Hs_target
         dHs_dt_down(  k) = dHs_dt_mod
