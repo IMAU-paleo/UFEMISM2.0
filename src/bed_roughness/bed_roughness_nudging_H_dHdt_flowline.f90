@@ -39,7 +39,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter           :: routine_name = 'run_bed_roughness_nudging_H_dHdt_flowline'
-    integer,  dimension(:    ), allocatable :: mask
+    integer,  dimension(mesh%vi1:mesh%vi2)  :: mask
     real(dp), dimension(mesh%nV)            :: Hi_tot
     real(dp), dimension(mesh%nV)            :: Hs_tot
     real(dp), dimension(mesh%nV)            :: Hs_target_tot
@@ -52,10 +52,10 @@ contains
     real(dp), dimension(mesh%nV)            :: fraction_gr_tot
     integer                                 :: vi
     real(dp), dimension(2)                  :: p
-    real(dp), dimension(:,:  ), allocatable :: trace_up, trace_down
-    real(dp), dimension(:    ), allocatable :: s_up, s_down
-    real(dp), dimension(:    ), allocatable :: deltaHs_up, deltaHs_down
-    real(dp), dimension(:    ), allocatable :: dHs_dt_up, dHs_dt_down
+    real(dp), dimension(mesh%nV, 2)         :: trace_up, trace_down
+    real(dp), dimension(mesh%nV   )         :: s_up, s_down
+    real(dp), dimension(mesh%nV   )         :: deltaHs_up, deltaHs_down
+    real(dp), dimension(mesh%nV   )         :: dHs_dt_up, dHs_dt_down
     integer                                 :: n_up,n_down
     integer                                 :: k
     real(dp), dimension(2)                  :: pt
@@ -64,39 +64,17 @@ contains
     real(dp)                                :: s1, s2, w1, w2, deltaHs1, deltaHs2, dHs_dt1, dHs_dt2, w_av, deltaHs_av, dHs_dt_av, ds
     real(dp)                                :: int_w_deltaHs_up, int_w_dHs_dt_up, int_w_up
     real(dp)                                :: int_w_deltaHs_down, int_w_dHs_dt_down, int_w_down
-    real(dp), dimension(:    ), allocatable :: deltaHs_av_up, deltaHs_av_down
-    real(dp), dimension(:    ), allocatable :: dHs_dt_av_up, dHs_dt_av_down
-    real(dp), dimension(:    ), allocatable :: I_tot, R
-    real(dp), dimension(:    ), allocatable :: dC_dt
-    real(dp), dimension(:    ), allocatable :: dHs_dx, dHs_dy, abs_grad_Hs
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: deltaHs_av_up, deltaHs_av_down
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dHs_dt_av_up, dHs_dt_av_down
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: I_tot, R
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dHs_dx, dHs_dy, abs_grad_Hs
     real(dp)                                :: fg_exp_mod
-    real(dp), dimension(:    ), allocatable :: dC_dt_smoothed
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt_smoothed
     real(dp)                                :: misfit
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    ! Allocate memory
-    allocate( mask(            mesh%vi1:mesh%vi2), source = 0      )
-    allocate( trace_up(        mesh%nV, 2       ), source = 0._dp  )
-    allocate( trace_down(      mesh%nV, 2       ), source = 0._dp  )
-    allocate( s_up(            mesh%nV          ), source = 0._dp  )
-    allocate( s_down(          mesh%nV          ), source = 0._dp  )
-    allocate( deltaHs_up(      mesh%nV          ), source = 0._dp  )
-    allocate( deltaHs_down(    mesh%nV          ), source = 0._dp  )
-    allocate( dHs_dt_up(       mesh%nV          ), source = 0._dp  )
-    allocate( dHs_dt_down(     mesh%nV          ), source = 0._dp  )
-    allocate( deltaHs_av_up(   mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( deltaHs_av_down( mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dHs_dt_av_up(    mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dHs_dt_av_down(  mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( R(               mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( I_tot(           mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dC_dt(           mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dHs_dx(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dHs_dy(          mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( abs_grad_Hs(     mesh%vi1:mesh%vi2), source = 0._dp  )
-    allocate( dC_dt_smoothed(  mesh%vi1:mesh%vi2), source = 0._dp  )
 
     ! Gather ice model data from all processes
     call gather_to_all( ice%Hi               , Hi_tot               )
@@ -112,6 +90,9 @@ contains
 
     ! == Calculate bed roughness rates of changes
     ! ===========================================
+
+    mask  = 0
+    dC_dt = 0._dp
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -342,28 +323,6 @@ contains
     ! Calculate predicted bed roughness at t+dt
     bed_roughness%generic_bed_roughness_next = MAX( C%generic_bed_roughness_min, MIN( C%generic_bed_roughness_max, &
       bed_roughness%generic_bed_roughness_prev + C%bed_roughness_nudging_dt * dC_dt ))
-
-    ! Clean up after yourself
-    deallocate( mask           )
-    deallocate( trace_up       )
-    deallocate( trace_down     )
-    deallocate( s_up           )
-    deallocate( s_down         )
-    deallocate( deltaHs_up     )
-    deallocate( deltaHs_down   )
-    deallocate( dHs_dt_up      )
-    deallocate( dHs_dt_down    )
-    deallocate( deltaHs_av_up  )
-    deallocate( deltaHs_av_down)
-    deallocate( dHs_dt_av_up   )
-    deallocate( dHs_dt_av_down )
-    deallocate( R              )
-    deallocate( I_tot          )
-    deallocate( dC_dt          )
-    deallocate( dHs_dx         )
-    deallocate( dHs_dy         )
-    deallocate( abs_grad_Hs    )
-    deallocate( dC_dt_smoothed )
 
     ! Finalise routine path
     call finalise_routine( routine_name)
