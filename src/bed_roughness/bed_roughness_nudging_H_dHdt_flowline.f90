@@ -39,7 +39,10 @@ contains
 
     ! Local variables:
     character(len=256), parameter           :: routine_name = 'run_bed_roughness_nudging_H_dHdt_flowline'
-    integer,  dimension(mesh%vi1:mesh%vi2)  :: mask
+    logical,  dimension(mesh%vi1:mesh%vi2)  :: mask_calc_dCdt_from_nudging
+    logical,  dimension(mesh%vi1:mesh%vi2)  :: mask_calc_dCdt_from_extrapolation
+    logical,  dimension(mesh%vi1:mesh%vi2)  :: mask_Hs_is_converging
+    integer,  dimension(mesh%vi1:mesh%vi2)  :: mask_extrapolation
     real(dp), dimension(mesh%nV)            :: Hi_tot
     real(dp), dimension(mesh%nV)            :: Hs_tot
     real(dp), dimension(mesh%nV)            :: Hs_target_tot
@@ -64,7 +67,6 @@ contains
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: dHs_dt_av_up, dHs_dt_av_down
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: I_tot, R
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt
-    real(dp)                                :: misfit
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -80,8 +82,11 @@ contains
     ! == Calculate bed roughness rates of changes
     ! ===========================================
 
-    mask  = 0
-    dC_dt = 0._dp
+    mask_calc_dCdt_from_nudging       = .false.
+    mask_calc_dCdt_from_extrapolation = .false.
+    mask_Hs_is_converging             = .false.
+    mask_extrapolation                = 0
+    dC_dt                             = 0._dp
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -93,173 +98,182 @@ contains
         .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi))) then
 
         ! Perform the inversion here
-        mask( vi) = 2
+        mask_calc_dCdt_from_nudging      ( vi) = .true.
+        mask_calc_dCdt_from_extrapolation( vi) = .false.
+        mask_extrapolation               ( vi) = 2
 
-        ! Surface elevation misfit
-        misfit = ice%Hs( vi) - refgeo%Hs( vi)
-
-        ! Is it improving already?
-        if (ice%dHs_dt( vi)*misfit < 0._dp) then
-          ! Yes, so leave this vertex alone
+        ! If Hs is already converging to the target value, do not nudge bed roughness further
+        if (ice%dHs_dt( vi) * (ice%Hs( vi) - refgeo%Hs( vi)) < 0._dp) then
+          mask_Hs_is_converging( vi) = .true.
           cycle
         end if
 
-      ELSE
+      else
 
         ! Extrapolate here
-        mask( vi) = 1
+        mask_calc_dCdt_from_nudging      ( vi) = .false.
+        mask_calc_dCdt_from_extrapolation( vi) = .true.
+        mask_extrapolation               ( vi) = 1
         cycle
 
       end if
 
-      ! Trace both halves of the flowline
-      ! =================================
+    end do
 
-      ! The point p
-      p = [mesh%V( vi,1), mesh%V( vi,2)]
+    do vi = mesh%vi1, mesh%vi2
 
-      ! Trace both halves of the flowline
-      call trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  )
-      call trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down)
+      if (mask_calc_dCdt_from_nudging( vi) .and. .not. mask_Hs_is_converging( vi)) then
 
-      ! if we couldn't trace the flowline here, extrapolate instead of inverting
-      if (n_up < 3 .or. n_down < 3) then
-        ! Mark for first extrapolation
-        mask( vi) = 1
-        ! Skip inversion and go to next vertex
-        cycle
+        ! Trace both halves of the flowline
+        ! =================================
+
+        ! The point p
+        p = [mesh%V( vi,1), mesh%V( vi,2)]
+
+        ! Trace both halves of the flowline
+        call trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  )
+        call trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down)
+
+        ! If we couldn't trace the flowline here, extrapolate instead of inverting
+        if (n_up < 3 .or. n_down < 3) then
+          mask_calc_dCdt_from_nudging      ( vi) = .false.
+          mask_calc_dCdt_from_extrapolation( vi) = .true.
+          mask_extrapolation( vi) = 1
+          cycle
+        end if
+
+        ! Calculate distance along both halves of the flowline
+        s_up = 0._dp
+        do k = 2, n_up
+          s_up( k) = s_up( k-1) + norm2( trace_up( k,:) - trace_up( k-1,:))
+        end do
+
+        s_down = 0._dp
+        do k = 2, n_down
+          s_down( k) = s_down( k-1) + norm2( trace_down( k,:) - trace_down( k-1,:))
+        end do
+
+        ! Calculate thickness error and thinning rates on both halves of the flowline
+        ! ===========================================================================
+
+        deltaHs_up = 0._dp
+        dHs_dt_up  = 0._dp
+        ti         = mesh%iTri( vi,1)
+
+        do k = 1, n_up
+
+          pt = trace_up( k,:)
+
+          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
+          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
+          call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
+
+          deltaHs_up( k) = Hs_mod - Hs_target
+          dHs_dt_up(  k) = dHs_dt_mod
+
+        end do
+
+        deltaHs_down = 0._dp
+        dHs_dt_down  = 0._dp
+        ti           = mesh%iTri( vi,1)
+
+        do k = 1, n_down
+
+          pt = trace_down( k,:)
+
+          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
+          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
+          call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
+
+          deltaHs_down( k) = Hs_mod - Hs_target
+          dHs_dt_down(  k) = dHs_dt_mod
+
+        end do
+
+        ! Calculate weighted average of thickness error and thinning rates on both halves of the flowline
+        ! ===============================================================================================
+
+        int_w_deltaHs_up = 0._dp
+        int_w_dHs_dt_up  = 0._dp
+        int_w_up         = 0._dp
+
+        do k = 2, n_up
+
+          ! Distance of both points
+          s1 = s_up( k-1)
+          s2 = s_up( k  )
+          ds = s2 - s1
+
+          ! Weights for both points
+          w1 = (2._dp / s_up( n_up)) * (1._dp - s1 / s_up( n_up))
+          w2 = (2._dp / s_up( n_up)) * (1._dp - s2 / s_up( n_up))
+          w_av = (w1 + w2) / 2._dp
+
+          ! Thickness error and thinning rate for both points
+          deltaHs1   = deltaHs_up( k-1)
+          deltaHs2   = deltaHs_up( k)
+          deltaHs_av = (deltaHs1 + deltaHs2) / 2._dp
+          dHs_dt1    = dHs_dt_up(  k-1)
+          dHs_dt2    = dHs_dt_up(  k)
+          dHs_dt_av  = (dHs_dt1 + dHs_dt2) / 2._dp
+
+          ! Add to integrals
+          int_w_deltaHs_up = int_w_deltaHs_up + (w_av * deltaHs_av * ds)
+          int_w_dHs_dt_up  = int_w_dHs_dt_up  + (w_av * dHs_dt_av  * ds)
+          int_w_up         = int_w_up         + (w_av              * ds)
+
+        end do
+
+        deltaHs_av_up( vi) = int_w_deltaHs_up / int_w_up
+        dHs_dt_av_up(  vi) = int_w_dHs_dt_up  / int_w_up
+
+        int_w_deltaHs_down = 0._dp
+        int_w_dHs_dt_down  = 0._dp
+        int_w_down         = 0._dp
+
+        do k = 2, n_down
+
+          ! Distance of both points
+          s1 = s_down( k-1)
+          s2 = s_down( k  )
+          ds = s2 - s1
+
+          ! Weights for both points
+          w1 = (2._dp / s_down( n_down)) * (1._dp - s1 / s_down( n_down))
+          w2 = (2._dp / s_down( n_down)) * (1._dp - s2 / s_down( n_down))
+          w_av = (w1 + w2) / 2._dp
+
+          ! Thickness error and thinning rate for both points
+          deltaHs1   = deltaHs_down( k-1)
+          deltaHs2   = deltaHs_down( k)
+          deltaHs_av = (deltaHs1 + deltaHs2) / 2._dp
+          dHs_dt1    = dHs_dt_down(  k-1)
+          dHs_dt2    = dHs_dt_down(  k)
+          dHs_dt_av  = (dHs_dt1 + dHs_dt2) / 2._dp
+
+          ! Add to integrals
+          int_w_deltaHs_down = int_w_deltaHs_down + (w_av * deltaHs_av * ds)
+          int_w_dHs_dt_down  = int_w_dHs_dt_down  + (w_av * dHs_dt_av  * ds)
+          int_w_down         = int_w_down         + (w_av              * ds)
+
+        end do
+
+        deltaHs_av_down( vi) = int_w_deltaHs_down / int_w_down
+        dHs_dt_av_down(  vi) = int_w_dHs_dt_down  / int_w_down
+
+        ! Calculate bed roughness rates of change
+        ! =======================================
+
+        R( vi) = max( 0._dp, min( 1._dp, &
+          ((ice%uabs_vav( vi) * ice%Hi( vi)) / (C%bednudge_H_dHdt_flowline_u_scale * C%bednudge_H_dHdt_flowline_Hi_scale)) ))
+
+        I_tot( vi) = R( vi) * (&
+          (deltaHs_av_up( vi)                       ) / C%bednudge_H_dHdt_flowline_dH0 + &
+          (dHs_dt_av_up(  vi) + dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
+
+        dC_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
+
       end if
-
-      ! Calculate distance along both halves of the flowline
-      s_up = 0._dp
-      do k = 2, n_up
-        s_up( k) = s_up( k-1) + NORM2( trace_up( k,:) - trace_up( k-1,:))
-      end do
-
-      s_down = 0._dp
-      do k = 2, n_down
-        s_down( k) = s_down( k-1) + NORM2( trace_down( k,:) - trace_down( k-1,:))
-      end do
-
-      ! Calculate thickness error and thinning rates on both halves of the flowline
-      ! ===========================================================================
-
-      deltaHs_up = 0._dp
-      dHs_dt_up  = 0._dp
-      ti         = mesh%iTri( vi,1)
-
-      do k = 1, n_up
-
-        pt = trace_up( k,:)
-
-        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
-        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
-        call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
-
-        deltaHs_up( k) = Hs_mod - Hs_target
-        dHs_dt_up(  k) = dHs_dt_mod
-
-      end do
-
-      deltaHs_down = 0._dp
-      dHs_dt_down  = 0._dp
-      ti           = mesh%iTri( vi,1)
-
-      do k = 1, n_down
-
-        pt = trace_down( k,:)
-
-        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
-        call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
-        call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
-
-        deltaHs_down( k) = Hs_mod - Hs_target
-        dHs_dt_down(  k) = dHs_dt_mod
-
-      end do
-
-      ! Calculate weighted average of thickness error and thinning rates on both halves of the flowline
-      ! ===============================================================================================
-
-      int_w_deltaHs_up = 0._dp
-      int_w_dHs_dt_up  = 0._dp
-      int_w_up         = 0._dp
-
-      do k = 2, n_up
-
-        ! Distance of both points
-        s1 = s_up( k-1)
-        s2 = s_up( k  )
-        ds = s2 - s1
-
-        ! Weights for both points
-        w1 = (2._dp / s_up( n_up)) * (1._dp - s1 / s_up( n_up))
-        w2 = (2._dp / s_up( n_up)) * (1._dp - s2 / s_up( n_up))
-        w_av = (w1 + w2) / 2._dp
-
-        ! Thickness error and thinning rate for both points
-        deltaHs1   = deltaHs_up( k-1)
-        deltaHs2   = deltaHs_up( k)
-        deltaHs_av = (deltaHs1 + deltaHs2) / 2._dp
-        dHs_dt1    = dHs_dt_up(  k-1)
-        dHs_dt2    = dHs_dt_up(  k)
-        dHs_dt_av  = (dHs_dt1 + dHs_dt2) / 2._dp
-
-        ! Add to integrals
-        int_w_deltaHs_up = int_w_deltaHs_up + (w_av * deltaHs_av * ds)
-        int_w_dHs_dt_up  = int_w_dHs_dt_up  + (w_av * dHs_dt_av  * ds)
-        int_w_up         = int_w_up         + (w_av              * ds)
-
-      end do
-
-      deltaHs_av_up( vi) = int_w_deltaHs_up / int_w_up
-      dHs_dt_av_up(  vi) = int_w_dHs_dt_up  / int_w_up
-
-      int_w_deltaHs_down = 0._dp
-      int_w_dHs_dt_down  = 0._dp
-      int_w_down         = 0._dp
-
-      do k = 2, n_down
-
-        ! Distance of both points
-        s1 = s_down( k-1)
-        s2 = s_down( k  )
-        ds = s2 - s1
-
-        ! Weights for both points
-        w1 = (2._dp / s_down( n_down)) * (1._dp - s1 / s_down( n_down))
-        w2 = (2._dp / s_down( n_down)) * (1._dp - s2 / s_down( n_down))
-        w_av = (w1 + w2) / 2._dp
-
-        ! Thickness error and thinning rate for both points
-        deltaHs1   = deltaHs_down( k-1)
-        deltaHs2   = deltaHs_down( k)
-        deltaHs_av = (deltaHs1 + deltaHs2) / 2._dp
-        dHs_dt1    = dHs_dt_down(  k-1)
-        dHs_dt2    = dHs_dt_down(  k)
-        dHs_dt_av  = (dHs_dt1 + dHs_dt2) / 2._dp
-
-        ! Add to integrals
-        int_w_deltaHs_down = int_w_deltaHs_down + (w_av * deltaHs_av * ds)
-        int_w_dHs_dt_down  = int_w_dHs_dt_down  + (w_av * dHs_dt_av  * ds)
-        int_w_down         = int_w_down         + (w_av              * ds)
-
-      end do
-
-      deltaHs_av_down( vi) = int_w_deltaHs_down / int_w_down
-      dHs_dt_av_down(  vi) = int_w_dHs_dt_down  / int_w_down
-
-      ! Calculate bed roughness rates of change
-      ! =======================================
-
-      R( vi) = max( 0._dp, min( 1._dp, &
-        ((ice%uabs_vav( vi) * ice%Hi( vi)) / (C%bednudge_H_dHdt_flowline_u_scale * C%bednudge_H_dHdt_flowline_Hi_scale)) ))
-
-      I_tot( vi) = R( vi) * (&
-        (deltaHs_av_up( vi)                       ) / C%bednudge_H_dHdt_flowline_dH0 + &
-        (dHs_dt_av_up(  vi) + dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
-
-      dC_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
 
     end do
 
@@ -267,7 +281,7 @@ contains
     ! ======================================================================
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    call extrapolate_Gaussian( mesh, mask, dC_dt, C%bednudge_H_dHdt_flowline_r_smooth)
+    call extrapolate_Gaussian( mesh, mask_extrapolation, dC_dt, C%bednudge_H_dHdt_flowline_r_smooth)
 
     call reduce_dCdt_on_steep_slopes( mesh, ice, dC_dt)
 
