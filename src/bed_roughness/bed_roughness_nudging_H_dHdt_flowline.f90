@@ -70,7 +70,6 @@ contains
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: dHs_dx, dHs_dy, abs_grad_Hs
     real(dp)                                :: fg_exp_mod
-    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt_smoothed
     real(dp)                                :: misfit
 
     ! Add routine to path
@@ -305,17 +304,7 @@ contains
 
     end do
 
-    ! Smoothing
-    ! =========
-
-    dC_dt_smoothed = dC_dt
-
-    ! Smooth the local variable
-    call smooth_Gaussian( mesh, grid_smooth, dC_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
-
-    do vi = mesh%vi1, mesh%vi2
-      dC_dt( vi) = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC_dt( vi) + C%bednudge_H_dHdt_flowline_w_smooth * dC_dt_smoothed( vi)
-    end do ! do vi = mesh%vi1, mesh%vi2
+    call smooth_dCdt( mesh, grid_smooth, dC_dt)
 
     ! Final bed roughness field
     ! =========================
@@ -332,7 +321,7 @@ contains
   subroutine initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, ice, bed_roughness, region_name)
     ! Initialise the bed roughness nudging model based on flowline-averaged values of H and dH/dt
 
-    ! Input variables:
+    ! In/output variables:
     type(type_mesh),                intent(in   ) :: mesh
     type(type_ice_model),           intent(in   ) :: ice
     type(type_bed_roughness_model), intent(inout) :: bed_roughness
@@ -356,6 +345,31 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine initialise_bed_roughness_nudging_H_dHdt_flowline
+
+  subroutine smooth_dCdt( mesh, grid_smooth, dC_dt)
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_grid),                        intent(in   ) :: grid_smooth
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: dC_dt
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'smooth_dCdt'
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt_smoothed
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    dC_dt_smoothed = dC_dt
+    call smooth_Gaussian( mesh, grid_smooth, dC_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+
+    dC_dt = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC_dt + &
+                     C%bednudge_H_dHdt_flowline_w_smooth * dC_dt_smoothed
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine smooth_dCdt
 
   ! == Flowline tracing
   ! ===================
