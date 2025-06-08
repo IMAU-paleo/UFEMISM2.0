@@ -187,17 +187,10 @@ contains
     integer                         :: vi
     real(dp), dimension(2)          :: p
     real(dp), dimension(mesh%nV, 2) :: trace_up, trace_down
+    integer                         :: n_up, n_down
     real(dp), dimension(mesh%nV   ) :: s_up, s_down
     real(dp), dimension(mesh%nV   ) :: deltaHs_up, deltaHs_down
     real(dp), dimension(mesh%nV   ) :: dHs_dt_up, dHs_dt_down
-    integer                         :: n_up,n_down
-    integer                         :: k
-    real(dp), dimension(2)          :: pt
-    integer                         :: ti
-    real(dp)                        :: Hs_mod, Hs_target, dHs_dt_mod
-    real(dp)                        :: s1, s2, w1, w2, deltaHs1, deltaHs2, dHs_dt1, dHs_dt2, w_av, deltaHs_av, dHs_dt_av, ds
-    real(dp)                        :: int_w_deltaHs_up, int_w_dHs_dt_up, int_w_up
-    real(dp)                        :: int_w_deltaHs_down, int_w_dHs_dt_down, int_w_down
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -219,14 +212,9 @@ contains
       if (mask_calc_dCdt_from_nudging( vi) .and. .not. mask_Hs_is_converging( vi)) then
 
         ! Trace both halves of the flowline
-        ! =================================
-
-        ! The point p
         p = [mesh%V( vi,1), mesh%V( vi,2)]
-
-        ! Trace both halves of the flowline
-        call trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  )
-        call trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down)
+        call trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  , s_up)
+        call trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down, s_down)
 
         ! If we couldn't trace the flowline here, extrapolate instead of inverting
         if (n_up < 3 .or. n_down < 3) then
@@ -236,124 +224,17 @@ contains
           cycle
         end if
 
-        ! Calculate distance along both halves of the flowline
-        s_up = 0._dp
-        do k = 2, n_up
-          s_up( k) = s_up( k-1) + norm2( trace_up( k,:) - trace_up( k-1,:))
-        end do
-
-        s_down = 0._dp
-        do k = 2, n_down
-          s_down( k) = s_down( k-1) + norm2( trace_down( k,:) - trace_down( k-1,:))
-        end do
-
         ! Calculate thickness error and thinning rates on both halves of the flowline
-        ! ===========================================================================
-
-        deltaHs_up = 0._dp
-        dHs_dt_up  = 0._dp
-        ti         = mesh%iTri( vi,1)
-
-        do k = 1, n_up
-
-          pt = trace_up( k,:)
-
-          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
-          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
-          call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
-
-          deltaHs_up( k) = Hs_mod - Hs_target
-          dHs_dt_up(  k) = dHs_dt_mod
-
-        end do
-
-        deltaHs_down = 0._dp
-        dHs_dt_down  = 0._dp
-        ti           = mesh%iTri( vi,1)
-
-        do k = 1, n_down
-
-          pt = trace_down( k,:)
-
-          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , pt, ti, Hs_mod)
-          call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, pt, ti, Hs_target)
-          call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , pt, ti, dHs_dt_mod)
-
-          deltaHs_down( k) = Hs_mod - Hs_target
-          dHs_dt_down(  k) = dHs_dt_mod
-
-        end do
+        call calc_deltaHs_dHdt_along_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
+          vi, trace_up, n_up, deltaHs_up, dHs_dt_up)
+        call calc_deltaHs_dHdt_along_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
+          vi, trace_down, n_down, deltaHs_down, dHs_dt_down)
 
         ! Calculate weighted average of thickness error and thinning rates on both halves of the flowline
-        ! ===============================================================================================
-
-        int_w_deltaHs_up = 0._dp
-        int_w_dHs_dt_up  = 0._dp
-        int_w_up         = 0._dp
-
-        do k = 2, n_up
-
-          ! Distance of both points
-          s1 = s_up( k-1)
-          s2 = s_up( k  )
-          ds = s2 - s1
-
-          ! Weights for both points
-          w1 = (2._dp / s_up( n_up)) * (1._dp - s1 / s_up( n_up))
-          w2 = (2._dp / s_up( n_up)) * (1._dp - s2 / s_up( n_up))
-          w_av = (w1 + w2) / 2._dp
-
-          ! Thickness error and thinning rate for both points
-          deltaHs1   = deltaHs_up( k-1)
-          deltaHs2   = deltaHs_up( k)
-          deltaHs_av = (deltaHs1 + deltaHs2) / 2._dp
-          dHs_dt1    = dHs_dt_up(  k-1)
-          dHs_dt2    = dHs_dt_up(  k)
-          dHs_dt_av  = (dHs_dt1 + dHs_dt2) / 2._dp
-
-          ! Add to integrals
-          int_w_deltaHs_up = int_w_deltaHs_up + (w_av * deltaHs_av * ds)
-          int_w_dHs_dt_up  = int_w_dHs_dt_up  + (w_av * dHs_dt_av  * ds)
-          int_w_up         = int_w_up         + (w_av              * ds)
-
-        end do
-
-        deltaHs_av_up( vi) = int_w_deltaHs_up / int_w_up
-        dHs_dt_av_up(  vi) = int_w_dHs_dt_up  / int_w_up
-
-        int_w_deltaHs_down = 0._dp
-        int_w_dHs_dt_down  = 0._dp
-        int_w_down         = 0._dp
-
-        do k = 2, n_down
-
-          ! Distance of both points
-          s1 = s_down( k-1)
-          s2 = s_down( k  )
-          ds = s2 - s1
-
-          ! Weights for both points
-          w1 = (2._dp / s_down( n_down)) * (1._dp - s1 / s_down( n_down))
-          w2 = (2._dp / s_down( n_down)) * (1._dp - s2 / s_down( n_down))
-          w_av = (w1 + w2) / 2._dp
-
-          ! Thickness error and thinning rate for both points
-          deltaHs1   = deltaHs_down( k-1)
-          deltaHs2   = deltaHs_down( k)
-          deltaHs_av = (deltaHs1 + deltaHs2) / 2._dp
-          dHs_dt1    = dHs_dt_down(  k-1)
-          dHs_dt2    = dHs_dt_down(  k)
-          dHs_dt_av  = (dHs_dt1 + dHs_dt2) / 2._dp
-
-          ! Add to integrals
-          int_w_deltaHs_down = int_w_deltaHs_down + (w_av * deltaHs_av * ds)
-          int_w_dHs_dt_down  = int_w_dHs_dt_down  + (w_av * dHs_dt_av  * ds)
-          int_w_down         = int_w_down         + (w_av              * ds)
-
-        end do
-
-        deltaHs_av_down( vi) = int_w_deltaHs_down / int_w_down
-        dHs_dt_av_down(  vi) = int_w_dHs_dt_down  / int_w_down
+        call calc_flowline_average( s_up  , n_up  , deltaHs_up  , deltaHs_av_up  ( vi))
+        call calc_flowline_average( s_up  , n_up  , dHs_dt_up   , dHs_dt_av_up   ( vi))
+        call calc_flowline_average( s_down, n_down, deltaHs_down, deltaHs_av_down( vi))
+        call calc_flowline_average( s_down, n_down, dHs_dt_down , dHs_dt_av_down ( vi))
 
       end if
 
@@ -363,6 +244,100 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_flowline_averaged_deltaHs_dHsdt
+
+  subroutine calc_deltaHs_dHdt_along_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
+    vi, T, n, deltaHs, dHs_dt)
+
+    ! In/output variables:
+    type(type_mesh),              intent(in   ) :: mesh
+    real(dp), dimension(mesh%nV), intent(in   ) :: Hs_tot
+    real(dp), dimension(mesh%nV), intent(in   ) :: Hs_target_tot
+    real(dp), dimension(mesh%nV), intent(in   ) :: dHs_dt_tot
+    integer,                      intent(in   ) :: vi
+    real(dp), dimension(:,:),     intent(in   ) :: T
+    integer,                      intent(in   ) :: n
+    real(dp), dimension(mesh%nV), intent(  out) :: deltaHs, dHs_dt
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_deltaHs_dHdt_along_flowline'
+    integer                        :: ti, k
+    real(dp), dimension(2)         :: p
+    real(dp)                       :: Hs_mod, Hs_target, dHs_dt_mod
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    deltaHs = 0._dp
+    dHs_dt  = 0._dp
+    ti      = mesh%iTri( vi,1)
+
+    do k = 1, n
+
+      p = T( k,:)
+
+      call interpolate_to_point_dp_2D_singlecore( mesh, Hs_tot       , p, ti, Hs_mod)
+      call interpolate_to_point_dp_2D_singlecore( mesh, Hs_target_tot, p, ti, Hs_target)
+      call interpolate_to_point_dp_2D_singlecore( mesh, dHs_dt_tot   , p, ti, dHs_dt_mod)
+
+      deltaHs( k) = Hs_mod - Hs_target
+      dHs_dt(  k) = dHs_dt_mod
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_deltaHs_dHdt_along_flowline
+
+  subroutine calc_flowline_average( s, n, d, d_av)
+
+    ! In/output variables:
+    real(dp), dimension(:), intent(in   ) :: s
+    integer,                intent(in   ) :: n
+    real(dp), dimension(:), intent(in   ) :: d
+    real(dp),               intent(  out) :: d_av
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_flowline_average'
+    real(dp)                       :: int_w_d, int_w
+    real(dp)                       :: s1, s2, ds, w1, w2, w_av, d1, d2, dd
+    integer                        :: k
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    int_w_d = 0._dp
+    int_w   = 0._dp
+
+    do k = 2, n
+
+      ! Distance of both points
+      s1 = s( k-1)
+      s2 = s( k  )
+      ds = s2 - s1
+
+      ! Weights for both points
+      w1   = (2._dp / s( n)) * (1._dp - s1 / s( n))
+      w2   = (2._dp / s( n)) * (1._dp - s2 / s( n))
+      w_av = (w1 + w2) / 2._dp
+
+      ! Thickness error and thinning rate for both points
+      d1 = d( k-1)
+      d2 = d( k)
+      dd = (d1 + d2) / 2._dp
+
+      ! Add to integrals
+      int_w_d = int_w_d + (w_av * dd * ds)
+      int_w   = int_w   + (w_av      * ds)
+
+    end do
+
+    d_av = int_w_d / int_w
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_flowline_average
 
   subroutine calc_dCdt( mesh, ice, grid_smooth, bed_roughness, mask_calc_dCdt_from_nudging, &
     mask_Hs_is_converging, mask_extrapolation, deltaHs_av_up, deltaHs_av_down, &
@@ -488,10 +463,7 @@ contains
 
   end subroutine smooth_dCdt
 
-  ! == Flowline tracing
-  ! ===================
-
-  subroutine trace_flowline_upstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n)
+  subroutine trace_flowline_upstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n, s)
     ! Trace the flowline passing through point p upstream through
     ! the 2-D velocity field u_b,v_b.
     !
@@ -506,10 +478,11 @@ contains
     real(dp), dimension(2),              intent(in   ) :: p
     real(dp), dimension(:,:  ),          intent(  out) :: T
     integer,                             intent(  out) :: n
+    real(dp), dimension(:),              intent(  out) :: s
 
     ! Local variables:
     real(dp), dimension(2) :: pt
-    integer                :: vi, iti, ti
+    integer                :: vi, iti, ti, k
     real(dp)               :: dist, w, w_tot
     real(dp)               :: u_pt, v_pt, uabs_pt
     real(dp), dimension(2) :: u_hat_pt
@@ -594,9 +567,15 @@ contains
       T( 1,:) = p
     end if
 
+    ! Calculate distance along both halves of the flowline
+    s = 0._dp
+    do k = 2, n
+      s( k) = s( k-1) + norm2( T( k,:) - T( k-1,:))
+    end do
+
   end subroutine trace_flowline_upstream
 
-  subroutine trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n)
+  subroutine trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, T, n, s)
     ! Trace the flowline passing through point p downstream through
     ! the 2-D velocity field u_b,v_b.
     !
@@ -609,12 +588,13 @@ contains
     real(dp), dimension(mesh%nV),   intent(in   ) :: Hi_tot
     real(dp), dimension(mesh%nTri), intent(in   ) :: u_b_tot, v_b_tot
     real(dp), dimension(2),         intent(in   ) :: p
-    real(dp), dimension(:,:  ),     intent(  out) :: T
+    real(dp), dimension(:,:),       intent(  out) :: T
     integer,                        intent(  out) :: n
+    real(dp), dimension(:),         intent(  out) :: s
 
     ! Local variables:
     real(dp), dimension(2) :: pt
-    integer                :: vi, iti, ti
+    integer                :: vi, iti, ti, k
     real(dp)               :: dist, w, w_tot
     real(dp)               :: u_pt, v_pt, uabs_pt
     real(dp), dimension(2) :: u_hat_pt
@@ -703,6 +683,12 @@ contains
       n = 1
       T( 1,:) = p
     end if
+
+    ! Calculate distance along both halves of the flowline
+    s = 0._dp
+    do k = 2, n
+      s( k) = s( k-1) + norm2( T( k,:) - T( k-1,:))
+    end do
 
   end subroutine trace_flowline_downstream
 
