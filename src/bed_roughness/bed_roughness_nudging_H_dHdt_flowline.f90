@@ -45,8 +45,6 @@ contains
     integer,  dimension(mesh%vi1:mesh%vi2) :: mask_extrapolation
     real(dp), dimension(mesh%vi1:mesh%vi2) :: deltaHs_av_up, deltaHs_av_down
     real(dp), dimension(mesh%vi1:mesh%vi2) :: dHs_dt_av_up, dHs_dt_av_down
-    integer                                :: vi
-    real(dp), dimension(mesh%vi1:mesh%vi2) :: I_tot, R
     real(dp), dimension(mesh%vi1:mesh%vi2) :: dC_dt
 
     ! Add routine to path
@@ -61,37 +59,9 @@ contains
       mask_Hs_is_converging, mask_extrapolation, &
       deltaHs_av_up, deltaHs_av_down, dHs_dt_av_up, dHs_dt_av_down)
 
-    dC_dt = 0._dp
-
-    do vi = mesh%vi1, mesh%vi2
-
-      if (mask_calc_dCdt_from_nudging( vi) .and. .not. mask_Hs_is_converging( vi)) then
-
-        ! Calculate bed roughness rates of change
-        ! =======================================
-
-        R( vi) = max( 0._dp, min( 1._dp, &
-          ((ice%uabs_vav( vi) * ice%Hi( vi)) / (C%bednudge_H_dHdt_flowline_u_scale * C%bednudge_H_dHdt_flowline_Hi_scale)) ))
-
-        I_tot( vi) = R( vi) * (&
-          (deltaHs_av_up( vi)                       ) / C%bednudge_H_dHdt_flowline_dH0 + &
-          (dHs_dt_av_up(  vi) + dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
-
-        dC_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
-
-      end if
-
-    end do
-
-    ! == Extrapolated inverted roughness rates of change to the whole domain
-    ! ======================================================================
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    call extrapolate_Gaussian( mesh, mask_extrapolation, dC_dt, C%bednudge_H_dHdt_flowline_r_smooth)
-
-    call reduce_dCdt_on_steep_slopes( mesh, ice, dC_dt)
-
-    call smooth_dCdt( mesh, grid_smooth, dC_dt)
+    call calc_dCdt( mesh, ice, grid_smooth, bed_roughness, mask_calc_dCdt_from_nudging, &
+      mask_Hs_is_converging, mask_extrapolation, deltaHs_av_up, deltaHs_av_down, &
+      dHs_dt_av_up, dHs_dt_av_down, dC_dt)
 
     ! Calculate predicted bed roughness at t+dt
     bed_roughness%generic_bed_roughness_next = max( C%generic_bed_roughness_min, min( C%generic_bed_roughness_max, &
@@ -393,6 +363,61 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_flowline_averaged_deltaHs_dHsdt
+
+  subroutine calc_dCdt( mesh, ice, grid_smooth, bed_roughness, mask_calc_dCdt_from_nudging, &
+    mask_Hs_is_converging, mask_extrapolation, deltaHs_av_up, deltaHs_av_down, &
+    dHs_dt_av_up, dHs_dt_av_down, dC_dt)
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_model),                   intent(in   ) :: ice
+    type(type_grid),                        intent(in   ) :: grid_smooth
+    type(type_bed_roughness_model),         intent(inout) :: bed_roughness
+    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_calc_dCdt_from_nudging
+    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_Hs_is_converging
+    integer,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_extrapolation
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: deltaHs_av_up, deltaHs_av_down
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: dHs_dt_av_up, dHs_dt_av_down
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: dC_dt
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'calc_dCdt'
+    integer                                :: vi
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: I_tot, R
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    dC_dt = 0._dp
+
+    do vi = mesh%vi1, mesh%vi2
+
+      if (mask_calc_dCdt_from_nudging( vi) .and. .not. mask_Hs_is_converging( vi)) then
+
+        R( vi) = max( 0._dp, min( 1._dp, &
+          ((ice%uabs_vav( vi) * ice%Hi( vi)) / (C%bednudge_H_dHdt_flowline_u_scale * C%bednudge_H_dHdt_flowline_Hi_scale)) ))
+
+        I_tot( vi) = R( vi) * (&
+          (deltaHs_av_up( vi)                       ) / C%bednudge_H_dHdt_flowline_dH0 + &
+          (dHs_dt_av_up(  vi) + dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
+
+        dC_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
+
+      end if
+
+    end do
+
+    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    call extrapolate_Gaussian( mesh, mask_extrapolation, dC_dt, C%bednudge_H_dHdt_flowline_r_smooth)
+
+    call reduce_dCdt_on_steep_slopes( mesh, ice, dC_dt)
+
+    call smooth_dCdt( mesh, grid_smooth, dC_dt)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_dCdt
 
   subroutine reduce_dCdt_on_steep_slopes( mesh, ice, dC_dt)
 
