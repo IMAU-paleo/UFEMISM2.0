@@ -46,10 +46,6 @@ contains
     real(dp), dimension(mesh%nV)            :: dHs_dt_tot
     real(dp), dimension(mesh%nTri)          :: u_b_tot
     real(dp), dimension(mesh%nTri)          :: v_b_tot
-    logical,  dimension(mesh%nV)            :: mask_grounded_ice_tot
-    logical,  dimension(mesh%nV)            :: mask_gl_gr_tot
-    logical,  dimension(mesh%nV)            :: mask_margin_tot
-    real(dp), dimension(mesh%nV)            :: fraction_gr_tot
     integer                                 :: vi
     real(dp), dimension(2)                  :: p
     real(dp), dimension(mesh%nV, 2)         :: trace_up, trace_down
@@ -68,8 +64,6 @@ contains
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: dHs_dt_av_up, dHs_dt_av_down
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: I_tot, R
     real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt
-    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dHs_dx, dHs_dy, abs_grad_Hs
-    real(dp)                                :: fg_exp_mod
     real(dp)                                :: misfit
 
     ! Add routine to path
@@ -82,10 +76,6 @@ contains
     call gather_to_all( ice%dHs_dt           , dHs_dt_tot           )
     call gather_to_all( ice%u_vav_b          , u_b_tot              )
     call gather_to_all( ice%v_vav_b          , v_b_tot              )
-    call gather_to_all( ice%mask_grounded_ice, mask_grounded_ice_tot)
-    call gather_to_all( ice%mask_gl_gr       , mask_gl_gr_tot       )
-    call gather_to_all( ice%mask_margin      , mask_margin_tot      )
-    call gather_to_all( ice%fraction_gr      , fraction_gr_tot      )
 
     ! == Calculate bed roughness rates of changes
     ! ===========================================
@@ -279,38 +269,12 @@ contains
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
     call extrapolate_Gaussian( mesh, mask, dC_dt, C%bednudge_H_dHdt_flowline_r_smooth)
 
-    ! Regularise tricky extrapolated areas
-
-    ! Calculate surface slopes
-    call ddx_a_a_2D( mesh, ice%Hs, dHs_dx)
-    call ddy_a_a_2D( mesh, ice%Hs, dHs_dy)
-
-    ! Calculate absolute surface gradient
-    abs_grad_Hs = sqrt( dHs_dx**2 + dHs_dy**2)
-
-    ! Scale bed roughness rate of change for partially grounded, steep-sloped areas
-    do vi = mesh%vi1, mesh%vi2
-
-      ! Ice margin and grounding lines
-      if (ice%mask_grounded_ice( vi)) then
-
-        ! Strengthen the effect of grounded fractions for steep slopes
-        fg_exp_mod = min( 1.0_dp, max( 0._dp, max( 0._dp, abs_grad_Hs( vi) - 0.02_dp) / (0.06_dp - 0.02_dp) ))
-
-        ! Scale based on grounded fraction
-        dC_dt( vi) = dC_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
-
-      end if
-
-    end do
+    call reduce_dCdt_on_steep_slopes( mesh, ice, dC_dt)
 
     call smooth_dCdt( mesh, grid_smooth, dC_dt)
 
-    ! Final bed roughness field
-    ! =========================
-
     ! Calculate predicted bed roughness at t+dt
-    bed_roughness%generic_bed_roughness_next = MAX( C%generic_bed_roughness_min, MIN( C%generic_bed_roughness_max, &
+    bed_roughness%generic_bed_roughness_next = max( C%generic_bed_roughness_min, min( C%generic_bed_roughness_max, &
       bed_roughness%generic_bed_roughness_prev + C%bed_roughness_nudging_dt * dC_dt ))
 
     ! Finalise routine path
@@ -346,6 +310,50 @@ contains
 
   end subroutine initialise_bed_roughness_nudging_H_dHdt_flowline
 
+  subroutine reduce_dCdt_on_steep_slopes( mesh, ice, dC_dt)
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_ice_model),                   intent(in   ) :: ice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: dC_dt
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'reduce_dCdt_on_steep_slopes'
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: dHs_dx, dHs_dy, abs_grad_Hs
+    real(dp)                               :: fg_exp_mod
+    integer                                :: vi
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Calculate surface slopes
+    call ddx_a_a_2D( mesh, ice%Hs, dHs_dx)
+    call ddy_a_a_2D( mesh, ice%Hs, dHs_dy)
+
+    ! Calculate absolute surface gradient
+    abs_grad_Hs = sqrt( dHs_dx**2 + dHs_dy**2)
+
+    ! Scale bed roughness rate of change for partially grounded, steep-sloped areas
+    do vi = mesh%vi1, mesh%vi2
+
+      ! Ice margin and grounding lines
+      if (ice%mask_grounded_ice( vi)) then
+
+        ! Strengthen the effect of grounded fractions for steep slopes
+        fg_exp_mod = min( 1.0_dp, max( 0._dp, max( 0._dp, abs_grad_Hs( vi) - 0.02_dp) / (0.06_dp - 0.02_dp) ))
+
+        ! Scale based on grounded fraction
+        dC_dt( vi) = dC_dt( vi) * ice%fraction_gr( vi) ** (1._dp + fg_exp_mod)
+
+      end if
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine reduce_dCdt_on_steep_slopes
+
   subroutine smooth_dCdt( mesh, grid_smooth, dC_dt)
 
     ! In/output variables:
@@ -354,8 +362,8 @@ contains
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: dC_dt
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'smooth_dCdt'
-    real(dp), dimension(mesh%vi1:mesh%vi2)  :: dC_dt_smoothed
+    character(len=1024), parameter         :: routine_name = 'smooth_dCdt'
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: dC_dt_smoothed
 
     ! Add routine to path
     call init_routine( routine_name)
