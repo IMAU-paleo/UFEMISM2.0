@@ -259,13 +259,9 @@ contains
     real(dp), dimension(mesh%nV), intent(  out) :: deltaHs, dHs_dt
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_deltaHs_dHdt_along_flowline'
-    integer                        :: ti, k
-    real(dp), dimension(2)         :: p
-    real(dp)                       :: Hs_mod, Hs_target, dHs_dt_mod
-
-    ! Add routine to path
-    call init_routine( routine_name)
+    integer                :: ti, k
+    real(dp), dimension(2) :: p
+    real(dp)               :: Hs_mod, Hs_target, dHs_dt_mod
 
     deltaHs = 0._dp
     dHs_dt  = 0._dp
@@ -284,9 +280,6 @@ contains
 
     end do
 
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
   end subroutine calc_deltaHs_dHdt_along_flowline
 
   subroutine calc_flowline_average( s, n, d, d_av)
@@ -298,13 +291,17 @@ contains
     real(dp),               intent(  out) :: d_av
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_flowline_average'
-    real(dp)                       :: int_w_d, int_w
-    real(dp)                       :: s1, s2, ds, w1, w2, w_av, d1, d2, dd
-    integer                        :: k
+    real(dp) :: int_w_d, int_w
+    real(dp) :: s1, s2, ds, w1, w2, w_av, d1, d2, dd
+    integer  :: k
 
-    ! Add routine to path
-    call init_routine( routine_name)
+    ! Trivial cases
+    if (n == 0) then
+      call crash('calc_flowline_average - flowline has length zero')
+    elseif (n == 2) then
+      d_av = d(1)
+      return
+    end if
 
     int_w_d = 0._dp
     int_w   = 0._dp
@@ -333,9 +330,6 @@ contains
     end do
 
     d_av = int_w_d / int_w
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
 
   end subroutine calc_flowline_average
 
