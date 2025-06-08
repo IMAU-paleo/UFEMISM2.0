@@ -63,6 +63,7 @@ contains
     real(dp)                                :: Atri_abp, Atri_bcp, Atri_cap, Atri_tot
     real(dp)                                :: wa, wb, wc
     real(dp)                                :: Hs_mod, Hs_target, dHs_dt_mod
+    real(dp)                                :: Hs_mod2, Hs_target2, dHs_dt_mod2
     real(dp)                                :: s1, s2, w1, w2, deltaHs1, deltaHs2, dHs_dt1, dHs_dt2, w_av, deltaHs_av, dHs_dt_av, ds
     real(dp)                                :: int_w_deltaHs_up, int_w_dHs_dt_up, int_w_up
     real(dp)                                :: int_w_deltaHs_down, int_w_dHs_dt_down, int_w_down
@@ -198,9 +199,9 @@ contains
         pb = mesh%V( vib,:)
         pc = mesh%V( vic,:)
 
-        Atri_abp = triangle_area( pa, pb, p)
-        Atri_bcp = triangle_area( pb, pc, p)
-        Atri_cap = triangle_area( pc, pa, p)
+        Atri_abp = triangle_area( pa, pb, pt)
+        Atri_bcp = triangle_area( pb, pc, pt)
+        Atri_cap = triangle_area( pc, pa, pt)
 
         Atri_tot = Atri_abp + Atri_bcp + Atri_cap
 
@@ -239,9 +240,9 @@ contains
         pb = mesh%V( vib,:)
         pc = mesh%V( vic,:)
 
-        Atri_abp = triangle_area( pa, pb, p)
-        Atri_bcp = triangle_area( pb, pc, p)
-        Atri_cap = triangle_area( pc, pa, p)
+        Atri_abp = triangle_area( pa, pb, pt)
+        Atri_bcp = triangle_area( pb, pc, pt)
+        Atri_cap = triangle_area( pc, pa, pt)
 
         Atri_tot = Atri_abp + Atri_bcp + Atri_cap
 
