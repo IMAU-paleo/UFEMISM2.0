@@ -95,6 +95,7 @@ UFEMISM_source = \
   types/remapping_types.f90 \
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
+  types/bed_roughness_model_types.f90 \
   types/ice_model_types.f90 \
   types/climate_model_types.f90 \
   types/ocean_model_types.f90 \
@@ -104,7 +105,6 @@ UFEMISM_source = \
   types/LMB_model_types.f90 \
   types/AMB_model_types.f90 \
   types/GIA_model_types.f90 \
-  types/basal_inversion_types.f90 \
   types/tracer_tracking_model_types.f90 \
   types/transect_types.f90 \
   types/region_types.f90 \

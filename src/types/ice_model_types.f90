@@ -397,14 +397,8 @@ MODULE ice_model_types
   ! == Basal sliding ==
   ! ===================
 
-    ! Sliding law coefficients
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_friction_angle         ! [degrees]          Till friction angle
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: bed_roughness               ! [0-1]              Bed roughness fraction
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_yield_stress           ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_alpha_sq               ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: slid_beta_sq                ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
-
     ! Basal friction and shear stress
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: till_yield_stress           ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_friction_coefficient  ! [Pa yr m^-1]       Basal friction coefficient (basal_shear_stress = u_base * basal_friction_coefficient)
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: basal_shear_stress          ! [Pa]               Basal shear stress
 

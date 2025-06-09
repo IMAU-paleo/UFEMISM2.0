@@ -594,22 +594,19 @@ contains
 
       ! Sliding law coefficients
       case ('till_friction_angle')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%till_friction_angle, d_grid_vec_partial_2D)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%till_friction_angle, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_friction_angle', d_grid_vec_partial_2D)
-      case ('bed_roughness')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%bed_roughness, d_grid_vec_partial_2D)
-        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness', d_grid_vec_partial_2D)
+      case ('alpha_sq')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%alpha_sq, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'alpha_sq', d_grid_vec_partial_2D)
+      case ('beta_sq')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%beta_sq, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'beta_sq', d_grid_vec_partial_2D)
+
+      ! Basal friction and shear stress
       case ('till_yield_stress')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%till_yield_stress, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'till_yield_stress', d_grid_vec_partial_2D)
-      case ('slid_alpha_sq')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%slid_alpha_sq, d_grid_vec_partial_2D)
-        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'slid_alpha_sq', d_grid_vec_partial_2D)
-      case ('slid_beta_sq')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%slid_beta_sq, d_grid_vec_partial_2D)
-        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'slid_beta_sq', d_grid_vec_partial_2D)
-
-      ! Basal friction and shear stress
       case ('basal_friction_coefficient')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%basal_friction_coefficient, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'basal_friction_coefficient', d_grid_vec_partial_2D)

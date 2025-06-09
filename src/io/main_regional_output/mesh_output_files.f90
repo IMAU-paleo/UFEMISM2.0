@@ -485,17 +485,15 @@ contains
 
       ! Sliding law coefficients
       case ('till_friction_angle')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%ice%till_friction_angle)
-      case ('bed_roughness')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'bed_roughness', region%ice%bed_roughness)
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%bed_roughness%till_friction_angle)
+      case ('alpha_sq')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'alpha_sq', region%bed_roughness%alpha_sq)
+      case ('beta_sq')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'beta_sq', region%bed_roughness%beta_sq)
+
+        ! Basal friction and shear stress
       case ('till_yield_stress')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_yield_stress', region%ice%till_yield_stress)
-      case ('slid_alpha_sq')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'slid_alpha_sq', region%ice%slid_alpha_sq)
-      case ('slid_beta_sq')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'slid_beta_sq', region%ice%slid_beta_sq)
-
-      ! Basal friction and shear stress
       case ('basal_friction_coefficient')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'basal_friction_coefficient', region%ice%basal_friction_coefficient)
       case ('basal_shear_stress')

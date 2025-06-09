@@ -527,10 +527,8 @@ MODULE model_configuration
     REAL(dp)            :: bed_roughness_nudging_dt_config              = 5._dp                            ! [yr]      Time step for bed roughness updates
     REAL(dp)            :: bed_roughness_nudging_t_start_config         = -9.9E9_dp                        ! [yr]      Earliest model time when nudging is allowed
     REAL(dp)            :: bed_roughness_nudging_t_end_config           = +9.9E9_dp                        ! [yr]      Latest   model time when nudging is allowed
-    REAL(dp)            :: generic_bed_roughness_1_min_config           = 0.1_dp                           ! [?]       Smallest allowed value for the first  inverted bed roughness field
-    REAL(dp)            :: generic_bed_roughness_1_max_config           = 30._dp                           ! [?]       Largest  allowed value for the first  inverted bed roughness field
-    REAL(dp)            :: generic_bed_roughness_2_min_config           = 0.1_dp                           ! [?]       Smallest allowed value for the second inverted bed roughness field
-    REAL(dp)            :: generic_bed_roughness_2_max_config           = 30._dp                           ! [?]       Largest  allowed value for the second inverted bed roughness field
+    REAL(dp)            :: generic_bed_roughness_min_config             = 0.1_dp                           ! [?]       Smallest allowed value for the first  inverted bed roughness field
+    REAL(dp)            :: generic_bed_roughness_max_config             = 30._dp                           ! [?]       Largest  allowed value for the first  inverted bed roughness field
     CHARACTER(LEN=256)  :: filename_inverted_bed_roughness_config       = 'bed_roughness_inv.nc'           !           NetCDF file where the final inverted bed roughness fields will be saved
 
     ! Basal inversion model based on flowline-averaged values of H and dH/dt
@@ -1513,10 +1511,8 @@ MODULE model_configuration
     REAL(dp)            :: bed_roughness_nudging_dt
     REAL(dp)            :: bed_roughness_nudging_t_start
     REAL(dp)            :: bed_roughness_nudging_t_end
-    REAL(dp)            :: generic_bed_roughness_1_min
-    REAL(dp)            :: generic_bed_roughness_1_max
-    REAL(dp)            :: generic_bed_roughness_2_min
-    REAL(dp)            :: generic_bed_roughness_2_max
+    REAL(dp)            :: generic_bed_roughness_min
+    REAL(dp)            :: generic_bed_roughness_max
     CHARACTER(LEN=256)  :: filename_inverted_bed_roughness
 
     ! Basal inversion model based on flowline-averaged values of H and dH/dt
@@ -2542,10 +2538,8 @@ CONTAINS
       bed_roughness_nudging_dt_config                             , &
       bed_roughness_nudging_t_start_config                        , &
       bed_roughness_nudging_t_end_config                          , &
-      generic_bed_roughness_1_min_config                          , &
-      generic_bed_roughness_1_max_config                          , &
-      generic_bed_roughness_2_min_config                          , &
-      generic_bed_roughness_2_max_config                          , &
+      generic_bed_roughness_min_config                            , &
+      generic_bed_roughness_max_config                            , &
       filename_inverted_bed_roughness_config                      , &
       bednudge_H_dHdt_flowline_t_scale_config                     , &
       bednudge_H_dHdt_flowline_dH0_config                         , &
@@ -3384,10 +3378,8 @@ CONTAINS
     C%bed_roughness_nudging_dt                               = bed_roughness_nudging_dt_config
     C%bed_roughness_nudging_t_start                          = bed_roughness_nudging_t_start_config
     C%bed_roughness_nudging_t_end                            = bed_roughness_nudging_t_end_config
-    C%generic_bed_roughness_1_min                            = generic_bed_roughness_1_min_config
-    C%generic_bed_roughness_1_max                            = generic_bed_roughness_1_max_config
-    C%generic_bed_roughness_2_min                            = generic_bed_roughness_2_min_config
-    C%generic_bed_roughness_2_max                            = generic_bed_roughness_2_max_config
+    C%generic_bed_roughness_min                              = generic_bed_roughness_min_config
+    C%generic_bed_roughness_max                              = generic_bed_roughness_max_config
     C%filename_inverted_bed_roughness                        = filename_inverted_bed_roughness_config
 
     ! Basal inversion model based on flowline-averaged values of H and dH/dt

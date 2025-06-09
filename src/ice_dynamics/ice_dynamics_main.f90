@@ -37,13 +37,14 @@ module ice_dynamics_main
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   use bedrock_cumulative_density_functions, only: calc_bedrock_CDFs, initialise_bedrock_CDFs
   use geothermal_heat_flux, only: initialise_geothermal_heat_flux
-  use bed_roughness_main, only: initialise_bed_roughness
+  use bed_roughness_main, only: initialise_bed_roughness_model, remap_bed_roughness_model
   use predictor_corrector_scheme, only: remap_pc_scheme, create_restart_file_pc_scheme, &
     write_to_restart_file_pc_scheme, initialise_pc_scheme, run_ice_dynamics_model_pc
   use direct_scheme, only: run_ice_dynamics_model_direct
   use ice_model_memory, only: allocate_ice_model
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D
   use ice_shelf_base_slopes_onesided, only: calc_ice_shelf_base_slopes_onesided
+  use bed_roughness_model_types, only: type_bed_roughness_model
 
   implicit none
 
@@ -350,7 +351,6 @@ contains
 
     ! allocate and initialise basal conditions
     call initialise_geothermal_heat_flux(  mesh, ice)
-    call initialise_bed_roughness(         mesh, ice, region_name)
 
     ! Velocities
     ! ==========
@@ -443,21 +443,22 @@ contains
 
   end subroutine create_restart_files_ice_model
 
-  subroutine remap_ice_dynamics_model( mesh_old, mesh_new, ice, refgeo_PD, SMB, BMB, LMB, AMB, GIA, time, region_name)
+  subroutine remap_ice_dynamics_model( mesh_old, mesh_new, ice, bed_roughness, refgeo_PD, SMB, BMB, LMB, AMB, GIA, time, region_name)
     !< Remap/reallocate all the data of the ice dynamics model
 
     ! In/output variables:
-    type(type_mesh),               intent(in   ) :: mesh_old
-    type(type_mesh),               intent(inout) :: mesh_new
-    type(type_ice_model),          intent(inout) :: ice
-    type(type_reference_geometry), intent(in   ) :: refgeo_PD
-    type(type_SMB_model),          intent(in   ) :: SMB
-    type(type_BMB_model),          intent(in   ) :: BMB
-    type(type_LMB_model),          intent(in   ) :: LMB
-    type(type_AMB_model),          intent(in   ) :: AMB
-    type(type_GIA_model),          intent(in   ) :: GIA
-    real(dp),                      intent(in   ) :: time
-    character(len=3),              intent(in   ) :: region_name
+    type(type_mesh),                intent(in   ) :: mesh_old
+    type(type_mesh),                intent(inout) :: mesh_new
+    type(type_ice_model),           intent(inout) :: ice
+    type(type_bed_roughness_model), intent(inout) :: bed_roughness
+    type(type_reference_geometry),  intent(in   ) :: refgeo_PD
+    type(type_SMB_model),           intent(in   ) :: SMB
+    type(type_BMB_model),           intent(in   ) :: BMB
+    type(type_LMB_model),           intent(in   ) :: LMB
+    type(type_AMB_model),           intent(in   ) :: AMB
+    type(type_GIA_model),           intent(in   ) :: GIA
+    real(dp),                       intent(in   ) :: time
+    character(len=3),               intent(in   ) :: region_name
 
     ! Local variables:
     character(len=1024), parameter                 :: routine_name = 'remap_ice_dynamics_model'
@@ -691,14 +692,8 @@ contains
     ! == Basal sliding ==
     ! ===================
 
-    ! Sliding law coefficients
-    call reallocate_bounds( ice%till_friction_angle, mesh_new%vi1, mesh_new%vi2)  ! [degrees]          Till friction angle (degrees)
-    call reallocate_bounds( ice%bed_roughness      , mesh_new%vi1, mesh_new%vi2)  ! [0-1]              Bed roughness fraction
-    call reallocate_bounds( ice%till_yield_stress  , mesh_new%vi1, mesh_new%vi2)  ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
-    call reallocate_bounds( ice%slid_alpha_sq      , mesh_new%vi1, mesh_new%vi2)  ! [-]                Coulomb-law friction coefficient (used when choice_sliding_law = "Tsai2015", or "Schoof2005")
-    call reallocate_bounds( ice%slid_beta_sq       , mesh_new%vi1, mesh_new%vi2)  ! [Pa m^−1/m yr^1/m] Power-law friction coefficient (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
-
     ! Basal friction and shear stress
+    call reallocate_bounds( ice%till_yield_stress         , mesh_new%vi1, mesh_new%vi2)  ! [Pa]               Till yield stress (used when choice_sliding_law = "Coloumb", "Budd", or "Zoet-Iverson")
     call reallocate_bounds( ice%basal_friction_coefficient, mesh_new%vi1, mesh_new%vi2)  ! [Pa yr m^-1]       Effective basal friction coefficient (basal_shear_stress = u_base * basal_friction_coefficient)
     call reallocate_bounds( ice%basal_shear_stress        , mesh_new%vi1, mesh_new%vi2)  ! [Pa]               Basal shear stress
 
@@ -820,8 +815,11 @@ contains
     ! allocate and initialise basal conditions
     call initialise_geothermal_heat_flux(  mesh_new, ice)
 
-    ! FIXME: something should happen here once we start working on remapping of inverted bed roughness!
-    call initialise_bed_roughness(         mesh_new, ice, region_name)
+    ! FIXME: finish writing remap_bed_roughness_model, then
+    !        move 'relax_calving_front' and 'remap_bed_roughness_model'
+    !        to (to-be-created) 'remap_region'
+
+    call remap_bed_roughness_model( mesh_old, mesh_new, ice, bed_roughness, region_name)
 
     ! Velocities
     ! ==========
@@ -844,7 +842,7 @@ contains
     ! Relax ice geometry around the calving front
     ! ===========================================
 
-    call relax_calving_front( mesh_old, mesh_new, ice, SMB, BMB, LMB, AMB, region_name)
+    call relax_calving_front( mesh_old, mesh_new, ice, bed_roughness, SMB, BMB, LMB, AMB, region_name)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -1032,7 +1030,7 @@ contains
 
   end subroutine remap_basic_ice_geometry
 
-  subroutine relax_calving_front( mesh_old, mesh, ice, SMB, BMB, LMB, AMB, region_name)
+  subroutine relax_calving_front( mesh_old, mesh, ice, bed_roughness, SMB, BMB, LMB, AMB, region_name)
     !< Relax ice thickness around the calving front
 
     ! This routine "steps out of time" for a bit (default dt_relax = 2 yr), where it
@@ -1045,14 +1043,15 @@ contains
     ! velocity solution, to relax a little.
 
     ! In/output variables:
-    type(type_mesh),      intent(in   ) :: mesh_old
-    type(type_mesh),      intent(inout) :: mesh
-    type(type_ice_model), intent(inout) :: ice
-    type(type_SMB_model), intent(in   ) :: SMB
-    type(type_BMB_model), intent(in   ) :: BMB
-    type(type_LMB_model), intent(in   ) :: LMB
-    type(type_AMB_model), intent(in   ) :: AMB
-    character(len=3),     intent(in   ) :: region_name
+    type(type_mesh),                intent(in   ) :: mesh_old
+    type(type_mesh),                intent(inout) :: mesh
+    type(type_ice_model),           intent(inout) :: ice
+    type(type_bed_roughness_model), intent(in   ) :: bed_roughness
+    type(type_SMB_model),           intent(in   ) :: SMB
+    type(type_BMB_model),           intent(in   ) :: BMB
+    type(type_LMB_model),           intent(in   ) :: LMB
+    type(type_AMB_model),           intent(in   ) :: AMB
+    character(len=3),               intent(in   ) :: region_name
 
     ! Local variables:
     character(len=1024), parameter                 :: routine_name = 'relax_calving_front'
@@ -1255,7 +1254,7 @@ contains
     pseudo_time: do while (t_pseudo < dt_relax)
 
       ! Update velocity solution around the calving front
-      call solve_stress_balance( mesh, ice, BMB_new, region_name, &
+      call solve_stress_balance( mesh, ice, bed_roughness, BMB_new, region_name, &
         n_visc_its, n_Axb_its, &
         BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
 
@@ -1366,8 +1365,8 @@ contains
       region%ice%effective_pressure = MAX( 0._dp, ice_density * grav * region%ice%Hi_eff) * region%ice%fraction_gr
 
       ! Calculate ice velocities for the predicted geometry
-      call solve_stress_balance( region%mesh, region%ice, BMB_dummy, region%name, &
-        n_visc_its, n_Axb_its)
+      call solve_stress_balance( region%mesh, region%ice, region%bed_roughness, &
+        BMB_dummy, region%name, n_visc_its, n_Axb_its)
 
       ! Calculate thinning rates for current geometry and velocity
       call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &

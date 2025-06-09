@@ -20,7 +20,7 @@ MODULE UFEMISM_main_model
   use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
   use basal_hydrology_main, only: run_basal_hydrology_model
-  use bed_roughness_main, only: run_bed_roughness_model
+  use bed_roughness_main, only: initialise_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
@@ -35,7 +35,7 @@ MODULE UFEMISM_main_model
   USE AMB_main                                               , ONLY: initialise_AMB_model, remap_AMB_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
-  use bed_roughness_nudging_main, only: initialise_basal_inversion, run_basal_inversion
+  use bed_roughness_nudging_main, only: initialise_bed_roughness_nudging_model, run_bed_roughness_nudging_model
   use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
@@ -108,9 +108,6 @@ CONTAINS
       ! Run the subglacial hydrology model
       CALL run_basal_hydrology_model( region%mesh, region%ice)
 
-      ! Run the bed roughness model
-      CALL run_bed_roughness_model( region%mesh, region%ice, region%refgeo_PD, region%time)
-
       ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
       ! velocities, thinning rates, and predicted geometry if necessary
       CALL run_ice_dynamics_model( region)
@@ -139,9 +136,7 @@ CONTAINS
       CALL run_GIA_model( region)
 
       ! Run the basal inversion model
-      IF (C%do_bed_roughness_nudging) THEN
-        CALL run_basal_inversion( region)
-      END IF
+      CALL run_bed_roughness_nudging_model( region)
 
       ! Run the tracer-tracking model
       call run_tracer_tracking_model( region%mesh, region%ice, region%SMB, &
@@ -360,7 +355,7 @@ CONTAINS
 
     ! Basal inversion
     IF (C%do_bed_roughness_nudging) THEN
-      time_of_next_action = MIN( time_of_next_action, region%BIV%t_next)
+      time_of_next_action = MIN( time_of_next_action, region%bed_roughness%t_next)
     END IF
 
     ! Target dHi_dt: make sure we don't overshoot its turnoff time
@@ -477,6 +472,8 @@ CONTAINS
 
     CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name)
 
+    call initialise_bed_roughness_model( region%mesh, region%ice, region%bed_roughness, region%name)
+
     ! ===== Climate =====
     ! ===================
 
@@ -546,7 +543,7 @@ CONTAINS
     ! ===========================
 
     IF (C%do_bed_roughness_nudging) THEN
-      CALL initialise_basal_inversion( region%mesh, region%ice, region%BIV, region%name)
+      CALL initialise_bed_roughness_nudging_model( region%mesh, region%ice, region%bed_roughness, region%name)
     END IF
 
     ! ===== Corrections =====
@@ -1188,7 +1185,7 @@ CONTAINS
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Remap all the model data from the old mesh to the new mesh
-    CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
+    CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%bed_roughness, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
     CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name)
     CALL remap_ocean_model(           region%mesh, mesh_new,             region%ocean  , region%name)
     CALL remap_SMB_model(             region%mesh, mesh_new,             region%SMB    , region%name)
