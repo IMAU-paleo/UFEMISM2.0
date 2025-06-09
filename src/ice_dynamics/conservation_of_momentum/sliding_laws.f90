@@ -589,6 +589,7 @@ contains
 
     ! Check if this is actually wanted
     if (.not. C%do_subgrid_friction_on_A_grid) then
+      bed_roughness_applied = bed_roughness
       call finalise_routine( routine_name)
       return
     end if
