@@ -819,7 +819,7 @@ contains
     !        move 'relax_calving_front' and 'remap_bed_roughness_model'
     !        to (to-be-created) 'remap_region'
 
-    call remap_bed_roughness_model( mesh_old, mesh_new, ice, bed_roughness)
+    call remap_bed_roughness_model( mesh_old, mesh_new, ice, bed_roughness, region_name)
 
     ! Velocities
     ! ==========
