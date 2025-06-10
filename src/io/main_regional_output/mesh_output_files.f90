@@ -249,8 +249,6 @@ contains
 
       case ('dHi_dt_target')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_target', region%ice%dHi_dt_target)
-      case ('uabs_surf_target')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'uabs_surf_target', region%ice%uabs_surf_target)
 
     ! ===== Masks =====
     ! =================
