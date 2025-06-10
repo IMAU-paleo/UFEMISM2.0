@@ -65,7 +65,7 @@ subroutine run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
 
         ! Determine ablation as a function of surface temperature and albedo/insolation according to Bintanja et al. (2002)
         SMB%IMAUITM%Melt( vi,m) = MAX(0._dp, ( SMB%IMAUITM%C_abl_Ts         * (climate%T2m( vi,m) - T0) + &
-                                       SMB%IMAUITM%C_abl_Q          * (1.0_dp - SMB%IMAUITM%Albedo( vi,m)) * climate%Q_TOA( vi,m) - &
+                                       SMB%IMAUITM%C_abl_Q          * (1.0_dp - SMB%IMAUITM%Albedo( vi,m)) * climate%snapshot%Q_TOA( vi,m) - &
                                        SMB%IMAUITM%C_abl_constant)  * sec_per_year / (L_fusion * 1000._dp * 12._dp))
 
         ! Determine accumulation with snow/rain fraction from Ohmura et al. (1999), liquid water content (rain and melt water) and snow depth

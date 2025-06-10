@@ -623,7 +623,7 @@ contains
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%climate%Precip, d_grid_vec_partial_2D_monthly)
         call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Precip', d_grid_vec_partial_2D_monthly)
       CASE ('Q_TOA')
-        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%climate%Q_TOA, d_grid_vec_partial_2D_monthly)
+        call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%climate%snapshot%Q_TOA, d_grid_vec_partial_2D_monthly)
         call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Q_TOA', d_grid_vec_partial_2D_monthly)
 
     ! == Ocean ==

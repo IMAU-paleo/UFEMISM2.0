@@ -52,7 +52,7 @@ CONTAINS
     CALL apply_lapse_rate_geometry_corrections( mesh, ice, climate)
 
     ! if needed for IMAU-ITM or climate matrix, we need to update insolation
-    IF (climate%has_insolation) THEN
+    IF (climate%snapshot%has_insolation) THEN
       CALL get_insolation_at_time( mesh, time, climate)
     
       IF (C%choice_climate_model_realistic == 'climate_matrix') THEN
@@ -97,48 +97,48 @@ CONTAINS
       colour_string( TRIM( C%choice_climate_model_realistic),'light blue') // '"...'
 
     ! Run the chosen realistic climate model
-    climate%has_insolation = .FALSE. 
+    climate%snapshot%has_insolation = .FALSE. 
     IF (C%choice_climate_model_realistic == 'snapshot') THEN
       ! Read single-time data from external file
 
       ! Determine which climate model to initialise for this region
       IF     (region_name == 'NAM') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_NAM
-        climate%do_lapse_rates    = C%do_lapse_rate_corrections_NAM
-        climate%lapse_rate_precip = C%lapse_rate_precip_NAM
-        climate%lapse_rate_temp   = C%lapse_rate_temp_NAM
+        climate%snapshot%do_lapse_rates    = C%do_lapse_rate_corrections_NAM
+        climate%snapshot%lapse_rate_precip = C%lapse_rate_precip_NAM
+        climate%snapshot%lapse_rate_temp   = C%lapse_rate_temp_NAM
         IF (C%choice_SMB_model_NAM == 'IMAU-ITM') THEN
-           climate%has_insolation = .TRUE. 
+           climate%snapshot%has_insolation = .TRUE. 
         END IF
       ELSEIF (region_name == 'EAS') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_EAS
-        climate%do_lapse_rates    = C%do_lapse_rate_corrections_EAS
-        climate%lapse_rate_precip = C%lapse_rate_precip_EAS
-        climate%lapse_rate_temp   = C%lapse_rate_temp_EAS
+        climate%snapshot%do_lapse_rates    = C%do_lapse_rate_corrections_EAS
+        climate%snapshot%lapse_rate_precip = C%lapse_rate_precip_EAS
+        climate%snapshot%lapse_rate_temp   = C%lapse_rate_temp_EAS
         IF (C%choice_SMB_model_EAS == 'IMAU-ITM') THEN
-           climate%has_insolation = .TRUE. 
+           climate%snapshot%has_insolation = .TRUE. 
         END IF
       ELSEIF (region_name == 'GRL') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_GRL
-        climate%do_lapse_rates    = C%do_lapse_rate_corrections_GRL
-        climate%lapse_rate_precip = C%lapse_rate_precip_GRL
-        climate%lapse_rate_temp   = C%lapse_rate_temp_GRL
+        climate%snapshot%do_lapse_rates    = C%do_lapse_rate_corrections_GRL
+        climate%snapshot%lapse_rate_precip = C%lapse_rate_precip_GRL
+        climate%snapshot%lapse_rate_temp   = C%lapse_rate_temp_GRL
         IF (C%choice_SMB_model_GRL == 'IMAU-ITM') THEN
-           climate%has_insolation = .TRUE. 
+           climate%snapshot%has_insolation = .TRUE. 
         END IF
       ELSEIF (region_name == 'ANT') THEN
         filename_climate_snapshot = C%filename_climate_snapshot_ANT
-        climate%do_lapse_rates    = C%do_lapse_rate_corrections_ANT
-        climate%lapse_rate_precip = C%lapse_rate_precip_ANT
-        climate%lapse_rate_temp   = C%lapse_rate_temp_ANT
+        climate%snapshot%do_lapse_rates    = C%do_lapse_rate_corrections_ANT
+        climate%snapshot%lapse_rate_precip = C%lapse_rate_precip_ANT
+        climate%snapshot%lapse_rate_temp   = C%lapse_rate_temp_ANT
         IF (C%choice_SMB_model_ANT == 'IMAU-ITM') THEN
-           climate%has_insolation = .TRUE. 
+           climate%snapshot%has_insolation = .TRUE. 
         END IF
       ELSE
         CALL crash('unknown region_name "' // region_name // '"')
       END IF
 
-      CALL read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh, climate%Hs)
+      CALL read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh, climate%snapshot%Hs)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh, climate%T2m)
       CALL read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh, climate%Precip)
       
@@ -146,7 +146,7 @@ CONTAINS
       call apply_lapse_rate_geometry_corrections( mesh, ice, climate)
 
       ! Initialises the insolation (if needed)
-      IF (climate%has_insolation) THEN  
+      IF (climate%snapshot%has_insolation) THEN  
         IF (C%choice_insolation_forcing == 'none') THEN
           CALL crash('Chosen climate or SMB model cannot be used with choice_insolation_forcing = "none"!')
         ELSE
@@ -188,7 +188,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF     ((C%choice_climate_model_realistic == 'snapshot') .AND. (climate%do_lapse_rates .eqv. .TRUE.)) THEN
+    IF     ((C%choice_climate_model_realistic == 'snapshot') .AND. (climate%snapshot%do_lapse_rates .eqv. .TRUE.)) THEN
 
       allocate( T_inv     (mesh%vi1:mesh%vi2, 12))
       allocate( T_inv_ref (mesh%vi1:mesh%vi2, 12))
@@ -198,7 +198,7 @@ CONTAINS
 
         ! we only apply corrections where it is not open ocean
         if (ice%mask_icefree_ocean( vi) .eqv. .FALSE.) then
-          deltaT  = (ice%Hs( vi) - climate%Hs( vi)) * (-1._dp * abs(climate%lapse_rate_temp))
+          deltaT  = (ice%Hs( vi) - climate%snapshot%Hs( vi)) * (-1._dp * abs(climate%snapshot%lapse_rate_temp))
           do m = 1, 12
             ! Do corrections - based on Eq. 11 of Albrecht et al. (2020; TC) for PISM
             climate%T2m( vi, m)    = climate%T2m( vi, m)    + deltaT
@@ -206,7 +206,7 @@ CONTAINS
 
             ! Calculate inversion-layer temperatures
             T_inv_ref( vi, m) = 88.9_dp + 0.67_dp *  climate%T2m( vi, m)
-            T_inv(     vi, m) = 88.9_dp + 0.67_dp * (climate%T2m( vi, m) - climate%lapse_rate_temp * (ice%Hs( vi) - climate%Hs( vi)))
+            T_inv(     vi, m) = 88.9_dp + 0.67_dp * (climate%T2m( vi, m) - climate%snapshot%lapse_rate_temp * (ice%Hs( vi) - climate%snapshot%Hs( vi)))
             ! Correct precipitation based on a simple Clausius-Clapeyron method (Jouzel & Merlivat, 1984; Huybrechts, 2002)
             ! Same as implemented in IMAU-ICE
             climate%Precip( vi, m) = climate%Precip( vi, m) * (T_inv_ref( vi, m) / T_inv( vi, m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi, m) - T0 / T_inv( vi, m)))
@@ -257,47 +257,47 @@ CONTAINS
       IF (par%primary)   WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
 
       ! Memory allocation
-      ALLOCATE(climate%ins_t0)
-      ALLOCATE(climate%ins_t1)
-      ALLOCATE(climate%ins_ti0)
-      ALLOCATE(climate%ins_ti1)
-      ALLOCATE(climate%ins_nlat)
-      ALLOCATE(climate%ins_nlon)
-      ALLOCATE(climate%ins_lat            (   climate%ins_nlat))
-      ALLOCATE(climate%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%lambda             (mesh%vi1:mesh%vi2))
-      ALLOCATE(climate%Q_TOA              (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%Albedo             (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%I_abs              (mesh%vi1:mesh%vi2))
-      climate%ins_t0     = C%start_time_of_run
-      climate%ins_t1     = C%start_time_of_run
-      climate%ins_nlat   = 181
-      climate%ins_nlon   = 360
-      climate%ins_lat    = 0._dp
-      climate%ins_Q_TOA0 = 0._dp
-      climate%ins_Q_TOA1 = 0._dp
+      ALLOCATE(climate%snapshot%ins_t0)
+      ALLOCATE(climate%snapshot%ins_t1)
+      ALLOCATE(climate%snapshot%ins_ti0)
+      ALLOCATE(climate%snapshot%ins_ti1)
+      ALLOCATE(climate%snapshot%ins_nlat)
+      ALLOCATE(climate%snapshot%ins_nlon)
+      ALLOCATE(climate%snapshot%ins_lat            (   climate%snapshot%ins_nlat))
+      ALLOCATE(climate%snapshot%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(climate%snapshot%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(climate%snapshot%lambda             (mesh%vi1:mesh%vi2))
+      ALLOCATE(climate%snapshot%Q_TOA              (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(climate%snapshot%Albedo             (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(climate%snapshot%I_abs              (mesh%vi1:mesh%vi2))
+      climate%snapshot%ins_t0     = C%start_time_of_run
+      climate%snapshot%ins_t1     = C%start_time_of_run
+      climate%snapshot%ins_nlat   = 181
+      climate%snapshot%ins_nlon   = 360
+      climate%snapshot%ins_lat    = 0._dp
+      climate%snapshot%ins_Q_TOA0 = 0._dp
+      climate%snapshot%ins_Q_TOA1 = 0._dp
       
       ! Read the fields at ins_t0
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%ins_Q_TOA0, time_to_read = climate%ins_t0)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
       
       ! if the start time is after the closest t0, we read one record after for t1
-      call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = climate%ins_t0)
+      call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = climate%snapshot%ins_t0)
 
       if (C%start_time_of_run >= closest_t0) then
         !if (par%primary) WRITE(0,*) '     start time is after closest ins_t0, reading one step further...'
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
       else
         ! otherwise we read one record before for t1
         !if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier...'
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
       end if
 
-      if (climate%ins_t1 == closest_t0) then
+      if (climate%snapshot%ins_t1 == closest_t0) then
         !if (par%primary) WRITE(0,*) '     Closest insolation time frames are the same, insolation will be constant from now on...'
-        climate%ins_Q_TOA1 = climate%ins_Q_TOA0
+        climate%snapshot%ins_Q_TOA1 = climate%snapshot%ins_Q_TOA0
       else
-        call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%ins_Q_TOA1, time_to_read = climate%ins_t1)
+        call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
       end if
 
     ELSE
@@ -343,22 +343,22 @@ CONTAINS
 
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time_applied < climate%ins_t0 .OR. time_applied > climate%ins_t1) THEN
+    IF (time_applied < climate%snapshot%ins_t0 .OR. time_applied > climate%snapshot%ins_t1) THEN
       IF (par%primary)  WRITE(0,*) '   Model time is out of the current insolation timeframes. Updating timeframes...'
       CALL update_insolation_timeframes_from_file( climate, time_applied, mesh)
     END IF
 
     ! Calculate timeframe interpolation weights (plus safety checks for when the extend beyond the record)
-    if (climate%ins_t1 == climate%ins_t0) then
+    if (climate%snapshot%ins_t1 == climate%snapshot%ins_t0) then
       wt0 = 0._dp
       wt1 = 1._dp
     else
-      if (time_applied > climate%ins_t1) then
+      if (time_applied > climate%snapshot%ins_t1) then
         wt0 = 0._dp
-      elseif (time_applied < climate%ins_t0) then
+      elseif (time_applied < climate%snapshot%ins_t0) then
         wt0 = 1._dp
       else
-        wt0 = (climate%ins_t1 - time_applied) / (climate%ins_t1 - climate%ins_t0)
+        wt0 = (climate%snapshot%ins_t1 - time_applied) / (climate%snapshot%ins_t1 - climate%snapshot%ins_t0)
       end if
       wt1 = 1._dp - wt0
     end if
@@ -366,7 +366,7 @@ CONTAINS
     ! Interpolate the two timeframes
     do vi = mesh%vi1, mesh%vi2
       do m = 1, 12
-        climate%Q_TOA(vi, m) = wt0 * climate%ins_Q_TOA0(vi, m) + wt1 * climate%ins_Q_TOA1(vi, m)
+        climate%snapshot%Q_TOA(vi, m) = wt0 * climate%snapshot%ins_Q_TOA0(vi, m) + wt1 * climate%snapshot%ins_Q_TOA1(vi, m)
       end do
     end do
 
@@ -404,20 +404,20 @@ CONTAINS
       ! Find time indices to be read
       !IF (par%primary) THEN
 
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%ins_t0, time_to_read = time)
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t0, time_to_read = time)
         
         ! if the desired time is after t0, we read one record after for t1
-        if (time >= climate%ins_t0) then
-          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%ins_t1, time_to_read = time+1000._dp)
+        if (time >= climate%snapshot%ins_t0) then
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = time+1000._dp)
         else
         ! otherwise we read one record before for t0, and that record becomes t1
-          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%ins_t1, time_to_read = time)
-          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%ins_t0, time_to_read = time-1000._dp)
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = time)
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t0, time_to_read = time-1000._dp)
         end if
 
       !END IF ! IF (par%primary) THEN
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%ins_Q_TOA0, time_to_read = climate%ins_t0)
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%ins_Q_TOA1, time_to_read = climate%ins_t1)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')

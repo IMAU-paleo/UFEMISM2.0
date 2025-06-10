@@ -134,10 +134,10 @@ CONTAINS
     END IF
 
     ! Allocate memory for main variables
-    ALLOCATE( climate%Hs(    mesh%vi1:mesh%vi2))
+    ALLOCATE( climate%snapshot%Hs(    mesh%vi1:mesh%vi2))
     ALLOCATE( climate%T2m(    mesh%vi1:mesh%vi2,12))
     ALLOCATE( climate%Precip( mesh%vi1:mesh%vi2,12))
-    climate%Hs     = 0._dp
+    climate%snapshot%Hs     = 0._dp
     climate%T2m    = 0._dp
     climate%Precip = 0._dp
 
@@ -400,8 +400,8 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to remap anything here
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL reallocate_bounds( climate%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
-      CALL reallocate_bounds( climate%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+      CALL reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+      CALL reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

@@ -514,7 +514,7 @@ contains
       case ('Precip')
         call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Precip', region%climate%Precip)
       case ('Q_TOA')
-        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%Q_TOA)  
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%snapshot%Q_TOA)  
 
     ! == Ocean ==
     ! ===========
