@@ -180,7 +180,7 @@ contains
 
   end subroutine run_ice_dynamics_model
 
-  subroutine initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name, forcing)
+  subroutine initialise_ice_dynamics_model( mesh, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, GIA, region_name, forcing, start_time_of_run)
     !< Initialise all data fields of the ice module
 
     ! In- and output variables
@@ -192,6 +192,7 @@ contains
     type(type_GIA_model),          intent(in   ) :: GIA
     type(type_global_forcing),     intent(in   ) :: forcing
     character(len=3),              intent(in   ) :: region_name
+    real(dp),                      intent(in   ) :: start_time_of_run
 
     ! Local variables:
     character(len=1024), parameter         :: routine_name = 'initialise_ice_dynamics_model'
@@ -226,7 +227,7 @@ contains
 
     case ('prescribed')
       ! Sea-level from an external record, stored in the global_forcings type
-      ice%SL = forcing%sl_at_time
+      call update_sealevel_in_model(forcing, mesh, ice, start_time_of_run)
 
     case ('eustatic')
       ! Eustatic sea level

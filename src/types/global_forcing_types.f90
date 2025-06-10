@@ -31,7 +31,7 @@ TYPE type_global_forcing
       ! Global mean sea level
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: sea_level_time
       REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: sea_level_record 
-      REAL(dp),                   ALLOCATABLE     :: sl_t0, sl_t1, sl_at_t0, sl_at_t1, sl_at_time
+      REAL(dp),                   ALLOCATABLE     :: sl_t0, sl_t1, sl_at_t0, sl_at_t1
       
 
   END TYPE type_global_forcing

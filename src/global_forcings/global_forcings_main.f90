@@ -78,7 +78,6 @@ CONTAINS
   CALL init_routine( routine_name)
 
   IF (C%choice_sealevel_model == 'prescribed') THEN
-    IF (par%primary) WRITE(0,*) 'Updating sea level in update_global_forcings...'
     CALL update_sealevel_at_model_time(forcing, time)
   END IF
 
@@ -90,8 +89,6 @@ CONTAINS
   
   SUBROUTINE initialise_sealevel_record( forcing, time)
     ! Read the NetCDF file containing the prescribed sea-level curve data.
-
-    ! NOTE: assumes time in forcing file is in kyr
 
     IMPLICIT NONE
 
@@ -109,13 +106,11 @@ CONTAINS
     allocate(forcing%sl_t1)
     allocate(forcing%sl_at_t0)
     allocate(forcing%sl_at_t1)
-    allocate(forcing%sl_at_time)
 
     select case (C%choice_sealevel_model)
       case ('prescribed')
         call read_field_from_series_file( C%filename_prescribed_sealevel, field_name_options_sealevel, forcing%sea_level_record, forcing%sea_level_time)
         call update_sealevel_timeframes_from_curve( forcing, time)
-        CALL interpolate_sea_level(forcing, time, forcing%sl_at_time)
       case default
         call crash('Unknown choice of sea level!')
     end select
@@ -146,7 +141,6 @@ CONTAINS
       !IF (par%primary)  WRITE(0,*) '   Model time is out of the current sea level timeframes. Updating timeframes...'
       CALL update_sealevel_timeframes_from_curve( forcing, time)
     END IF
-    CALL interpolate_sea_level(forcing, time, forcing%sl_at_time) ! TODO: do we need this here?
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -252,10 +246,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate timeframe interpolation weights (plus safety checks for when the extend beyond the record)
-    CALL interpolate_sea_level(forcing, time, computed_sea_level) ! We might be calling this twice with no need, but might be worth keeping it like that to facilitate future impoementations
+    CALL interpolate_sea_level_from_forcing_record(forcing, time, computed_sea_level) ! We might be calling this twice with no need, but might be worth keeping it like that to facilitate future impoementations
 
     do vi = mesh%vi1, mesh%vi2
-      ice%SL( vi) = forcing%sl_at_time
+      ice%SL( vi) = computed_sea_level
     end do
     
     ! Finalise routine path
@@ -263,7 +257,7 @@ CONTAINS
 
   END SUBROUTINE update_sealevel_in_model
 
-  SUBROUTINE interpolate_sea_level(forcing, time, computed_sea_level)
+  SUBROUTINE interpolate_sea_level_from_forcing_record(forcing, time, computed_sea_level)
   ! Interpolate between time frames
 
     IMPLICIT NONE
@@ -273,7 +267,7 @@ CONTAINS
     REAL(dp),                          INTENT(IN   )   :: time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'interpolate_sea_level'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'interpolate_sea_level_from_forcing_record'
     REAL(dp)                                           :: wt0,wt1
 
     ! Add routine to path
@@ -300,6 +294,6 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE interpolate_sea_level
+  END SUBROUTINE interpolate_sea_level_from_forcing_record
 
 END MODULE global_forcings_main

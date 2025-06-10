@@ -122,10 +122,10 @@ PROGRAM UFEMISM_program
     ! == Initialise the model regions
     ! ===============================
 
-    IF (C%do_NAM) CALL initialise_model_region( NAM, 'NAM', forcing)
-    IF (C%do_EAS) CALL initialise_model_region( EAS, 'EAS', forcing)
-    IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL', forcing)
-    IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT', forcing)
+    IF (C%do_NAM) CALL initialise_model_region( NAM, 'NAM', forcing, C%start_time_of_run)
+    IF (C%do_EAS) CALL initialise_model_region( EAS, 'EAS', forcing, C%start_time_of_run)
+    IF (C%do_GRL) CALL initialise_model_region( GRL, 'GRL', forcing, C%start_time_of_run)
+    IF (C%do_ANT) CALL initialise_model_region( ANT, 'ANT', forcing, C%start_time_of_run)
 
     ! == The coupling time loop
     ! =========================

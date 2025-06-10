@@ -416,7 +416,7 @@ CONTAINS
 ! ===== Model initialisation =====
 ! ================================
 
-  SUBROUTINE initialise_model_region( region, region_name, forcing)
+  SUBROUTINE initialise_model_region( region, region_name, forcing, start_time_of_run)
     ! Initialise this model region
 
     IMPLICIT NONE
@@ -425,6 +425,7 @@ CONTAINS
     TYPE(type_model_region)                            , INTENT(OUT)   :: region
     CHARACTER(LEN=3),                                    INTENT(IN)    :: region_name
     TYPE(type_global_forcing)                          , INTENT(IN)    :: forcing
+    REAL(dp)                                           , INTENT(IN)    :: start_time_of_run
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
@@ -503,7 +504,7 @@ CONTAINS
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, regional_forcing)
+    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, regional_forcing, start_time_of_run)
 
     ! ===== Climate =====
     ! ===================
