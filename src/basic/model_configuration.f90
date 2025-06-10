@@ -3888,15 +3888,11 @@ CONTAINS
     INQUIRE( FILE = namelist_filename, EXIST = ex)
     IF (.NOT. ex) CALL crash('namelist file ' // TRIM( namelist_filename) // ' could not be found!')
 
-
-    ! NOTE: disabled until the config file code has been refactored to accomodate optional vs. required config parameters!
-
     ! Check if all the variables appearing in the config file "config_filename" are valid
-    !CALL check_if_all_config_variables_are_valid( config_filename, namelist_filename, all_are_valid)
-    !
+    CALL check_if_all_config_variables_are_valid( config_filename, namelist_filename, all_are_valid)
+
     ! Check if all the expected config variables appear in the config file "config_filename"
     !CALL check_if_all_expected_config_variables_are_present( config_filename, namelist_filename, all_are_present)
-    all_are_valid = .true.
     all_are_present = .true.
 
     ! If not all is well, crash
