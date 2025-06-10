@@ -315,6 +315,12 @@ contains
       timeframe_bed_roughness = C%timeframe_bed_roughness_ANT
     end select
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_bed_roughness,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_bed_roughness)
+      call find_last_timeframe(   filename_bed_roughness, timeframe_bed_roughness)
+    end if
+
     select case (C%choice_sliding_law)
     case default
       call crash('unknown choice_sliding_law "' // trim( C%choice_sliding_law) // '"')
