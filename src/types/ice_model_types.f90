@@ -242,7 +242,6 @@ MODULE ice_model_types
 
     ! Target quantities
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: dHi_dt_target               ! [m yr^-1] Target ice thickness rate of change for inversions
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: uabs_surf_target            ! [m yr^-1] Target ice surface speed for inversions
 
     ! Masks
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_icefree_land           ! T: ice-free land , F: otherwise

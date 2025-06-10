@@ -33,7 +33,7 @@ module ice_dynamics_main
     map_from_mesh_to_mesh_with_reallocation_3D
   use reallocate_mod, only: reallocate_bounds
   use petsc_basic, only: mat_petsc2CSR
-  use inversion_utilities, only: initialise_dHi_dt_target, initialise_uabs_surf_target
+  use inversion_utilities, only: initialise_dHi_dt_target
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   use bedrock_cumulative_density_functions, only: calc_bedrock_CDFs, initialise_bedrock_CDFs
   use geothermal_heat_flux, only: initialise_geothermal_heat_flux
@@ -328,16 +328,6 @@ contains
       ice%dHi_dt_target = 0._dp
     end if
 
-    ! Target surface ice speed
-    ! ========================
-
-    ! Load target dHi_dt for inversions
-    if (C%do_target_uabs_surf) then
-      call initialise_uabs_surf_target(mesh, ice, region_name)
-    else
-      ice%uabs_surf_target = 0._dp
-    end if
-
     ! Sub-grid fractions
     ! ==================
 
@@ -544,7 +534,6 @@ contains
 
     ! Target quantities
     call reallocate_bounds( ice%dHi_dt_target   , mesh_new%vi1, mesh_new%vi2)  ! [m yr^-1] Target ice thickness rate of change for inversions
-    call reallocate_bounds( ice%uabs_surf_target, mesh_new%vi1, mesh_new%vi2)  ! [m yr^-1] Target ice surface speed for inversions
 
     ! Masks
     call reallocate_bounds( ice%mask_icefree_land      , mesh_new%vi1, mesh_new%vi2)  ! T: ice-free land , F: otherwise
@@ -749,13 +738,6 @@ contains
       call initialise_dHi_dt_target(mesh_new, ice, region_name)
     else
       ice%dHi_dt_target = 0._dp
-    end if
-
-    ! Load target surface ice speed for inversions
-    if (C%do_target_uabs_surf) then
-      call initialise_uabs_surf_target(mesh_new, ice, region_name)
-    else
-      ice%uabs_surf_target = 0._dp
     end if
 
     ! Model states for ice dynamics model

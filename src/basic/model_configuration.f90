@@ -379,21 +379,6 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_dHi_dt_target_GRL_config           = 1E9_dp
     REAL(dp)            :: timeframe_dHi_dt_target_ANT_config           = 1E9_dp
 
-    ! Target surface ice speed
-    LOGICAL             :: do_target_uabs_surf_config                   = .FALSE.                          ! Whether or not to use a target uabs_surf field from an external file as a target during inversions
-
-    ! Files containing a target uabs_surf for inversions
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_NAM_config         = ''
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_EAS_config         = ''
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_GRL_config         = ''
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_ANT_config         = ''
-
-    ! Timeframes for reading target uabs_surf from file (set to 1E9_dp if the file has no time dimension)
-    REAL(dp)            :: timeframe_uabs_surf_target_NAM_config        = 1E9_dp
-    REAL(dp)            :: timeframe_uabs_surf_target_EAS_config        = 1E9_dp
-    REAL(dp)            :: timeframe_uabs_surf_target_GRL_config        = 1E9_dp
-    REAL(dp)            :: timeframe_uabs_surf_target_ANT_config        = 1E9_dp
-
   ! == Ice dynamics - time stepping
   ! ===============================
 
@@ -1362,21 +1347,6 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_dHi_dt_target_EAS
     REAL(dp)            :: timeframe_dHi_dt_target_GRL
     REAL(dp)            :: timeframe_dHi_dt_target_ANT
-
-    ! Target surface ice speed
-    LOGICAL             :: do_target_uabs_surf
-
-    ! Files containing a target uabs_surf for inversions
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_NAM
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_EAS
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_GRL
-    CHARACTER(LEN=256)  :: filename_uabs_surf_target_ANT
-
-    ! Timeframes for reading target uabs_surf from file (set to 1E9_dp if the file has no time dimension)
-    REAL(dp)            :: timeframe_uabs_surf_target_NAM
-    REAL(dp)            :: timeframe_uabs_surf_target_EAS
-    REAL(dp)            :: timeframe_uabs_surf_target_GRL
-    REAL(dp)            :: timeframe_uabs_surf_target_ANT
 
   ! == Ice dynamics - time stepping
   ! ===============================
@@ -2441,15 +2411,6 @@ CONTAINS
       timeframe_dHi_dt_target_EAS_config                          , &
       timeframe_dHi_dt_target_GRL_config                          , &
       timeframe_dHi_dt_target_ANT_config                          , &
-      do_target_uabs_surf_config                                  , &
-      filename_uabs_surf_target_NAM_config                        , &
-      filename_uabs_surf_target_EAS_config                        , &
-      filename_uabs_surf_target_GRL_config                        , &
-      filename_uabs_surf_target_ANT_config                        , &
-      timeframe_uabs_surf_target_NAM_config                       , &
-      timeframe_uabs_surf_target_EAS_config                       , &
-      timeframe_uabs_surf_target_GRL_config                       , &
-      timeframe_uabs_surf_target_ANT_config                       , &
       choice_timestepping_config                                  , &
       dt_ice_max_config                                           , &
       dt_ice_min_config                                           , &
@@ -3229,21 +3190,6 @@ CONTAINS
     C%timeframe_dHi_dt_target_EAS                            = timeframe_dHi_dt_target_EAS_config
     C%timeframe_dHi_dt_target_GRL                            = timeframe_dHi_dt_target_GRL_config
     C%timeframe_dHi_dt_target_ANT                            = timeframe_dHi_dt_target_ANT_config
-
-    ! Target surface ice speed
-    C%do_target_uabs_surf                                    = do_target_uabs_surf_config
-
-    ! Files containing a target uabs_surf for inversions
-    C%filename_uabs_surf_target_NAM                          = filename_uabs_surf_target_NAM_config
-    C%filename_uabs_surf_target_EAS                          = filename_uabs_surf_target_EAS_config
-    C%filename_uabs_surf_target_GRL                          = filename_uabs_surf_target_GRL_config
-    C%filename_uabs_surf_target_ANT                          = filename_uabs_surf_target_ANT_config
-
-    ! Timeframes for reading target uabs_surf from file (set to 1E9_dp if the file has no time dimension)
-    C%timeframe_uabs_surf_target_NAM                         = timeframe_uabs_surf_target_NAM_config
-    C%timeframe_uabs_surf_target_EAS                         = timeframe_uabs_surf_target_EAS_config
-    C%timeframe_uabs_surf_target_GRL                         = timeframe_uabs_surf_target_GRL_config
-    C%timeframe_uabs_surf_target_ANT                         = timeframe_uabs_surf_target_ANT_config
 
   ! == Ice dynamics - time stepping
   ! ===============================

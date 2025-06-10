@@ -395,10 +395,6 @@ contains
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%dHi_dt_target, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'dHi_dt_target', d_grid_vec_partial_2D)
 
-      case ('uabs_surf_target')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%uabs_surf_target, d_grid_vec_partial_2D)
-        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_surf_target', d_grid_vec_partial_2D)
-
     ! ===== Masks =====
     ! =================
 

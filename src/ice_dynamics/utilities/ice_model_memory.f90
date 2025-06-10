@@ -60,7 +60,6 @@ contains
 
     ! Target quantities
     allocate( ice%dHi_dt_target   ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( ice%uabs_surf_target( mesh%vi1:mesh%vi2), source = 0._dp)
 
     ! Masks
     allocate( ice%mask_icefree_land      ( mesh%vi1:mesh%vi2), source = .false.)
