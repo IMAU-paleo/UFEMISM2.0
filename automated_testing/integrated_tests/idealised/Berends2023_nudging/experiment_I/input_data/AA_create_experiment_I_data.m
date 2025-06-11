@@ -182,47 +182,30 @@ for ri = 1:length( resolutions)
   ncwriteschema( filename_lo, f_lo);
   ncwriteschema( filename2  , f2  );
   
-  % For IMAU-ICE, an SMB forcing file needs a time dimension
-  time = [-1e6,1e6];
-  SMB_time    = zeros( grid.nx, grid.ny, 2);
-  SMB_hi_time = zeros( grid.nx, grid.ny, 2);
-  SMB_lo_time = zeros( grid.nx, grid.ny, 2);
-  SMB_time2   = zeros( grid.nx, grid.ny, 2);
-  for ti = 1:2
-    SMB_time(    :,:,ti) = SMB;
-    SMB_hi_time( :,:,ti) = SMB_hi;
-    SMB_lo_time( :,:,ti) = SMB_lo;
-    SMB_time2(   :,:,ti) = SMB2;
-  end
-  
   % It also needs temperature, even though in these experiments it's not
   % actually used...
   
-  T2m = zeros( grid.nx, grid.ny, 2);
+  T2m = zeros( grid.nx, grid.ny);
   
   % Write data
   ncwrite( filename   ,'x'       ,grid.x     );
   ncwrite( filename   ,'y'       ,grid.y     );
-  ncwrite( filename   ,'time'    ,time       );
-  ncwrite( filename   ,'SMB'     ,SMB_time   );
+  ncwrite( filename   ,'SMB'     ,SMB        );
   ncwrite( filename   ,'T2m'     ,T2m        );
   
   ncwrite( filename_hi,'x'       ,grid.x     );
   ncwrite( filename_hi,'y'       ,grid.y     );
-  ncwrite( filename_hi,'time'    ,time       );
-  ncwrite( filename_hi,'SMB'     ,SMB_hi_time);
+  ncwrite( filename_hi,'SMB'     ,SMB_hi     );
   ncwrite( filename_hi,'T2m'     ,T2m        );
   
   ncwrite( filename_lo,'x'       ,grid.x     );
   ncwrite( filename_lo,'y'       ,grid.y     );
-  ncwrite( filename_lo,'time'    ,time       );
-  ncwrite( filename_lo,'SMB'     ,SMB_lo_time);
+  ncwrite( filename_lo,'SMB'     ,SMB_lo     );
   ncwrite( filename_lo,'T2m'     ,T2m        );
   
   ncwrite( filename2  ,'x'       ,grid.x     );
   ncwrite( filename2  ,'y'       ,grid.y     );
-  ncwrite( filename2  ,'time'    ,time       );
-  ncwrite( filename2  ,'SMB'     ,SMB_time2  );
+  ncwrite( filename2  ,'SMB'     ,SMB2       );
   ncwrite( filename2  ,'T2m'     ,T2m        );
   
 end
@@ -455,10 +438,6 @@ function f    = create_NetCDF_template_SMB(            grid, filename)
   f.Dimensions(2).Length    = grid.ny;
   f.Dimensions(2).Unlimited = false;
   
-  f.Dimensions(3).Name      = 'time';
-  f.Dimensions(3).Length    = 2;
-  f.Dimensions(3).Unlimited = true;
-  
   % Dimension variables
   
   % x
@@ -489,49 +468,35 @@ function f    = create_NetCDF_template_SMB(            grid, filename)
   f.Variables(2).DeflateLevel = [];
   f.Variables(2).Shuffle      = false;
   
-  % time
-  f.Variables(3).Name         = 'time';
-  f.Variables(3).Dimensions   = f.Dimensions(3);
-  f.Variables(3).Size         = 2;
+  % SMB variable
+  
+  f.Variables(3).Name         = 'SMB';
+  f.Variables(3).Dimensions   = f.Dimensions;
+  f.Variables(3).Size         = [grid.nx, grid.ny];
   f.Variables(3).Datatype     = 'double';
   f.Variables(3).Attributes(1).Name  = 'long_name';
-  f.Variables(3).Attributes(1).Value = 'Time';
+  f.Variables(3).Attributes(1).Value = 'Surface mass balance';
   f.Variables(3).Attributes(2).Name  = 'units';
-  f.Variables(3).Attributes(2).Value = 'years';
+  f.Variables(3).Attributes(2).Value = 'mieq/yr';
   f.Variables(3).ChunkSize    = [];
   f.Variables(3).FillValue    = [];
   f.Variables(3).DeflateLevel = [];
   f.Variables(3).Shuffle      = false;
   
-  % SMB variable
+  % T2m variable
   
-  f.Variables(4).Name         = 'SMB';
+  f.Variables(4).Name         = 'T2m';
   f.Variables(4).Dimensions   = f.Dimensions;
-  f.Variables(4).Size         = [grid.nx, grid.ny, 2];
+  f.Variables(4).Size         = [grid.nx, grid.ny];
   f.Variables(4).Datatype     = 'double';
   f.Variables(4).Attributes(1).Name  = 'long_name';
-  f.Variables(4).Attributes(1).Value = 'Surface mass balance';
+  f.Variables(4).Attributes(1).Value = '2-m annual mean temperature';
   f.Variables(4).Attributes(2).Name  = 'units';
-  f.Variables(4).Attributes(2).Value = 'mieq/yr';
+  f.Variables(4).Attributes(2).Value = 'K';
   f.Variables(4).ChunkSize    = [];
   f.Variables(4).FillValue    = [];
   f.Variables(4).DeflateLevel = [];
   f.Variables(4).Shuffle      = false;
-  
-  % T2m variable
-  
-  f.Variables(5).Name         = 'T2m';
-  f.Variables(5).Dimensions   = f.Dimensions;
-  f.Variables(5).Size         = [grid.nx, grid.ny, 2];
-  f.Variables(5).Datatype     = 'double';
-  f.Variables(5).Attributes(1).Name  = 'long_name';
-  f.Variables(5).Attributes(1).Value = '2-m annual mean temperature';
-  f.Variables(5).Attributes(2).Name  = 'units';
-  f.Variables(5).Attributes(2).Value = 'K';
-  f.Variables(5).ChunkSize    = [];
-  f.Variables(5).FillValue    = [];
-  f.Variables(5).DeflateLevel = [];
-  f.Variables(5).Shuffle      = false;
   
   % Final metadata
   f.Attributes = [];
