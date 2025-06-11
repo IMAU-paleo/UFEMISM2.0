@@ -4,6 +4,27 @@ module bed_roughness_model_types
 
   implicit none
 
+  type type_bed_roughness_nudging_model_H_dHdt_flowline
+
+    ! Nudging masks
+    logical,  dimension(:), allocatable :: mask_calc_dCdt_from_nudging
+    logical,  dimension(:), allocatable :: mask_calc_dCdt_from_extrapolation
+    logical,  dimension(:), allocatable :: mask_Hs_is_converging
+    integer,  dimension(:), allocatable :: mask_extrapolation
+
+    ! Half-flowline-averaged deltaHs and dHs/dt
+    real(dp), dimension(:), allocatable :: deltaHs_av_up
+    real(dp), dimension(:), allocatable :: deltaHs_av_down
+    real(dp), dimension(:), allocatable :: dHs_dt_av_up
+    real(dp), dimension(:), allocatable :: dHs_dt_av_down
+
+    ! Intermediate terms
+    real(dp), dimension(:), allocatable :: R
+    real(dp), dimension(:), allocatable :: I_tot
+    real(dp), dimension(:), allocatable :: dC_dt
+
+  end type type_bed_roughness_nudging_model_H_dHdt_flowline
+
   type type_bed_roughness_model
 
     ! Bed roughness as described in different sliding laws
@@ -18,6 +39,9 @@ module bed_roughness_model_types
     real(dp), dimension(:), allocatable :: generic_bed_roughness_prev
     real(dp), dimension(:), allocatable :: generic_bed_roughness_next
     real(dp)                            :: t_prev, t_next
+
+    ! Different nudging models
+    type(type_bed_roughness_nudging_model_H_dHdt_flowline) :: nudging_H_dHdt_flowline
 
   end type type_bed_roughness_model
 

@@ -11,13 +11,14 @@ module bed_roughness_nudging_H_dHdt_flowline
   use grid_basic, only: type_grid
   use ice_model_types, only: type_ice_model
   use reference_geometry_types, only: type_reference_geometry
-  use bed_roughness_model_types, only: type_bed_roughness_model
+  use bed_roughness_model_types, only: type_bed_roughness_model, type_bed_roughness_nudging_model_H_dHdt_flowline
   use mesh_utilities, only: find_containing_vertex, find_containing_triangle, extrapolate_Gaussian, &
     interpolate_to_point_dp_2D_singlecore
   use plane_geometry, only: triangle_area
   use mpi_distributed_memory, only: gather_to_all
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   use mesh_data_smoothing, only: smooth_Gaussian
+  use netcdf_io_main
 
   implicit none
 
@@ -39,79 +40,71 @@ contains
 
     ! Local variables:
     character(len=256), parameter          :: routine_name = 'run_bed_roughness_nudging_H_dHdt_flowline'
-    logical,  dimension(mesh%vi1:mesh%vi2) :: mask_calc_dCdt_from_nudging
-    logical,  dimension(mesh%vi1:mesh%vi2) :: mask_calc_dCdt_from_extrapolation
-    logical,  dimension(mesh%vi1:mesh%vi2) :: mask_Hs_is_converging
-    integer,  dimension(mesh%vi1:mesh%vi2) :: mask_extrapolation
-    real(dp), dimension(mesh%vi1:mesh%vi2) :: deltaHs_av_up, deltaHs_av_down
-    real(dp), dimension(mesh%vi1:mesh%vi2) :: dHs_dt_av_up, dHs_dt_av_down
-    real(dp), dimension(mesh%vi1:mesh%vi2) :: dC_dt
 
     ! Add routine to path
     call init_routine( routine_name)
 
     call calc_nudging_vs_extrapolation_masks( mesh, ice, target_geometry, &
-      mask_calc_dCdt_from_nudging, mask_calc_dCdt_from_extrapolation, &
-      mask_Hs_is_converging, mask_extrapolation)
+      bed_roughness%nudging_H_dHdt_flowline)
 
     call calc_flowline_averaged_deltaHs_dHsdt( mesh, ice, target_geometry, &
-      mask_calc_dCdt_from_nudging, mask_calc_dCdt_from_extrapolation, &
-      mask_Hs_is_converging, mask_extrapolation, &
-      deltaHs_av_up, deltaHs_av_down, dHs_dt_av_up, dHs_dt_av_down)
+      bed_roughness%nudging_H_dHdt_flowline)
 
-    call calc_dCdt( mesh, ice, grid_smooth, bed_roughness, mask_calc_dCdt_from_nudging, &
-      mask_Hs_is_converging, mask_extrapolation, deltaHs_av_up, deltaHs_av_down, &
-      dHs_dt_av_up, dHs_dt_av_down, dC_dt)
+    call calc_dCdt( mesh, ice, grid_smooth, bed_roughness, &
+      bed_roughness%nudging_H_dHdt_flowline)
 
     ! Calculate predicted bed roughness at t+dt
     bed_roughness%generic_bed_roughness_next = max( C%generic_bed_roughness_min, min( C%generic_bed_roughness_max, &
-      bed_roughness%generic_bed_roughness_prev + C%bed_roughness_nudging_dt * dC_dt ))
+      bed_roughness%generic_bed_roughness_prev + C%bed_roughness_nudging_dt * &
+      bed_roughness%nudging_H_dHdt_flowline%dC_dt ))
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine run_bed_roughness_nudging_H_dHdt_flowline
 
-  subroutine initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, ice, bed_roughness, region_name)
+  subroutine initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, nudge)
     ! Initialise the bed roughness nudging model based on flowline-averaged values of H and dH/dt
 
     ! In/output variables:
-    type(type_mesh),                intent(in   ) :: mesh
-    type(type_ice_model),           intent(in   ) :: ice
-    type(type_bed_roughness_model), intent(inout) :: bed_roughness
-    character(len=3),               intent(in   ) :: region_name
+    type(type_mesh),                                        intent(in   ) :: mesh
+    type(type_bed_roughness_nudging_model_H_dHdt_flowline), intent(inout) :: nudge
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_nudging_H_dHdt_flowline'
-    real(dp)                       :: dummy_dp
-    character                      :: dummy_char
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! To prevent compiler warnings
-    dummy_dp = mesh%xmin
-    dummy_dp = ice%Hi( mesh%vi1)
-    dummy_dp = bed_roughness%generic_bed_roughness( mesh%vi1)
-    dummy_char = region_name( 1:1)
+    ! Nudging masks
+    allocate( nudge%mask_calc_dCdt_from_nudging      ( mesh%vi1:mesh%vi2), source = .false.)
+    allocate( nudge%mask_calc_dCdt_from_extrapolation( mesh%vi1:mesh%vi2), source = .false.)
+    allocate( nudge%mask_Hs_is_converging            ( mesh%vi1:mesh%vi2), source = .false.)
+    allocate( nudge%mask_extrapolation               ( mesh%vi1:mesh%vi2), source = 0)
+
+    ! Half-flowline-averaged deltaHs and dHs/dt
+    allocate( nudge%deltaHs_av_up  ( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( nudge%deltaHs_av_down( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( nudge%dHs_dt_av_up   ( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( nudge%dHs_dt_av_down ( mesh%vi1:mesh%vi2), source = 0._dp)
+
+    ! Intermediate terms
+    allocate( nudge%R    ( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( nudge%I_tot( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( nudge%dC_dt( mesh%vi1:mesh%vi2), source = 0._dp)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine initialise_bed_roughness_nudging_H_dHdt_flowline
 
-  subroutine calc_nudging_vs_extrapolation_masks( mesh, ice, target_geometry, &
-    mask_calc_dCdt_from_nudging, mask_calc_dCdt_from_extrapolation, &
-    mask_Hs_is_converging, mask_extrapolation)
+  subroutine calc_nudging_vs_extrapolation_masks( mesh, ice, target_geometry, nudge)
 
     ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    type(type_ice_model),                   intent(in   ) :: ice
-    type(type_reference_geometry),          intent(in   ) :: target_geometry
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(  out) :: mask_calc_dCdt_from_nudging
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(  out) :: mask_calc_dCdt_from_extrapolation
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(  out) :: mask_Hs_is_converging
-    integer,  dimension(mesh%vi1:mesh%vi2), intent(  out) :: mask_extrapolation
+    type(type_mesh),                                        intent(in   ) :: mesh
+    type(type_ice_model),                                   intent(in   ) :: ice
+    type(type_reference_geometry),                          intent(in   ) :: target_geometry
+    type(type_bed_roughness_nudging_model_H_dHdt_flowline), intent(inout) :: nudge
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_nudging_vs_extrapolation_masks'
@@ -120,10 +113,10 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    mask_calc_dCdt_from_nudging       = .false.
-    mask_calc_dCdt_from_extrapolation = .false.
-    mask_Hs_is_converging             = .false.
-    mask_extrapolation                = 0
+    nudge%mask_calc_dCdt_from_nudging       = .false.
+    nudge%mask_calc_dCdt_from_extrapolation = .false.
+    nudge%mask_Hs_is_converging             = .false.
+    nudge%mask_extrapolation                = 0
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -135,21 +128,21 @@ contains
         .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi))) then
 
         ! Perform the inversion here
-        mask_calc_dCdt_from_nudging      ( vi) = .true.
-        mask_calc_dCdt_from_extrapolation( vi) = .false.
-        mask_extrapolation               ( vi) = 2
+        nudge%mask_calc_dCdt_from_nudging      ( vi) = .true.
+        nudge%mask_calc_dCdt_from_extrapolation( vi) = .false.
+        nudge%mask_extrapolation               ( vi) = 2
 
         ! If Hs is already converging to the target value, do not nudge bed roughness further
         if (ice%dHs_dt( vi) * (ice%Hs( vi) - target_geometry%Hs( vi)) < 0._dp) then
-          mask_Hs_is_converging( vi) = .true.
+          ! nudge%mask_Hs_is_converging( vi) = .true.
         end if
 
       else
 
         ! Extrapolate here
-        mask_calc_dCdt_from_nudging      ( vi) = .false.
-        mask_calc_dCdt_from_extrapolation( vi) = .true.
-        mask_extrapolation               ( vi) = 1
+        nudge%mask_calc_dCdt_from_nudging      ( vi) = .false.
+        nudge%mask_calc_dCdt_from_extrapolation( vi) = .true.
+        nudge%mask_extrapolation               ( vi) = 1
 
       end if
 
@@ -160,21 +153,13 @@ contains
 
   end subroutine calc_nudging_vs_extrapolation_masks
 
-  subroutine calc_flowline_averaged_deltaHs_dHsdt( mesh, ice, target_geometry, &
-    mask_calc_dCdt_from_nudging, mask_calc_dCdt_from_extrapolation, &
-    mask_Hs_is_converging, mask_extrapolation, &
-    deltaHs_av_up, deltaHs_av_down, dHs_dt_av_up, dHs_dt_av_down)
+  subroutine calc_flowline_averaged_deltaHs_dHsdt( mesh, ice, target_geometry, nudge)
 
     ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    type(type_ice_model),                   intent(in   ) :: ice
-    type(type_reference_geometry),          intent(in   ) :: target_geometry
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(inout) :: mask_calc_dCdt_from_nudging
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(inout) :: mask_calc_dCdt_from_extrapolation
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(inout) :: mask_Hs_is_converging
-    integer,  dimension(mesh%vi1:mesh%vi2), intent(inout) :: mask_extrapolation
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: deltaHs_av_up, deltaHs_av_down
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: dHs_dt_av_up, dHs_dt_av_down
+    type(type_mesh),                                        intent(in   ) :: mesh
+    type(type_ice_model),                                   intent(in   ) :: ice
+    type(type_reference_geometry),                          intent(in   ) :: target_geometry
+    type(type_bed_roughness_nudging_model_H_dHdt_flowline), intent(inout) :: nudge
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'calc_flowline_averaged_deltaHs_dHsdt'
@@ -202,14 +187,14 @@ contains
     call gather_to_all( ice%u_vav_b       , u_b_tot      )
     call gather_to_all( ice%v_vav_b       , v_b_tot      )
 
-    deltaHs_av_up   = 0._dp
-    deltaHs_av_down = 0._dp
-    dHs_dt_av_up    = 0._dp
-    dHs_dt_av_down  = 0._dp
+    nudge%deltaHs_av_up   = 0._dp
+    nudge%deltaHs_av_down = 0._dp
+    nudge%dHs_dt_av_up    = 0._dp
+    nudge%dHs_dt_av_down  = 0._dp
 
     do vi = mesh%vi1, mesh%vi2
 
-      if (mask_calc_dCdt_from_nudging( vi) .and. .not. mask_Hs_is_converging( vi)) then
+      if (nudge%mask_calc_dCdt_from_nudging( vi) .and. .not. nudge%mask_Hs_is_converging( vi)) then
 
         ! Trace both halves of the flowline
         p = [mesh%V( vi,1), mesh%V( vi,2)]
@@ -218,9 +203,9 @@ contains
 
         ! If we couldn't trace the flowline here, extrapolate instead of inverting
         if (n_up < 3 .or. n_down < 3) then
-          mask_calc_dCdt_from_nudging      ( vi) = .false.
-          mask_calc_dCdt_from_extrapolation( vi) = .true.
-          mask_extrapolation( vi) = 1
+          nudge%mask_calc_dCdt_from_nudging      ( vi) = .false.
+          nudge%mask_calc_dCdt_from_extrapolation( vi) = .true.
+          nudge%mask_extrapolation( vi) = 1
           cycle
         end if
 
@@ -231,10 +216,10 @@ contains
           vi, trace_down, n_down, deltaHs_down, dHs_dt_down)
 
         ! Calculate weighted average of thickness error and thinning rates on both halves of the flowline
-        call calc_flowline_average( s_up  , n_up  , deltaHs_up  , deltaHs_av_up  ( vi))
-        call calc_flowline_average( s_up  , n_up  , dHs_dt_up   , dHs_dt_av_up   ( vi))
-        call calc_flowline_average( s_down, n_down, deltaHs_down, deltaHs_av_down( vi))
-        call calc_flowline_average( s_down, n_down, dHs_dt_down , dHs_dt_av_down ( vi))
+        call calc_flowline_average( s_up  , n_up  , deltaHs_up  , nudge%deltaHs_av_up  ( vi))
+        call calc_flowline_average( s_up  , n_up  , dHs_dt_up   , nudge%dHs_dt_av_up   ( vi))
+        call calc_flowline_average( s_down, n_down, deltaHs_down, nudge%deltaHs_av_down( vi))
+        call calc_flowline_average( s_down, n_down, dHs_dt_down , nudge%dHs_dt_av_down ( vi))
 
       end if
 
@@ -333,21 +318,14 @@ contains
 
   end subroutine calc_flowline_average
 
-  subroutine calc_dCdt( mesh, ice, grid_smooth, bed_roughness, mask_calc_dCdt_from_nudging, &
-    mask_Hs_is_converging, mask_extrapolation, deltaHs_av_up, deltaHs_av_down, &
-    dHs_dt_av_up, dHs_dt_av_down, dC_dt)
+  subroutine calc_dCdt( mesh, ice, grid_smooth, bed_roughness, nudge)
 
     ! In/output variables:
-    type(type_mesh),                        intent(in   ) :: mesh
-    type(type_ice_model),                   intent(in   ) :: ice
-    type(type_grid),                        intent(in   ) :: grid_smooth
-    type(type_bed_roughness_model),         intent(inout) :: bed_roughness
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_calc_dCdt_from_nudging
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_Hs_is_converging
-    integer,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_extrapolation
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: deltaHs_av_up, deltaHs_av_down
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: dHs_dt_av_up, dHs_dt_av_down
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: dC_dt
+    type(type_mesh),                                        intent(in   ) :: mesh
+    type(type_ice_model),                                   intent(in   ) :: ice
+    type(type_grid),                                        intent(in   ) :: grid_smooth
+    type(type_bed_roughness_model),                         intent(in   ) :: bed_roughness
+    type(type_bed_roughness_nudging_model_H_dHdt_flowline), intent(inout) :: nudge
 
     ! Local variables:
     character(len=1024), parameter         :: routine_name = 'calc_dCdt'
@@ -357,31 +335,36 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    dC_dt = 0._dp
+    nudge%R     = 0._dp
+    nudge%I_tot = 0._dp
+    nudge%dC_dt = 0._dp
 
     do vi = mesh%vi1, mesh%vi2
 
-      if (mask_calc_dCdt_from_nudging( vi) .and. .not. mask_Hs_is_converging( vi)) then
+      if (nudge%mask_calc_dCdt_from_nudging( vi) .and. .not. nudge%mask_Hs_is_converging( vi)) then
 
-        R( vi) = max( 0._dp, min( 1._dp, &
+        nudge%R( vi) = max( 0._dp, min( 1._dp, &
           ((ice%uabs_vav( vi) * ice%Hi( vi)) / (C%bednudge_H_dHdt_flowline_u_scale * C%bednudge_H_dHdt_flowline_Hi_scale)) ))
 
-        I_tot( vi) = R( vi) * (&
-          (deltaHs_av_up( vi)                       ) / C%bednudge_H_dHdt_flowline_dH0 + &
-          (dHs_dt_av_up(  vi) + dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
+        ! nudge%I_tot( vi) = nudge%R( vi) * (&
+        !   (nudge%deltaHs_av_up( vi)                             ) / C%bednudge_H_dHdt_flowline_dH0 + &
+        !   (nudge%dHs_dt_av_up(  vi) + nudge%dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
+        nudge%I_tot( vi) = nudge%R( vi) * (&
+          (nudge%deltaHs_av_up( vi)) / C%bednudge_H_dHdt_flowline_dH0 + &
+          (nudge%dHs_dt_av_up(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
 
-        dC_dt( vi) = -1._dp * (I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
+        nudge%dC_dt( vi) = -1._dp * (nudge%I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
 
       end if
 
     end do
 
     ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    call extrapolate_Gaussian( mesh, mask_extrapolation, dC_dt, C%bednudge_H_dHdt_flowline_r_smooth)
+    call extrapolate_Gaussian( mesh, nudge%mask_extrapolation, nudge%dC_dt, 10e3_dp)
 
-    call reduce_dCdt_on_steep_slopes( mesh, ice, dC_dt)
+    call reduce_dCdt_on_steep_slopes( mesh, ice, nudge%dC_dt)
 
-    call smooth_dCdt( mesh, grid_smooth, dC_dt)
+    call smooth_dCdt( mesh, grid_smooth, nudge%dC_dt)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
