@@ -124,7 +124,7 @@ contains
       ! updated by inversion or by extrapolation
 
       ! Only perform the inversion on fully grounded vertices
-      if (ice%mask_grounded_ice( vi) .and. &
+      if (ice%mask_grounded_ice( vi) .and. ice%Hi( vi) > 100._dp .and. &
         .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi))) then
 
         ! Perform the inversion here
@@ -330,7 +330,6 @@ contains
     ! Local variables:
     character(len=1024), parameter         :: routine_name = 'calc_dCdt'
     integer                                :: vi
-    real(dp), dimension(mesh%vi1:mesh%vi2) :: I_tot, R
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -349,9 +348,12 @@ contains
         ! nudge%I_tot( vi) = nudge%R( vi) * (&
         !   (nudge%deltaHs_av_up( vi)                             ) / C%bednudge_H_dHdt_flowline_dH0 + &
         !   (nudge%dHs_dt_av_up(  vi) + nudge%dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
-        nudge%I_tot( vi) = nudge%R( vi) * (&
-          (nudge%deltaHs_av_up( vi)) / C%bednudge_H_dHdt_flowline_dH0 + &
-          (nudge%dHs_dt_av_up(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
+        ! nudge%I_tot( vi) = nudge%R( vi) * (&
+        !   (nudge%deltaHs_av_up( vi)) / C%bednudge_H_dHdt_flowline_dH0 + &
+        !   (nudge%dHs_dt_av_up(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
+        nudge%I_tot( vi) = (&
+          (nudge%deltaHs_av_up( vi) - 0.25_dp * nudge%deltaHs_av_down( vi)) / C%bednudge_H_dHdt_flowline_dH0 + &
+          (nudge%dHs_dt_av_up(  vi) - 0.25_dp * nudge%dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
 
         nudge%dC_dt( vi) = -1._dp * (nudge%I_tot( vi) * bed_roughness%generic_bed_roughness( vi)) / C%bednudge_H_dHdt_flowline_t_scale
 
@@ -512,7 +514,7 @@ contains
 
       ! if we've reached the ice divide (defined as the place where
       ! we find velocities below 1 m/yr), end the trace
-      if (uabs_pt < 1._dp) exit
+      if (uabs_pt < 1e-2_dp) exit
 
       ! Calculate the normalised velocity vector at the tracer's location
       u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]
@@ -602,7 +604,7 @@ contains
 
       ! if ice thickness in this vertex is below 1 m, assume we've found the
       ! ice margin, and end the trace
-      if (Hi_tot( vi) < 1._dp) exit
+      if (Hi_tot( vi) < 0.1_dp) exit
 
       ! Interpolate between the surrounding triangles to find
       ! the velocities at the tracer's location
@@ -629,7 +631,7 @@ contains
 
       ! if we're at the ice divide (defined as the place where
       ! we find velocities below 1 m/yr), we can't do the trace
-      if (uabs_pt < 1._dp) exit
+      ! if (uabs_pt < 1._dp) exit
 
       ! Calculate the normalised velocity vector at the tracer's location
       u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]

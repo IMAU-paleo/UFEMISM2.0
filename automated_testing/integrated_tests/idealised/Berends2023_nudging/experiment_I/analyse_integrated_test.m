@@ -78,34 +78,36 @@ if (do_figures)
   set( H.Ax,'clim',[0.8,1.25]);
   title( H.Ax,'Till friction angle')
   ylabel( H.Cbar,'inverted / target')
-  colormap( H.Ax, crameri('roma'))
+  colormap( H.Ax, flipud( crameri('roma')))
   set( H.Ax,'colorscale','log')
 
   % Ice geometry
   d = Hs_inverted - Hs_target;
   d( ~mask_a) = NaN;
   H = plot_mesh_data( mesh, d);
-  set( H.Ax,'clim',[-100, 100]);
+  set( H.Ax,'clim',[-50, 50]);
   title( H.Ax,'Ice thickness')
   ylabel( H.Cbar,'inverted - target')
   colormap( H.Ax, crameri('vik'))
 
   % Ice velocity
-  d = (0.5 + uabs_surf_inverted) ./ (0.5 + uabs_surf_target);
+  % d = (5 + uabs_surf_inverted) ./ (5 + uabs_surf_target);
+  d = uabs_surf_inverted - uabs_surf_target;
   d( ~mask_b) = NaN;
   H = plot_mesh_data( mesh, d);
-  set( H.Ax,'clim',[0.8, 1.25]);
+  % set( H.Ax,'clim',[0.8, 1.25]);
+  set( H.Ax,'clim',[-100, 100]);
   title( H.Ax,'Ice velocity')
   ylabel( H.Cbar,'inverted / target')
-  colormap( H.Ax, crameri('bam'))
-  set( H.Ax,'colorscale','log')
+  colormap( H.Ax, flipud( crameri('bam')))
+  % set( H.Ax,'colorscale','log')
 
 end
 
 % Calculate 95th percentiles
 r95_till_friction_angle = calc_95th_percentile_ratio( phi_fric_target(  mask_a), phi_fric_inverted(  mask_a));
 p95_ice_thickness       = calc_95th_percentile(       Hs_target(        mask_a), Hs_inverted(        mask_a));
-r95_ice_velocity        = calc_95th_percentile_ratio( uabs_surf_target( mask_b), uabs_surf_inverted( mask_b));
+r95_ice_velocity        = calc_95th_percentile_ratio( uabs_surf_target( mask_b)+5, uabs_surf_inverted( mask_b)+5);
 
 % Read stability info for the last spin-up simulation
 filename = [foldername_test '/results_05_exp_I_inversion_5km/scalar_output_ANT_00001.nc'];

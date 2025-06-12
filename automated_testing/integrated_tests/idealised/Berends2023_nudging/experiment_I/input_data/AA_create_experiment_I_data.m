@@ -19,7 +19,7 @@ ymax        =  700*1e3;     % y-coordinate of northern domain border            
 
 % Bed roughness parameters
 phi_min     = 0.1;          % Till friction angle in the centre of the ice stream       [degrees]
-phi_max     = 5.0;          % Till friction angle outside of the ice stream             [degrees]
+phi_max     = 0.7;          % Till friction angle outside of the ice stream             [degrees]
 x_c         = 0;            % x-coordinate of ice-stream centre                         [m]
 y_c         = -400*1e3;     % y-coordinate of ice-stream centre                         [m]
 sigma_x     =   50*1e3;     % x-direction ice-stream half-width                         [m]
