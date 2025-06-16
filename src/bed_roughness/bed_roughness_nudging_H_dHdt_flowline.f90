@@ -123,9 +123,10 @@ contains
       ! Determine whether bed roughness should be
       ! updated by inversion or by extrapolation
 
-      ! Only perform the inversion on fully grounded vertices
+      ! Only perform the inversion on fully grounded vertices in the mesh interior
       if (ice%mask_grounded_ice( vi) .and. ice%Hi( vi) > 100._dp .and. &
-        .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi))) then
+        .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi) &
+               .or. mesh%VBI( vi) > 0)) then
 
         ! Perform the inversion here
         nudge%mask_calc_dCdt_from_nudging      ( vi) = .true.
@@ -201,13 +202,13 @@ contains
         call trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  , s_up)
         call trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down, s_down)
 
-        ! If we couldn't trace the flowline here, extrapolate instead of inverting
-        if (n_up < 3 .or. n_down < 3) then
-          nudge%mask_calc_dCdt_from_nudging      ( vi) = .false.
-          nudge%mask_calc_dCdt_from_extrapolation( vi) = .true.
-          nudge%mask_extrapolation( vi) = 1
-          cycle
-        end if
+        ! ! If we couldn't trace the flowline here, extrapolate instead of inverting
+        ! if (n_up < 3 .or. n_down < 3) then
+        !   nudge%mask_calc_dCdt_from_nudging      ( vi) = .false.
+        !   nudge%mask_calc_dCdt_from_extrapolation( vi) = .true.
+        !   nudge%mask_extrapolation( vi) = 1
+        !   cycle
+        ! end if
 
         ! Calculate thickness error and thinning rates on both halves of the flowline
         call calc_deltaHs_dHdt_along_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
@@ -283,7 +284,7 @@ contains
     ! Trivial cases
     if (n == 0) then
       call crash('calc_flowline_average - flowline has length zero')
-    elseif (n == 2) then
+    elseif (n == 1) then
       d_av = d(1)
       return
     end if
@@ -631,7 +632,7 @@ contains
 
       ! if we're at the ice divide (defined as the place where
       ! we find velocities below 1 m/yr), we can't do the trace
-      ! if (uabs_pt < 1._dp) exit
+      if (uabs_pt < 1._dp) exit
 
       ! Calculate the normalised velocity vector at the tracer's location
       u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]

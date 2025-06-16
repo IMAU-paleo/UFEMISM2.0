@@ -9,19 +9,19 @@ close all
 %% Define parameters
 
 % The resolutions at which we want to have the data
-resolutions = [5,2.5] * 1e3;
+resolutions = [5,2.5,1] * 1e3;
 
 % Domain size
-xmin        = -400*1e3;     % x-coordinate of western  domain border                    [m]
-xmax        =  400*1e3;     % x-coordinate of eastern  domain border                    [m]
-ymin        =  -40*1e3;     % y-coordinate of southern domain border                    [m]
-ymax        =   40*1e3;     % y-coordinate of northern domain border                    [m]
+xmin        = 0;            % x-coordinate of western  domain border                    [m]
+xmax        = 800*1e3;      % x-coordinate of eastern  domain border                    [m]
+ymin        = 0;            % y-coordinate of southern domain border                    [m]
+ymax        = 80*1e3;       % y-coordinate of northern domain border                    [m]
 
 % Bed roughness parameters
-phi_min     = 1.0;          % Till friction angle in the centre of the ice stream       [degrees]
-phi_max     = 5.0;          % Till friction angle outside of the ice stream             [degrees]
-x_c         = -50;          % x-coordinate of ice-stream centre                         [m]
-y_c         = 0;            % y-coordinate of ice-stream centre                         [m]
+phi_min     = 0.2;          % Till friction angle in the centre of the ice stream       [degrees]
+phi_max     = 2.0;          % Till friction angle outside of the ice stream             [degrees]
+x_c         = 400e3;        % x-coordinate of ice-stream centre                         [m]
+y_c         = 40e3;         % y-coordinate of ice-stream centre                         [m]
 sigma_x     = 150*1e3;      % x-direction ice-stream half-width                         [m]
 sigma_y     =  15*1e3;      % y-direction ice-stream half-width                         [m]
 
@@ -41,6 +41,8 @@ for ri = 1:length( resolutions)
     str_res = '_5km';
   elseif resolution == 2500
     str_res = '_2p5km';
+  elseif resolution == 1000
+    str_res = '_1km';
   else
     error('undefined resolution!')
   end
@@ -128,26 +130,11 @@ function grid = create_grid( xmin, xmax, ymin, ymax, dx)
   % Code copied from IMAU-ICE
   
   grid.dx = dx;
-      
-  % Determine the number of grid cells that can fit in this domain
-  xmid = (xmax + xmin) / 2;
-  ymid = (ymax + ymin) / 2;
-  nsx  = floor( (xmax - xmid) / grid.dx);
-  nsy  = floor( (ymax - ymid) / grid.dx);
-
-  grid.nx = 1 + 2*nsx;
-  grid.ny = 1 + 2*nsy;
   
   % Fill in x and y
-  grid.x = zeros( grid.nx,1);
-  grid.y = zeros( grid.ny,1);
+  grid.x = (xmin: dx: xmax)'; grid.nx = length( grid.x);
+  grid.y = (ymin: dx: ymax)'; grid.ny = length( grid.y);
   
-  for i = 1: grid.nx
-    grid.x( i) = -nsx*grid.dx + (i-1)*grid.dx;
-  end
-  for j = 1: grid.ny
-    grid.y( j) = -nsy*grid.dx + (j-1)*grid.dx;
-  end
 end
 function phi  = calc_bed_roughness( phi_min, phi_max, x_c, y_c, sigma_x, sigma_y, x, y)
   % Calculate the spatially variable bed roughness field
@@ -178,8 +165,8 @@ function b    = calc_bed_topography_MISMIPplus( grid)
     for j = 1: grid.ny
       
       % Make sure everything is properly centred
-      xp = grid.x( i) + 400000;
-      yp = -40000 +  80000 * (j-1) / (grid.ny-1);
+      xp = grid.x( i);
+      yp = -40e3 + 80000 * (j-1) / (grid.ny-1);
       
       % Asay-Davis et al. (2016), Eqs. 1-4
       xtilde = xp / xbar;
