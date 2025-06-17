@@ -46,6 +46,7 @@ jobs:
         with:
           command: |
             addpath('automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/input_data')
+            cd automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/input_data
             AA_create_experiment_I_data
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 01_spinup_40km_part0
@@ -75,6 +76,7 @@ jobs:
         with:
           command: |
             addpath('automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/input_data')
+            cd automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/input_data
             AA_create_experiment_II_data
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 01_spinup_5km
