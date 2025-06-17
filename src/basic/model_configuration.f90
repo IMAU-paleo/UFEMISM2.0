@@ -662,6 +662,15 @@ MODULE model_configuration
     ! Choice of extrapolation method
     CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method_config     = 'initialisation'                 ! Method to extrapolate ocean forcing into cavities: 'initialisation'
 
+    ! Choice of transient ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_transient_config          = ''                                ! so far only 'deltaT' implemented
+
+    ! Paths to files containing the deltaT record for the transient deltaT ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_dT_NAM_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_dT_EAS_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_dT_GRL_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_dT_ANT_config                 = ''
+
   ! == Surface mass balance
   ! =======================
 
@@ -1692,6 +1701,15 @@ MODULE model_configuration
     ! Choice of extrapolation method
     CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method
 
+  ! Choice of transient ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_transient
+
+    ! Paths to files containing the deltaT record for the transient deltaT ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_dT_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_dT_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_dT_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_dT_ANT
+
   ! == Surface mass balance
   ! =======================
 
@@ -2714,6 +2732,11 @@ CONTAINS
       filename_ocean_snapshot_GRL_config                          , &
       filename_ocean_snapshot_ANT_config                          , &
       choice_ocean_extrapolation_method_config                    , &
+      choice_ocean_model_transient_config                         , &
+      filename_ocean_dT_NAM_config                                , &
+      filename_ocean_dT_EAS_config                                , &
+      filename_ocean_dT_GRL_config                                , &
+      filename_ocean_dT_ANT_config                                , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
       do_SMB_removal_icefree_land_config                          , &
@@ -3645,6 +3668,15 @@ CONTAINS
 
     ! Choice of extrapolation method
     C%choice_ocean_extrapolation_method                      = choice_ocean_extrapolation_method_config
+
+    ! Choice of transient ocean model
+    C%choice_ocean_model_transient                           = choice_ocean_model_transient_config
+
+    ! Paths to files containing the deltaT record for the transient deltaT ocean model
+    C%filename_ocean_dT_NAM                                  = filename_ocean_dT_NAM_config
+    C%filename_ocean_dT_EAS                                  = filename_ocean_dT_EAS_config
+    C%filename_ocean_dT_GRL                                  = filename_ocean_dT_GRL_config
+    C%filename_ocean_dT_ANT                                  = filename_ocean_dT_ANT_config
 
   ! == Surface mass balance
   ! =======================

@@ -87,7 +87,7 @@ CONTAINS
     ELSEIF (choice_ocean_model == 'idealised') THEN
       CALL run_ocean_model_idealised( mesh, ice, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
-      CALL run_ocean_model_realistic( mesh, ice, ocean)
+      CALL run_ocean_model_realistic( mesh, ice, ocean, time)
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
@@ -101,7 +101,7 @@ CONTAINS
 
   END SUBROUTINE run_ocean_model
 
-  SUBROUTINE initialise_ocean_model( mesh, ice, ocean, region_name)
+  SUBROUTINE initialise_ocean_model( mesh, ice, ocean, region_name, start_time_of_run)
     ! Initialise the ocean model
 
     IMPLICIT NONE
@@ -111,6 +111,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(OUT)   :: ocean
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    REAL(dp),                               INTENT(IN)    :: start_time_of_run
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_ocean_model'
@@ -159,7 +160,7 @@ CONTAINS
     ELSEIF (choice_ocean_model == 'idealised') THEN
       CALL initialise_ocean_model_idealised( mesh, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
-      CALL initialise_ocean_model_realistic( mesh, ice, ocean, region_name)
+      CALL initialise_ocean_model_realistic( mesh, ice, ocean, region_name, start_time_of_run)
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF
@@ -365,7 +366,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_ocean_model_region
 
-  SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name)
+  SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name, time)
     ! Remap the ocean model
 
     IMPLICIT NONE
@@ -376,6 +377,7 @@ CONTAINS
     TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_ocean_model'
@@ -415,7 +417,7 @@ CONTAINS
       CALL initialise_ocean_model_idealised( mesh_new, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
         IF     (C%choice_ocean_model_realistic == 'snapshot') THEN
-          CALL initialise_ocean_model_realistic( mesh_new, ice, ocean, region_name)
+          CALL initialise_ocean_model_realistic( mesh_new, ice, ocean, region_name, time)
         ELSE
           CALL crash('Remapping after mesh update for realistic ocean is only implemented for a snapshot!')
         END IF
