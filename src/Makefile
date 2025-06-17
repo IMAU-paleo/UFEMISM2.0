@@ -262,13 +262,6 @@ UFEMISM_source = \
   global_forcings/series_utilities.f90 \
   global_forcings/global_forcings_main.f90 \
   \
-  basal_conditions/geothermal_heat_flux.f90 \
-  basal_conditions/basal_hydrology.f90 \
-  basal_conditions/basal_inversion_H_dHdt_flowline.f90 \
-  basal_conditions/basal_inversion_main.f90 \
-  basal_conditions/bed_roughness.f90 \
-  basal_conditions/sliding_laws.f90 \
-  \
   basal_hydrology/basal_hydrology_main.f90 \
   \
   bed_roughness/bed_roughness_nudging_H_dHdt_flowline.f90 \
