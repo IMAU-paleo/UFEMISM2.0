@@ -233,6 +233,7 @@ contains
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_2D_monthly
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_3D
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_3D_ocean
+    real(dp), dimension(:),   allocatable :: mask_int
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -249,6 +250,7 @@ contains
     allocate( d_grid_vec_partial_2D_monthly( grid%n_loc, 12            ))
     allocate( d_grid_vec_partial_3D(         grid%n_loc, region%mesh%nz))
     allocate( d_grid_vec_partial_3D_ocean(   grid%n_loc, C%nz_ocean    ))
+    allocate( mask_int( region%mesh%vi1:region%mesh%vi2), source = 0._dp)
 
     ! Add the specified data field to the file
     select case (choice_output_field)
@@ -412,9 +414,17 @@ contains
       case ('mask_cf_gr')
       case ('mask_cf_fl')
       case ('mask_coastline')
-      case ('mask_ROI')
       case ('mask')
       case ('basin_ID')
+      case ('mask_ROI')
+        ! Exception for mask_ROI, needed for offline laddie coupling
+        where (region%ice%mask_ROI .eqv. .TRUE.)
+          mask_int = 1.0_dp
+        elsewhere
+          mask_int = 0.0_dp
+        end where
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, mask_int, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'mask_ROI', d_grid_vec_partial_2D)
 
     ! ===== Area fractions =====
     ! ==========================
@@ -1153,9 +1163,12 @@ contains
       case ('mask_cf_gr')
       case ('mask_cf_fl')
       case ('mask_coastline')
-      case ('mask_ROI')
       case ('mask')
       case ('basin_ID')
+      case ('mask_ROI')
+        ! Exception for mask_ROI, needed for offline laddie computation
+        call add_field_grid_dp_2D( filename, ncid, 'mask_ROI', long_name = 'ROI mask', units = '')
+
 
     ! ===== Area fractions =====
     ! ==========================

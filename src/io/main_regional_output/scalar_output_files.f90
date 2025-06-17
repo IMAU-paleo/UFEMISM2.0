@@ -12,7 +12,8 @@ module scalar_output_files
 
   private
 
-  public :: create_scalar_regional_output_file, buffer_scalar_output, write_to_scalar_regional_output_file
+  public :: create_scalar_regional_output_file, buffer_scalar_output, write_to_scalar_regional_output_file, &
+            write_buffer_to_scalar_file_single_variable
 
   interface write_buffer_to_scalar_file_single_variable
     procedure :: write_buffer_to_scalar_file_single_variable_int
