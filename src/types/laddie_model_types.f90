@@ -86,6 +86,22 @@ MODULE laddie_model_types
     real(dp), dimension(:), contiguous, pointer :: dH_dt           => null()  ! [m s^-1]          Layer thickness change
     type(MPI_WIN) :: wdH_dt
 
+    ! Forcing
+    real(dp), dimension(:),   contiguous, pointer :: Hi                 => null()  ! [m]               Ice thickness
+    real(dp), dimension(:),   contiguous, pointer :: Hib                => null()  ! [m]               Ice base elevation (w.r.t. PD sea level)
+    real(dp), dimension(:),   contiguous, pointer :: dHib_dx_b          => null()  ! []                Horizontal derivative of ice draft on b-grid
+    real(dp), dimension(:),   contiguous, pointer :: dHib_dy_b          => null()  ! []                Horizontal derivative of ice draft on b-grid
+    logical,  dimension(:),   contiguous, pointer :: mask_icefree_land  => null()  ! []                T: ice-free land , F: otherwise
+    logical,  dimension(:),   contiguous, pointer :: mask_icefree_ocean => null()  ! []                T: ice-free ocean, F: otherwise
+    logical,  dimension(:),   contiguous, pointer :: mask_grounded_ice  => null()  ! []                T: grounded ice  , F: otherwise
+    logical,  dimension(:),   contiguous, pointer :: mask_floating_ice  => null()  ! []                T: floating ice  , F: otherwise
+    real(dp), dimension(:,:), contiguous, pointer :: Ti                 => null()  ! [K]               Englacial temperature
+    real(dp), dimension(:,:), contiguous, pointer :: T_ocean            => null()  ! [degrees Celsius] 3-D ocean temperature
+    real(dp), dimension(:,:), contiguous, pointer :: S_ocean            => null()  ! [PSU]             3-D ocean salinity
+    type(MPI_WIN) :: wHi, wHib, wdHib_dx_b, wdHib_dy_b
+    type(MPI_WIN) :: wmask_icefree_land, wmask_icefree_ocean, wmask_grounded_ice, wmask_floating_ice
+    type(MPI_WIN) :: wTi, wT_ocean, wS_ocean
+
     ! Ambient fields
     real(dp), dimension(:), contiguous, pointer :: T_amb           => null()  ! [degrees Celsius] Ambient temperature at layer base
     real(dp), dimension(:), contiguous, pointer :: S_amb           => null()  ! [PSU]             Ambient salinity at layer base

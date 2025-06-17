@@ -11,9 +11,7 @@ MODULE laddie_tracers
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
-  USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mesh_halo_exchange, only: exchange_halos

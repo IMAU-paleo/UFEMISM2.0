@@ -20,8 +20,8 @@ MODULE UFEMISM_main_model
   use reference_geometries_main, only: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
-  USE basal_hydrology                                        , ONLY: run_basal_hydrology_model, initialise_pore_water_fraction_inversion, run_pore_water_fraction_inversion
-  USE bed_roughness                                          , ONLY: run_bed_roughness_model
+  use basal_hydrology_main, only: run_basal_hydrology_model
+  use bed_roughness_main, only: initialise_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
   USE global_forcings_main                                   , ONLY: initialise_global_forcings, update_sealevel_in_model, update_sealevel_at_model_time
@@ -37,7 +37,7 @@ MODULE UFEMISM_main_model
   USE AMB_main                                               , ONLY: initialise_AMB_model, remap_AMB_model
   USE GIA_main                                               , ONLY: initialise_GIA_model, run_GIA_model, remap_GIA_model, &
                                                                      create_restart_file_GIA_model, write_to_restart_file_GIA_model
-  USE basal_inversion_main                                   , ONLY: initialise_basal_inversion, run_basal_inversion
+  use bed_roughness_nudging_main, only: initialise_bed_roughness_nudging_model, run_bed_roughness_nudging_model
   use netcdf_io_main
   USE mesh_creation_main                                     , ONLY: create_mesh_from_gridded_geometry, create_mesh_from_meshed_geometry, write_mesh_success
   USE grid_basic                                             , ONLY: setup_square_grid
@@ -113,10 +113,7 @@ CONTAINS
       END IF ! IF (C%allow_mesh_updates) THEN
 
       ! Run the subglacial hydrology model
-      CALL run_basal_hydrology_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
-
-      ! Run the bed roughness model
-      CALL run_bed_roughness_model( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%BIV, region%time)
+      CALL run_basal_hydrology_model( region%mesh, region%ice)
 
       ! Update sea level if necessary
       IF  (C%choice_sealevel_model == 'prescribed') THEN
@@ -152,14 +149,7 @@ CONTAINS
       CALL run_GIA_model( region)
 
       ! Run the basal inversion model
-      IF (C%do_bed_roughness_nudging) THEN
-        CALL run_basal_inversion( region)
-      END IF
-
-      ! Run the pore water fraction inversion model
-      IF (C%do_pore_water_nudging) THEN
-        CALL run_pore_water_fraction_inversion( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%HIV, region%time)
-      END IF
+      CALL run_bed_roughness_nudging_model( region)
 
       ! Run the tracer-tracking model
       call run_tracer_tracking_model( region%mesh, region%ice, region%SMB, &
@@ -378,12 +368,7 @@ CONTAINS
 
     ! Basal inversion
     IF (C%do_bed_roughness_nudging) THEN
-      time_of_next_action = MIN( time_of_next_action, region%BIV%t_next)
-    END IF
-
-    ! Hydrology inversion
-    IF (C%do_pore_water_nudging) THEN
-      time_of_next_action = MIN( time_of_next_action, region%HIV%t_next)
+      time_of_next_action = MIN( time_of_next_action, region%bed_roughness%t_next)
     END IF
 
     ! Target dHi_dt: make sure we don't overshoot its turnoff time
@@ -506,6 +491,8 @@ CONTAINS
 
     CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, regional_forcing, start_time_of_run)
 
+    call initialise_bed_roughness_model( region%mesh, region%ice, region%bed_roughness, region%name)
+
     ! ===== Climate =====
     ! ===================
     CALL initialise_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name)
@@ -574,11 +561,7 @@ CONTAINS
     ! ===========================
 
     IF (C%do_bed_roughness_nudging) THEN
-      CALL initialise_basal_inversion( region%mesh, region%ice, region%BIV, region%name)
-    END IF
-
-    IF (C%do_pore_water_nudging) THEN
-      CALL initialise_pore_water_fraction_inversion( region%mesh, region%ice, region%HIV, region%name)
+      CALL initialise_bed_roughness_nudging_model( region%mesh, region%ice, region%bed_roughness, region%name)
     END IF
 
     ! ===== Corrections =====
@@ -1220,14 +1203,15 @@ CONTAINS
     CALL initialise_reference_geometries_on_model_mesh( region%name, mesh_new, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
     ! Remap all the model data from the old mesh to the new mesh
-    CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice,     region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
-    CALL remap_climate_model(         region%mesh, mesh_new, region%climate, region%name)
-    CALL remap_ocean_model(           region%mesh, mesh_new, region%ice,     region%ocean  , region%name)
-    CALL remap_SMB_model(             region%mesh, mesh_new,                 region%SMB    , region%name)
-    CALL remap_BMB_model(             region%mesh, mesh_new, region%ice,     region%ocean,   region%BMB    , region%name, region%time)
-    CALL remap_LMB_model(             region%mesh, mesh_new,                 region%LMB    , region%name)
-    CALL remap_AMB_model(             region%mesh, mesh_new,                 region%AMB                 )
-    CALL remap_GIA_model(             region%mesh, mesh_new,                 region%GIA    , region%refgeo_GIAeq, region%ELRA)
+    CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%bed_roughness, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
+    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name)
+    CALL remap_ocean_model(           region%mesh, mesh_new,             region%ocean  , region%name)
+    CALL remap_SMB_model(             region%mesh, mesh_new,             region%SMB    , region%name)
+    CALL remap_BMB_model(             region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
+    CALL remap_LMB_model(             region%mesh, mesh_new,             region%LMB    , region%name)
+    CALL remap_AMB_model(             region%mesh, mesh_new,             region%AMB                 )
+    CALL remap_GIA_model(             region%mesh, mesh_new,             region%GIA    , region%refgeo_GIAeq, region%ELRA)
+
     call remap_tracer_tracking_model( region%mesh, mesh_new, region%tracer_tracking, region%time)
 
     ! Set all model component timers so that they will all be run right after the mesh update

@@ -27,6 +27,7 @@ module DIVA_main
     apply_velocity_limits, calc_L2_norm_uv
   use solve_linearised_SSA_DIVA, only: solve_SSA_DIVA_linearised
   use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  use bed_roughness_model_types, only: type_bed_roughness_model
 
   implicit none
 
@@ -85,13 +86,14 @@ contains
 
   end subroutine initialise_DIVA_solver
 
-  subroutine solve_DIVA( mesh, ice, DIVA, n_visc_its, n_Axb_its, &
+  subroutine solve_DIVA( mesh, ice, bed_roughness, DIVA, n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     !< Calculate ice velocities by solving the Depth-Integrated Viscosity Approximation
 
     ! In/output variables:
     type(type_mesh),                     intent(in   ) :: mesh
     type(type_ice_model),                intent(inout) :: ice
+    type(type_bed_roughness_model),      intent(in   ) :: bed_roughness
     type(type_ice_velocity_solver_DIVA), intent(inout) :: DIVA
     integer,                             intent(  out) :: n_visc_its               ! Number of non-linear viscosity iterations
     integer,                             intent(  out) :: n_Axb_its                ! Number of iterations in iterative solver for linearised momentum balance
@@ -182,7 +184,7 @@ contains
       call calc_F_integrals( mesh, ice, DIVA)
 
       ! Calculate the "effective" friction coefficient (turning the SSA into the DIVA)
-      call calc_effective_basal_friction_coefficient( mesh, ice, DIVA)
+      call calc_effective_basal_friction_coefficient( mesh, ice, bed_roughness, DIVA)
 
       ! Solve the linearised DIVA to calculate a new velocity solution
       call solve_SSA_DIVA_linearised( mesh, DIVA%u_vav_b, DIVA%v_vav_b, DIVA%N_b, DIVA%dN_dx_b, DIVA%dN_dy_b, &
@@ -518,12 +520,13 @@ contains
 
   end subroutine calc_F_integrals
 
-  subroutine calc_effective_basal_friction_coefficient( mesh, ice, DIVA)
+  subroutine calc_effective_basal_friction_coefficient( mesh, ice, bed_roughness, DIVA)
     !< Calculate the "effective" friction coefficient (turning the SSA into the DIVA)
 
     ! In/output variables:
     type(type_mesh),                     intent(in   ) :: mesh
     type(type_ice_model),                intent(inout) :: ice
+    type(type_bed_roughness_model),      intent(in   ) :: bed_roughness
     type(type_ice_velocity_solver_DIVA), intent(inout) :: DIVA
 
     ! Local variables:
@@ -535,7 +538,7 @@ contains
 
     ! Calculate the basal friction coefficient beta_b for the current velocity solution
     ! This is where the sliding law is called!
-    call calc_basal_friction_coefficient( mesh, ice, DIVA%u_base_b, DIVA%v_base_b)
+    call calc_basal_friction_coefficient( mesh, ice, bed_roughness, DIVA%u_base_b, DIVA%v_base_b)
 
     ! Calculate beta_eff on the a-grid
     if (C%choice_sliding_law == 'no_sliding') then
