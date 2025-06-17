@@ -873,9 +873,13 @@ contains
     ice%Hb = refgeo_PD%Hb
 
     ! Remap sea level
-    if (par%primary) call warning('sea  model isnt finished yet - need to include dSL in mesh update!')
     call reallocate_bounds( ice%SL, mesh_new%vi1, mesh_new%vi2)  ! [m] Sea level (geoid) elevation (w.r.t. PD sea level)
-    ice%SL = 0._dp
+    select case (C%choice_sealevel_model)
+    case default
+      call crash('unknown choice_sealevel_model "' // trim( C%choice_sealevel_model) // '"')
+    case ('fixed')
+      ice%SL = C%fixed_sealevel
+    end select
 
     ! Gather global ice thickness and masks
     call gather_to_all(      ice%Hi                , Hi_old_tot            )

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>Halfar_5km</name>
+    <category>integrated_tests/idealised/Halfar_dome</category>
+    <date_and_time>17-Jun-2025 12:21:48</date_and_time>
+    <git_hash_string>22ac03b8b64aae7185fe7c7fcacc40d023a3a4b2</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (Hi( :,end) - Hi_analytical( :,end)).^2 ))</definition>
+        <value>14.6326</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>2571</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>2571</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>7713</value>
+    </cost_functions>
+</single_run>

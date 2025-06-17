@@ -136,14 +136,12 @@ contains
 
   end subroutine run_bed_roughness_nudging_model
 
-  subroutine initialise_bed_roughness_nudging_model( mesh, ice, bed_roughness, region_name)
+  subroutine initialise_bed_roughness_nudging_model( mesh, bed_roughness)
     ! Initialise the main bed roughness nudging model
 
     ! Input variables:
     type(type_mesh),                intent(in   ) :: mesh
-    type(type_ice_model),           intent(in   ) :: ice
     type(type_bed_roughness_model), intent(inout) :: bed_roughness
-    character(len=3),               intent(in   ) :: region_name
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_bed_roughness_nudging_model'
@@ -216,7 +214,7 @@ contains
     case default
       call crash('unknown choice_bed_roughness_nudging_method "' // trim( C%choice_bed_roughness_nudging_method) // '"')
     case ('H_dHdt_flowline')
-      call initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, ice, bed_roughness, region_name)
+      call initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, bed_roughness%nudging_H_dHdt_flowline)
     end select
 
     ! Finalise routine path

@@ -514,9 +514,8 @@ MODULE model_configuration
     REAL(dp)            :: bed_roughness_nudging_t_end_config           = +9.9E9_dp                        ! [yr]      Latest   model time when nudging is allowed
     REAL(dp)            :: generic_bed_roughness_min_config             = 0.1_dp                           ! [?]       Smallest allowed value for the first  inverted bed roughness field
     REAL(dp)            :: generic_bed_roughness_max_config             = 30._dp                           ! [?]       Largest  allowed value for the first  inverted bed roughness field
-    CHARACTER(LEN=256)  :: filename_inverted_bed_roughness_config       = 'bed_roughness_inv.nc'           !           NetCDF file where the final inverted bed roughness fields will be saved
 
-    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    ! Bed roughness nudging model based on flowline-averaged values of H and dH/dt
     REAL(dp)            :: bednudge_H_dHdt_flowline_t_scale_config      = 100._dp                          ! [yr]      Timescale
     REAL(dp)            :: bednudge_H_dHdt_flowline_dH0_config          = 100._dp                          ! [m]       Ice thickness error scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0_config        = 0.6_dp                           ! [m yr^-1] Thinning rate scale
@@ -1483,9 +1482,8 @@ MODULE model_configuration
     REAL(dp)            :: bed_roughness_nudging_t_end
     REAL(dp)            :: generic_bed_roughness_min
     REAL(dp)            :: generic_bed_roughness_max
-    CHARACTER(LEN=256)  :: filename_inverted_bed_roughness
 
-    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    ! Bed roughness nudging model based on flowline-averaged values of H and dH/dt
     REAL(dp)            :: bednudge_H_dHdt_flowline_t_scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_dH0
     REAL(dp)            :: bednudge_H_dHdt_flowline_dHdt0
@@ -2501,7 +2499,6 @@ CONTAINS
       bed_roughness_nudging_t_end_config                          , &
       generic_bed_roughness_min_config                            , &
       generic_bed_roughness_max_config                            , &
-      filename_inverted_bed_roughness_config                      , &
       bednudge_H_dHdt_flowline_t_scale_config                     , &
       bednudge_H_dHdt_flowline_dH0_config                         , &
       bednudge_H_dHdt_flowline_dHdt0_config                       , &
@@ -3326,9 +3323,8 @@ CONTAINS
     C%bed_roughness_nudging_t_end                            = bed_roughness_nudging_t_end_config
     C%generic_bed_roughness_min                              = generic_bed_roughness_min_config
     C%generic_bed_roughness_max                              = generic_bed_roughness_max_config
-    C%filename_inverted_bed_roughness                        = filename_inverted_bed_roughness_config
 
-    ! Basal inversion model based on flowline-averaged values of H and dH/dt
+    ! Bed roughness nudging model based on flowline-averaged values of H and dH/dt
     C%bednudge_H_dHdt_flowline_t_scale                       = bednudge_H_dHdt_flowline_t_scale_config
     C%bednudge_H_dHdt_flowline_dH0                           = bednudge_H_dHdt_flowline_dH0_config
     C%bednudge_H_dHdt_flowline_dHdt0                         = bednudge_H_dHdt_flowline_dHdt0_config
