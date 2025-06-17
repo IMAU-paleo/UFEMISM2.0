@@ -79,7 +79,6 @@ contains
     ! Nudging masks
     allocate( nudge%mask_calc_dCdt_from_nudging      ( mesh%vi1:mesh%vi2), source = .false.)
     allocate( nudge%mask_calc_dCdt_from_extrapolation( mesh%vi1:mesh%vi2), source = .false.)
-    allocate( nudge%mask_Hs_is_converging            ( mesh%vi1:mesh%vi2), source = .false.)
     allocate( nudge%mask_extrapolation               ( mesh%vi1:mesh%vi2), source = 0)
 
     ! Half-flowline-averaged deltaHs and dHs/dt
@@ -115,32 +114,21 @@ contains
 
     nudge%mask_calc_dCdt_from_nudging       = .false.
     nudge%mask_calc_dCdt_from_extrapolation = .false.
-    nudge%mask_Hs_is_converging             = .false.
     nudge%mask_extrapolation                = 0
 
     do vi = mesh%vi1, mesh%vi2
-
-      ! Determine whether bed roughness should be
-      ! updated by inversion or by extrapolation
 
       ! Only perform the inversion on fully grounded vertices in the mesh interior
       if (ice%mask_grounded_ice( vi) .and. ice%Hi( vi) > 100._dp .and. &
         .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi) &
                .or. mesh%VBI( vi) > 0)) then
 
-        ! Perform the inversion here
         nudge%mask_calc_dCdt_from_nudging      ( vi) = .true.
         nudge%mask_calc_dCdt_from_extrapolation( vi) = .false.
         nudge%mask_extrapolation               ( vi) = 2
 
-        ! If Hs is already converging to the target value, do not nudge bed roughness further
-        if (ice%dHs_dt( vi) * (ice%Hs( vi) - target_geometry%Hs( vi)) < 0._dp) then
-          ! nudge%mask_Hs_is_converging( vi) = .true.
-        end if
-
       else
 
-        ! Extrapolate here
         nudge%mask_calc_dCdt_from_nudging      ( vi) = .false.
         nudge%mask_calc_dCdt_from_extrapolation( vi) = .true.
         nudge%mask_extrapolation               ( vi) = 1
@@ -195,32 +183,24 @@ contains
 
     do vi = mesh%vi1, mesh%vi2
 
-      if (nudge%mask_calc_dCdt_from_nudging( vi) .and. .not. nudge%mask_Hs_is_converging( vi)) then
+      if (nudge%mask_calc_dCdt_from_nudging( vi)) then
 
         ! Trace both halves of the flowline
         p = [mesh%V( vi,1), mesh%V( vi,2)]
         call trace_flowline_upstream(   mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_up  , n_up  , s_up)
         call trace_flowline_downstream( mesh, Hi_tot, u_b_tot, v_b_tot, p, trace_down, n_down, s_down)
 
-        ! ! If we couldn't trace the flowline here, extrapolate instead of inverting
-        ! if (n_up < 3 .or. n_down < 3) then
-        !   nudge%mask_calc_dCdt_from_nudging      ( vi) = .false.
-        !   nudge%mask_calc_dCdt_from_extrapolation( vi) = .true.
-        !   nudge%mask_extrapolation( vi) = 1
-        !   cycle
-        ! end if
-
         ! Calculate thickness error and thinning rates on both halves of the flowline
-        call calc_deltaHs_dHdt_along_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
+        call calc_deltaHs_dHdt_along_half_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
           vi, trace_up, n_up, deltaHs_up, dHs_dt_up)
-        call calc_deltaHs_dHdt_along_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
+        call calc_deltaHs_dHdt_along_half_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
           vi, trace_down, n_down, deltaHs_down, dHs_dt_down)
 
         ! Calculate weighted average of thickness error and thinning rates on both halves of the flowline
-        call calc_flowline_average( s_up  , n_up  , deltaHs_up  , nudge%deltaHs_av_up  ( vi))
-        call calc_flowline_average( s_up  , n_up  , dHs_dt_up   , nudge%dHs_dt_av_up   ( vi))
-        call calc_flowline_average( s_down, n_down, deltaHs_down, nudge%deltaHs_av_down( vi))
-        call calc_flowline_average( s_down, n_down, dHs_dt_down , nudge%dHs_dt_av_down ( vi))
+        call calc_half_flowline_average( s_up  , n_up  , deltaHs_up  , nudge%deltaHs_av_up  ( vi))
+        call calc_half_flowline_average( s_up  , n_up  , dHs_dt_up   , nudge%dHs_dt_av_up   ( vi))
+        call calc_half_flowline_average( s_down, n_down, deltaHs_down, nudge%deltaHs_av_down( vi))
+        call calc_half_flowline_average( s_down, n_down, dHs_dt_down , nudge%dHs_dt_av_down ( vi))
 
       end if
 
@@ -231,7 +211,7 @@ contains
 
   end subroutine calc_flowline_averaged_deltaHs_dHsdt
 
-  subroutine calc_deltaHs_dHdt_along_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
+  subroutine calc_deltaHs_dHdt_along_half_flowline( mesh, Hs_tot, Hs_target_tot, dHs_dt_tot, &
     vi, T, n, deltaHs, dHs_dt)
 
     ! In/output variables:
@@ -266,9 +246,9 @@ contains
 
     end do
 
-  end subroutine calc_deltaHs_dHdt_along_flowline
+  end subroutine calc_deltaHs_dHdt_along_half_flowline
 
-  subroutine calc_flowline_average( s, n, d, d_av)
+  subroutine calc_half_flowline_average( s, n, d, d_av)
 
     ! In/output variables:
     real(dp), dimension(:), intent(in   ) :: s
@@ -283,7 +263,7 @@ contains
 
     ! Trivial cases
     if (n == 0) then
-      call crash('calc_flowline_average - flowline has length zero')
+      call crash('calc_half_flowline_average - flowline has length zero')
     elseif (n == 1) then
       d_av = d(1)
       return
@@ -317,7 +297,7 @@ contains
 
     d_av = int_w_d / int_w
 
-  end subroutine calc_flowline_average
+  end subroutine calc_half_flowline_average
 
   subroutine calc_dCdt( mesh, ice, grid_smooth, bed_roughness, nudge)
 
@@ -341,17 +321,11 @@ contains
 
     do vi = mesh%vi1, mesh%vi2
 
-      if (nudge%mask_calc_dCdt_from_nudging( vi) .and. .not. nudge%mask_Hs_is_converging( vi)) then
+      if (nudge%mask_calc_dCdt_from_nudging( vi)) then
 
         nudge%R( vi) = max( 0._dp, min( 1._dp, &
           ((ice%uabs_vav( vi) * ice%Hi( vi)) / (C%bednudge_H_dHdt_flowline_u_scale * C%bednudge_H_dHdt_flowline_Hi_scale)) ))
 
-        ! nudge%I_tot( vi) = nudge%R( vi) * (&
-        !   (nudge%deltaHs_av_up( vi)                             ) / C%bednudge_H_dHdt_flowline_dH0 + &
-        !   (nudge%dHs_dt_av_up(  vi) + nudge%dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
-        ! nudge%I_tot( vi) = nudge%R( vi) * (&
-        !   (nudge%deltaHs_av_up( vi)) / C%bednudge_H_dHdt_flowline_dH0 + &
-        !   (nudge%dHs_dt_av_up(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
         nudge%I_tot( vi) = (&
           (nudge%deltaHs_av_up( vi) - 0.25_dp * nudge%deltaHs_av_down( vi)) / C%bednudge_H_dHdt_flowline_dH0 + &
           (nudge%dHs_dt_av_up(  vi) - 0.25_dp * nudge%dHs_dt_av_down(  vi)) / C%bednudge_H_dHdt_flowline_dHdt0)
@@ -436,7 +410,7 @@ contains
     call smooth_Gaussian( mesh, grid_smooth, dC_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
 
     dC_dt = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC_dt + &
-                     C%bednudge_H_dHdt_flowline_w_smooth * dC_dt_smoothed
+                     C%bednudge_H_dHdt_flowline_w_smooth  * dC_dt_smoothed
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -449,7 +423,7 @@ contains
     !
     ! Returns a list T of n points on the flowline
     !
-    ! Stop the trace when it encounters the ice divide (defined as an ice velocity lower than 1 m/yr)
+    ! Stop the trace when it encounters the ice divide (defined as an ice velocity lower than 0.01 m/yr)
 
     ! Input variables:
     type(type_mesh),                     intent(in   ) :: mesh
@@ -513,8 +487,8 @@ contains
       ! Calculate absolute velocity at the tracer's location
       uabs_pt = sqrt( u_pt**2 + v_pt**2)
 
-      ! if we've reached the ice divide (defined as the place where
-      ! we find velocities below 1 m/yr), end the trace
+      ! If we've reached the ice divide (defined as the place where
+      ! we find velocities below 0.01 m/yr), end the trace
       if (uabs_pt < 1e-2_dp) exit
 
       ! Calculate the normalised velocity vector at the tracer's location
@@ -532,10 +506,12 @@ contains
       ! Move the tracer upstream by a distance of one local resolution
       pt = pt - u_hat_pt * mesh%R( vi)
 
-      ! if the new distance-to-origin is shorter than the previous one, end the trace
-      if (norm2( pt - p) < dist_prev) EXIT
+      ! If the new distance-to-origin is shorter than the previous one
+      ! (i.e. the flowline has reversed direction, usually meaning it's
+      ! oscillating around the ice divide), end the trace
+      if (norm2( pt - p) < dist_prev) exit
 
-      ! if the new tracer location is outside the domain, end the trace
+      ! If the new tracer location is outside the domain, end the trace
       if (pt( 1) <= mesh%xmin .or. pt( 2) >= mesh%xmax .or. &
           pt( 2) <= mesh%ymin .or. pt( 2) >= mesh%ymax) exit
 
@@ -603,7 +579,7 @@ contains
       ! Find the vertex vi containing the tracer
       call find_containing_vertex( mesh, pt, vi)
 
-      ! if ice thickness in this vertex is below 1 m, assume we've found the
+      ! If ice thickness in this vertex is below 0.1 m, assume we've found the
       ! ice margin, and end the trace
       if (Hi_tot( vi) < 0.1_dp) exit
 
@@ -630,7 +606,7 @@ contains
       ! Calculate absolute velocity at the tracer's location
       uabs_pt = sqrt( u_pt**2 + v_pt**2)
 
-      ! if we're at the ice divide (defined as the place where
+      ! If we're at the ice divide (defined as the place where
       ! we find velocities below 1 m/yr), we can't do the trace
       if (uabs_pt < 1._dp) exit
 
