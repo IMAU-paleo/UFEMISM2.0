@@ -9,7 +9,6 @@ module bed_roughness_model_types
     ! Nudging masks
     logical,  dimension(:), allocatable :: mask_calc_dCdt_from_nudging
     logical,  dimension(:), allocatable :: mask_calc_dCdt_from_extrapolation
-    logical,  dimension(:), allocatable :: mask_Hs_is_converging
     integer,  dimension(:), allocatable :: mask_extrapolation
 
     ! Half-flowline-averaged deltaHs and dHs/dt
