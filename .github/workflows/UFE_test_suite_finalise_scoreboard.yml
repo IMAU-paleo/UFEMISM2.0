@@ -73,7 +73,6 @@ jobs:
         with:
           name: scoreboard_file_integrated_tests_idealised_SSA_icestream
           path: automated_testing/scoreboard/scoreboard_files
-          path: automated_testing/scoreboard/scoreboard_files
 
       - name: Download scoreboard file for integrated_tests/idealised/Berends2023_nudging
         uses: actions/download-artifact@v4
