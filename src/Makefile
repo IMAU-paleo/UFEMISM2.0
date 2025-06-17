@@ -253,6 +253,7 @@ UFEMISM_source = \
   reference_geometries/preprocess_geometry.f90 \
   reference_geometries/reference_geometries_main.f90 \
   \
+  global_forcings/series_utilities.f90 \
   global_forcings/global_forcings_main.f90 \
   \
   basal_conditions/geothermal_heat_flux.f90 \
