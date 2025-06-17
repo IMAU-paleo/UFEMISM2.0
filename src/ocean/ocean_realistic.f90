@@ -122,6 +122,8 @@ contains
       case ('transient')  
         select case (C%choice_ocean_model_transient)
           case ('deltaT')
+          if (par%primary)  write(*,"(A)") '     Initialising transient ocean model "' // &
+            colour_string( trim( C%choice_ocean_model_transient),'light blue') // '"...'
             ! We need the snapshot and the dT to apply to it
             select case (region_name)
               case ('NAM')
@@ -140,10 +142,6 @@ contains
                 call crash('unknown region_name "' // region_name // '"')
             end select
 
-            ! Fill in  main variables
-            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean,  mesh, ocean%transient%T0)
-            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean,  mesh, ocean%transient%S0)
-
             ! Allocating timeframe variables; the series itself is allocated in the read function below
             allocate(ocean%transient%dT_t0)
             allocate(ocean%transient%dT_t1)
@@ -153,6 +151,10 @@ contains
             allocate( ocean%transient%S0( mesh%vi1:mesh%vi2,C%nz_ocean))
             ocean%transient%T0 = 0._dp
             ocean%transient%S0 = 0._dp
+
+            ! Fill in  main variables
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean,  mesh, ocean%transient%T0)
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean,  mesh, ocean%transient%S0)
 
             call read_field_from_series_file(   filename_ocean_dT,       field_name_options_dT_ocean, ocean%transient%dT_series, ocean%transient%dT_series_time)
             !call update_dT_timeframes_from_curve(ocean, start_time_of_run)
