@@ -10,7 +10,6 @@ module laddie_operators
   use control_resources_and_error_messaging                  , only: crash, init_routine, finalise_routine, colour_string
   use parameters
   use mesh_types                                             , only: type_mesh
-  use ice_model_types                                        , only: type_ice_model
   use laddie_model_types                                     , only: type_laddie_model, type_laddie_timestep
   use mpi_distributed_memory                                 , only: gather_to_all
   use CSR_matrix_basics, only: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, &
@@ -24,13 +23,12 @@ contains
 ! ===== Main routines =====
 ! =========================
 
-  subroutine update_laddie_operators( mesh, ice, laddie)
+  subroutine update_laddie_operators( mesh, laddie)
     ! Update matrix operators at the start of a new run
 
     ! In- and output variables
 
     type(type_mesh),                        intent(in)    :: mesh
-    type(type_ice_model),                   intent(in)    :: ice
     type(type_laddie_model),                intent(inout) :: laddie
 
     ! Local variables:

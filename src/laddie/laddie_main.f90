@@ -18,17 +18,17 @@ MODULE laddie_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
-                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c, &
-                                                                     print_diagnostics
-  USE laddie_thickness                                       , ONLY: compute_H_npx
-  USE laddie_velocity                                        , ONLY: compute_UV_npx, compute_viscUV
-  USE laddie_tracers                                         , ONLY: compute_TS_npx, compute_diffTS
+                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c
   use laddie_operators                                       , only: update_laddie_operators
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  use mesh_integrate_over_domain                             , only: integrate_over_domain, calc_and_print_min_mean_max
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
   use mesh_halo_exchange, only: exchange_halos
-  use laddie_output, only: create_laddie_output_file, write_to_laddie_output_file
+  use laddie_output, only: create_laddie_output_fields_file, create_laddie_output_scalar_file, &
+      write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, buffer_laddie_scalars
+  use laddie_integration, only: integrate_euler, integrate_fbrk3, integrate_lfra, move_laddie_timestep
+  use mesh_repartitioning, only: repartition_mesh, repartition
 
   IMPLICIT NONE
 
@@ -37,27 +37,66 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_laddie_model( mesh, ice, ocean, laddie, time, duration, region_name)
+  subroutine run_laddie_model( mesh, ice, ocean, laddie, time, is_initial, region_name)
     ! Run the laddie model
 
-    ! In- and output variables
-
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp),                               INTENT(IN)    :: time
-    REAL(dp),                               INTENT(IN)    :: duration
-    character(len=3),                       intent(in   ) :: region_name
+    ! In/output variables
+    type(type_mesh),         intent(in   ) :: mesh
+    type(type_ice_model),    intent(in   ) :: ice
+    type(type_ocean_model),  intent(in   ) :: ocean
+    type(type_laddie_model), intent(inout) :: laddie
+    real(dp),                intent(in   ) :: time
+    logical,                 intent(in   ) :: is_initial
+    character(len=3),        intent(in   ) :: region_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_laddie_model'
-    INTEGER                                               :: vi, ti
-    REAL(dp)                                              :: tl               ! [s] Laddie time
-    REAL(dp)                                              :: dt               ! [s] Laddie time step
-    REAL(dp), PARAMETER                                   :: time_relax_laddie = 0.02_dp ! [days]
-    REAL(dp), PARAMETER                                   :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
+    character(len=1024), parameter :: routine_name = 'run_laddie_model'
+    type(type_mesh)                :: mesh_repartitioned
 
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call update_laddie_forcing( mesh, ice, ocean, laddie)
+
+    ! Repartition the mesh so each process has (approximately)
+    ! the same number of ice shelf vertices/triangles
+    call repartition_mesh( mesh, mesh_repartitioned, laddie%mask_a, laddie%mask_b)
+
+    ! Repartition laddie
+    call repartition_laddie( mesh, mesh_repartitioned, laddie)
+
+    ! Run laddie on the repartitioned mesh
+    call run_laddie_model_repartitioned( mesh_repartitioned, laddie, time, is_initial, region_name)
+
+    ! Un-repartition laddie
+    call repartition_laddie( mesh_repartitioned, mesh, laddie)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine run_laddie_model
+
+  subroutine run_laddie_model_repartitioned( mesh, laddie, time, is_initial, region_name)
+    ! Run the laddie model on the repartitioned mesh
+
+    ! In/output variables
+    type(type_mesh),         intent(in   ) :: mesh
+    type(type_laddie_model), intent(inout) :: laddie
+    real(dp),                intent(in   ) :: time
+    logical,                 intent(in   ) :: is_initial
+    character(len=3),        intent(in   ) :: region_name
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'run_laddie_model_repartitioned'
+    integer                        :: vi, ti
+    real(dp)                       :: tl               ! [s] Laddie time
+    real(dp)                       :: dt               ! [s] Laddie time step
+    real(dp)                       :: duration         ! [days] Duration of run
+    real(dp)                       :: ref_time         ! [s] Reference time for writing
+    real(dp), parameter            :: time_relax_laddie = 0.02_dp ! [days]
+    real(dp), parameter            :: fac_dt_relax = 3.0_dp ! Reduction factor of time step
+    real(dp)                       :: time_to_write    ! [days]
+    real(dp)                       :: last_write_time  ! [days]
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -66,10 +105,10 @@ CONTAINS
     ! =================
 
     ! Extrapolate data into new cells
-    CALL extrapolate_laddie_variables( mesh, ice, laddie)
+    CALL extrapolate_laddie_variables( mesh, laddie)
 
     ! == Update masks ==
-    CALL update_laddie_masks( mesh, ice, laddie)
+    CALL update_laddie_masks( mesh, laddie)
 
     ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
@@ -94,12 +133,29 @@ CONTAINS
     laddie%now%H_c( mesh%ei1:mesh%ei2) = 0.0_dp
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    CALL update_laddie_operators( mesh, laddie)
 
     ! == Main time loop ==
     ! ====================
 
+    ! Determine run duration and apply offset for initial run
+    if (is_initial) then
+      duration = C%time_duration_laddie_init
+      ref_time = time*sec_per_year - duration*sec_per_day
+    else
+      duration = C%time_duration_laddie
+      ref_time = time*sec_per_year
+    end if
+
     tl = 0.0_dp
+    last_write_time = 0.0_dp
+    time_to_write = C%time_interval_scalar_output
+
+    ! Perform first integration with half the time step for LFRA scheme
+    dt = C%dt_laddie / fac_dt_relax
+    if (C%choice_laddie_integration_scheme == 'lfra') then
+      call integrate_lfra( mesh, laddie, tl, time, dt)
+    end if
 
     DO WHILE (tl < duration * sec_per_day)
 
@@ -116,25 +172,35 @@ CONTAINS
         CASE DEFAULT
           CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
         CASE ('euler')
-          CALL integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
+          CALL integrate_euler( mesh, laddie, tl, time, dt)
         CASE ('fbrk3')
-          CALL integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
+          CALL integrate_fbrk3( mesh, laddie, tl, time, dt)
+        CASE ('lfra')
+          CALL integrate_lfra( mesh, laddie, tl, time, 2*dt)
       END SELECT
 
       ! Write to output
-      if (C%do_write_laddie_output) then
-        call write_to_laddie_output_file( mesh, laddie, region_name, time*sec_per_year + tl)
+      if (C%do_write_laddie_output_fields) then
+        call write_to_laddie_output_fields_file( mesh, laddie, region_name, ref_time + tl)
       end if
 
-      ! Display or save fields
-      ! CALL print_diagnostics( mesh, laddie, tl)
+      if (C%do_write_laddie_output_scalar) then
+        call buffer_laddie_scalars( mesh, laddie, ref_time + tl)
+
+        ! Write if required
+        if (tl > time_to_write * sec_per_day) then
+          call write_to_laddie_output_scalar_file( laddie)
+          last_write_time = time_to_write
+          time_to_write = time_to_write + C%time_interval_scalar_output
+        end if
+      end if
 
     END DO !DO WHILE (tl < C%time_duration_laddie)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE run_laddie_model
+  end subroutine run_laddie_model_repartitioned
 
   SUBROUTINE initialise_laddie_model( mesh, laddie, ocean, ice, region_name)
     ! Initialise the laddie model
@@ -160,43 +226,48 @@ CONTAINS
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
 
+    call update_laddie_forcing( mesh, ice, ocean, laddie)
+
     ! == Update masks ==
-    call update_laddie_masks( mesh, ice, laddie)
+    call update_laddie_masks( mesh, laddie)
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh, ice, laddie)
+    CALL update_laddie_operators( mesh, laddie)
 
     ! Initialise requested timesteps
-    CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%now)
+    CALL initialise_laddie_model_timestep( mesh, laddie, laddie%now)
 
     SELECT CASE(C%choice_laddie_integration_scheme)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
       CASE ('euler')
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
       CASE ('fbrk3')
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np13)
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np12)
-        CALL initialise_laddie_model_timestep( mesh, laddie, ocean, ice, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np13)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np12)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
+      CASE ('lfra')
+        call crash('LeapFrog RobertAsselin scheme does not work yet, use euler or fbrk3')
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%nm1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
     END SELECT
 
     ! Create output file
-    if (C%do_write_laddie_output) call create_laddie_output_file( mesh, laddie, region_name)
+    if (C%do_write_laddie_output_fields) call create_laddie_output_fields_file( mesh, laddie, region_name)
+    if (C%do_write_laddie_output_scalar) call create_laddie_output_scalar_file( laddie, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_laddie_model
 
-  SUBROUTINE initialise_laddie_model_timestep( mesh, laddie, ocean, ice, npx)
+  SUBROUTINE initialise_laddie_model_timestep( mesh, laddie, npx)
     ! Initialise the laddie model for given timestep
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
 
     ! Local variables:
@@ -222,7 +293,7 @@ CONTAINS
     CALL map_H_a_c( mesh, laddie, npx%H, npx%H_c)
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npx%H)
+    CALL compute_ambient_TS( mesh, laddie, npx%H)
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
@@ -237,213 +308,12 @@ CONTAINS
 
   END SUBROUTINE initialise_laddie_model_timestep
 
-  SUBROUTINE integrate_euler( mesh, ice, ocean, laddie, tl, time, dt)
-    ! Integrate 1 timestep Euler scheme
-
-    ! In- and output variables
-
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp),                               INTENT(INOUT) :: tl
-    REAL(dp),                               INTENT(IN)    :: time
-    REAL(dp),                               INTENT(IN)    :: dt
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_euler'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, time, dt)
-
-    ! Update diffusive terms based on now time step
-    CALL update_diffusive_terms( mesh, laddie, laddie%now)
-
-    ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
-
-    ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
-
-    ! == Move time ==
-    CALL move_laddie_timestep( mesh, laddie, tl, dt)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE integrate_euler
-
-  SUBROUTINE integrate_fbrk3( mesh, ice, ocean, laddie, tl, time, dt)
-    ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme
-
-    ! Based on Lilly et al (2023, MWR) doi:10.1175/MWR-D-23-0113.1
-
-    ! In- and output variables
-
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp),                               INTENT(INOUT) :: tl
-    REAL(dp),                               INTENT(IN)    :: time
-    REAL(dp),                               INTENT(IN)    :: dt
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'integrate_fbrk3'
-    integer                                               :: vi
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! == Stage 1: explicit 1/3 timestep ==
-    ! == RHS terms defined at n ==========
-    ! ====================================
-
-    ! Integrate H 1/3 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, time, dt/3)
-
-    ! Compute Hstar
-    do vi = mesh%vi1, mesh%vi2
-      laddie%Hstar( vi) = C%laddie_fbrk3_beta1 * laddie%np13%H( vi) + (1-C%laddie_fbrk3_beta1) * laddie%now%H( vi)
-    end do
-    call exchange_halos( mesh, laddie%Hstar)
-
-    ! Update diffusive terms
-    CALL update_diffusive_terms( mesh, laddie, laddie%now)
-
-    ! Integrate U and V 1/3 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
-
-    ! Integrate T and S 1/3 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%now, laddie%np13, laddie%now%H, dt/3, .false.)
-
-    ! == Stage 2: explicit 1/2 timestep ==
-    ! == RHS terms defined at n + 1/3 ====
-    ! ====================================
-
-    ! Integrate H 1/2 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, time, dt/2)
-
-    ! Compute new Hstar
-    do vi = mesh%vi1, mesh%vi2
-      laddie%Hstar( vi) = C%laddie_fbrk3_beta2 * laddie%np12%H( vi) + (1-C%laddie_fbrk3_beta2) * laddie%now%H( vi)
-    end do
-    call exchange_halos( mesh, laddie%Hstar)
-
-    ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, laddie, laddie%np13)
-
-    ! Integrate U and V 1/2 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
-
-    ! Integrate T and S 1/2 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%np13, laddie%np12, laddie%np13%H, dt/2, .false.)
-
-    ! == Stage 3: explicit 1 timestep ====
-    ! == RHS terms defined at n + 1/2 ====
-    ! ====================================
-
-    ! Integrate H 1 time step
-    CALL compute_H_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, time, dt)
-
-    ! Compute new Hstar
-    do vi = mesh%vi1, mesh%vi2
-      laddie%Hstar( vi) = C%laddie_fbrk3_beta3 * laddie%np1%H( vi) + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H( vi) + C%laddie_fbrk3_beta3 * laddie%now%H( vi)
-    end do
-    call exchange_halos( mesh, laddie%Hstar)
-
-    ! Update diffusive terms
-    !CALL update_diffusive_terms( mesh, laddie, laddie%np12)
-
-    ! Integrate U and V 1 time step
-    CALL compute_UV_npx( mesh, ice, ocean, laddie, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
-
-    ! Integrate T and S 1 time step
-    CALL compute_TS_npx( mesh, laddie, laddie%np12, laddie%np1, laddie%np12%H, dt, .true.)
-
-    ! ===============
-    ! == Move time ==
-    CALL move_laddie_timestep( mesh, laddie, tl, dt)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE integrate_fbrk3
-
-  SUBROUTINE move_laddie_timestep( mesh, laddie, tl, dt)
-    ! Increase laddie time tl by timestep dt and overwrite now timestep
-
-    ! In- and output variables
-    type(type_mesh),                        intent(in   ) :: mesh
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    REAL(dp),                               INTENT(INOUT) :: tl
-    REAL(dp),                               INTENT(IN)    :: dt
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'move_laddie_timestep'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Increase laddie time
-    tl = tl + dt
-
-    ! Move main variables by 1 time step
-    laddie%now%H  ( mesh%vi1:mesh%vi2) = laddie%np1%H  ( mesh%vi1:mesh%vi2)
-    laddie%now%T  ( mesh%vi1:mesh%vi2) = laddie%np1%T  ( mesh%vi1:mesh%vi2)
-    laddie%now%S  ( mesh%vi1:mesh%vi2) = laddie%np1%S  ( mesh%vi1:mesh%vi2)
-    laddie%now%U  ( mesh%ti1:mesh%ti2) = laddie%np1%U  ( mesh%ti1:mesh%ti2)
-    laddie%now%V  ( mesh%ti1:mesh%ti2) = laddie%np1%V  ( mesh%ti1:mesh%ti2)
-    laddie%now%H_b( mesh%ti1:mesh%ti2) = laddie%np1%H_b( mesh%ti1:mesh%ti2)
-    laddie%now%H_c( mesh%ei1:mesh%ei2) = laddie%np1%H_c( mesh%ei1:mesh%ei2)
-    laddie%now%U_a( mesh%vi1:mesh%vi2) = laddie%np1%U_a( mesh%vi1:mesh%vi2)
-    laddie%now%U_c( mesh%ei1:mesh%ei2) = laddie%np1%U_c( mesh%ei1:mesh%ei2)
-    laddie%now%V_a( mesh%vi1:mesh%vi2) = laddie%np1%V_a( mesh%vi1:mesh%vi2)
-    laddie%now%V_c( mesh%ei1:mesh%ei2) = laddie%np1%V_c( mesh%ei1:mesh%ei2)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE move_laddie_timestep
-
-  SUBROUTINE update_diffusive_terms( mesh, laddie, npxref)
-    ! Update diffusivity and viscosity. Based on reference timestep npxref
-
-    ! For stability, most studies base diffusive terms on the now timestep
-
-    ! In- and output variables
-
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_diffusive_terms'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Compute diffusivities
-    CALL compute_diffTS( mesh, laddie, npxref)
-
-    ! Compute viscosities
-    CALL compute_viscUV( mesh, laddie, npxref)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE update_diffusive_terms
-
-  SUBROUTINE update_laddie_masks( mesh, ice, laddie)
+  SUBROUTINE update_laddie_masks( mesh, laddie)
     ! Update bunch of masks for laddie at the start of a new run
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
 
     ! Local variables:
@@ -459,25 +329,32 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_gr_a( vi) = .true.
-      ELSE IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) THEN
-        laddie%mask_a( vi)    = .false.
-        laddie%mask_gr_a( vi) = .true.
-      ELSE IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) THEN
+      ELSE IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_oc_a( vi) = .true.
       ELSE
         ! Inherit regular masks
-        laddie%mask_a( vi)    = ice%mask_floating_ice( vi)
-        laddie%mask_gr_a( vi) = ice%mask_grounded_ice( vi) .OR. ice%mask_icefree_land( vi)
-        laddie%mask_oc_a( vi) = ice%mask_icefree_ocean( vi)
+        laddie%mask_a( vi)    = laddie%mask_floating_ice( vi)
+        laddie%mask_gr_a( vi) = laddie%mask_grounded_ice( vi) .OR. laddie%mask_icefree_land( vi)
+        laddie%mask_oc_a( vi) = laddie%mask_icefree_ocean( vi)
       END IF
+
+      ! Define domain for area integration
+      if (laddie%mask_a( vi)) then
+        laddie%domain_a( vi) = 1.0_dp
+      else
+        laddie%domain_a( vi) = 0.0_dp
+      end if
     END DO
 
-    ! Mask on b-grid
     call exchange_halos( mesh, laddie%mask_a)
     call exchange_halos( mesh, laddie%mask_gr_a)
     call exchange_halos( mesh, laddie%mask_oc_a)
+    call exchange_halos( mesh, laddie%domain_a)
 
+    call integrate_over_domain( mesh, laddie%domain_a, laddie%area_a)
+
+    ! Mask on b-grid
     DO ti = mesh%ti1, mesh%ti2
       ! Initialise as false to overwrite previous mask
       laddie%mask_b( ti)    = .false.
@@ -542,25 +419,33 @@ CONTAINS
         laddie%mask_oc_b( ti) = .true.
       END IF
 
+      ! Define domain for area integration
+      if (laddie%mask_b( ti)) then
+        laddie%domain_b( ti) = 1.0_dp
+      else
+        laddie%domain_b( ti) = 0.0_dp
+      end if
     END DO !ti = mesh%ti1, mesh%ti2
 
     call exchange_halos( mesh, laddie%mask_b)
     call exchange_halos( mesh, laddie%mask_gl_b)
     call exchange_halos( mesh, laddie%mask_cf_b)
     call exchange_halos( mesh, laddie%mask_oc_b)
+    call exchange_halos( mesh, laddie%domain_b)
+
+    call integrate_over_domain( mesh, laddie%domain_b, laddie%area_b)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_laddie_masks
 
-  SUBROUTINE extrapolate_laddie_variables( mesh, ice, laddie)
+  SUBROUTINE extrapolate_laddie_variables( mesh, laddie)
     ! Update bunch of masks for laddie at the start of a new run
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
 
     ! Local variables:
@@ -581,13 +466,14 @@ CONTAINS
       ! Skip if vertex is at border
       IF (mesh%VBI( vi) > 0) CYCLE
 
-      ! Skip if water column thickness is insufficient, treated as grounded for now
-      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
-
-      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+      IF (C%choice_calving_law == 'threshold_thickness') THEN
+        IF (laddie%Hi( vi) < C%calving_threshold_thickness_shelf .and. laddie%mask_floating_ice( vi)) CYCLE
+      ELSE
+        IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) CYCLE
+      END IF
 
       ! Currently floating ice, so either seed or fill here
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_floating_ice( vi)) THEN
         IF (laddie%mask_a( vi)) THEN
           ! Data already available here, so use as seed
           mask( vi) = 2
@@ -616,13 +502,14 @@ CONTAINS
       ! Skip if vertex is at border
       IF (mesh%VBI( vi) > 0) CYCLE
 
-      ! Skip if water column thickness is insufficient, treated as grounded for now
-      IF (ice%Hib( vi) - ice%Hb( vi) < 2*C%laddie_thickness_minimum) CYCLE
-
-      IF (ice%Hi( vi) < 1.0 .and. ice%mask_floating_ice( vi)) CYCLE
+      IF (C%choice_calving_law == 'threshold_thickness') THEN
+        IF (laddie%Hi( vi) < C%calving_threshold_thickness_shelf .and. laddie%mask_floating_ice( vi)) CYCLE
+      ELSE
+        IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) CYCLE
+      END IF
 
       ! Currently floating ice, so either seed or fill here
-      IF (ice%mask_floating_ice( vi)) THEN
+      IF (laddie%mask_floating_ice( vi)) THEN
         IF (laddie%now%H( vi) == 0.0_dp) THEN
           laddie%now%H( vi) = C%laddie_thickness_minimum
           laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
@@ -659,6 +546,30 @@ CONTAINS
     ! Thickness
     call reallocate_dist_shared( laddie%dH_dt,          laddie%wdH_dt,          mesh_new%pai_V%n_nih)
     laddie%dH_dt         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%dH_dt
+
+    ! Forcing
+    call reallocate_dist_shared( laddie%Hi                , laddie%wHi                , mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%Hib               , laddie%wHib               , mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%dHib_dx_b         , laddie%wdHib_dx_b         , mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%dHib_dy_b         , laddie%wdHib_dy_b         , mesh_new%pai_Tri%n_nih)
+    call reallocate_dist_shared( laddie%mask_icefree_land , laddie%wmask_icefree_land , mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean, mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_grounded_ice , laddie%wmask_grounded_ice , mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_floating_ice , laddie%wmask_floating_ice , mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%Ti                , laddie%wTi                , mesh_new%pai_V%n_nih, mesh_new%nz)
+    call reallocate_dist_shared( laddie%T_ocean           , laddie%wT_ocean           , mesh_new%pai_V%n_nih, C%nz_ocean)
+    call reallocate_dist_shared( laddie%S_ocean           , laddie%wS_ocean           , mesh_new%pai_V%n_nih, C%nz_ocean)
+    laddie%Hi                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hi
+    laddie%Hib               ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hib
+    laddie%dHib_dx_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dx_b
+    laddie%dHib_dy_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dy_b
+    laddie%mask_icefree_land ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_land
+    laddie%mask_icefree_ocean( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_ocean
+    laddie%mask_grounded_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_grounded_ice
+    laddie%mask_floating_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_floating_ice
+    laddie%Ti                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:mesh_new%nz) => laddie%Ti
+    laddie%T_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%T_ocean
+    laddie%S_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%S_ocean
 
     ! Temperatures
     call reallocate_dist_shared( laddie%T_amb,          laddie%wT_amb,          mesh_new%pai_V%n_nih)
@@ -778,11 +689,19 @@ CONTAINS
     laddie%mask_cf_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_cf_b
     laddie%mask_oc_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_oc_b
 
+    ! Domain
+    call reallocate_dist_shared( laddie%domain_a      , laddie%wdomain_a      , mesh_new%pai_V%n_nih  )
+    call reallocate_dist_shared( laddie%domain_b      , laddie%wdomain_b      , mesh_new%pai_Tri%n_nih)
+    laddie%domain_a      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%domain_a
+    laddie%domain_b      ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%domain_b
+
+    call update_laddie_forcing( mesh_new, ice, ocean, laddie)
+
     ! == Re-initialise masks ==
-    CALL update_laddie_masks( mesh_new, ice, laddie)
+    CALL update_laddie_masks( mesh_new, laddie)
 
     ! == Update operators ==
-    CALL update_laddie_operators( mesh_new, ice, laddie)
+    CALL update_laddie_operators( mesh_new, laddie)
 
     ! == Timestep variables ==
     CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%now)
@@ -796,10 +715,13 @@ CONTAINS
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np13)
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np12)
         CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
+      CASE ('lfra')
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%nm1)
+        CALL remap_laddie_timestep( mesh_old, mesh_new, laddie, laddie%np1)
     END SELECT
 
     ! == Re-initialise ==
-    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, C%time_duration_laddie_init, region_name)
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, .TRUE., region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -875,6 +797,206 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE remap_laddie_timestep
+
+  subroutine update_laddie_forcing( mesh, ice, ocean, laddie)
+
+    ! In/output variables
+    type(type_mesh),         intent(in   ) :: mesh
+    type(type_ice_model),    intent(in   ) :: ice
+    type(type_ocean_model),  intent(in   ) :: ocean
+    type(type_laddie_model), intent(inout) :: laddie
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'update_laddie_forcing'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    laddie%Hi                ( mesh%vi1:mesh%vi2  ) = ice%Hi                ( mesh%vi1:mesh%vi2  )
+    laddie%Hib               ( mesh%vi1:mesh%vi2  ) = ice%Hib               ( mesh%vi1:mesh%vi2  )
+    laddie%dHib_dx_b         ( mesh%ti1:mesh%ti2  ) = ice%dHib_dx_b         ( mesh%ti1:mesh%ti2  )
+    laddie%dHib_dy_b         ( mesh%ti1:mesh%ti2  ) = ice%dHib_dy_b         ( mesh%ti1:mesh%ti2  )
+    laddie%mask_icefree_land ( mesh%vi1:mesh%vi2  ) = ice%mask_icefree_land ( mesh%vi1:mesh%vi2  )
+    laddie%mask_icefree_ocean( mesh%vi1:mesh%vi2  ) = ice%mask_icefree_ocean( mesh%vi1:mesh%vi2  )
+    laddie%mask_grounded_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_grounded_ice ( mesh%vi1:mesh%vi2  )
+    laddie%mask_floating_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_floating_ice ( mesh%vi1:mesh%vi2  )
+    laddie%Ti                ( mesh%vi1:mesh%vi2,:) = ice%Ti                ( mesh%vi1:mesh%vi2,:)
+    laddie%T_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%T               ( mesh%vi1:mesh%vi2,:)
+    laddie%S_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%S               ( mesh%vi1:mesh%vi2,:)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine update_laddie_forcing
+
+  subroutine repartition_laddie( mesh_old, mesh_new, laddie)
+
+    ! In/output variables
+    type(type_mesh),         intent(in   ) :: mesh_old, mesh_new
+    type(type_laddie_model), intent(inout) :: laddie
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'repartition_laddie'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Thickness
+    call repartition( mesh_old, mesh_new, laddie%dH_dt         , laddie%wdH_dt         )    ! [m]             change
+    laddie%dH_dt         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%dH_dt
+
+    ! Forcing
+    call repartition( mesh_old, mesh_new, laddie%Hi                , laddie%wHi                )
+    call repartition( mesh_old, mesh_new, laddie%Hib               , laddie%wHib               )
+    call repartition( mesh_old, mesh_new, laddie%dHib_dx_b         , laddie%wdHib_dx_b         )
+    call repartition( mesh_old, mesh_new, laddie%dHib_dy_b         , laddie%wdHib_dy_b         )
+    call repartition( mesh_old, mesh_new, laddie%mask_icefree_land , laddie%wmask_icefree_land )
+    call repartition( mesh_old, mesh_new, laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean)
+    call repartition( mesh_old, mesh_new, laddie%mask_grounded_ice , laddie%wmask_grounded_ice )
+    call repartition( mesh_old, mesh_new, laddie%mask_floating_ice , laddie%wmask_floating_ice )
+    call repartition( mesh_old, mesh_new, laddie%Ti                , laddie%wTi                )
+    call repartition( mesh_old, mesh_new, laddie%T_ocean           , laddie%wT_ocean           )
+    call repartition( mesh_old, mesh_new, laddie%S_ocean           , laddie%wS_ocean           )
+    laddie%Hi                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hi
+    laddie%Hib               ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hib
+    laddie%dHib_dx_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dx_b
+    laddie%dHib_dy_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dy_b
+    laddie%mask_icefree_land ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_land
+    laddie%mask_icefree_ocean( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_ocean
+    laddie%mask_grounded_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_grounded_ice
+    laddie%mask_floating_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_floating_ice
+    laddie%Ti                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:mesh_new%nz) => laddie%Ti
+    laddie%T_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%T_ocean
+    laddie%S_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%S_ocean
+
+    ! Temperatures
+    call repartition( mesh_old, mesh_new, laddie%T_amb         , laddie%wT_amb         )    ! [degC]          Temperature layer bottom
+    call repartition( mesh_old, mesh_new, laddie%T_base        , laddie%wT_base        )    ! [degC]          Temperature ice shelf base
+    call repartition( mesh_old, mesh_new, laddie%T_freeze      , laddie%wT_freeze      )    ! [degC]          Temperature freezing
+    laddie%T_amb         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%T_amb
+    laddie%T_base        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%T_base
+    laddie%T_freeze      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%T_freeze
+
+    ! Salinities
+    call repartition( mesh_old, mesh_new, laddie%S_amb         , laddie%wS_amb         )    ! [PSU]           Salinity layer bottom
+    call repartition( mesh_old, mesh_new, laddie%S_base        , laddie%wS_base        )    ! [PSU]           Salinity ice shelf base
+    laddie%S_amb         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%S_amb
+    laddie%S_base        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%S_base
+
+    ! Densities and buoyancies
+    call repartition( mesh_old, mesh_new, laddie%rho           , laddie%wrho           )    ! [kg m^-3]       Layer density
+    call repartition( mesh_old, mesh_new, laddie%rho_amb       , laddie%wrho_amb       )    ! [kg m^-3]       Ambient water density
+    call repartition( mesh_old, mesh_new, laddie%drho_amb      , laddie%wdrho_amb      )    ! []              Buoyancy at layer bottom
+    call repartition( mesh_old, mesh_new, laddie%Hdrho_amb     , laddie%wHdrho_amb     )    ! []              Depth-integrated buoyancy at layer bottom
+    call repartition( mesh_old, mesh_new, laddie%Hdrho_amb_b   , laddie%wHdrho_amb_b   )    ! []              Depth-integrated buoyancy at layer bottom
+    call repartition( mesh_old, mesh_new, laddie%drho_base     , laddie%wdrho_base     )    ! []              Buoyancy at ice base
+    laddie%rho           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%rho
+    laddie%rho_amb       ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%rho_amb
+    laddie%drho_amb      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%drho_amb
+    laddie%Hdrho_amb     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%Hdrho_amb
+    laddie%Hdrho_amb_b   ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%Hdrho_amb_b
+    laddie%drho_base     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%drho_base
+
+    ! Friction velocity
+    call repartition( mesh_old, mesh_new, laddie%u_star        , laddie%wu_star        )    ! [m s^-1]        Friction velocity
+    laddie%u_star        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%u_star
+
+    ! Physical parameter fields
+    call repartition( mesh_old, mesh_new, laddie%gamma_T       , laddie%wgamma_T       )    ! []              Turbulent heat exchange coefficient
+    call repartition( mesh_old, mesh_new, laddie%gamma_S       , laddie%wgamma_S       )    ! []              Turbulent salt exchange coefficient
+    call repartition( mesh_old, mesh_new, laddie%A_h           , laddie%wA_h           )    ! [m^2 s^-1]      Horizontal laplacian viscosity
+    call repartition( mesh_old, mesh_new, laddie%K_h           , laddie%wK_h           )    ! [m^2 s^-1]      Horizontal diffusivity
+    laddie%gamma_T       ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%gamma_T
+    laddie%gamma_S       ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%gamma_S
+    laddie%A_h           ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%A_h
+    laddie%K_h           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%K_h
+
+    ! Vertical rates
+    call repartition( mesh_old, mesh_new, laddie%melt          , laddie%wmelt          )    ! [m s^-1]        Melting / freezing rate
+    call repartition( mesh_old, mesh_new, laddie%entr          , laddie%wentr          )    ! [m s^-1]        Entrainment
+    call repartition( mesh_old, mesh_new, laddie%entr_dmin     , laddie%wentr_dmin     )    ! [m s^-1]        Entrainment for D_min
+    call repartition( mesh_old, mesh_new, laddie%detr          , laddie%wdetr          )    ! [m s^-1]        Detrainment
+    call repartition( mesh_old, mesh_new, laddie%entr_tot      , laddie%wentr_tot      )    ! [m s^-1]        Total (net) entrainment
+    laddie%melt          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%melt
+    laddie%entr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr
+    laddie%entr_dmin     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_dmin
+    laddie%detr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%detr
+    laddie%entr_tot      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_tot
+
+    ! Horizontal fluxes
+    call repartition( mesh_old, mesh_new, laddie%divQH         , laddie%wdivQH         )    ! [m^3 s^-1]      Divergence of layer thickness
+    call repartition( mesh_old, mesh_new, laddie%divQU         , laddie%wdivQU         )    ! [m^4 s^-2]      Divergence of momentum
+    call repartition( mesh_old, mesh_new, laddie%divQV         , laddie%wdivQV         )    ! [m^4 s^-2]
+    call repartition( mesh_old, mesh_new, laddie%divQT         , laddie%wdivQT         )    ! [degC m^3 s^-1] Divergence of heat
+    call repartition( mesh_old, mesh_new, laddie%divQS         , laddie%wdivQS         )    ! [PSU m^3 s^-1]  Divergence of salt
+    laddie%divQH         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%divQH
+    laddie%divQU         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%divQU
+    laddie%divQV         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%divQV
+    laddie%divQT         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%divQT
+    laddie%divQS         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%divQS
+
+    ! Viscosities
+    call repartition( mesh_old, mesh_new, laddie%viscU         , laddie%wviscU         )    ! [m^2 s^-2]      Horizontal viscosity term
+    call repartition( mesh_old, mesh_new, laddie%viscV         , laddie%wviscV         )    ! [m^2 s^-2]
+    laddie%viscU         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%viscU
+    laddie%viscV         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%viscV
+
+    ! Diffusivities
+    call repartition( mesh_old, mesh_new, laddie%diffT         , laddie%wdiffT         )    ! [degC m s^-1]   Horizontal diffusivity of heat
+    call repartition( mesh_old, mesh_new, laddie%diffS         , laddie%wdiffS         )    ! [PSU m s^-1]    Horizontal diffusivity of salt
+    laddie%diffT         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%diffT
+    laddie%diffS         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%diffS
+
+    ! RHS terms
+    call repartition( mesh_old, mesh_new, laddie%ddrho_amb_dx_b, laddie%wddrho_amb_dx_b)    ! [m^-1]          Horizontal derivative of buoyancy
+    call repartition( mesh_old, mesh_new, laddie%ddrho_amb_dy_b, laddie%wddrho_amb_dy_b)    ! [m^-1]
+    call repartition( mesh_old, mesh_new, laddie%dH_dx_b       , laddie%wdH_dx_b       )    ! [m^-2]          Horizontal derivative of thickness
+    call repartition( mesh_old, mesh_new, laddie%dH_dy_b       , laddie%wdH_dy_b       )    ! [m^-2]
+    call repartition( mesh_old, mesh_new, laddie%detr_b        , laddie%wdetr_b        )    ! [m s^-1]        Detrainment on b grid
+    laddie%ddrho_amb_dx_b( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%ddrho_amb_dx_b
+    laddie%ddrho_amb_dy_b( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%ddrho_amb_dy_b
+    laddie%dH_dx_b       ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%dH_dx_b
+    laddie%dH_dy_b       ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%dH_dy_b
+    laddie%detr_b        ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%detr_b
+
+    ! Forward-Backward Runge-Kutta 3 scheme
+    call repartition( mesh_old, mesh_new, laddie%Hstar         , laddie%wHstar         )    ! [m]               Intermediate layer thickness
+    laddie%Hstar         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%Hstar
+
+    ! Mapped variables
+    call repartition( mesh_old, mesh_new, laddie%H_c           , laddie%wH_c           )
+    call repartition( mesh_old, mesh_new, laddie%Hstar_b       , laddie%wHstar_b       )
+    call repartition( mesh_old, mesh_new, laddie%Hstar_c       , laddie%wHstar_c       )
+    laddie%H_c           ( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => laddie%H_c
+    laddie%Hstar_b       ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%Hstar_b
+    laddie%Hstar_c       ( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => laddie%Hstar_c
+
+    ! Masks
+    call repartition( mesh_old, mesh_new, laddie%mask_a        , laddie%wmask_a        )    !                 Mask on a-grid
+    call repartition( mesh_old, mesh_new, laddie%mask_gr_a     , laddie%wmask_gr_a     )    !                 Grounded mask on a-grid
+    call repartition( mesh_old, mesh_new, laddie%mask_oc_a     , laddie%wmask_oc_a     )    !                 Icefree ocean mask on a-grid
+    call repartition( mesh_old, mesh_new, laddie%mask_b        , laddie%wmask_b        )    !                 Mask on b-grid
+    call repartition( mesh_old, mesh_new, laddie%mask_gl_b     , laddie%wmask_gl_b     )    !                 Grounding line mask on b-grid
+    call repartition( mesh_old, mesh_new, laddie%mask_cf_b     , laddie%wmask_cf_b     )    !                 Calving front mask on b-grid
+    call repartition( mesh_old, mesh_new, laddie%mask_oc_b     , laddie%wmask_oc_b     )    !                 Icefree ocean mask on b-grid
+    laddie%mask_a        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%mask_a
+    laddie%mask_gr_a     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%mask_gr_a
+    laddie%mask_oc_a     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%mask_oc_a
+    laddie%mask_b        ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_b
+    laddie%mask_gl_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_gl_b
+    laddie%mask_cf_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_cf_b
+    laddie%mask_oc_b     ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%mask_oc_b
+
+    ! Domains
+    call repartition( mesh_old, mesh_new, laddie%domain_a      , laddie%wdomain_a      )    ! []              Floating domain on a-grid
+    call repartition( mesh_old, mesh_new, laddie%domain_b      , laddie%wdomain_b      )    ! []              Floating domain on b-grid
+    laddie%domain_a      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%domain_a
+    laddie%domain_b      ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%domain_b
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine repartition_laddie
 
 END MODULE laddie_main
 

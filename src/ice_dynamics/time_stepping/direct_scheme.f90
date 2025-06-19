@@ -47,8 +47,8 @@ contains
     region%ice%Hi_prev    = region%ice%Hi_next
 
     ! Calculate ice velocities
-    call solve_stress_balance( region%mesh, region%ice, region%BMB%BMB, region%name, &
-      n_visc_its, n_Axb_its)
+    call solve_stress_balance( region%mesh, region%ice, region%bed_roughness, &
+      region%BMB%BMB, region%name, n_visc_its, n_Axb_its)
 
     ! Calculate time step
 

@@ -60,7 +60,6 @@ contains
 
     ! Target quantities
     allocate( ice%dHi_dt_target   ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( ice%uabs_surf_target( mesh%vi1:mesh%vi2), source = 0._dp)
 
     ! Masks
     allocate( ice%mask_icefree_land      ( mesh%vi1:mesh%vi2), source = .false.)
@@ -208,14 +207,8 @@ contains
     ! == Basal sliding ==
     ! ===================
 
-    ! Sliding law coefficients
-    allocate( ice%till_friction_angle( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( ice%bed_roughness      ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( ice%till_yield_stress  ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( ice%slid_alpha_sq      ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( ice%slid_beta_sq       ( mesh%vi1:mesh%vi2), source = 0._dp)
-
     ! Basal friction and shear stress
+    allocate( ice%till_yield_stress         ( mesh%vi1:mesh%vi2), source = 0._dp)
     allocate( ice%basal_friction_coefficient( mesh%vi1:mesh%vi2), source = 0._dp)
     allocate( ice%basal_shear_stress        ( mesh%vi1:mesh%vi2), source = 0._dp)
 

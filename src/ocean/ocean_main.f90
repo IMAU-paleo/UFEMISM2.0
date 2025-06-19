@@ -374,7 +374,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
-    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:

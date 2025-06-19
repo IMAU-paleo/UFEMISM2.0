@@ -14,10 +14,10 @@ MODULE SMB_main
   USE grid_basic                                             , ONLY: type_grid
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
-  USE SMB_model_types                                        , ONLY: type_SMB_model
+  USE SMB_model_types                                        , ONLY: type_SMB_model, type_SMB_model_IMAU_ITM
   USE SMB_idealised                                          , ONLY: initialise_SMB_model_idealised, run_SMB_model_idealised
   USE SMB_prescribed                                         , ONLY: initialise_SMB_model_prescribed, run_SMB_model_prescribed
-  USE SMB_parameterised                                      , ONLY: initialise_SMB_model_parameterised, run_SMB_model_parameterised
+  USE SMB_IMAU_ITM                                           , ONLY: initialise_SMB_model_IMAUITM, run_SMB_model_IMAUITM
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use mesh_ROI_polygons, only: calc_polygon_Patagonia
   use plane_geometry, only: is_in_polygon
@@ -100,9 +100,9 @@ CONTAINS
         CALL run_SMB_model_prescribed( mesh, ice, SMB, region_name, time)
       CASE ('reconstructed')
         CALL run_SMB_model_reconstructed( mesh, grid_smooth, ice, SMB, region_name, time)
-      CASE ('parameterised')  
-        !IF (par%primary)  WRITE(*,"(A)") '   Running parameterised SMB...'
-        CALL run_SMB_model_parameterised( mesh, ice, SMB, climate, time)
+      CASE ('IMAU-ITM')  
+        !IF (par%primary)  WRITE(*,"(A)") '   Running IMAU-ITM SMB model...'
+        CALL run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -166,9 +166,9 @@ CONTAINS
         CALL initialise_SMB_model_prescribed( mesh, SMB, region_name)
       CASE ('reconstructed')
         CALL initialise_SMB_model_reconstructed( mesh, SMB, region_name)
-      CASE ('parameterised')  
-        IF (par%primary)  WRITE(*,"(A)") '   Initialising parameterised SMB...'
-        CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
+      CASE ('IMAU-ITM')  
+        IF (par%primary)  WRITE(*,"(A)") '   Initialising IMAU-ITM SMB...'
+        CALL initialise_SMB_model_IMAUITM( mesh, ice, SMB%IMAUITM, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -220,7 +220,7 @@ CONTAINS
         ! No need to do anything
       CASE ('reconstructed')
         ! No need to do anything
-      CASE ('parameterised')  
+      CASE ('IMAU-ITM')  
         call write_to_restart_file_SMB_model_region(mesh, SMB, region_name, time)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -265,9 +265,10 @@ CONTAINS
     ! month dimension is already written when adding it to file
 
     ! ! Write the SMB fields to the file
-    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'SMB_monthly', SMB%SMB_monthly)
-    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'FirnDepth', SMB%FirnDepth)
-    CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'MeltPreviousYear', SMB%MeltPreviousYear)
+    ! TODO: do we need to check if IMAUITM is being used before writing these files?
+    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'SMB_monthly', SMB%IMAUITM%SMB_monthly)
+    CALL write_to_field_multopt_mesh_dp_2D_monthly( mesh, SMB%restart_filename, ncid, 'FirnDepth', SMB%IMAUITM%FirnDepth)
+    CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'MeltPreviousYear', SMB%IMAUITM%MeltPreviousYear)
     CALL write_to_field_multopt_mesh_dp_2D(         mesh, SMB%restart_filename, ncid, 'SMB', SMB%SMB)
 
     ! Close the file
@@ -318,7 +319,7 @@ CONTAINS
         ! No need to do anything
       CASE ('reconstructed')
         ! No need to do anything
-      CASE ('parameterised')  
+      CASE ('IMAU-ITM')  
         call create_restart_file_SMB_model_region(mesh, SMB, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -433,23 +434,22 @@ CONTAINS
         ! No need to do anything
       CASE ('prescribed')
         CALL initialise_SMB_model_prescribed( mesh_new, SMB, region_name)
-      CASE ('parameterised')  
+      CASE ('IMAU-ITM')  
         !CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
-        CALL reallocate_bounds( SMB%SMB            , mesh_new%vi1, mesh_new%vi2)
-        CALL reallocate_bounds(SMB%AlbedoSurf      , mesh_new%vi1, mesh_new%vi2)
-        CALL reallocate_bounds(SMB%MeltPreviousYear, mesh_new%vi1, mesh_new%vi2)
-        CALL reallocate_bounds(SMB%Refreezing_year , mesh_new%vi1, mesh_new%vi2)
-        CALL reallocate_bounds(SMB%Albedo_year     , mesh_new%vi1, mesh_new%vi2)
-        CALL reallocate_bounds(SMB%SMB             , mesh_new%vi1, mesh_new%vi2)
-        CALL reallocate_bounds(SMB%FirnDepth   , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%Rainfall    , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%Snowfall    , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%AddedFirn   , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%Melt        , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%Refreezing  , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%Runoff      , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%Albedo      , mesh_new%vi1, mesh_new%vi2, 12)
-        CALL reallocate_bounds(SMB%SMB_monthly , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds( SMB%SMB                    , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%IMAUITM%AlbedoSurf      , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%IMAUITM%MeltPreviousYear, mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%IMAUITM%Refreezing_year , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%IMAUITM%Albedo_year     , mesh_new%vi1, mesh_new%vi2)
+        CALL reallocate_bounds(SMB%IMAUITM%FirnDepth   , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%Rainfall    , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%Snowfall    , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%AddedFirn   , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%Melt        , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%Refreezing  , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%Runoff      , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%Albedo      , mesh_new%vi1, mesh_new%vi2, 12)
+        CALL reallocate_bounds(SMB%IMAUITM%SMB_monthly , mesh_new%vi1, mesh_new%vi2, 12)
     
       CASE ('reconstructed')
         CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')  

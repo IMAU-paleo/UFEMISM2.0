@@ -11,9 +11,7 @@ MODULE laddie_utilities
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
-  USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
@@ -29,15 +27,13 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
+  SUBROUTINE compute_ambient_TS( mesh, laddie, Hstar)
     ! Compute T and S of ambient ocean water at the depth of LADDIE's layer bottom
     ! through vertical interpolation
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
 
@@ -51,8 +47,8 @@ CONTAINS
     ! Get T and S at layer base
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T( vi,:), Hstar( vi) - ice%Hib( vi), laddie%T_amb( vi))
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S( vi,:), Hstar( vi) - ice%Hib( vi), laddie%S_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, laddie%T_ocean( vi,:), Hstar( vi) - laddie%Hib( vi), laddie%T_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, laddie%S_ocean( vi,:), Hstar( vi) - laddie%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
 
@@ -118,7 +114,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'allocate_laddie_model'
-    INTEGER                                               :: ncols, ncols_loc, nrows, nrows_loc, nnz_per_row_est, nnz_est_proc
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -126,6 +121,30 @@ CONTAINS
     ! Thickness
     call allocate_dist_shared( laddie%dH_dt         , laddie%wdH_dt         , mesh%pai_V%n_nih  )    ! [m]             change
     laddie%dH_dt         ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%dH_dt
+
+    ! Forcing
+    call allocate_dist_shared( laddie%Hi                , laddie%wHi                , mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%Hib               , laddie%wHib               , mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%dHib_dx_b         , laddie%wdHib_dx_b         , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( laddie%dHib_dy_b         , laddie%wdHib_dy_b         , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( laddie%mask_icefree_land , laddie%wmask_icefree_land , mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean, mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%mask_grounded_ice , laddie%wmask_grounded_ice , mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%mask_floating_ice , laddie%wmask_floating_ice , mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%Ti                , laddie%wTi                , mesh%pai_V%n_nih, mesh%nz)
+    call allocate_dist_shared( laddie%T_ocean           , laddie%wT_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
+    call allocate_dist_shared( laddie%S_ocean           , laddie%wS_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
+    laddie%Hi                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%Hi
+    laddie%Hib               ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%Hib
+    laddie%dHib_dx_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => laddie%dHib_dx_b
+    laddie%dHib_dy_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => laddie%dHib_dy_b
+    laddie%mask_icefree_land ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_icefree_land
+    laddie%mask_icefree_ocean( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_icefree_ocean
+    laddie%mask_grounded_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_grounded_ice
+    laddie%mask_floating_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_floating_ice
+    laddie%Ti                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:mesh%nz   ) => laddie%Ti
+    laddie%T_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%T_ocean
+    laddie%S_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%S_ocean
 
     ! Temperatures
     call allocate_dist_shared( laddie%T_amb         , laddie%wT_amb         , mesh%pai_V%n_nih  )    ! [degC]          Temperature layer bottom
@@ -245,6 +264,12 @@ CONTAINS
     laddie%mask_cf_b     ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%mask_cf_b
     laddie%mask_oc_b     ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%mask_oc_b
 
+    ! Domains
+    call allocate_dist_shared( laddie%domain_a      , laddie%wdomain_a      , mesh%pai_V%n_nih  )    ! []              Floating domain on a-grid
+    call allocate_dist_shared( laddie%domain_b      , laddie%wdomain_b      , mesh%pai_Tri%n_nih)    ! []              Floating domain on b-grid
+    laddie%domain_a      ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%domain_a
+    laddie%domain_b      ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => laddie%domain_b
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -291,41 +316,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE allocate_laddie_timestep
-
-  subroutine print_diagnostics( mesh, laddie, tl)
-    !< Print out diagnostics
-
-    ! In- and output variables
-    type(type_mesh),         intent(in   ) :: mesh
-    type(type_laddie_model), intent(in   ) :: laddie
-    real(dp),                intent(in   ) :: tl
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'print_diagnostics'
-    real(dp)                       :: H_av, melt_max, U_max, T_max
-    integer                        :: ierr
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    call average_over_domain( mesh, laddie%now%H, H_av)
-
-    melt_max = maxval( laddie%melt) * sec_per_year
-    call MPI_ALLREDUCE( MPI_IN_PLACE, melt_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    U_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2))
-    call MPI_ALLREDUCE( MPI_IN_PLACE, U_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    T_max = maxval( laddie%now%T)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, T_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-
-    if (par%primary) write( *, "(F8.3,A,F8.3,A,F8.2,A,F8.3,A,F8.3)") tl/sec_per_day, &
-      '  Dmean ', H_av, '  Meltmax', melt_max, '   U', U_max, '   Tmax', T_max
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine print_diagnostics
 
 END MODULE laddie_utilities
 

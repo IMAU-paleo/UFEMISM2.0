@@ -11,9 +11,7 @@ MODULE laddie_velocity
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
-  USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   USE mesh_disc_apply_operators                              , ONLY: ddx_a_b_2D, ddy_a_b_2D, map_a_b_2D, map_b_a_2D
@@ -29,17 +27,16 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_UV_npx( mesh, ice, ocean, laddie, npxref, npx, Hstar, dt, include_viscosity_terms)
+  SUBROUTINE compute_UV_npx( mesh, laddie, npx_old, npx_ref, npx_new, Hstar, dt, include_viscosity_terms)
     ! Integrate U and V by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npxref
-    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_old   ! Old time step
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_ref   ! Reference time step for RHS terms
+    TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx_new   ! New timestep as output
     REAL(dp),                               INTENT(IN)    :: dt
     REAL(dp), DIMENSION(mesh%vi1:mesh%vi2), INTENT(IN)    :: Hstar
     LOGICAL,                                INTENT(IN)    :: include_viscosity_terms
@@ -56,10 +53,10 @@ CONTAINS
 
     ! Initialise ambient T and S
     ! TODO costly, see whether necessary to recompute with Hstar
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, Hstar)
+    CALL compute_ambient_TS( mesh, laddie, Hstar)
 
     ! Compute buoyancy
-    CALL compute_buoyancy( mesh, laddie, npx, Hstar)
+    CALL compute_buoyancy( mesh, laddie, npx_ref, Hstar)
 
     ! Bunch of mappings
     call exchange_halos( mesh, laddie%detr)
@@ -70,7 +67,7 @@ CONTAINS
     CALL map_H_a_b( mesh, laddie, Hstar, laddie%Hstar_b)
     CALL map_H_a_c( mesh, laddie, Hstar, laddie%Hstar_c)
     call exchange_halos( mesh, laddie%Hstar_b)
-    call exchange_halos( mesh, npxref%H_b)
+    call exchange_halos( mesh, npx_ref%H_b)
 
     ! Bunch of derivatives
     call exchange_halos( mesh, laddie%drho_amb)
@@ -89,7 +86,7 @@ CONTAINS
       CASE ('upstream')
         ! TODO figure out which of the below lines is best
         !CALL compute_divQUV_upstream( mesh, laddie, npx, laddie%Hstar_b)
-        CALL compute_divQUV_upstream( mesh, laddie, npx, npxref%H_b)
+        CALL compute_divQUV_upstream( mesh, laddie, npx_ref, npx_ref%H_b)
     END SELECT
 
     ! == Integrate U and V ==
@@ -106,19 +103,19 @@ CONTAINS
           ! Assume dH/dx and ddrho/dx = 0
 
           ! Define PGF at calving front / grounding line
-          PGF_x = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
+          PGF_x = grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
-          PGF_y = grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
+          PGF_y = grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
         ELSE
           ! Regular full expression
           PGF_x = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dx_b( ti) &
-                  + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dx_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dx_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dx_b( ti)
 
           PGF_y = - grav * laddie%Hdrho_amb_b( ti) * laddie%dH_dy_b( ti) &
-                  + grav * laddie%Hdrho_amb_b( ti) * ice%dHib_dy_b( ti) &
+                  + grav * laddie%Hdrho_amb_b( ti) * laddie%dHib_dy_b( ti) &
                   - 0.5*grav * laddie%Hstar_b( ti)**2 * laddie%ddrho_amb_dy_b( ti)
         END IF
 
@@ -128,9 +125,9 @@ CONTAINS
         ! dHU_dt
         dHUdt = - laddie%divQU( ti) &
                 + PGF_x &
-                + C%uniform_laddie_coriolis_parameter * laddie%Hstar_b( ti) * npxref%V( ti) &
-                - C%laddie_drag_coefficient_mom * npxref%U( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
-                - laddie%detr_b( ti) * npxref%U( ti)
+                + C%uniform_laddie_coriolis_parameter * laddie%Hstar_b( ti) * npx_ref%V( ti) &
+                - C%laddie_drag_coefficient_mom * npx_ref%U( ti) * (npx_ref%U( ti)**2 + npx_ref%V( ti)**2)**.5 &
+                - laddie%detr_b( ti) * npx_ref%U( ti)
 
         IF (include_viscosity_terms) THEN
           dHUdt = dHUdt + laddie%viscU( ti)
@@ -139,9 +136,9 @@ CONTAINS
         ! dHV_dt
         dHVdt = - laddie%divQV( ti) &
                 + PGF_y &
-                - C%uniform_laddie_coriolis_parameter * laddie%Hstar_b( ti) * npxref%U( ti) &
-                - C%laddie_drag_coefficient_mom * npxref%V( ti) * (npxref%U( ti)**2 + npxref%V( ti)**2)**.5 &
-                - laddie%detr_b( ti) * npxref%V( ti)
+                - C%uniform_laddie_coriolis_parameter * laddie%Hstar_b( ti) * npx_ref%U( ti) &
+                - C%laddie_drag_coefficient_mom * npx_ref%V( ti) * (npx_ref%U( ti)**2 + npx_ref%V( ti)**2)**.5 &
+                - laddie%detr_b( ti) * npx_ref%V( ti)
 
         IF (include_viscosity_terms) THEN
           dHVdt = dHVdt + laddie%viscV( ti)
@@ -151,12 +148,12 @@ CONTAINS
         ! ====================
 
         ! HU_n = HU_n + dHU_dt * dt
-        HU_next = laddie%now%U( ti)*laddie%now%H_b( ti) + dHUdt * dt
-        HV_next = laddie%now%V( ti)*laddie%now%H_b( ti) + dHVdt * dt
+        HU_next = npx_old%U( ti)*npx_old%H_b( ti) + dHUdt * dt
+        HV_next = npx_old%V( ti)*npx_old%H_b( ti) + dHVdt * dt
 
         ! U_n = HU_n / H_n
-        npx%U( ti) = HU_next / npx%H_b( ti)
-        npx%V( ti) = HV_next / npx%H_b( ti)
+        npx_new%U( ti) = HU_next / npx_new%H_b( ti)
+        npx_new%V( ti) = HV_next / npx_new%H_b( ti)
 
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
@@ -165,22 +162,22 @@ CONTAINS
     DO ti = mesh%ti1, mesh%ti2
       IF (laddie%mask_b( ti)) THEN
         ! Get absolute velocity
-        Uabs = (npx%U( ti)**2 + npx%V( ti)**2)**.5
+        Uabs = (npx_new%U( ti)**2 + npx_new%V( ti)**2)**.5
 
         ! Scale U and V
         IF (Uabs == 0) CYCLE ! Prevent division by zero
-        npx%U( ti) = npx%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
-        npx%V( ti) = npx%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        npx_new%U( ti) = npx_new%U( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
+        npx_new%V( ti) = npx_new%V( ti) * MIN(1.0_dp, C%laddie_velocity_maximum/Uabs)
 
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
     ! Map velocities to a and c grid
-    call exchange_halos( mesh, npx%U)
-    call exchange_halos( mesh, npx%V)
-    CALL map_UV_b_c( mesh, laddie, npx%U, npx%V, npx%U_c, npx%V_c)
-    CALL map_b_a_2D( mesh, npx%U, npx%U_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
-    CALL map_b_a_2D( mesh, npx%V, npx%V_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
+    call exchange_halos( mesh, npx_new%U)
+    call exchange_halos( mesh, npx_new%V)
+    CALL map_UV_b_c( mesh, laddie, npx_new%U, npx_new%V, npx_new%U_c, npx_new%V_c)
+    CALL map_b_a_2D( mesh, npx_new%U, npx_new%U_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
+    CALL map_b_a_2D( mesh, npx_new%V, npx_new%V_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

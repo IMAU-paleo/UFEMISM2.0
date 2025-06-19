@@ -1359,6 +1359,8 @@ CONTAINS
 
       ! If no more non-checked neighbours could be found, terminate and throw an error.
       IF (stackN2 == 0 .AND. .NOT. FoundIt) THEN
+        ! Write the problem-causing mesh to a text file for debugging
+        call write_mesh_to_text_file( mesh, trim(C%output_dir) // '/problem_mesh.txt')
         CALL crash('find_containing_triangle - couldnt find triangle containing p = [{dp_01}, {dp_02}]', dp_01 = p(1), dp_02 = p(2))
       END IF
 
@@ -1649,7 +1651,7 @@ CONTAINS
 
   END SUBROUTINE interpolate_to_point_dp_3D
 
-! == Set values of border vertices to mean of interior neighbours
+! == Set values of border vertices/triangles to mean of interior neighbours
 
   SUBROUTINE set_border_vertices_to_interior_mean_dp_2D( mesh, d_partial)
     ! Set values of border vertices to mean of interior neighbours
@@ -1754,6 +1756,108 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE set_border_vertices_to_interior_mean_dp_3D
+
+  subroutine set_border_triangles_to_interior_mean_dp_2D( mesh, d_partial)
+    ! Set values of border triangles to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+
+    ! In/output variables:
+    type(type_mesh),                         intent(in   ) :: mesh
+    real(dp), dimension( mesh%ti1:mesh%ti2), intent(inout) :: d_partial
+
+    ! Local variables:
+    character(len=1024), parameter  :: routine_name = 'set_border_triangles_to_interior_mean_dp_2D'
+    real(dp), dimension( mesh%nTri) :: d_tot
+    integer                         :: ti, n, tj, n_interior_neighbours
+    real(dp)                        :: d_sum
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Gather global data field
+    call gather_to_all( d_partial, d_tot)
+
+    ! First pass: set values of border triangles to mean of interior neighbours
+    ! ...for those border triangles that actually have interior neighbours.
+
+    do ti = mesh%ti1, mesh%ti2
+      if (mesh%TriBI( ti) > 0) then
+
+        n_interior_neighbours = 0
+        d_sum = 0._dp
+
+        do n = 1, 3
+          tj = mesh%TriC( ti,n)
+          if (tj == 0) cycle
+          if (mesh%TriBI( tj) == 0) then
+            n_interior_neighbours = n_interior_neighbours + 1
+            d_sum = d_sum + d_tot( tj)
+          end if
+        end do
+
+        if (n_interior_neighbours > 0) then
+          d_partial( ti) = d_sum / real( n_interior_neighbours, dp)
+        end if
+
+      end if
+    end do
+
+    ! Second pass: set values of border triangles to mean of all neighbours
+    ! ...for those border triangles that have no interior neighbours.
+
+    do ti = mesh%ti1, mesh%ti2
+      if (mesh%TriBI( ti) > 0) then
+
+        n_interior_neighbours = 0
+        d_sum = 0._dp
+
+        do n = 1, 3
+          tj = mesh%TriC( ti,n)
+          if (tj == 0) cycle
+          if (mesh%TriBI( tj) == 0) then
+            n_interior_neighbours = n_interior_neighbours + 1
+          end if
+          d_sum = d_sum + d_tot( tj)
+        end do
+
+        if (n_interior_neighbours == 0) then
+          d_partial( ti) = d_sum / count( mesh%TriC( ti,:) > 0)
+        end if
+
+      end if
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine set_border_triangles_to_interior_mean_dp_2D
+
+  SUBROUTINE set_border_triangles_to_interior_mean_dp_3D( mesh, d_partial)
+    ! Set values of border triangles to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+
+    ! In/output variables:
+    type(type_mesh),          intent(in   ) :: mesh
+    real(dp), dimension(:,:), intent(inout) :: d_partial
+
+    ! Local variables:
+    character(len=1024), parameter     :: routine_name = 'set_border_triangles_to_interior_mean_dp_3D'
+    real(dp), dimension(mesh%nTri_loc) :: d_partial_2D
+    integer                            :: k
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do k = 1, size( d_partial,2)
+      d_partial_2D = d_partial( :,k)
+      call set_border_vertices_to_interior_mean_dp_2D( mesh, d_partial_2D)
+      d_partial( :,k) = d_partial_2D
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine set_border_triangles_to_interior_mean_dp_3D
 
 ! == Flood-fill operations
 

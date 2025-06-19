@@ -74,10 +74,10 @@ jobs:
           name: scoreboard_file_integrated_tests_idealised_SSA_icestream
           path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download scoreboard file for integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
+      - name: Download scoreboard file for integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
         uses: actions/download-artifact@v4
         with:
-          name: scoreboard_file_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km
+          name: scoreboard_file_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invfric_40km
           path: automated_testing/scoreboard/scoreboard_files
 
 # ===============================
