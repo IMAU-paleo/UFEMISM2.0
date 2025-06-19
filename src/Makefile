@@ -415,11 +415,11 @@ clean :
 
 
 
-# =============================================================
+# ==============================================================
 #      Make dependency graph, better re-compilation + multi
 #      threaded compilation (-j flag)
 #      Does nothing when makedepf90 is not present
-# =============================================================
+# ==============================================================
 
 ifeq ($(shell command -v makedepf90 2>&1 > /dev/null; echo $$?), 0)
 include .depend
