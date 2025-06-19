@@ -524,6 +524,11 @@ MODULE model_configuration
     REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth_config     = 2500._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
     REAL(dp)            :: bednudge_H_dHdt_flowline_w_smooth_config     = 0.5_dp                           ! [-]       Relative contribution of smoothed dC/dt in regularisation
 
+    ! Bed roughness nudging model based on local values of H and dH/dt (i.e. CISM method)
+    REAL(dp)            :: bednudge_H_dHdt_local_H0_config              = 200._dp                          ! [m]       Ice thickness error scale
+    REAL(dp)            :: bednudge_H_dHdt_local_tau_config             = 50._dp                           ! [yr]      Time scale
+    REAL(dp)            :: bednudge_H_dHdt_local_L_config               = 8000._dp                         ! [m]       Length scale for the Laplacian regularisation term
+
   ! == Geothermal heat flux
   ! =======================
 
@@ -1491,6 +1496,11 @@ MODULE model_configuration
     REAL(dp)            :: bednudge_H_dHdt_flowline_u_scale
     REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth
     REAL(dp)            :: bednudge_H_dHdt_flowline_w_smooth
+
+    ! Bed roughness nudging model based on local values of H and dH/dt (i.e. CISM method)
+    REAL(dp)            :: bednudge_H_dHdt_local_H0
+    REAL(dp)            :: bednudge_H_dHdt_local_tau
+    REAL(dp)            :: bednudge_H_dHdt_local_L
 
   ! == Geothermal heat flux
   ! =======================
@@ -2506,6 +2516,9 @@ CONTAINS
       bednudge_H_dHdt_flowline_u_scale_config                     , &
       bednudge_H_dHdt_flowline_r_smooth_config                    , &
       bednudge_H_dHdt_flowline_w_smooth_config                    , &
+      bednudge_H_dHdt_local_H0_config                             , &
+      bednudge_H_dHdt_local_tau_config                            , &
+      bednudge_H_dHdt_local_L_config                              , &
       choice_geothermal_heat_flux_config                          , &
       uniform_geothermal_heat_flux_config                         , &
       filename_geothermal_heat_flux_config                        , &
@@ -3332,6 +3345,11 @@ CONTAINS
     C%bednudge_H_dHdt_flowline_u_scale                       = bednudge_H_dHdt_flowline_u_scale_config
     C%bednudge_H_dHdt_flowline_r_smooth                      = bednudge_H_dHdt_flowline_r_smooth_config
     C%bednudge_H_dHdt_flowline_w_smooth                      = bednudge_H_dHdt_flowline_w_smooth_config
+
+    ! Bed roughness nudging model based on local values of H and dH/dt (i.e. CISM method)
+    C%bednudge_H_dHdt_local_H0                               = bednudge_H_dHdt_local_H0_config
+    C%bednudge_H_dHdt_local_tau                              = bednudge_H_dHdt_local_tau_config
+    C%bednudge_H_dHdt_local_L                                = bednudge_H_dHdt_local_L_config
 
   ! == Geothermal heat flux
   ! =======================
