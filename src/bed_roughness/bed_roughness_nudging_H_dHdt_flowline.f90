@@ -118,10 +118,8 @@ contains
 
     do vi = mesh%vi1, mesh%vi2
 
-      ! Only perform the inversion on fully grounded vertices in the mesh interior
-      if (ice%mask_grounded_ice( vi) .and. ice%Hi( vi) > 100._dp .and. &
-        .not. (ice%mask_margin( vi) .or. ice%mask_gl_gr( vi) .or. ice%mask_cf_gr( vi) &
-               .or. mesh%VBI( vi) > 0)) then
+      ! Only perform the inversion on (partially) grounded vertices
+      if (ice%fraction_gr( vi) > 0.01_dp .and. ice%Hi( vi) > 50._dp) then
 
         nudge%mask_calc_dCdt_from_nudging      ( vi) = .true.
         nudge%mask_calc_dCdt_from_extrapolation( vi) = .false.
