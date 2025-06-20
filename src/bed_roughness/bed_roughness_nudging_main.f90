@@ -12,6 +12,7 @@ module bed_roughness_nudging_main
   use bed_roughness_model_types, only: type_bed_roughness_model
   use region_types, only: type_model_region
   use bed_roughness_nudging_H_dHdt_flowline, only: initialise_bed_roughness_nudging_H_dHdt_flowline, run_bed_roughness_nudging_H_dHdt_flowline
+  use bed_roughness_nudging_H_dHdt_local, only: initialise_bed_roughness_nudging_H_dHdt_local, run_bed_roughness_nudging_H_dHdt_local
 
   implicit none
 
@@ -87,8 +88,21 @@ contains
           call run_bed_roughness_nudging_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_init, region%bed_roughness)
         case ('PD')
           call run_bed_roughness_nudging_H_dHdt_flowline( region%mesh, region%grid_smooth, region%ice, region%refgeo_PD, region%bed_roughness)
-      end select
-
+        end select
+      case ('H_dHdt_local')
+        ! Run with the specified target geometry
+        select case (C%choice_inversion_target_geometry)
+        case default
+          call crash('unknown choice_inversion_target_geometry "' // trim( C%choice_inversion_target_geometry) // '"')
+        case ('init')
+          call run_bed_roughness_nudging_H_dHdt_local( region%mesh, region%grid_smooth, &
+            region%ice, region%refgeo_init, region%bed_roughness%generic_bed_roughness_prev, &
+            region%bed_roughness%generic_bed_roughness_next, region%bed_roughness%nudging_H_dHdt_local)
+        case ('PD')
+          call run_bed_roughness_nudging_H_dHdt_local( region%mesh, region%grid_smooth, &
+            region%ice, region%refgeo_PD  , region%bed_roughness%generic_bed_roughness_prev, &
+            region%bed_roughness%generic_bed_roughness_next, region%bed_roughness%nudging_H_dHdt_local)
+        end select
       end select
 
     elseif (region%time > region%bed_roughness%t_next) then
@@ -215,6 +229,8 @@ contains
       call crash('unknown choice_bed_roughness_nudging_method "' // trim( C%choice_bed_roughness_nudging_method) // '"')
     case ('H_dHdt_flowline')
       call initialise_bed_roughness_nudging_H_dHdt_flowline( mesh, bed_roughness%nudging_H_dHdt_flowline)
+    case ('H_dHdt_local')
+      call initialise_bed_roughness_nudging_H_dHdt_local( mesh, bed_roughness%nudging_H_dHdt_local)
     end select
 
     ! Finalise routine path

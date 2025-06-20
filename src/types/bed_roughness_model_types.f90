@@ -24,6 +24,20 @@ module bed_roughness_model_types
 
   end type type_bed_roughness_nudging_model_H_dHdt_flowline
 
+  type type_bed_roughness_nudging_model_H_dHdt_local
+
+    ! Nudging masks
+    logical,  dimension(:), allocatable :: mask_calc_dCdt_from_nudging
+    logical,  dimension(:), allocatable :: mask_calc_dCdt_from_extrapolation
+    integer,  dimension(:), allocatable :: mask_extrapolation
+
+    ! Intermediate terms
+    real(dp), dimension(:), allocatable :: C
+    real(dp), dimension(:), allocatable :: Laplac_C
+    real(dp), dimension(:), allocatable :: dC_dt
+
+  end type type_bed_roughness_nudging_model_H_dHdt_local
+
   type type_bed_roughness_model
 
     ! Bed roughness as described in different sliding laws
@@ -41,6 +55,7 @@ module bed_roughness_model_types
 
     ! Different nudging models
     type(type_bed_roughness_nudging_model_H_dHdt_flowline) :: nudging_H_dHdt_flowline
+    type(type_bed_roughness_nudging_model_H_dHdt_local)    :: nudging_H_dHdt_local
 
   end type type_bed_roughness_model
 

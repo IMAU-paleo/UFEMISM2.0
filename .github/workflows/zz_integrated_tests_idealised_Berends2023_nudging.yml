@@ -61,8 +61,11 @@ jobs:
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 04_spinup_5km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_04_exp_I_spinup_5km.cfg
 
-      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 05_inversion_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_05_exp_I_inversion_5km.cfg
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 05_inversion_5km_H_dHdt_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_05_exp_I_inversion_5km_H_dHdt_flowline.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 06_inversion_5km_H_dHdt_local
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_06_exp_I_inversion_5km_H_dHdt_local.cfg
 
       - name: Analyse integrated_tests/idealised/Berends2023_nudging/experiment_I
         uses: matlab-actions/run-command@v2
@@ -82,8 +85,11 @@ jobs:
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 01_spinup_5km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_01_exp_II_spinup_5km.cfg
 
-      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 02_inversion_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_02_exp_II_inversion_5km.cfg
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 02_inversion_5km_H_dHdt_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_02_exp_II_inversion_5km_H_dHdt_flowline.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 03_inversion_5km_H_dHdt_local
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_03_exp_II_inversion_5km_H_dHdt_local.cfg
 
       - name: Analyse integrated_tests/idealised/Berends2023_nudging/experiment_II
         uses: matlab-actions/run-command@v2
