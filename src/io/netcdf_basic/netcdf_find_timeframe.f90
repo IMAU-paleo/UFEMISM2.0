@@ -52,7 +52,7 @@ contains
 
     ! Read time from file
     call read_var_primary( filename, ncid, id_var_time, time_from_file)
-    call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( time_from_file(:), nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Find timeframe closest to desired time
     if (time_from_file( 1) > time) then
@@ -184,7 +184,7 @@ contains
 
     ! Read time from file
     call read_var_primary( filename, ncid, id_var_time, time_from_file)
-    call MPI_BCAST( time_from_file, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( time_from_file(:), nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Set the timeframe to the last one in this file
     time_to_read = time_from_file( nt)

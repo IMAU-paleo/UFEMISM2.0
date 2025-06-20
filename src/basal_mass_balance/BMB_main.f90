@@ -579,7 +579,8 @@ CONTAINS
       CASE ('idealised')
         ! No need to do anything
       CASE ('parameterised')
-        CALL crash('Remapping after mesh update not implemented yet for parameterised BMB')
+        ! we only need to run the BMB model again, considering the ocean model is remapped just before a call to this function
+        CALL run_BMB_model_parameterised( mesh_new, ice, ocean, BMB)
       CASE ('inverted')
         ! No need to do anything
       CASE ('laddie_py')

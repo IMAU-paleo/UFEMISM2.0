@@ -13,6 +13,7 @@ MODULE climate_main
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE climate_model_types                                    , ONLY: type_climate_model
+  USE global_forcing_types                                   , ONLY: type_global_forcing
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
@@ -25,7 +26,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_climate_model( mesh, ice, climate, region_name, time)
+  SUBROUTINE run_climate_model( mesh, ice, climate, forcing, region_name, time)
     ! Calculate the climate
 
     IMPLICIT NONE
@@ -34,6 +35,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    TYPE(type_global_forcing),              INTENT(IN)    :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
 
@@ -86,7 +88,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL run_climate_model_idealised( mesh, ice, climate, time)
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL run_climate_model_realistic( mesh, ice, climate, time)
+      CALL run_climate_model_realistic( mesh, ice, climate, forcing, time)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -96,14 +98,16 @@ CONTAINS
 
   END SUBROUTINE run_climate_model
 
-  SUBROUTINE initialise_climate_model( mesh, climate, region_name)
+  SUBROUTINE initialise_climate_model( mesh, ice, climate, forcing, region_name)
     ! Initialise the climate model
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
+    TYPE(type_global_forcing),              INTENT(IN)    :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -130,8 +134,10 @@ CONTAINS
     END IF
 
     ! Allocate memory for main variables
+    ALLOCATE( climate%snapshot%Hs(    mesh%vi1:mesh%vi2))
     ALLOCATE( climate%T2m(    mesh%vi1:mesh%vi2,12))
     ALLOCATE( climate%Precip( mesh%vi1:mesh%vi2,12))
+    climate%snapshot%Hs     = 0._dp
     climate%T2m    = 0._dp
     climate%Precip = 0._dp
 
@@ -144,7 +150,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       CALL initialise_climate_model_idealised( mesh, climate)
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh, climate, region_name)
+      CALL initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -394,7 +400,8 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to remap anything here
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh_new, climate, region_name)
+      CALL reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+      CALL reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

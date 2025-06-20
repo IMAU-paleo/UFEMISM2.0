@@ -611,6 +611,26 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL_config         = ''
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
+    ! == Climate - fixed regional lapse rates
+    LOGICAL             :: do_lapse_rate_corrections_NAM_config         = .FALSE.                          ! whether or not to apply the lapse rates below - they seem to produce much higher SMB at the ice sheet fringes
+    LOGICAL             :: do_lapse_rate_corrections_EAS_config         = .FALSE.
+    LOGICAL             :: do_lapse_rate_corrections_GRL_config         = .FALSE.
+    LOGICAL             :: do_lapse_rate_corrections_ANT_config         = .FALSE.
+    REAL(dp)            :: lapse_rate_temp_NAM_config                   = 7.9E-3_dp                          ! Elevation lapse rate effect on temperature [K m^-1]
+    REAL(dp)            :: lapse_rate_temp_EAS_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_temp_GRL_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_temp_ANT_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_precip_NAM_config                 = 0.07_dp                            ! Elevation-desertification lapse rate [K^-1]
+    REAL(dp)            :: lapse_rate_precip_EAS_config                 = 0.07_dp                            ! 
+    REAL(dp)            :: lapse_rate_precip_GRL_config                 = 0.07_dp                            ! 
+    REAL(dp)            :: lapse_rate_precip_ANT_config                 = 0.07_dp                            ! 
+    
+
+    ! == Climate - Insolation
+    CHARACTER(LEN=256)  :: choice_insolation_forcing_config             = 'none'                           ! 'none', 'static' or 'realistic'
+    CHARACTER(LEN=256)  :: filename_insolation_config                   = ''                               ! File with the insolation solution (Laskar 2004)
+    REAL(dp)            :: static_insolation_time_config                = 0._dp                            ! [ka?] time to use for a static insolation
+
   ! == Ocean
   ! ========
 
@@ -689,6 +709,47 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_EAS_config          = 1E9_dp
     REAL(dp)            :: timeframe_SMB_prescribed_GRL_config          = 1E9_dp
     REAL(dp)            :: timeframe_SMB_prescribed_ANT_config          = 1E9_dp
+
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS_config     = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL_config     = 'uniform'
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT_config     = 'uniform'
+
+  ! Files containing the firn model (yearly firn depth and melt)
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_NAM_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_EAS_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_GRL_config            = ''
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT_config            = ''
+
+    ! timeframe for restarting from the firn model
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_NAM_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_EAS_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_GRL_config           = 1E9_dp
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_ANT_config           = 1E9_dp
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness_config   = 1._dp                            ! Initial firn thickness of the IMAU-ITEM SMB model [m] (used when SMB_IMAUITM_choice_init_firn = "uniform")
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config       = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config       = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config       = -49._dp                          !            they used to in ANICE.)
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT_config       = -49._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM_config             = 10._dp                           ! 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM_config              = 0.0227_dp                        ! 0.513_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config               = 0.051_dp                         ! 0.012_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_water_config              = 0.1_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_soil_config               = 0.2_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_ice_config                = 0.5_dp
+    REAL(dp)            :: SMB_IMAUITM_albedo_snow_config               = 0.85_dp
+
 
   ! == Basal mass balance
   ! =====================
@@ -863,6 +924,7 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_sealevel_model_config                 = 'fixed'                         !     Can be "fixed", "prescribed", "eustatic", or "SELEN"
     REAL(dp)            :: fixed_sealevel_config                        = 0._dp                           ! [m] Fixed sea level value for the "fixed" choice
+    CHARACTER(LEN=256)  :: filename_prescribed_sealevel_config          = ''                              ! time series file containing the sea level record
 
   ! == SELEN
   ! ========
@@ -1584,6 +1646,25 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT
 
+    ! == Climate - fixed regional lapse rates
+    LOGICAL             :: do_lapse_rate_corrections_NAM
+    LOGICAL             :: do_lapse_rate_corrections_EAS
+    LOGICAL             :: do_lapse_rate_corrections_GRL
+    LOGICAL             :: do_lapse_rate_corrections_ANT
+    REAL(dp)            :: lapse_rate_temp_NAM
+    REAL(dp)            :: lapse_rate_temp_EAS
+    REAL(dp)            :: lapse_rate_temp_GRL
+    REAL(dp)            :: lapse_rate_temp_ANT  
+    REAL(dp)            :: lapse_rate_precip_NAM
+    REAL(dp)            :: lapse_rate_precip_EAS
+    REAL(dp)            :: lapse_rate_precip_GRL
+    REAL(dp)            :: lapse_rate_precip_ANT
+
+    ! == Climate - Insolation
+    CHARACTER(LEN=256)  :: choice_insolation_forcing
+    CHARACTER(LEN=256)  :: filename_insolation
+    REAL(dp)            :: static_insolation_time
+
   ! == Ocean
   ! ========
 
@@ -1662,6 +1743,49 @@ MODULE model_configuration
     REAL(dp)            :: timeframe_SMB_prescribed_EAS
     REAL(dp)            :: timeframe_SMB_prescribed_GRL
     REAL(dp)            :: timeframe_SMB_prescribed_ANT
+
+    ! IMAU-ITM SMB model
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_NAM
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_EAS
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_GRL
+    CHARACTER(LEN=256)  :: choice_SMB_IMAUITM_init_firn_ANT
+
+    ! Files containing the firn model (yearly firn depth and melt)
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_NAM
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_EAS
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_GRL
+    CHARACTER(LEN=256)  :: filename_firn_IMAUITM_ANT
+
+    ! timeframe for restarting from the firn model
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_NAM
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_EAS
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_GRL
+    REAL(dp)            :: timeframe_restart_firn_IMAUITM_ANT
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    REAL(dp)            :: SMB_IMAUITM_initial_firn_thickness
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT
+    REAL(dp)            :: SMB_IMAUITM_C_refr_NAM
+    REAL(dp)            :: SMB_IMAUITM_C_refr_EAS
+    REAL(dp)            :: SMB_IMAUITM_C_refr_GRL
+    REAL(dp)            :: SMB_IMAUITM_C_refr_ANT
+    REAL(dp)            :: SMB_IMAUITM_albedo_water
+    REAL(dp)            :: SMB_IMAUITM_albedo_soil
+    REAL(dp)            :: SMB_IMAUITM_albedo_ice
+    REAL(dp)            :: SMB_IMAUITM_albedo_snow
+
+
 
   ! == Basal mass balance
   ! =====================
@@ -1836,6 +1960,7 @@ MODULE model_configuration
 
     CHARACTER(LEN=256)  :: choice_sealevel_model
     REAL(dp)            :: fixed_sealevel
+    CHARACTER(LEN=256)  :: filename_prescribed_sealevel
 
   ! == SELEN
   ! ========
@@ -2566,6 +2691,21 @@ CONTAINS
       filename_climate_snapshot_EAS_config                        , &
       filename_climate_snapshot_GRL_config                        , &
       filename_climate_snapshot_ANT_config                        , &
+      do_lapse_rate_corrections_NAM_config                        , &
+      do_lapse_rate_corrections_EAS_config                        , &
+      do_lapse_rate_corrections_GRL_config                        , &
+      do_lapse_rate_corrections_ANT_config                        , &
+      lapse_rate_temp_NAM_config                                  , &
+      lapse_rate_temp_EAS_config                                  , &
+      lapse_rate_temp_GRL_config                                  , &
+      lapse_rate_temp_ANT_config                                  , &
+      lapse_rate_precip_NAM_config                                , &
+      lapse_rate_precip_EAS_config                                , &
+      lapse_rate_precip_GRL_config                                , &
+      lapse_rate_precip_ANT_config                                , &
+      choice_insolation_forcing_config                            , &
+      filename_insolation_config                                  , &
+      static_insolation_time_config                               , &
       do_asynchronous_ocean_config                                , &
       dt_ocean_config                                             , &
       ocean_vertical_grid_max_depth_config                        , &
@@ -2608,6 +2748,39 @@ CONTAINS
       timeframe_SMB_prescribed_EAS_config                         , &
       timeframe_SMB_prescribed_GRL_config                         , &
       timeframe_SMB_prescribed_ANT_config                         , &
+      choice_SMB_IMAUITM_init_firn_NAM_config                     , &
+      choice_SMB_IMAUITM_init_firn_EAS_config                     , &
+      choice_SMB_IMAUITM_init_firn_GRL_config                     , &
+      choice_SMB_IMAUITM_init_firn_ANT_config                     , &
+      filename_firn_IMAUITM_NAM_config                            , &
+      filename_firn_IMAUITM_EAS_config                            , &
+      filename_firn_IMAUITM_GRL_config                            , &
+      filename_firn_IMAUITM_ANT_config                            , &
+      timeframe_restart_firn_IMAUITM_NAM_config                   , &
+      timeframe_restart_firn_IMAUITM_EAS_config                   , &
+      timeframe_restart_firn_IMAUITM_GRL_config                   , &
+      timeframe_restart_firn_IMAUITM_ANT_config                   , &
+      SMB_IMAUITM_initial_firn_thickness_config                   , &
+      SMB_IMAUITM_C_abl_constant_NAM_config                       , &
+      SMB_IMAUITM_C_abl_constant_EAS_config                       , &
+      SMB_IMAUITM_C_abl_constant_GRL_config                       , &
+      SMB_IMAUITM_C_abl_constant_ANT_config                       , &
+      SMB_IMAUITM_C_abl_Ts_NAM_config                             , &
+      SMB_IMAUITM_C_abl_Ts_EAS_config                             , &
+      SMB_IMAUITM_C_abl_Ts_GRL_config                             , &
+      SMB_IMAUITM_C_abl_Ts_ANT_config                             , &
+      SMB_IMAUITM_C_abl_Q_NAM_config                              , &
+      SMB_IMAUITM_C_abl_Q_EAS_config                              , &
+      SMB_IMAUITM_C_abl_Q_GRL_config                              , &
+      SMB_IMAUITM_C_abl_Q_ANT_config                              , &
+      SMB_IMAUITM_C_refr_NAM_config                               , &
+      SMB_IMAUITM_C_refr_EAS_config                               , &
+      SMB_IMAUITM_C_refr_GRL_config                               , &
+      SMB_IMAUITM_C_refr_ANT_config                               , &
+      SMB_IMAUITM_albedo_water_config                             , &
+      SMB_IMAUITM_albedo_soil_config                              , &
+      SMB_IMAUITM_albedo_ice_config                               , &
+      SMB_IMAUITM_albedo_snow_config                              , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
       do_BMB_inversion_config                                     , &
@@ -2701,6 +2874,7 @@ CONTAINS
       ELRA_mantle_density_config                                  , &
       choice_sealevel_model_config                                , &
       fixed_sealevel_config                                       , &
+      filename_prescribed_sealevel_config                         , &
       SELEN_run_at_t_start_config                                 , &
       SELEN_n_TDOF_iterations_config                              , &
       SELEN_n_recursion_iterations_config                         , &
@@ -3433,6 +3607,24 @@ CONTAINS
     C%filename_climate_snapshot_GRL                          = filename_climate_snapshot_GRL_config
     C%filename_climate_snapshot_ANT                          = filename_climate_snapshot_ANT_config
 
+    ! Lapse rates
+    C%do_lapse_rate_corrections_NAM                          = do_lapse_rate_corrections_NAM_config
+    C%do_lapse_rate_corrections_EAS                          = do_lapse_rate_corrections_EAS_config
+    C%do_lapse_rate_corrections_GRL                          = do_lapse_rate_corrections_GRL_config
+    C%do_lapse_rate_corrections_ANT                          = do_lapse_rate_corrections_ANT_config
+    C%lapse_rate_temp_NAM                                    = lapse_rate_temp_NAM_config
+    C%lapse_rate_temp_EAS                                    = lapse_rate_temp_EAS_config
+    C%lapse_rate_temp_GRL                                    = lapse_rate_temp_GRL_config
+    C%lapse_rate_temp_ANT                                    = lapse_rate_temp_ANT_config
+    C%lapse_rate_precip_NAM                                  = lapse_rate_precip_NAM_config
+    C%lapse_rate_precip_EAS                                  = lapse_rate_precip_EAS_config
+    C%lapse_rate_precip_GRL                                  = lapse_rate_precip_GRL_config
+    C%lapse_rate_precip_ANT                                  = lapse_rate_precip_ANT_config
+
+    C%choice_insolation_forcing                              = choice_insolation_forcing_config
+    C%filename_insolation                                    = filename_insolation_config
+    C%static_insolation_time                                 = static_insolation_time_config
+
   ! == Ocean
   ! ========
 
@@ -3511,6 +3703,48 @@ CONTAINS
     C%timeframe_SMB_prescribed_EAS                           = timeframe_SMB_prescribed_EAS_config
     C%timeframe_SMB_prescribed_GRL                           = timeframe_SMB_prescribed_GRL_config
     C%timeframe_SMB_prescribed_ANT                           = timeframe_SMB_prescribed_ANT_config
+
+    ! IMAU-ITM SMB model
+    C%choice_SMB_IMAUITM_init_firn_NAM                       = choice_SMB_IMAUITM_init_firn_NAM_config
+    C%choice_SMB_IMAUITM_init_firn_EAS                       = choice_SMB_IMAUITM_init_firn_EAS_config
+    C%choice_SMB_IMAUITM_init_firn_GRL                       = choice_SMB_IMAUITM_init_firn_GRL_config
+    C%choice_SMB_IMAUITM_init_firn_ANT                       = choice_SMB_IMAUITM_init_firn_ANT_config
+
+    ! Files containing the firn model (yearly firn depth and melt)
+    C%filename_firn_IMAUITM_NAM                              = filename_firn_IMAUITM_NAM_config
+    C%filename_firn_IMAUITM_EAS                              = filename_firn_IMAUITM_EAS_config
+    C%filename_firn_IMAUITM_GRL                              = filename_firn_IMAUITM_GRL_config
+    C%filename_firn_IMAUITM_ANT                              = filename_firn_IMAUITM_ANT_config
+
+    ! timeframe for restarting from the firn model
+    C%timeframe_restart_firn_IMAUITM_NAM                    = timeframe_restart_firn_IMAUITM_NAM_config
+    C%timeframe_restart_firn_IMAUITM_EAS                    = timeframe_restart_firn_IMAUITM_EAS_config
+    C%timeframe_restart_firn_IMAUITM_GRL                    = timeframe_restart_firn_IMAUITM_GRL_config
+    C%timeframe_restart_firn_IMAUITM_ANT                    = timeframe_restart_firn_IMAUITM_ANT_config
+
+    ! Tuning parameters for the IMAU-ITM SMB model
+    C%SMB_IMAUITM_initial_firn_thickness                     = SMB_IMAUITM_initial_firn_thickness_config
+    C%SMB_IMAUITM_C_abl_constant_NAM                         = SMB_IMAUITM_C_abl_constant_NAM_config
+    C%SMB_IMAUITM_C_abl_constant_EAS                         = SMB_IMAUITM_C_abl_constant_EAS_config
+    C%SMB_IMAUITM_C_abl_constant_GRL                         = SMB_IMAUITM_C_abl_constant_GRL_config
+    C%SMB_IMAUITM_C_abl_constant_ANT                         = SMB_IMAUITM_C_abl_constant_ANT_config
+    C%SMB_IMAUITM_C_abl_Ts_NAM                               = SMB_IMAUITM_C_abl_Ts_NAM_config
+    C%SMB_IMAUITM_C_abl_Ts_EAS                               = SMB_IMAUITM_C_abl_Ts_EAS_config
+    C%SMB_IMAUITM_C_abl_Ts_GRL                               = SMB_IMAUITM_C_abl_Ts_GRL_config
+    C%SMB_IMAUITM_C_abl_Ts_ANT                               = SMB_IMAUITM_C_abl_Ts_ANT_config
+    C%SMB_IMAUITM_C_abl_Q_NAM                                = SMB_IMAUITM_C_abl_Q_NAM_config
+    C%SMB_IMAUITM_C_abl_Q_EAS                                = SMB_IMAUITM_C_abl_Q_EAS_config
+    C%SMB_IMAUITM_C_abl_Q_GRL                                = SMB_IMAUITM_C_abl_Q_GRL_config
+    C%SMB_IMAUITM_C_abl_Q_ANT                                = SMB_IMAUITM_C_abl_Q_ANT_config
+    C%SMB_IMAUITM_C_refr_NAM                                 = SMB_IMAUITM_C_refr_NAM_config
+    C%SMB_IMAUITM_C_refr_EAS                                 = SMB_IMAUITM_C_refr_EAS_config
+    C%SMB_IMAUITM_C_refr_GRL                                 = SMB_IMAUITM_C_refr_GRL_config
+    C%SMB_IMAUITM_C_refr_ANT                                 = SMB_IMAUITM_C_refr_ANT_config
+    C%SMB_IMAUITM_albedo_water                               = SMB_IMAUITM_albedo_water_config
+    C%SMB_IMAUITM_albedo_soil                                = SMB_IMAUITM_albedo_soil_config 
+    C%SMB_IMAUITM_albedo_ice                                 = SMB_IMAUITM_albedo_ice_config  
+    c%SMB_IMAUITM_albedo_snow                                = SMB_IMAUITM_albedo_snow_config
+
 
   ! == Basal mass balance
   ! =====================
@@ -3684,6 +3918,7 @@ CONTAINS
 
     C%choice_sealevel_model                                  = choice_sealevel_model_config
     C%fixed_sealevel                                         = fixed_sealevel_config
+    C%filename_prescribed_sealevel                           = filename_prescribed_sealevel_config
 
   ! == SELEN
   ! ========
