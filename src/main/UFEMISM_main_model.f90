@@ -561,7 +561,7 @@ CONTAINS
     ! ===========================
 
     IF (C%do_bed_roughness_nudging) THEN
-      CALL initialise_bed_roughness_nudging_model( region%mesh, region%ice, region%bed_roughness, region%name)
+      CALL initialise_bed_roughness_nudging_model( region%mesh, region%bed_roughness)
     END IF
 
     ! ===== Corrections =====
