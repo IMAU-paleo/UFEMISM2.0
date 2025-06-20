@@ -48,10 +48,10 @@ jobs:
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/SSA_icestream/config_02_16km.cfg
 
       - name: Run integrated_tests/idealised/SSA_icestream - 03_8km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/SSA_icestream/config_03_8km.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/SSA_icestream/config_03_8km.cfg
 
       - name: Run integrated_tests/idealised/SSA_icestream - 04_4km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/SSA_icestream/config_04_4km.cfg
+        run: mpiexec  -n 8  UFEMISM_program  automated_testing/integrated_tests/idealised/SSA_icestream/config_04_4km.cfg
 
       - name: Analyse integrated_tests/idealised/SSA_icestream
         uses: matlab-actions/run-command@v2

@@ -42,7 +42,7 @@ jobs:
           key: UFEMISM_program_perf_${{ github.ref_name }}_${{ github.run_id }}
 
       - name: Run integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km/config.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km/config.cfg
 
       - name: Analyse integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
         uses: matlab-actions/run-command@v2

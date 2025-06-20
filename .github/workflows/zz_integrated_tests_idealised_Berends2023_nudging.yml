@@ -50,19 +50,19 @@ jobs:
             AA_create_experiment_I_data
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 01_spinup_40km_part0
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_01_exp_I_spinup_40km_part0.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_01_exp_I_spinup_40km_part0.cfg
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 02_spinup_40km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_02_exp_I_spinup_40km.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_02_exp_I_spinup_40km.cfg
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 03_spinup_10km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_03_exp_I_spinup_10km.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_03_exp_I_spinup_10km.cfg
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 04_spinup_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_04_exp_I_spinup_5km.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_04_exp_I_spinup_5km.cfg
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 05_inversion_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_05_exp_I_inversion_5km.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_05_exp_I_inversion_5km.cfg
 
       - name: Analyse integrated_tests/idealised/Berends2023_nudging/experiment_I
         uses: matlab-actions/run-command@v2
@@ -80,10 +80,10 @@ jobs:
             AA_create_experiment_II_data
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 01_spinup_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_01_exp_II_spinup_5km.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_01_exp_II_spinup_5km.cfg
 
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 02_inversion_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_02_exp_II_inversion_5km.cfg
+        run: mpiexec  -n 4  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_02_exp_II_inversion_5km.cfg
 
       - name: Analyse integrated_tests/idealised/Berends2023_nudging/experiment_II
         uses: matlab-actions/run-command@v2
