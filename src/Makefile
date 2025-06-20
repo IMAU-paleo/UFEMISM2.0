@@ -264,6 +264,7 @@ UFEMISM_source = \
   \
   basal_hydrology/basal_hydrology_main.f90 \
   \
+  bed_roughness/nudging/nudging_utilities.f90 \
   bed_roughness/nudging/bed_roughness_nudging_H_dHdt_flowline.f90 \
   bed_roughness/nudging/bed_roughness_nudging_H_dHdt_local.f90 \
   bed_roughness/nudging/bed_roughness_nudging_main.f90 \

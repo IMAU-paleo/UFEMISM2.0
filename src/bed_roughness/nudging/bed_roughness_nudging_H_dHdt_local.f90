@@ -11,7 +11,7 @@ module bed_roughness_nudging_H_dHdt_local
   use bed_roughness_model_types, only: type_bed_roughness_model, type_bed_roughness_nudging_model_H_dHdt_local
   use mesh_utilities, only: extrapolate_Gaussian
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D, ddx_b_a_2D, ddy_b_a_2D
-  use netcdf_io_main
+  use nudging_utilities, only: calc_nudging_vs_extrapolation_masks
 
   implicit none
 
@@ -21,7 +21,8 @@ module bed_roughness_nudging_H_dHdt_local
 
 contains
 
-  subroutine run_bed_roughness_nudging_H_dHdt_local( mesh, grid_smooth, ice, target_geometry, bed_roughness_prev, bed_roughness_next, nudge)
+  subroutine run_bed_roughness_nudging_H_dHdt_local( mesh, grid_smooth, ice, &
+    target_geometry, bed_roughness_prev, bed_roughness_next, nudge)
     ! Run the bed roughness nuding model based on local values of H and dH/dt (i.e. CISM method)
 
     ! In/output variables:
@@ -37,7 +38,7 @@ contains
     character(len=256), parameter          :: routine_name = 'run_bed_roughness_nudging_H_dHdt_local'
     real(dp), dimension(mesh%ti1:mesh%ti2) :: dC_dx_b, dC_dy_b
     real(dp), dimension(mesh%vi1:mesh%vi2) :: d2C_dx2, d2C_dy2
-    integer                                :: vi, ci, vj
+    integer                                :: vi
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -50,7 +51,10 @@ contains
 
     nudge%Laplac_C = d2C_dx2 + d2C_dy2
 
-    call calc_nudging_vs_extrapolation_masks( mesh, ice, target_geometry, nudge)
+    call calc_nudging_vs_extrapolation_masks( mesh, ice, &
+      nudge%mask_calc_dCdt_from_nudging, &
+      nudge%mask_calc_dCdt_from_extrapolation, &
+      nudge%mask_extrapolation)
 
     nudge%dC_dt = 0._dp
 
@@ -75,11 +79,6 @@ contains
     ! Calculate predicted bed roughness at t+dt
     bed_roughness_next = max( C%generic_bed_roughness_min, min( C%generic_bed_roughness_max, &
       bed_roughness_prev + C%bed_roughness_nudging_dt * nudge%dC_dt ))
-
-    ! call save_variable_as_netcdf_dp_1D( nudge%Laplac_C, 'Laplac_C')
-    ! call save_variable_as_netcdf_dp_1D( nudge%dC_dt   , 'dC_dt')
-
-    ! call crash('whoopsiedaisy')
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -113,48 +112,5 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine initialise_bed_roughness_nudging_H_dHdt_local
-
-  subroutine calc_nudging_vs_extrapolation_masks( mesh, ice, target_geometry, nudge)
-
-    ! In/output variables:
-    type(type_mesh),                                     intent(in   ) :: mesh
-    type(type_ice_model),                                intent(in   ) :: ice
-    type(type_reference_geometry),                       intent(in   ) :: target_geometry
-    type(type_bed_roughness_nudging_model_H_dHdt_local), intent(inout) :: nudge
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'calc_nudging_vs_extrapolation_masks'
-    integer                        :: vi
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    nudge%mask_calc_dCdt_from_nudging       = .false.
-    nudge%mask_calc_dCdt_from_extrapolation = .false.
-    nudge%mask_extrapolation                = 0
-
-    do vi = mesh%vi1, mesh%vi2
-
-      ! Only perform the inversion on (partially) grounded vertices
-      if (ice%fraction_gr( vi) > 0.01_dp .and. ice%Hi( vi) > 50._dp) then
-
-        nudge%mask_calc_dCdt_from_nudging      ( vi) = .true.
-        nudge%mask_calc_dCdt_from_extrapolation( vi) = .false.
-        nudge%mask_extrapolation               ( vi) = 2
-
-      else
-
-        nudge%mask_calc_dCdt_from_nudging      ( vi) = .false.
-        nudge%mask_calc_dCdt_from_extrapolation( vi) = .true.
-        nudge%mask_extrapolation               ( vi) = 1
-
-      end if
-
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine calc_nudging_vs_extrapolation_masks
 
 end module bed_roughness_nudging_H_dHdt_local
