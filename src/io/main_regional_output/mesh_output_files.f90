@@ -541,6 +541,8 @@ contains
         call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'T2m', region%climate%T2m)
       case ('Precip')
         call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Precip', region%climate%Precip)
+      case ('Q_TOA')
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%snapshot%Q_TOA)  
 
     ! == Ocean ==
     ! ===========
@@ -561,6 +563,12 @@ contains
       ! Main SMB variables
       case ('SMB')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SMB', region%SMB%SMB)
+      case ('Albedo')
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Albedo', region%SMB%IMAUITM%Albedo)  
+      CASE ('FirnDepth')
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'FirnDepth', region%SMB%IMAUITM%FirnDepth)  
+      CASE ('MeltPreviousYear')  
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'MeltPreviousYear', region%SMB%IMAUITM%MeltPreviousYear)  
 
     ! == Basal mass balance ==
     ! ========================
@@ -1194,6 +1202,8 @@ contains
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'T2m', long_name = 'Monthly mean 2-m air temperature', units = 'K')
       case ('Precip')
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
+      case ('Q_TOA')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')  
 
     ! == Ocean ==
     ! ===========
@@ -1214,6 +1224,12 @@ contains
       ! Main SMB variables
       case ('SMB')
         call add_field_mesh_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
+      CASE ('Albedo')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')  
+      CASE ('FirnDepth')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Monthly firn layer depth', units = 'm')
+      CASE ('MeltPreviousYear')  
+        CALL add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')  
 
     ! == Basal mass balance ==
     ! ========================

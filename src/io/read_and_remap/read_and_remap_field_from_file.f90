@@ -9,18 +9,20 @@ module read_and_remap_field_from_file
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
   use mesh_types, only: type_mesh
-  use grid_types, only: type_grid, type_grid_lonlat
+  use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
   use remapping_main
   use grid_basic, only: deallocate_grid
-  use grid_lonlat_basic, only: deallocate_lonlat_grid
+  use grid_lonlat_basic, only: deallocate_lonlat_grid, deallocate_lat_grid
   use mesh_memory, only: deallocate_mesh
   use netcdf_basic
   use netcdf_setup_grid_mesh_from_file
   use netcdf_read_field_from_mesh_file
+  use netcdf_read_field_from_series_file
   use netcdf_read_field_from_lonlat_grid_file
   use netcdf_read_field_from_xy_grid_file
+  use netcdf_read_field_from_series_file
   use netcdf, only: NF90_MAX_VAR_DIMS
 
   implicit none
@@ -173,10 +175,11 @@ contains
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'read_field_from_file_2D_monthly'
     logical                               :: file_exists
-    logical                               :: has_xy_grid, has_lonlat_grid, has_mesh
+    logical                               :: has_xy_grid, has_lonlat_grid, has_mesh, has_lat_grid
     integer                               :: ncid
     type(type_grid)                       :: grid_from_file
     type(type_grid_lonlat)                :: grid_lonlat_from_file
+    type(type_grid_lat)                   :: grid_lat_from_file
     type(type_mesh)                       :: mesh_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_vec_partial_from_file
     real(dp), dimension(:,:), allocatable :: d_grid_lonlat_vec_partial_from_file
@@ -195,6 +198,7 @@ contains
     ! Find out on what kind of grid the file is defined
     call inquire_xy_grid(     filename, has_xy_grid    )
     call inquire_lonlat_grid( filename, has_lonlat_grid)
+    call inquire_lat_grid(    filename, has_lat_grid)
     call inquire_mesh(        filename, has_mesh       )
 
     ! Files with more than one grid are not recognised
@@ -243,6 +247,28 @@ contains
 
       ! Clean up after yourself
       call deallocate_lonlat_grid( grid_lonlat_from_file)
+      deallocate( d_grid_lonlat_vec_partial_from_file)
+
+    elseif (has_lat_grid) then
+    
+      ! Data is provided on a lat-only grid
+      ! Set up the grid from the file
+      call open_existing_netcdf_file_for_reading( filename, ncid)
+      call setup_lonlat_grid_from_lat_file( filename, ncid, grid_lonlat_from_file, grid_lat_from_file)
+      call close_netcdf_file( ncid)
+      
+      ! allocate memory for gridded data
+      allocate( d_grid_lonlat_vec_partial_from_file( grid_lonlat_from_file%n1: grid_lonlat_from_file%n2,12))
+
+      ! Read gridded data
+      call read_field_from_lat_file_1D_monthly( filename, field_name_options, d_grid_lonlat_vec_partial_from_file, time_to_read = time_to_read)
+
+      ! Remap data
+      call map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial)
+
+      ! Clean up after yourself
+      call deallocate_lonlat_grid( grid_lonlat_from_file)
+      call deallocate_lat_grid( grid_lat_from_file)
       deallocate( d_grid_lonlat_vec_partial_from_file)
 
     elseif (has_mesh) then

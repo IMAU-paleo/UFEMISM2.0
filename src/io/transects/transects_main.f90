@@ -483,7 +483,7 @@ contains
       end do
       close( unit  = 1337)
     end if
-    call MPI_BCAST( waypoints, n_wp*2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( waypoints(:,:), n_wp*2, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

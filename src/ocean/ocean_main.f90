@@ -365,7 +365,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_ocean_model_region
 
-  SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ocean, region_name)
+  SUBROUTINE remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name)
     ! Remap the ocean model
 
     IMPLICIT NONE
@@ -374,6 +374,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -413,7 +414,11 @@ CONTAINS
     ELSEIF (choice_ocean_model == 'idealised') THEN
       CALL initialise_ocean_model_idealised( mesh_new, ocean)
     ELSEIF (choice_ocean_model == 'realistic') THEN
-      CALL crash('Remapping after mesh update not implemented yet for realistic ocean')
+        IF     (C%choice_ocean_model_realistic == 'snapshot') THEN
+          CALL initialise_ocean_model_realistic( mesh_new, ice, ocean, region_name)
+        ELSE
+          CALL crash('Remapping after mesh update for realistic ocean is only implemented for a snapshot!')
+        END IF
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( choice_ocean_model) // '"')
     END IF

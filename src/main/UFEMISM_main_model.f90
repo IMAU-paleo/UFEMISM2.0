@@ -16,6 +16,7 @@ MODULE UFEMISM_main_model
   USE ice_model_types                                        , ONLY: type_ice_model
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
+  USE global_forcing_types                                   , ONLY: type_global_forcing
   use reference_geometries_main, only: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
   use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
@@ -23,6 +24,7 @@ MODULE UFEMISM_main_model
   use bed_roughness_main, only: initialise_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
+  USE global_forcings_main                                   , ONLY: initialise_global_forcings, update_sealevel_in_model, update_sealevel_at_model_time
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
                                                                      create_restart_file_climate_model, write_to_restart_file_climate_model
   USE ocean_main                                             , ONLY: initialise_ocean_model, run_ocean_model, remap_ocean_model, &
@@ -59,7 +61,7 @@ CONTAINS
 ! ===== Main routine =====
 ! ========================
 
-  SUBROUTINE run_model_region( region, t_end)
+  SUBROUTINE run_model_region( region, t_end, forcing)
     ! Integrate this model region forward in time until t_end
 
     IMPLICIT NONE
@@ -67,12 +69,14 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(INOUT) :: region
     REAL(dp)                                           , INTENT(IN)    :: t_end    ! [yr]
+    TYPE(type_global_forcing)                          , INTENT(IN)    :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256)                                                 :: routine_name
     INTEGER                                                            :: ndt_av
     REAL(dp)                                                           :: dt_av
     REAL(dp)                                                           :: mesh_fitness_coefficient
+    TYPE(type_global_forcing)                                          :: regional_forcing
 
     ! Add routine to path
     routine_name = 'run_model('  //  region%name  //  ')'
@@ -86,6 +90,9 @@ CONTAINS
     ! Initialise average ice-dynamical time step
     ndt_av = 0
     dt_av  = 0._dp
+
+    ! we create a copy of the forcing type so the different regional models can run asynchronously
+    regional_forcing = forcing
 
     ! The main UFEMISM time loop
     main_time_loop: DO WHILE (region%time <= t_end)
@@ -108,6 +115,12 @@ CONTAINS
       ! Run the subglacial hydrology model
       CALL run_basal_hydrology_model( region%mesh, region%ice)
 
+      ! Update sea level if necessary
+      IF  (C%choice_sealevel_model == 'prescribed') THEN
+        CALL update_sealevel_at_model_time(regional_forcing, region%time)
+        CALL update_sealevel_in_model(regional_forcing, region%mesh, region%ice, region%time)
+      END IF
+
       ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
       ! velocities, thinning rates, and predicted geometry if necessary
       CALL run_ice_dynamics_model( region)
@@ -117,7 +130,7 @@ CONTAINS
       CALL run_thermodynamics_model( region)
 
       ! Calculate the climate
-      CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, region%time)
+      CALL run_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name, region%time)
 
       ! Calculate the ocean
       CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, region%time)
@@ -388,7 +401,7 @@ CONTAINS
 ! ===== Model initialisation =====
 ! ================================
 
-  SUBROUTINE initialise_model_region( region, region_name)
+  SUBROUTINE initialise_model_region( region, region_name, forcing, start_time_of_run)
     ! Initialise this model region
 
     IMPLICIT NONE
@@ -396,11 +409,14 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(OUT)   :: region
     CHARACTER(LEN=3),                                    INTENT(IN)    :: region_name
+    TYPE(type_global_forcing)                          , INTENT(IN)    :: forcing
+    REAL(dp)                                           , INTENT(IN)    :: start_time_of_run
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
     CHARACTER(LEN=256)                                                 :: grid_name
     REAL(dp)                                                           :: dx_grid_smooth, dx_grid_output
+    TYPE(type_global_forcing)                                          :: regional_forcing
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -467,17 +483,19 @@ CONTAINS
        dx_grid_smooth, region%grid_smooth, &
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
+    ! Set up a regional frocing data type so the regional models can run asynchronously
+    regional_forcing = forcing
+    
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name)
+    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, regional_forcing, start_time_of_run)
 
     call initialise_bed_roughness_model( region%mesh, region%ice, region%bed_roughness, region%name)
 
     ! ===== Climate =====
     ! ===================
-
-    CALL initialise_climate_model( region%mesh, region%climate, region%name)
+    CALL initialise_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name)
 
     ! ===== Ocean =====
     ! =================
@@ -487,7 +505,7 @@ CONTAINS
     ! ===== Surface mass balance =====
     ! ================================
 
-    CALL initialise_SMB_model( region%mesh, region%SMB, region%name)
+    CALL initialise_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name)
 
     ! ===== Basal mass balance =====
     ! ==============================
@@ -513,7 +531,7 @@ CONTAINS
     ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice, region%climate, region%name, C%start_time_of_run)
+    CALL run_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name, C%start_time_of_run)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
@@ -1187,12 +1205,13 @@ CONTAINS
     ! Remap all the model data from the old mesh to the new mesh
     CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%bed_roughness, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
     CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name)
-    CALL remap_ocean_model(           region%mesh, mesh_new,             region%ocean  , region%name)
+    CALL remap_ocean_model(           region%mesh, mesh_new, region%ice, region%ocean  , region%name)
     CALL remap_SMB_model(             region%mesh, mesh_new,             region%SMB    , region%name)
     CALL remap_BMB_model(             region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
     CALL remap_LMB_model(             region%mesh, mesh_new,             region%LMB    , region%name)
     CALL remap_AMB_model(             region%mesh, mesh_new,             region%AMB                 )
     CALL remap_GIA_model(             region%mesh, mesh_new,             region%GIA    , region%refgeo_GIAeq, region%ELRA)
+
     call remap_tracer_tracking_model( region%mesh, mesh_new, region%tracer_tracking, region%time)
 
     ! Set all model component timers so that they will all be run right after the mesh update
