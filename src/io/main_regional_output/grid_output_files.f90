@@ -610,7 +610,7 @@ contains
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ice%basal_shear_stress, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'basal_shear_stress', d_grid_vec_partial_2D)
 
-      ! Bed roughness nudging
+      ! Bed roughness nudging - H, dH/dt, flowline
       case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_dHdt_flowline%deltaHs_av_up, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up', d_grid_vec_partial_2D)
@@ -632,6 +632,32 @@ contains
       case ('bed_roughness_nudge_H_dHdt_flowline_dC_dt')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_dHdt_flowline%dC_dt, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_dHdt_flowline_dC_dt', d_grid_vec_partial_2D)
+
+      ! Bed roughness nudging - H, u, flowline
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_up')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%deltaHs_av_up, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_flowline_deltaHs_av_up', d_grid_vec_partial_2D)
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_down')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%deltaHs_av_down, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_flowline_deltaHs_av_down', d_grid_vec_partial_2D)
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_up')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%deltau_av_up, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_flowline_deltau_av_up', d_grid_vec_partial_2D)
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_down')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%deltau_av_down, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_flowline_deltau_av_down', d_grid_vec_partial_2D)
+      case ('bed_roughness_nudge_H_u_flowline_R')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%R, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_flowline_R', d_grid_vec_partial_2D)
+      case ('bed_roughness_nudge_H_u_flowline_I_tot')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%I_tot, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_flowline_I_tot', d_grid_vec_partial_2D)
+      case ('bed_roughness_nudge_H_u_flowline_dC_dt')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%dC_dt, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_flowline_dC_dt', d_grid_vec_partial_2D)
+      case ('bed_roughness_nudge_H_u_target_velocity')
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, region%bed_roughness%nudging_H_u_flowline%uabs_surf_target_b, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'bed_roughness_nudge_H_u_target_velocity', d_grid_vec_partial_2D)
 
     ! == Geothermal heat ==
     ! =====================
@@ -680,13 +706,13 @@ contains
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SMB', d_grid_vec_partial_2D)
       case ('Albedo')
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%SMB%IMAUITM%Albedo, d_grid_vec_partial_2D_monthly)
-        call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Albedo', d_grid_vec_partial_2D_monthly)      
+        call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Albedo', d_grid_vec_partial_2D_monthly)
       case ('FirnDepth')
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%SMB%IMAUITM%FirnDepth, d_grid_vec_partial_2D_monthly)
-        call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'FirnDepth', d_grid_vec_partial_2D_monthly)    
-      case ('MeltPreviousYear')  
+        call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'FirnDepth', d_grid_vec_partial_2D_monthly)
+      case ('MeltPreviousYear')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%SMB%IMAUITM%MeltPreviousYear, d_grid_vec_partial_2D)
-        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'MeltPreviousYear', d_grid_vec_partial_2D)  
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'MeltPreviousYear', d_grid_vec_partial_2D)
 
     ! == Basal mass balance ==
     ! ========================
@@ -1353,7 +1379,7 @@ contains
       case ('basal_shear_stress')
         call add_field_grid_dp_2D( filename, ncid, 'basal_shear_stress', long_name = 'Basal shear stress', units = 'Pa')
 
-      ! Bed roughness nudging
+      ! Bed roughness nudging - H, dH/dt, flowline
       case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up')
         call add_field_grid_dp_2D( filename, ncid, &
           'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up', &
@@ -1383,6 +1409,40 @@ contains
           'bed_roughness_nudge_H_dHdt_flowline_dC_dt', &
           long_name = 'Bed roughness rate of change')
 
+      ! Bed roughness nudging - H, u, flowline
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_up')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_up', &
+          long_name = 'Upstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_down')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_down', &
+          long_name = 'Downstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_up')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_up', &
+          long_name = 'Upstream flowline-averaged velocity error', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_down')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_down', &
+          long_name = 'Downstream flowline-averaged velocity error', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_u_flowline_R')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_R', &
+          long_name = 'Ice flux-based scaling factor')
+      case ('bed_roughness_nudge_H_u_flowline_I_tot')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_I_tot', &
+          long_name = 'Weighted average of flowline-averaged terms')
+      case ('bed_roughness_nudge_H_u_flowline_dC_dt')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_dC_dt', &
+          long_name = 'Bed roughness rate of change')
+      case ('bed_roughness_nudge_H_u_target_velocity')
+        call add_field_grid_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_target_velocity', &
+          long_name = 'Target velocity', units = 'm yr^-1')
+
     ! == Geothermal heat ==
     ! =====================
 
@@ -1398,7 +1458,7 @@ contains
       case ('Precip')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
       CASE ('Q_TOA')
-        CALL add_field_grid_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')  
+        CALL add_field_grid_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')
 
     ! == Ocean ==
     ! ==========================
@@ -1420,10 +1480,10 @@ contains
       case ('SMB')
         call add_field_grid_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
       case ('Albedo')
-        call add_field_grid_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')  
+        call add_field_grid_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')
       case ('FirnDepth')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Monthly firn layer depth', units = 'm')
-      case ('MeltPreviousYear')  
+      case ('MeltPreviousYear')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')
 
     ! == Basal mass balance ==
