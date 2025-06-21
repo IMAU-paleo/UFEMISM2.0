@@ -4,14 +4,15 @@ module nudging_utilities
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
-  use mesh_utilities, only: find_containing_vertex, interpolate_to_point_dp_2D_singlecore
+  use mesh_utilities, only: find_containing_vertex, interpolate_to_point_dp_2D_singlecore, &
+    find_containing_triangle
 
   implicit none
 
   private
 
   public :: calc_nudging_vs_extrapolation_masks, trace_flowline_upstream, trace_flowline_downstream, &
-    map_from_vertices_to_half_flowline, calc_half_flowline_average
+    map_from_vertices_to_half_flowline, map_from_triangles_to_half_flowline, calc_half_flowline_average
 
 contains
 
@@ -313,6 +314,30 @@ contains
     end do
 
   end subroutine map_from_vertices_to_half_flowline
+
+  subroutine map_from_triangles_to_half_flowline( mesh, d_tot, &
+    vi, T, n, d_along_flowline)
+
+    ! In/output variables:
+    type(type_mesh),                intent(in   ) :: mesh
+    real(dp), dimension(mesh%nTri), intent(in   ) :: d_tot
+    integer,                        intent(in   ) :: vi
+    real(dp), dimension(:,:),       intent(in   ) :: T
+    integer,                        intent(in   ) :: n
+    real(dp), dimension(mesh%nTri), intent(  out) :: d_along_flowline
+
+    ! Local variables:
+    integer                :: ti, k
+    real(dp), dimension(2) :: p
+
+    ti = mesh%iTri( vi,1)
+    do k = 1, n
+      p = T( k,:)
+      call find_containing_triangle( mesh, p, ti)
+      d_along_flowline( k) = d_tot( ti)
+    end do
+
+  end subroutine map_from_triangles_to_half_flowline
 
   subroutine calc_half_flowline_average( s, n, d, d_av)
 

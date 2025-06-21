@@ -38,6 +38,30 @@ module bed_roughness_model_types
 
   end type type_bed_roughness_nudging_model_H_dHdt_local
 
+  type type_bed_roughness_nudging_model_H_u_flowline
+
+    ! Nudging masks
+    logical,  dimension(:), allocatable :: mask_calc_dCdt_from_nudging
+    logical,  dimension(:), allocatable :: mask_calc_dCdt_from_extrapolation
+    integer,  dimension(:), allocatable :: mask_extrapolation
+
+    ! Target velocity field
+    real(dp), dimension(:), allocatable :: uabs_surf_target_b
+
+    ! Half-flowline-averaged deltaHs and deltau
+    real(dp), dimension(:), allocatable :: deltaHs_av_up
+    real(dp), dimension(:), allocatable :: deltaHs_av_down
+    real(dp), dimension(:), allocatable :: deltau_av_up
+    real(dp), dimension(:), allocatable :: deltau_av_down
+
+    ! Intermediate terms
+    real(dp), dimension(:), allocatable :: R
+    real(dp), dimension(:), allocatable :: I_tot
+    real(dp), dimension(:), allocatable :: Laplac_C
+    real(dp), dimension(:), allocatable :: dC_dt
+
+  end type type_bed_roughness_nudging_model_H_u_flowline
+
   type type_bed_roughness_model
 
     ! Bed roughness as described in different sliding laws
@@ -56,6 +80,7 @@ module bed_roughness_model_types
     ! Different nudging models
     type(type_bed_roughness_nudging_model_H_dHdt_flowline) :: nudging_H_dHdt_flowline
     type(type_bed_roughness_nudging_model_H_dHdt_local)    :: nudging_H_dHdt_local
+    type(type_bed_roughness_nudging_model_H_u_flowline   ) :: nudging_H_u_flowline
 
   end type type_bed_roughness_model
 
