@@ -97,6 +97,12 @@ jobs:
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 04_inversion_5km_H_u_flowline
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_04_exp_II_inversion_5km_H_u_flowline.cfg
 
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 05_inversion_5km_H_u_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_05_exp_II_warm_ocean_retreat_10yr_5km.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 06_inversion_5km_H_u_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_06_exp_II_dHdt_invfric_invBMB_5km.cfg
+
       - name: Analyse integrated_tests/idealised/Berends2023_nudging/experiment_II
         uses: matlab-actions/run-command@v2
         with:
