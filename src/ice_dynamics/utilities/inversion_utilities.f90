@@ -373,6 +373,12 @@ contains
       timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_ANT
     end select
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_dHi_dt_target,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_dHi_dt_target)
+      call find_last_timeframe(   filename_dHi_dt_target, timeframe_dHi_dt_target)
+    end if
+
     ! Print to terminal
     if (par%primary)  write(*,"(A)") '     Initialising target ice rates of change from file "' // colour_string( trim( filename_dHi_dt_target),'light blue') // '"...'
 
