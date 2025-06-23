@@ -213,6 +213,8 @@ contains
         call write_calving_front_to_file( filename, ncid, region%mesh, region%ice)
       case ('coastline')
         call write_coastline_to_file( filename, ncid, region%mesh, region%ice)
+      case ('grounded_ice_contour')
+        call write_grounded_ice_contour_to_file( filename, ncid, region%mesh, region%ice)
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -247,8 +249,6 @@ contains
 
       case ('dHi_dt_target')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'dHi_dt_target', region%ice%dHi_dt_target)
-      case ('uabs_surf_target')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'uabs_surf_target', region%ice%uabs_surf_target)
 
     ! ===== Masks =====
     ! =================
@@ -483,21 +483,83 @@ contains
 
       ! Sliding law coefficients
       case ('till_friction_angle')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%ice%till_friction_angle)
-      case ('bed_roughness')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'bed_roughness', region%ice%bed_roughness)
-      case ('till_yield_stress')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_yield_stress', region%ice%till_yield_stress)
-      case ('slid_alpha_sq')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'slid_alpha_sq', region%ice%slid_alpha_sq)
-      case ('slid_beta_sq')
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'slid_beta_sq', region%ice%slid_beta_sq)
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_friction_angle', region%bed_roughness%till_friction_angle)
+      case ('alpha_sq')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'alpha_sq', region%bed_roughness%alpha_sq)
+      case ('beta_sq')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'beta_sq', region%bed_roughness%beta_sq)
 
       ! Basal friction and shear stress
+      case ('till_yield_stress')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'till_yield_stress', region%ice%till_yield_stress)
       case ('basal_friction_coefficient')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'basal_friction_coefficient', region%ice%basal_friction_coefficient)
       case ('basal_shear_stress')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'basal_shear_stress', region%ice%basal_shear_stress)
+
+      ! Bed roughness nudging - H, dH/dt, flowline
+      case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up', &
+          region%bed_roughness%nudging_H_dHdt_flowline%deltaHs_av_up)
+      case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_down')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_down', &
+          region%bed_roughness%nudging_H_dHdt_flowline%deltaHs_av_down)
+      case ('bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_up')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_up', &
+          region%bed_roughness%nudging_H_dHdt_flowline%dHs_dt_av_up)
+      case ('bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_down')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_down', &
+          region%bed_roughness%nudging_H_dHdt_flowline%dHs_dt_av_down)
+      case ('bed_roughness_nudge_H_dHdt_flowline_R')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_R', &
+          region%bed_roughness%nudging_H_dHdt_flowline%R)
+      case ('bed_roughness_nudge_H_dHdt_flowline_I_tot')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_I_tot', &
+          region%bed_roughness%nudging_H_dHdt_flowline%I_tot)
+      case ('bed_roughness_nudge_H_dHdt_flowline_dC_dt')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_dC_dt', &
+          region%bed_roughness%nudging_H_dHdt_flowline%dC_dt)
+
+      ! Bed roughness nudging - H, u, flowline
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_up')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_up', &
+          region%bed_roughness%nudging_H_u_flowline%deltaHs_av_up)
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_down')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_down', &
+          region%bed_roughness%nudging_H_u_flowline%deltaHs_av_down)
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_up')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_up', &
+          region%bed_roughness%nudging_H_u_flowline%deltau_av_up)
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_down')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_down', &
+          region%bed_roughness%nudging_H_u_flowline%deltau_av_down)
+      case ('bed_roughness_nudge_H_u_flowline_R')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_R', &
+          region%bed_roughness%nudging_H_u_flowline%R)
+      case ('bed_roughness_nudge_H_u_flowline_I_tot')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_I_tot', &
+          region%bed_roughness%nudging_H_u_flowline%I_tot)
+      case ('bed_roughness_nudge_H_u_flowline_dC_dt')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_dC_dt', &
+          region%bed_roughness%nudging_H_u_flowline%dC_dt)
+      case ('bed_roughness_nudge_H_u_target_velocity')
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_target_velocity', &
+          region%bed_roughness%nudging_H_u_flowline%uabs_surf_target_b)
 
     ! == Geothermal heat ==
     ! =====================
@@ -513,6 +575,8 @@ contains
         call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'T2m', region%climate%T2m)
       case ('Precip')
         call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Precip', region%climate%Precip)
+      case ('Q_TOA')
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%snapshot%Q_TOA)
 
     ! == Ocean ==
     ! ===========
@@ -533,6 +597,12 @@ contains
       ! Main SMB variables
       case ('SMB')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SMB', region%SMB%SMB)
+      case ('Albedo')
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Albedo', region%SMB%IMAUITM%Albedo)
+      CASE ('FirnDepth')
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'FirnDepth', region%SMB%IMAUITM%FirnDepth)
+      CASE ('MeltPreviousYear')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'MeltPreviousYear', region%SMB%IMAUITM%MeltPreviousYear)
 
     ! == Basal mass balance ==
     ! ========================
@@ -771,6 +841,7 @@ contains
     integer                        :: id_var_calving_front
     integer                        :: id_var_ice_margin
     integer                        :: id_var_coastline
+    integer                        :: id_var_grounded_ice_contour
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -880,6 +951,14 @@ contains
         call add_attribute_char( filename, ncid, id_var_coastline, 'long_name', 'Coastline coordinates')
         call add_attribute_char( filename, ncid, id_var_coastline, 'units', 'm')
         call add_attribute_char( filename, ncid, id_var_coastline, 'format', 'Matlab contour format')
+      case ('grounded_ice_contour')
+        call inquire_dim( filename, ncid, 'ei', int_dummy, id_dim_ei)
+        call inquire_dim( filename, ncid, 'two', int_dummy, id_dim_two)
+        call inquire_dim( filename, ncid, 'time', int_dummy, id_dim_time)
+        call create_variable( filename, ncid, 'grounded_ice_contour', NF90_DOUBLE, (/ id_dim_ei, id_dim_two, id_dim_time /), id_var_grounded_ice_contour)
+        call add_attribute_char( filename, ncid, id_var_grounded_ice_contour, 'long_name', 'Grounded ice contour coordinates')
+        call add_attribute_char( filename, ncid, id_var_grounded_ice_contour, 'units', 'm')
+        call add_attribute_char( filename, ncid, id_var_grounded_ice_contour, 'format', 'Matlab contour format')
 
     ! ===== Geometry changes w.r.t. reference =====
     ! =============================================
@@ -1100,20 +1179,82 @@ contains
       ! Sliding law coefficients
       case ('till_friction_angle')
         call add_field_mesh_dp_2D( filename, ncid, 'till_friction_angle', long_name = 'Till friction angle', units = 'degrees')
-      case ('bed_roughness')
-        call add_field_mesh_dp_2D( filename, ncid, 'bed_roughness', long_name = 'Bed roughness', units = '0-1')
+      case ('alpha_sq')
+        call add_field_mesh_dp_2D( filename, ncid, 'alpha_sq', long_name = 'Coulomb-law friction coefficientn', units = 'dimensionless')
+      case ('beta_sq')
+        call add_field_mesh_dp_2D( filename, ncid, 'beta_sq', long_name = 'Power-law friction coefficient', units = 'Pa m^−1/m yr^1/m')
+
+        ! Basal friction and shear stress
       case ('till_yield_stress')
         call add_field_mesh_dp_2D( filename, ncid, 'till_yield_stress', long_name = 'Till yield stress', units = 'Pa')
-      case ('slid_alpha_sq')
-        call add_field_mesh_dp_2D( filename, ncid, 'slid_alpha_sq', long_name = 'Coulomb-law friction coefficientn', units = 'dimensionless')
-      case ('slid_beta_sq')
-        call add_field_mesh_dp_2D( filename, ncid, 'slid_beta_sq', long_name = 'Power-law friction coefficient', units = 'Pa m^−1/m yr^1/m')
-
-      ! Basal friction and shear stress
       case ('basal_friction_coefficient')
         call add_field_mesh_dp_2D( filename, ncid, 'basal_friction_coefficient', long_name = 'Basal friction coefficient', units = 'Pa yr m^-1')
       case ('basal_shear_stress')
         call add_field_mesh_dp_2D( filename, ncid, 'basal_shear_stress', long_name = 'Basal shear stress', units = 'Pa')
+
+      ! Bed roughness nudging - H, dH/dt, flowline
+      case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up', &
+          long_name = 'Upstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_down')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_down', &
+          long_name = 'Downstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_up')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_up', &
+          long_name = 'Upstream flowline-averaged thinning rate', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_down')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_dHs_dt_av_down', &
+          long_name = 'Downstream flowline-averaged thinning rate', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_dHdt_flowline_R')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_R', &
+          long_name = 'Ice flux-based scaling factor')
+      case ('bed_roughness_nudge_H_dHdt_flowline_I_tot')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_I_tot', &
+          long_name = 'Weighted average of flowline-averaged terms')
+      case ('bed_roughness_nudge_H_dHdt_flowline_dC_dt')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_dHdt_flowline_dC_dt', &
+          long_name = 'Bed roughness rate of change')
+
+      ! Bed roughness nudging - H, u, flowline
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_up')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_up', &
+          long_name = 'Upstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_down')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_down', &
+          long_name = 'Downstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_up')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_up', &
+          long_name = 'Upstream flowline-averaged velocity error', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_down')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_down', &
+          long_name = 'Downstream flowline-averaged velocity error', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_u_flowline_R')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_R', &
+          long_name = 'Ice flux-based scaling factor')
+      case ('bed_roughness_nudge_H_u_flowline_I_tot')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_I_tot', &
+          long_name = 'Weighted average of flowline-averaged terms')
+      case ('bed_roughness_nudge_H_u_flowline_dC_dt')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_dC_dt', &
+          long_name = 'Bed roughness rate of change')
+      case ('bed_roughness_nudge_H_u_target_velocity')
+        call add_field_mesh_dp_2D_b( filename, ncid, &
+          'bed_roughness_nudge_H_u_target_velocity', &
+          long_name = 'Target velocity', units = 'm yr^-1')
 
     ! == Geothermal heat ==
     ! =====================
@@ -1129,6 +1270,8 @@ contains
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'T2m', long_name = 'Monthly mean 2-m air temperature', units = 'K')
       case ('Precip')
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
+      case ('Q_TOA')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')
 
     ! == Ocean ==
     ! ===========
@@ -1149,6 +1292,12 @@ contains
       ! Main SMB variables
       case ('SMB')
         call add_field_mesh_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
+      CASE ('Albedo')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')
+      CASE ('FirnDepth')
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Monthly firn layer depth', units = 'm')
+      CASE ('MeltPreviousYear')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================
@@ -1324,7 +1473,7 @@ contains
       end if
     end do
 
-    ! Calculate grounding line contour
+    ! Calculate calving front contour
     if (par%primary) allocate( CC( mesh%nE,2))
     call calc_mesh_contour( mesh, Hi_for_GL, 0.05_dp, CC)
 
@@ -1346,15 +1495,12 @@ contains
 
     ! Local variables:
     character(len=1024), parameter          :: routine_name = 'write_ice_margin_to_file'
-    real(dp)                                :: NaN
     real(dp), dimension(:,:  ), allocatable :: CC
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    NaN = ieee_value( NaN, ieee_signaling_nan)
-
-    ! Calculate grounding line contour
+    ! Calculate ice margin contour
     if (par%primary) allocate( CC( mesh%nE,2))
     call calc_mesh_contour( mesh, ice%Hi, 0.05_dp, CC)
 
@@ -1395,7 +1541,7 @@ contains
       end if
     end do
 
-    ! Calculate grounding line contour
+    ! Calculate coastline contour
     if (par%primary) allocate( CC( mesh%nE,2))
     call calc_mesh_contour( mesh, water_depth_for_coastline, 0._dp, CC)
 
@@ -1406,6 +1552,44 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine write_coastline_to_file
+
+  subroutine write_grounded_ice_contour_to_file( filename, ncid, mesh, ice)
+
+    ! In/output variables:
+    character(len=*),     intent(in   ) :: filename
+    integer,              intent(in   ) :: ncid
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(in   ) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'write_grounded_ice_contour_to_file'
+    integer                                 :: vi
+    real(dp), dimension(mesh%vi1:mesh%vi2)  :: Hi_grounded_only
+    real(dp), dimension(:,:  ), allocatable :: CC
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Remove floating ice
+    do vi = mesh%vi1, mesh%vi2
+      if (ice%mask_grounded_ice( vi)) then
+        Hi_grounded_only( vi) = ice%Hi( vi)
+      else
+        Hi_grounded_only( vi) = 0._dp
+      end if
+    end do
+
+    ! Calculate grounding ice contour
+    if (par%primary) allocate( CC( mesh%nE,2))
+    call calc_mesh_contour( mesh, Hi_grounded_only, 0.05_dp, CC)
+
+    ! Write to NetCDF
+    call write_contour_to_file( filename, ncid, mesh, CC, 'grounded_ice_contour')
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine write_grounded_ice_contour_to_file
 
   subroutine write_contour_to_file( filename, ncid, mesh, CC, var_name)
 

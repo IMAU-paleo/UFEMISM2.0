@@ -28,6 +28,7 @@ module BPA_main
   use zeta_gradients, only: calc_zeta_gradients
   use reallocate_mod, only: reallocate_bounds, reallocate_clean
   use remapping_main, only: map_from_mesh_to_mesh_with_reallocation_2D, map_from_mesh_to_mesh_with_reallocation_3D
+  use bed_roughness_model_types, only: type_bed_roughness_model
 
   implicit none
 
@@ -86,13 +87,14 @@ contains
 
   end subroutine initialise_BPA_solver
 
-  subroutine solve_BPA( mesh, ice, BPA, n_visc_its, n_Axb_its, &
+  subroutine solve_BPA( mesh, ice, bed_roughness, BPA, n_visc_its, n_Axb_its, &
     BC_prescr_mask_bk, BC_prescr_u_bk, BC_prescr_v_bk)
     !< Calculate ice velocities by solving the Blatter-Pattyn Approximation
 
     ! In/output variables:
     type(type_mesh),                    intent(inout) :: mesh
     type(type_ice_model),               intent(inout) :: ice
+    type(type_bed_roughness_model),     intent(in   ) :: bed_roughness
     type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
     integer,                            intent(  out) :: n_visc_its            ! Number of non-linear viscosity iterations
     integer,                            intent(  out) :: n_Axb_its             ! Number of iterations in iterative solver for linearised momentum balance
@@ -179,7 +181,7 @@ contains
       call calc_effective_viscosity( mesh, ice, BPA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
-      call calc_applied_basal_friction_coefficient( mesh, ice, BPA)
+      call calc_applied_basal_friction_coefficient( mesh, ice, bed_roughness, BPA)
 
       ! Solve the linearised BPA to calculate a new velocity solution
       call solve_BPA_linearised( mesh, ice, BPA, n_Axb_its_visc_it, &
@@ -1925,7 +1927,7 @@ contains
 
   end subroutine calc_effective_viscosity
 
-  subroutine calc_applied_basal_friction_coefficient( mesh, ice, BPA)
+  subroutine calc_applied_basal_friction_coefficient( mesh, ice, bed_roughness, BPA)
     !< Calculate the applied basal friction coefficient beta_b, i.e. on the b-grid
     !< and scaled with the sub-grid grounded fraction
 
@@ -1934,6 +1936,7 @@ contains
     ! In/output variables:
     type(type_mesh),                    intent(in   ) :: mesh
     type(type_ice_model),               intent(inout) :: ice
+    type(type_bed_roughness_model),     intent(in   ) :: bed_roughness
     type(type_ice_velocity_solver_BPA), intent(inout) :: BPA
 
     ! Local variables:
@@ -1954,7 +1957,7 @@ contains
 
     ! Calculate the basal friction coefficient beta_b for the current velocity solution
     ! This is where the sliding law is called!
-    call calc_basal_friction_coefficient( mesh, ice, u_base_b, v_base_b)
+    call calc_basal_friction_coefficient( mesh, ice, bed_roughness, u_base_b, v_base_b)
 
     ! Map basal friction coefficient beta_b to the b-grid
     call map_a_b_2D( mesh, ice%basal_friction_coefficient, BPA%basal_friction_coefficient_b)

@@ -11,9 +11,7 @@ MODULE laddie_thickness
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
-  USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
@@ -28,14 +26,12 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_H_npx( mesh, ice, ocean, laddie, npx_old, npx_ref, npx_new, time, dt)
+  SUBROUTINE compute_H_npx( mesh, laddie, npx_old, npx_ref, npx_new, time, dt)
     ! Integrate H by time step dt
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_old   ! Old time step
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_ref   ! Reference time step for RHS terms
@@ -53,22 +49,22 @@ CONTAINS
     CALL compute_divQH( mesh, laddie, npx_ref)
 
     ! Compute freezing temperature
-    CALL compute_freezing_temperature( mesh, ice, laddie, npx_ref)
+    CALL compute_freezing_temperature( mesh, laddie, npx_ref)
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, ice, ocean, laddie, npx_ref%H)
+    CALL compute_ambient_TS( mesh, laddie, npx_ref%H)
 
     ! Compute buoyancy
     CALL compute_buoyancy( mesh, laddie, npx_ref, npx_ref%H)
 
     ! Compute melt rate
-    CALL compute_melt_rate( mesh, ice, laddie, npx_ref, npx_ref%H, time)
+    CALL compute_melt_rate( mesh, laddie, npx_ref, npx_ref%H, time)
 
     ! Compute entrainment
-    CALL compute_entrainment( mesh, ice, laddie, npx_ref, npx_ref%H)
+    CALL compute_entrainment( mesh, laddie, npx_ref, npx_ref%H)
 
     ! Do integration
-    CALL integrate_H( mesh, ice, laddie, npx_old, npx_new, dt)
+    CALL integrate_H( mesh, laddie, npx_old, npx_new, dt)
 
     ! Map new values of H to b grid and c grid
     CALL map_H_a_b( mesh, laddie, npx_new%H, npx_new%H_b)
@@ -79,12 +75,11 @@ CONTAINS
 
   END SUBROUTINE compute_H_npx
 
-  subroutine integrate_H( mesh, ice, laddie, npx_old, npx_new, dt)
+  subroutine integrate_H( mesh, laddie, npx_old, npx_new, dt)
     ! Do the actual computation of npx%H
 
     ! In/output variables:
     type(type_mesh),                        intent(in)    :: mesh
-    type(type_ice_model),                   intent(in)    :: ice
     type(type_laddie_model),                intent(inout) :: laddie
     type(type_laddie_timestep),             intent(in   ) :: npx_old   ! Old timestep as input
     type(type_laddie_timestep),             intent(inout) :: npx_new   ! New timestep as output

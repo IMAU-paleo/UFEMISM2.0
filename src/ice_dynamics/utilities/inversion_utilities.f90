@@ -27,7 +27,7 @@ module inversion_utilities
 
   private
 
-  public :: MB_inversion, initialise_dHi_dt_target, initialise_uabs_surf_target, &
+  public :: MB_inversion, initialise_dHi_dt_target, &
     MISMIPplus_adapt_flow_factor, SMB_inversion, BMB_inversion, LMB_inversion
 
 contains
@@ -373,6 +373,12 @@ contains
       timeframe_dHi_dt_target = C%timeframe_dHi_dt_target_ANT
     end select
 
+    ! Exception for when we want to flexible read the last output file of a previous UFEMISM simulation
+    if (index( filename_dHi_dt_target,'_LAST.nc') > 1) then
+      call find_last_output_file( filename_dHi_dt_target)
+      call find_last_timeframe(   filename_dHi_dt_target, timeframe_dHi_dt_target)
+    end if
+
     ! Print to terminal
     if (par%primary)  write(*,"(A)") '     Initialising target ice rates of change from file "' // colour_string( trim( filename_dHi_dt_target),'light blue') // '"...'
 
@@ -389,54 +395,6 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine initialise_dHi_dt_target
-
-  subroutine initialise_uabs_surf_target( mesh, ice, region_name)
-    !< Initialise surface ice velocity data from an external NetCDF file
-
-    ! Input variables:
-    type(type_mesh),      intent(in   ) :: mesh
-    type(type_ice_model), intent(inout) :: ice
-    character(len=3),     intent(in   ) :: region_name
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'initialise_uabs_surf_target'
-    character(len=256)             :: filename_uabs_surf_target
-    real(dp)                       :: timeframe_uabs_surf_target
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Determine filename and timeframe for this model region
-    select case (region_name)
-    case default
-      call crash('unknown region_name "' // trim( region_name) // '"!')
-    case('NAM')
-      filename_uabs_surf_target  = C%filename_uabs_surf_target_NAM
-      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_NAM
-    case ('EAS')
-      filename_uabs_surf_target  = C%filename_uabs_surf_target_EAS
-      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_EAS
-    case ('GRL')
-      filename_uabs_surf_target  = C%filename_uabs_surf_target_GRL
-      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_GRL
-    case ('ANT')
-      filename_uabs_surf_target  = C%filename_uabs_surf_target_ANT
-      timeframe_uabs_surf_target = C%timeframe_uabs_surf_target_ANT
-    end select
-
-    ! Print to terminal
-    if (par%primary)  write(*,"(A)") '     Initialising target surface ice speed from file "' // colour_string( trim( filename_uabs_surf_target),'light blue') // '"...'
-
-    if (timeframe_uabs_surf_target == 1E9_dp) then
-      call read_field_from_file_2D( filename_uabs_surf_target, 'uabs_surf', mesh, ice%uabs_surf_target)
-    else
-      call read_field_from_file_2D( filename_uabs_surf_target, 'uabs_surf', mesh, ice%uabs_surf_target, timeframe_uabs_surf_target)
-    end if
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine initialise_uabs_surf_target
 
   subroutine MISMIPplus_adapt_flow_factor( mesh, ice)
     !< Automatically adapt the uniform flow factor A to achieve

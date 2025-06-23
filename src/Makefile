@@ -95,6 +95,8 @@ UFEMISM_source = \
   types/remapping_types.f90 \
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
+  types/global_forcing_types.f90 \
+  types/bed_roughness_model_types.f90 \
   types/ice_model_types.f90 \
   types/climate_model_types.f90 \
   types/ocean_model_types.f90 \
@@ -104,7 +106,6 @@ UFEMISM_source = \
   types/LMB_model_types.f90 \
   types/AMB_model_types.f90 \
   types/GIA_model_types.f90 \
-  types/basal_inversion_types.f90 \
   types/tracer_tracking_model_types.f90 \
   types/transect_types.f90 \
   types/region_types.f90 \
@@ -212,6 +213,7 @@ UFEMISM_source = \
   io/netcdf_input/netcdf_determine_indexing.f90 \
   io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
   io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  io/netcdf_input/netcdf_read_field_from_series_file.f90 \
   io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
   io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
   io/netcdf_input/netcdf_input.f90 \
@@ -257,13 +259,19 @@ UFEMISM_source = \
   reference_geometries/preprocess_geometry.f90 \
   reference_geometries/reference_geometries_main.f90 \
   \
-  basal_conditions/geothermal_heat_flux.f90 \
-  basal_conditions/basal_hydrology.f90 \
-  basal_conditions/basal_inversion_H_dHdt_flowline.f90 \
-  basal_conditions/basal_inversion_main.f90 \
-  basal_conditions/bed_roughness.f90 \
-  basal_conditions/sliding_laws.f90 \
+  global_forcings/series_utilities.f90 \
+  global_forcings/global_forcings_main.f90 \
   \
+  basal_hydrology/basal_hydrology_main.f90 \
+  \
+  bed_roughness/nudging/nudging_utilities.f90 \
+  bed_roughness/nudging/bed_roughness_nudging_H_dHdt_flowline.f90 \
+  bed_roughness/nudging/bed_roughness_nudging_H_dHdt_local.f90 \
+  bed_roughness/nudging/bed_roughness_nudging_H_u_flowline.f90 \
+  bed_roughness/nudging/bed_roughness_nudging_main.f90 \
+  bed_roughness/bed_roughness_main.f90 \
+  \
+  surface_mass_balance/SMB_IMAU_ITM.f90 \
   surface_mass_balance/SMB_idealised.f90 \
   surface_mass_balance/SMB_prescribed.f90 \
   surface_mass_balance/SMB_main.f90 \
@@ -294,6 +302,10 @@ UFEMISM_source = \
   \
   artificial_mass_balance/AMB_main.f90 \
   \
+  climate/climate_idealised.f90 \
+  climate/climate_realistic.f90 \
+  climate/climate_main.f90 \
+  \
   ice_dynamics/utilities/ice_model_memory.f90 \
   ice_dynamics/utilities/bedrock_cumulative_density_functions.f90 \
   ice_dynamics/utilities/subgrid_grounded_fractions_bilin_TAF.f90 \
@@ -307,7 +319,14 @@ UFEMISM_source = \
   ice_dynamics/utilities/time_step_criteria.f90 \
   ice_dynamics/utilities/ice_mass_and_fluxes.f90 \
   ice_dynamics/utilities/ice_shelf_base_slopes_onesided.f90 \
+  \
+  thermodynamics/thermodynamics_utilities.f90 \
+  thermodynamics/geothermal_heat_flux.f90 \
+  thermodynamics/thermodynamics_3D_heat_equation.f90 \
+  thermodynamics/thermodynamics_main.f90 \
+  \
   ice_dynamics/rheology/constitutive_equation.f90 \
+  ice_dynamics/conservation_of_momentum/sliding_laws.f90 \
   ice_dynamics/conservation_of_momentum/SIA/SIA_main.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/SSA_DIVA_utilities.f90 \
   ice_dynamics/conservation_of_momentum/SSA_DIVA/solve_linearised_SSA_DIVA.f90 \

@@ -46,6 +46,7 @@ module hybrid_DIVA_BPA_main
   use grid_basic, only: type_grid, calc_grid_mask_as_polygons
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary
   use netcdf_io_main
+  use bed_roughness_model_types, only: type_bed_roughness_model
 
   implicit none
 
@@ -106,7 +107,7 @@ contains
 
   end subroutine initialise_hybrid_DIVA_BPA_solver
 
-  subroutine solve_hybrid_DIVA_BPA( mesh, ice, hybrid, region_name, &
+  subroutine solve_hybrid_DIVA_BPA( mesh, ice, bed_roughness, hybrid, region_name, &
     n_visc_its, n_Axb_its, &
     BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b)
     !< Calculate ice velocities by solving the hybrid DIVA/BPA
@@ -114,6 +115,7 @@ contains
     ! In/output variables:
     type(type_mesh),                       intent(inout) :: mesh
     type(type_ice_model),                  intent(inout) :: ice
+    type(type_bed_roughness_model),        intent(in   ) :: bed_roughness
     type(type_ice_velocity_solver_hybrid), intent(inout) :: hybrid
     character(len=3),                      intent(in   ) :: region_name
     integer,                               intent(  out) :: n_visc_its            ! Number of non-linear viscosity iterations
@@ -217,7 +219,7 @@ contains
       call calc_F_integrals_DIVA( mesh, ice, hybrid%DIVA)
 
       ! Calculate the "effective" friction coefficient (turning the SSA into the DIVA)
-      call calc_effective_basal_friction_coefficient_DIVA( mesh, ice, hybrid%DIVA)
+      call calc_effective_basal_friction_coefficient_DIVA( mesh, ice, bed_roughness, hybrid%DIVA)
 
       ! == Calculate secondary terms in the BPA
       ! =======================================
@@ -229,7 +231,7 @@ contains
       call calc_effective_viscosity_BPA( mesh, ice, hybrid%BPA, Glens_flow_law_epsilon_sq_0_applied)
 
       ! Calculate the basal friction coefficient betab for the current velocity solution
-      call calc_applied_basal_friction_coefficient_BPA( mesh, ice, hybrid%BPA)
+      call calc_applied_basal_friction_coefficient_BPA( mesh, ice, bed_roughness, hybrid%BPA)
 
       ! == Solve the linearised hybrid DIVA/BPA
       ! =======================================
@@ -618,7 +620,7 @@ contains
     ! Gather partial gridded data to the primary and broadcast the total field to all processes
     allocate( mask_int_grid( grid%nx, grid%ny))
     call gather_gridded_data_to_primary( grid, mask_int_grid_vec_partial, mask_int_grid)
-    call MPI_BCAST( mask_int_grid, grid%nx * grid%ny, MPI_integer, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( mask_int_grid(:,:), grid%nx * grid%ny, MPI_integer, 0, MPI_COMM_WORLD, ierr)
 
     ! Calculate logical mask (assumes data from file is integer 0 for FALSE and integer 1 for true)
     allocate( mask_grid( grid%nx, grid%ny), source = .false.)
