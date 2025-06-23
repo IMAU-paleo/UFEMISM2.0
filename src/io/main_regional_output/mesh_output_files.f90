@@ -549,9 +549,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'T_ocean', region%ocean%T)
+        call write_to_field_multopt_mesh_dp_3D_ocean( region%mesh, filename, ncid, 'T_ocean', region%ocean%T)
       case ('S_ocean')
-        call write_to_field_multopt_mesh_dp_3D_ocean_notime( region%mesh, filename, ncid, 'S_ocean', region%ocean%S)
+        call write_to_field_multopt_mesh_dp_3D_ocean( region%mesh, filename, ncid, 'S_ocean', region%ocean%S)
       case ('T_draft')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'T_draft', region%ocean%T_draft)
       case ('T_freezing_point')

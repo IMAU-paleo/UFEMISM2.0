@@ -660,10 +660,10 @@ contains
       ! Main ocean variables
       case ('T_ocean')
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ocean%T, d_grid_vec_partial_3D_ocean)
-        call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'T_ocean', d_grid_vec_partial_3D_ocean)
+        call write_to_field_multopt_grid_dp_3D_ocean( grid, filename, ncid, 'T_ocean', d_grid_vec_partial_3D_ocean)
       case ('S_ocean')
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ocean%S, d_grid_vec_partial_3D_ocean)
-        call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'S_ocean', d_grid_vec_partial_3D_ocean)
+        call write_to_field_multopt_grid_dp_3D_ocean( grid, filename, ncid, 'S_ocean', d_grid_vec_partial_3D_ocean)
       case ('T_draft')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ocean%T_draft, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_draft', d_grid_vec_partial_2D)
