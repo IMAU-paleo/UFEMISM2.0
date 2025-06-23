@@ -524,6 +524,21 @@ MODULE model_configuration
     REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth_config     = 2500._dp                         ! [m]       Radius for Gaussian filter used to smooth dC/dt as regularisation
     REAL(dp)            :: bednudge_H_dHdt_flowline_w_smooth_config     = 0.5_dp                           ! [-]       Relative contribution of smoothed dC/dt in regularisation
 
+    ! Bed roughness nudging model based on local values of H and dH/dt (i.e. CISM method)
+    REAL(dp)            :: bednudge_H_dHdt_local_H0_config              = 200._dp                          ! [m]       Ice thickness error scale
+    REAL(dp)            :: bednudge_H_dHdt_local_tau_config             = 50._dp                           ! [yr]      Time scale
+    REAL(dp)            :: bednudge_H_dHdt_local_L_config               = 8000._dp                         ! [m]       Length scale for the Laplacian regularisation term
+
+    ! Bed roughness nudging model based on flowline-averaged values of H and u
+    CHARACTER(len=1024) :: bednudge_H_u_flowline_file_u_target_config   = ''                               !           File containing target ice velocities
+    REAL(dp)            :: bednudge_H_u_flowline_t_scale_config         = 10._dp                           ! [yr]      Timescale
+    REAL(dp)            :: bednudge_H_u_flowline_H0_config              = 100._dp                          ! [m]       Ice thickness error scale
+    REAL(dp)            :: bednudge_H_u_flowline_u0_config              = 250_dp                           ! [m yr^-1] Ice velocity  error scale
+    REAL(dp)            :: bednudge_H_u_flowline_Hi_scale_config        = 300._dp                          ! [m]       Ice thickness weight scale
+    REAL(dp)            :: bednudge_H_u_flowline_u_scale_config         = 3000._dp                         ! [m yr^-1] Ice velocity  weight scale
+    REAL(dp)            :: bednudge_H_u_flowline_tau_config             = 50._dp                           ! [yr]      Time scale
+    REAL(dp)            :: bednudge_H_u_flowline_L_config               = 2000._dp                         ! [m]       Length scale for the Laplacian regularisation term
+
   ! == Geothermal heat flux
   ! =======================
 
@@ -612,14 +627,14 @@ MODULE model_configuration
     LOGICAL             :: do_lapse_rate_corrections_GRL_config         = .FALSE.
     LOGICAL             :: do_lapse_rate_corrections_ANT_config         = .FALSE.
     REAL(dp)            :: lapse_rate_temp_NAM_config                   = 7.9E-3_dp                          ! Elevation lapse rate effect on temperature [K m^-1]
-    REAL(dp)            :: lapse_rate_temp_EAS_config                   = 7.9E-3_dp                          ! 
-    REAL(dp)            :: lapse_rate_temp_GRL_config                   = 7.9E-3_dp                          ! 
-    REAL(dp)            :: lapse_rate_temp_ANT_config                   = 7.9E-3_dp                          ! 
+    REAL(dp)            :: lapse_rate_temp_EAS_config                   = 7.9E-3_dp                          !
+    REAL(dp)            :: lapse_rate_temp_GRL_config                   = 7.9E-3_dp                          !
+    REAL(dp)            :: lapse_rate_temp_ANT_config                   = 7.9E-3_dp                          !
     REAL(dp)            :: lapse_rate_precip_NAM_config                 = 0.07_dp                            ! Elevation-desertification lapse rate [K^-1]
-    REAL(dp)            :: lapse_rate_precip_EAS_config                 = 0.07_dp                            ! 
-    REAL(dp)            :: lapse_rate_precip_GRL_config                 = 0.07_dp                            ! 
-    REAL(dp)            :: lapse_rate_precip_ANT_config                 = 0.07_dp                            ! 
-    
+    REAL(dp)            :: lapse_rate_precip_EAS_config                 = 0.07_dp                            !
+    REAL(dp)            :: lapse_rate_precip_GRL_config                 = 0.07_dp                            !
+    REAL(dp)            :: lapse_rate_precip_ANT_config                 = 0.07_dp                            !
+
 
     ! == Climate - Insolation
     CHARACTER(LEN=256)  :: choice_insolation_forcing_config             = 'none'                           ! 'none', 'static' or 'realistic'
@@ -1563,6 +1578,21 @@ MODULE model_configuration
     REAL(dp)            :: bednudge_H_dHdt_flowline_r_smooth
     REAL(dp)            :: bednudge_H_dHdt_flowline_w_smooth
 
+    ! Bed roughness nudging model based on local values of H and dH/dt (i.e. CISM method)
+    REAL(dp)            :: bednudge_H_dHdt_local_H0
+    REAL(dp)            :: bednudge_H_dHdt_local_tau
+    REAL(dp)            :: bednudge_H_dHdt_local_L
+
+    ! Bed roughness nudging model based on flowline-averaged values of H and u
+    CHARACTER(LEN=1024) :: bednudge_H_u_flowline_file_u_target
+    REAL(dp)            :: bednudge_H_u_flowline_t_scale
+    REAL(dp)            :: bednudge_H_u_flowline_H0
+    REAL(dp)            :: bednudge_H_u_flowline_u0
+    REAL(dp)            :: bednudge_H_u_flowline_Hi_scale
+    REAL(dp)            :: bednudge_H_u_flowline_u_scale
+    REAL(dp)            :: bednudge_H_u_flowline_tau
+    REAL(dp)            :: bednudge_H_u_flowline_L
+
   ! == Geothermal heat flux
   ! =======================
 
@@ -1653,7 +1683,7 @@ MODULE model_configuration
     REAL(dp)            :: lapse_rate_temp_NAM
     REAL(dp)            :: lapse_rate_temp_EAS
     REAL(dp)            :: lapse_rate_temp_GRL
-    REAL(dp)            :: lapse_rate_temp_ANT  
+    REAL(dp)            :: lapse_rate_temp_ANT
     REAL(dp)            :: lapse_rate_precip_NAM
     REAL(dp)            :: lapse_rate_precip_EAS
     REAL(dp)            :: lapse_rate_precip_GRL
@@ -2649,6 +2679,17 @@ CONTAINS
       bednudge_H_dHdt_flowline_u_scale_config                     , &
       bednudge_H_dHdt_flowline_r_smooth_config                    , &
       bednudge_H_dHdt_flowline_w_smooth_config                    , &
+      bednudge_H_dHdt_local_H0_config                             , &
+      bednudge_H_dHdt_local_tau_config                            , &
+      bednudge_H_dHdt_local_L_config                              , &
+      bednudge_H_u_flowline_file_u_target_config                  , &
+      bednudge_H_u_flowline_t_scale_config                        , &
+      bednudge_H_u_flowline_H0_config                             , &
+      bednudge_H_u_flowline_u0_config                             , &
+      bednudge_H_u_flowline_Hi_scale_config                       , &
+      bednudge_H_u_flowline_u_scale_config                        , &
+      bednudge_H_u_flowline_tau_config                            , &
+      bednudge_H_u_flowline_L_config                              , &
       choice_geothermal_heat_flux_config                          , &
       uniform_geothermal_heat_flux_config                         , &
       filename_geothermal_heat_flux_config                        , &
@@ -3530,6 +3571,21 @@ CONTAINS
     C%bednudge_H_dHdt_flowline_r_smooth                      = bednudge_H_dHdt_flowline_r_smooth_config
     C%bednudge_H_dHdt_flowline_w_smooth                      = bednudge_H_dHdt_flowline_w_smooth_config
 
+    ! Bed roughness nudging model based on local values of H and dH/dt (i.e. CISM method)
+    C%bednudge_H_dHdt_local_H0                               = bednudge_H_dHdt_local_H0_config
+    C%bednudge_H_dHdt_local_tau                              = bednudge_H_dHdt_local_tau_config
+    C%bednudge_H_dHdt_local_L                                = bednudge_H_dHdt_local_L_config
+
+    ! Bed roughness nudging model based on flowline-averaged values of H and u
+    C%bednudge_H_u_flowline_file_u_target                    = bednudge_H_u_flowline_file_u_target_config
+    C%bednudge_H_u_flowline_t_scale                          = bednudge_H_u_flowline_t_scale_config
+    C%bednudge_H_u_flowline_H0                               = bednudge_H_u_flowline_H0_config
+    C%bednudge_H_u_flowline_u0                               = bednudge_H_u_flowline_u0_config
+    C%bednudge_H_u_flowline_Hi_scale                         = bednudge_H_u_flowline_Hi_scale_config
+    C%bednudge_H_u_flowline_u_scale                          = bednudge_H_u_flowline_u_scale_config
+    C%bednudge_H_u_flowline_tau                              = bednudge_H_u_flowline_tau_config
+    C%bednudge_H_u_flowline_L                                = bednudge_H_u_flowline_L_config
+
   ! == Geothermal heat flux
   ! =======================
 
@@ -3755,8 +3811,8 @@ CONTAINS
     C%SMB_IMAUITM_C_refr_GRL                                 = SMB_IMAUITM_C_refr_GRL_config
     C%SMB_IMAUITM_C_refr_ANT                                 = SMB_IMAUITM_C_refr_ANT_config
     C%SMB_IMAUITM_albedo_water                               = SMB_IMAUITM_albedo_water_config
-    C%SMB_IMAUITM_albedo_soil                                = SMB_IMAUITM_albedo_soil_config 
-    C%SMB_IMAUITM_albedo_ice                                 = SMB_IMAUITM_albedo_ice_config  
+    C%SMB_IMAUITM_albedo_soil                                = SMB_IMAUITM_albedo_soil_config
+    C%SMB_IMAUITM_albedo_ice                                 = SMB_IMAUITM_albedo_ice_config
     c%SMB_IMAUITM_albedo_snow                                = SMB_IMAUITM_albedo_snow_config
 
 

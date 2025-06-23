@@ -497,7 +497,7 @@ contains
       case ('basal_shear_stress')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'basal_shear_stress', region%ice%basal_shear_stress)
 
-      ! Bed roughness nudging
+      ! Bed roughness nudging - H, dH/dt, flowline
       case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
           'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up', &
@@ -527,6 +527,40 @@ contains
           'bed_roughness_nudge_H_dHdt_flowline_dC_dt', &
           region%bed_roughness%nudging_H_dHdt_flowline%dC_dt)
 
+      ! Bed roughness nudging - H, u, flowline
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_up')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_up', &
+          region%bed_roughness%nudging_H_u_flowline%deltaHs_av_up)
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_down')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_down', &
+          region%bed_roughness%nudging_H_u_flowline%deltaHs_av_down)
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_up')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_up', &
+          region%bed_roughness%nudging_H_u_flowline%deltau_av_up)
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_down')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_down', &
+          region%bed_roughness%nudging_H_u_flowline%deltau_av_down)
+      case ('bed_roughness_nudge_H_u_flowline_R')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_R', &
+          region%bed_roughness%nudging_H_u_flowline%R)
+      case ('bed_roughness_nudge_H_u_flowline_I_tot')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_I_tot', &
+          region%bed_roughness%nudging_H_u_flowline%I_tot)
+      case ('bed_roughness_nudge_H_u_flowline_dC_dt')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_dC_dt', &
+          region%bed_roughness%nudging_H_u_flowline%dC_dt)
+      case ('bed_roughness_nudge_H_u_target_velocity')
+        call write_to_field_multopt_mesh_dp_2D_b( region%mesh, filename, ncid, &
+          'bed_roughness_nudge_H_u_target_velocity', &
+          region%bed_roughness%nudging_H_u_flowline%uabs_surf_target_b)
+
     ! == Geothermal heat ==
     ! =====================
 
@@ -542,7 +576,7 @@ contains
       case ('Precip')
         call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Precip', region%climate%Precip)
       case ('Q_TOA')
-        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%snapshot%Q_TOA)  
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Q_TOA', region%climate%snapshot%Q_TOA)
 
     ! == Ocean ==
     ! ===========
@@ -564,11 +598,11 @@ contains
       case ('SMB')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SMB', region%SMB%SMB)
       case ('Albedo')
-        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Albedo', region%SMB%IMAUITM%Albedo)  
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Albedo', region%SMB%IMAUITM%Albedo)
       CASE ('FirnDepth')
-        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'FirnDepth', region%SMB%IMAUITM%FirnDepth)  
-      CASE ('MeltPreviousYear')  
-        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'MeltPreviousYear', region%SMB%IMAUITM%MeltPreviousYear)  
+        call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'FirnDepth', region%SMB%IMAUITM%FirnDepth)
+      CASE ('MeltPreviousYear')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'MeltPreviousYear', region%SMB%IMAUITM%MeltPreviousYear)
 
     ! == Basal mass balance ==
     ! ========================
@@ -1158,7 +1192,7 @@ contains
       case ('basal_shear_stress')
         call add_field_mesh_dp_2D( filename, ncid, 'basal_shear_stress', long_name = 'Basal shear stress', units = 'Pa')
 
-      ! Bed roughness nudging
+      ! Bed roughness nudging - H, dH/dt, flowline
       case ('bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up')
         call add_field_mesh_dp_2D( filename, ncid, &
           'bed_roughness_nudge_H_dHdt_flowline_deltaHs_av_up', &
@@ -1188,6 +1222,40 @@ contains
           'bed_roughness_nudge_H_dHdt_flowline_dC_dt', &
           long_name = 'Bed roughness rate of change')
 
+      ! Bed roughness nudging - H, u, flowline
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_up')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_up', &
+          long_name = 'Upstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_u_flowline_deltaHs_av_down')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltaHs_av_down', &
+          long_name = 'Downstream flowline-averaged thickness error', units = 'm')
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_up')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_up', &
+          long_name = 'Upstream flowline-averaged velocity error', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_u_flowline_deltau_av_down')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_deltau_av_down', &
+          long_name = 'Downstream flowline-averaged velocity error', units = 'm yr^-1')
+      case ('bed_roughness_nudge_H_u_flowline_R')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_R', &
+          long_name = 'Ice flux-based scaling factor')
+      case ('bed_roughness_nudge_H_u_flowline_I_tot')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_I_tot', &
+          long_name = 'Weighted average of flowline-averaged terms')
+      case ('bed_roughness_nudge_H_u_flowline_dC_dt')
+        call add_field_mesh_dp_2D( filename, ncid, &
+          'bed_roughness_nudge_H_u_flowline_dC_dt', &
+          long_name = 'Bed roughness rate of change')
+      case ('bed_roughness_nudge_H_u_target_velocity')
+        call add_field_mesh_dp_2D_b( filename, ncid, &
+          'bed_roughness_nudge_H_u_target_velocity', &
+          long_name = 'Target velocity', units = 'm yr^-1')
+
     ! == Geothermal heat ==
     ! =====================
 
@@ -1203,7 +1271,7 @@ contains
       case ('Precip')
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'Precip', long_name = 'Monthly total precipitation', units = 'm.w.e.')
       case ('Q_TOA')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')  
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Q_TOA', long_name = 'Monthly insolation at the top of the atmosphere', units = 'W m^-2')
 
     ! == Ocean ==
     ! ===========
@@ -1225,11 +1293,11 @@ contains
       case ('SMB')
         call add_field_mesh_dp_2D( filename, ncid, 'SMB', long_name = 'Surface mass balance', units = 'm yr^-1')
       CASE ('Albedo')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')  
+        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Albedo', long_name = 'Surface albedo', units = '0-1')
       CASE ('FirnDepth')
         CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', long_name = 'Monthly firn layer depth', units = 'm')
-      CASE ('MeltPreviousYear')  
-        CALL add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')  
+      CASE ('MeltPreviousYear')
+        CALL add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', long_name = 'Total ice melt from previous year', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================

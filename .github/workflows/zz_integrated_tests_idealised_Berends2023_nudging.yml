@@ -61,8 +61,14 @@ jobs:
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 04_spinup_5km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_04_exp_I_spinup_5km.cfg
 
-      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 05_inversion_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_05_exp_I_inversion_5km.cfg
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 05_inversion_5km_H_dHdt_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_05_exp_I_inversion_5km_H_dHdt_flowline.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 06_inversion_5km_H_dHdt_local
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_06_exp_I_inversion_5km_H_dHdt_local.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_I - 07_inversion_5km_H_u_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_I/config_07_exp_I_inversion_5km_H_u_flowline.cfg
 
       - name: Analyse integrated_tests/idealised/Berends2023_nudging/experiment_I
         uses: matlab-actions/run-command@v2
@@ -82,8 +88,20 @@ jobs:
       - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 01_spinup_5km
         run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_01_exp_II_spinup_5km.cfg
 
-      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 02_inversion_5km
-        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_02_exp_II_inversion_5km.cfg
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 02_inversion_5km_H_dHdt_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_02_exp_II_inversion_5km_H_dHdt_flowline.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 03_inversion_5km_H_dHdt_local
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_03_exp_II_inversion_5km_H_dHdt_local.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 04_inversion_5km_H_u_flowline
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_04_exp_II_inversion_5km_H_u_flowline.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 05_warm_ocean_retreat_10yr_5km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_05_exp_II_warm_ocean_retreat_10yr_5km.cfg
+
+      - name: Run integrated_tests/idealised/Berends2023_nudging/experiment_II - 06_dHdt_invfric_invBMB_5km
+        run: mpiexec  -n 2  UFEMISM_program  automated_testing/integrated_tests/idealised/Berends2023_nudging/experiment_II/config_06_exp_II_dHdt_invfric_invBMB_5km.cfg
 
       - name: Analyse integrated_tests/idealised/Berends2023_nudging/experiment_II
         uses: matlab-actions/run-command@v2
