@@ -21,6 +21,13 @@ TYPE type_ocean_model_transient
     REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: dT_series 
     REAL(dp),                   ALLOCATABLE     :: dT_t0, dT_t1, dT_at_t0, dT_at_t1
 
+    ! Glacial Index record
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: GI_series_time
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: GI_series 
+    REAL(dp),                   ALLOCATABLE     :: GI_t0, GI_t1, GI_at_t0, GI_at_t1
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: T0_cold                           ! [degrees Celsius] Temperature
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE :: S0_cold                           ! [PSU]             Salinity
+
   END TYPE type_ocean_model_transient
 
   TYPE type_ocean_model

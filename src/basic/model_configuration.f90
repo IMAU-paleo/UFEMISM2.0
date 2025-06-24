@@ -673,6 +673,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL_config           = ''
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT_config           = ''
 
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_NAM_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_EAS_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_GRL_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_ANT_config      = ''
+
     ! Choice of extrapolation method
     CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method_config     = 'initialisation'                 ! Method to extrapolate ocean forcing into cavities: 'initialisation'
 
@@ -684,6 +689,12 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_dT_EAS_config                 = ''
     CHARACTER(LEN=256)  :: filename_ocean_dT_GRL_config                 = ''
     CHARACTER(LEN=256)  :: filename_ocean_dT_ANT_config                 = ''
+
+    ! Paths to files containing the GI record for the transient GlacialIndex ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_GI_NAM_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_GI_EAS_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_GI_GRL_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_GI_ANT_config                 = ''
 
   ! == Surface mass balance
   ! =======================
@@ -1726,6 +1737,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT
 
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_ANT
+
     ! Choice of extrapolation method
     CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method
 
@@ -1737,6 +1753,12 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_dT_EAS
     CHARACTER(LEN=256)  :: filename_ocean_dT_GRL
     CHARACTER(LEN=256)  :: filename_ocean_dT_ANT
+
+    ! Paths to files containing the GI record for the transient GlacialIndex ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_GI_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_GI_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_GI_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_GI_ANT
 
   ! == Surface mass balance
   ! =======================
@@ -2769,12 +2791,20 @@ CONTAINS
       filename_ocean_snapshot_EAS_config                          , &
       filename_ocean_snapshot_GRL_config                          , &
       filename_ocean_snapshot_ANT_config                          , &
+      filename_ocean_cold_snapshot_NAM_config                     , &
+      filename_ocean_cold_snapshot_EAS_config                     , &
+      filename_ocean_cold_snapshot_GRL_config                     , &
+      filename_ocean_cold_snapshot_ANT_config                     , &
       choice_ocean_extrapolation_method_config                    , &
       choice_ocean_model_transient_config                         , &
       filename_ocean_dT_NAM_config                                , &
       filename_ocean_dT_EAS_config                                , &
       filename_ocean_dT_GRL_config                                , &
       filename_ocean_dT_ANT_config                                , &
+      filename_ocean_GI_NAM_config                                , &
+      filename_ocean_GI_EAS_config                                , &
+      filename_ocean_GI_GRL_config                                , &
+      filename_ocean_GI_ANT_config                                , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
       do_SMB_removal_icefree_land_config                          , &
@@ -3718,6 +3748,11 @@ CONTAINS
     C%filename_ocean_snapshot_GRL                            = filename_ocean_snapshot_GRL_config
     C%filename_ocean_snapshot_ANT                            = filename_ocean_snapshot_ANT_config
 
+    C%filename_ocean_cold_snapshot_NAM                       = filename_ocean_cold_snapshot_NAM_config
+    C%filename_ocean_cold_snapshot_EAS                       = filename_ocean_cold_snapshot_EAS_config
+    C%filename_ocean_cold_snapshot_GRL                       = filename_ocean_cold_snapshot_GRL_config
+    C%filename_ocean_cold_snapshot_ANT                       = filename_ocean_cold_snapshot_ANT_config
+
     ! Choice of extrapolation method
     C%choice_ocean_extrapolation_method                      = choice_ocean_extrapolation_method_config
 
@@ -3729,6 +3764,12 @@ CONTAINS
     C%filename_ocean_dT_EAS                                  = filename_ocean_dT_EAS_config
     C%filename_ocean_dT_GRL                                  = filename_ocean_dT_GRL_config
     C%filename_ocean_dT_ANT                                  = filename_ocean_dT_ANT_config
+
+    ! Paths to files containing the GI record for the transient GlacialIndex ocean model
+    C%filename_ocean_GI_NAM                                  = filename_ocean_GI_NAM_config
+    C%filename_ocean_GI_EAS                                  = filename_ocean_GI_EAS_config
+    C%filename_ocean_GI_GRL                                  = filename_ocean_GI_GRL_config
+    C%filename_ocean_GI_ANT                                  = filename_ocean_GI_ANT_config
 
   ! == Surface mass balance
   ! =======================

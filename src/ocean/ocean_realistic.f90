@@ -79,7 +79,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'initialise_ocean_model_realistic'
-    character(len=256)                                    :: filename_ocean_snapshot, filename_ocean_dT
+    character(len=256)                                    :: filename_ocean_snapshot, filename_ocean_dT, filename_ocean_snapshot_cold, filename_ocean_GI
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -168,6 +168,65 @@ contains
                 call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
             end select
 
+          case ('GlacialIndex')
+          if (par%primary)  write(*,"(A)") '     Initialising transient ocean model "' // &
+            colour_string( trim( C%choice_ocean_model_transient),'light blue') // '"...'
+            ! We need the snapshot and the dT to apply to it
+            select case (region_name)
+              case ('NAM')
+                filename_ocean_snapshot      = C%filename_ocean_snapshot_NAM
+                filename_ocean_snapshot_cold = C%filename_ocean_cold_snapshot_NAM
+                filename_ocean_GI            = C%filename_ocean_GI_NAM
+              case ('EAS')
+                filename_ocean_snapshot      = C%filename_ocean_snapshot_EAS
+                filename_ocean_snapshot_cold = C%filename_ocean_cold_snapshot_EAS
+                filename_ocean_GI            = C%filename_ocean_GI_EAS
+              case ('GRL')
+                filename_ocean_snapshot      = C%filename_ocean_snapshot_GRL
+                filename_ocean_snapshot_cold = C%filename_ocean_cold_snapshot_GRL
+                filename_ocean_GI            = C%filename_ocean_GI_GRL
+              case ('ANT')
+                filename_ocean_snapshot      = C%filename_ocean_snapshot_ANT
+                filename_ocean_snapshot_cold = C%filename_ocean_cold_snapshot_ANT
+                filename_ocean_GI            = C%filename_ocean_GI_ANT
+              case default
+                call crash('unknown region_name "' // region_name // '"')
+            end select
+
+            ! Allocating timeframe variables; the series itself is allocated in the read function below
+            allocate(ocean%transient%GI_t0)
+            allocate(ocean%transient%GI_t1)
+            allocate(ocean%transient%GI_at_t0)
+            allocate(ocean%transient%GI_at_t1)
+            allocate( ocean%transient%T0( mesh%vi1:mesh%vi2,C%nz_ocean))
+            allocate( ocean%transient%S0( mesh%vi1:mesh%vi2,C%nz_ocean))
+            allocate( ocean%transient%T0_cold( mesh%vi1:mesh%vi2,C%nz_ocean))
+            allocate( ocean%transient%S0_cold( mesh%vi1:mesh%vi2,C%nz_ocean))
+            ocean%transient%T0      = 0._dp
+            ocean%transient%S0      = 0._dp
+            ocean%transient%T0_cold = 0._dp
+            ocean%transient%S0_cold = 0._dp
+
+            ! Fill in  main variables
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean,  mesh, ocean%transient%T0)
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean,  mesh, ocean%transient%S0)
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot_cold, field_name_options_T_ocean,  mesh, ocean%transient%T0_cold)
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot_cold, field_name_options_S_ocean,  mesh, ocean%transient%S0_cold)
+
+            call read_field_from_series_file(   filename_ocean_GI,       field_name_options_GI, ocean%transient%GI_series, ocean%transient%GI_series_time)
+            call update_timeframes_from_record(ocean%transient%GI_series_time, ocean%transient%GI_series, ocean%transient%GI_t0, ocean%transient%GI_t1, ocean%transient%GI_at_t0, ocean%transient%GI_at_t1, start_time_of_run)
+
+            ! Apply extrapolation method if required
+            select case (C%choice_ocean_extrapolation_method)
+              case('initialisation')
+                call extrapolate_ocean_forcing( mesh, ice, ocean%transient%T0)
+                call extrapolate_ocean_forcing( mesh, ice, ocean%transient%S0) 
+                call extrapolate_ocean_forcing( mesh, ice, ocean%transient%T0_cold)
+                call extrapolate_ocean_forcing( mesh, ice, ocean%transient%S0_cold) 
+              case default
+                call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
+            end select  
+
           case default
             call crash('unknown choice_ocean_model_transient "' // trim( C%choice_ocean_model_transient) // '"')
       end select  
@@ -190,25 +249,43 @@ contains
 
     ! Local variables
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_transient'
-    REAL(dp)                                           :: dT_at_time
+    REAL(dp)                                           :: dT_at_time, GI_at_time
     INTEGER                                            :: vi, z
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (time < ocean%transient%dT_t0 .OR. time > ocean%transient%dT_t1) THEN
-      !IF (par%primary)  WRITE(0,*) '   Model time is out of the current dT timeframes. Updating timeframes...'
-      call update_timeframes_from_record(ocean%transient%dT_series_time, ocean%transient%dT_series, ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time)
-    END IF
+    select case (C%choice_ocean_model_transient)
+      case('deltaT')
+        IF (time < ocean%transient%dT_t0 .OR. time > ocean%transient%dT_t1) THEN
+          !IF (par%primary)  WRITE(0,*) '   Model time is out of the current dT timeframes. Updating timeframes...'
+          call update_timeframes_from_record(ocean%transient%dT_series_time, ocean%transient%dT_series, ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time)
+        END IF
 
-    ! Interpolate the two timeframes - constant dT over the entire region
-    call interpolate_value_from_forcing_record(ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time, dT_at_time)
+        ! Interpolate the two timeframes - constant dT over the entire region
+        call interpolate_value_from_forcing_record(ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time, dT_at_time)
 
-    do vi = mesh%vi1, mesh%vi2
-      do z = 1, C%nz_ocean
-        ocean%T(vi, z) = ocean%transient%T0(vi, z) + dT_at_time 
-      end do
-    end do
+        do vi = mesh%vi1, mesh%vi2
+          do z = 1, C%nz_ocean
+            ocean%T(vi, z) = ocean%transient%T0(vi, z) + dT_at_time 
+          end do
+        end do
+        
+      case('GlacialIndex')
+        IF (time < ocean%transient%GI_t0 .OR. time > ocean%transient%GI_t1) THEN
+          !IF (par%primary)  WRITE(0,*) '   Model time is out of the current GI timeframes. Updating timeframes...'
+          call update_timeframes_from_record(ocean%transient%GI_series_time, ocean%transient%GI_series, ocean%transient%GI_t0, ocean%transient%GI_t1, ocean%transient%GI_at_t0, ocean%transient%GI_at_t1, time)
+        END IF
+
+        call interpolate_value_from_forcing_record(ocean%transient%GI_t0, ocean%transient%GI_t1, ocean%transient%GI_at_t0, ocean%transient%GI_at_t1, time, GI_at_time)
+
+        do vi = mesh%vi1, mesh%vi2
+          do z = 1, C%nz_ocean
+            ocean%T(vi, z) = ocean%transient%T0(vi, z) + GI_at_time * (ocean%transient%T0_cold(vi, z) - ocean%transient%T0(vi, z))
+          end do
+        end do
+
+      end select
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
