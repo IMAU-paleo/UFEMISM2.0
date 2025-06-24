@@ -54,7 +54,6 @@ contains
         end select
 
       case ('transient')
-        if (par%primary)  write(*,"(A)") '     Running transient ocean model... ')
         call run_ocean_model_transient(mesh, ocean, time)  
 
       case default
@@ -158,7 +157,6 @@ contains
             call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean,  mesh, ocean%transient%S0)
 
             call read_field_from_series_file(   filename_ocean_dT,       field_name_options_dT_ocean, ocean%transient%dT_series, ocean%transient%dT_series_time)
-            !call update_dT_timeframes_from_curve(ocean, start_time_of_run)
             call update_timeframes_from_record(ocean%transient%dT_series_time, ocean%transient%dT_series, ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, start_time_of_run)
 
             ! Apply extrapolation method if required
@@ -198,23 +196,6 @@ contains
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! if (ocean%transient%dT_t1 == ocean%transient%dT_t0) then
-    !   wt0 = 0._dp
-    !   wt1 = 1._dp
-    ! else
-    !   if (time > ocean%transient%dT_t1) then
-    !     wt0 = 0._dp
-    !   elseif (time < ocean%transient%dT_t0) then
-    !     wt0 = 1._dp
-    !   else
-    !     wt0 = (ocean%transient%dT_t1 - time) / (ocean%transient%dT_t1 - ocean%transient%dT_t0)
-    !   end if
-    !   wt1 = 1._dp - wt0
-    ! end if
-
-    ! 
-    ! dT_at_time = wt0 * ocean%transient%dT_at_t0 + wt1 * ocean%transient%dT_at_t1
-
     IF (time < ocean%transient%dT_t0 .OR. time > ocean%transient%dT_t1) THEN
       !IF (par%primary)  WRITE(0,*) '   Model time is out of the current dT timeframes. Updating timeframes...'
       call update_timeframes_from_record(ocean%transient%dT_series_time, ocean%transient%dT_series, ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time)
@@ -222,7 +203,6 @@ contains
 
     ! Interpolate the two timeframes - constant dT over the entire region
     call interpolate_value_from_forcing_record(ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time, dT_at_time)
-    call warning('dT at t = {dp_01} is {dp_02}"', dp_01 = time, dp_02 = dT_at_time)
 
     do vi = mesh%vi1, mesh%vi2
       do z = 1, C%nz_ocean
