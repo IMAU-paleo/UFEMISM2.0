@@ -54,6 +54,7 @@ contains
         end select
 
       case ('transient')
+        if (par%primary)  write(*,"(A)") '     Running transient ocean model... ')
         call run_ocean_model_transient(mesh, ocean, time)  
 
       case default
@@ -214,8 +215,14 @@ contains
     ! 
     ! dT_at_time = wt0 * ocean%transient%dT_at_t0 + wt1 * ocean%transient%dT_at_t1
 
+    IF (time < ocean%transient%dT_t0 .OR. time > ocean%transient%dT_t1) THEN
+      !IF (par%primary)  WRITE(0,*) '   Model time is out of the current dT timeframes. Updating timeframes...'
+      call update_timeframes_from_record(ocean%transient%dT_series_time, ocean%transient%dT_series, ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time)
+    END IF
+
     ! Interpolate the two timeframes - constant dT over the entire region
     call interpolate_value_from_forcing_record(ocean%transient%dT_t0, ocean%transient%dT_t1, ocean%transient%dT_at_t0, ocean%transient%dT_at_t1, time, dT_at_time)
+    call warning('dT at t = {dp_01} is {dp_02}"', dp_01 = time, dp_02 = dT_at_time)
 
     do vi = mesh%vi1, mesh%vi2
       do z = 1, C%nz_ocean
