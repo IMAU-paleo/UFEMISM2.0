@@ -1465,9 +1465,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call add_field_grid_dp_3D_ocean_notime( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
+        call add_field_grid_dp_3D_ocean( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
       case ('S_ocean')
-        call add_field_grid_dp_3D_ocean_notime( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'psu')
+        call add_field_grid_dp_3D_ocean( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'psu')
       case ('T_draft')
         call add_field_grid_dp_2D( filename, ncid, 'T_draft', long_name = 'Ocean temperature at ice draft', units = 'deg C')
       case ('T_freezing_point')
