@@ -1,17 +1,35 @@
 module Halfar_SIA_solution
 
   use precisions, only: dp
-  use parameters
+  use parameters, only: sec_per_year, ice_density, grav
 
   implicit none
 
   private
 
-  public :: Halfar_dome
+  public :: Halfar
+
+  type type_Halfar_solution
+    ! Describes an ice-sheet at time t (in years) conforming to the Halfar similarity
+    ! function with dome thickness H0 and margin radius R0 at t0.
+    !
+    ! Halfar, P.: On the Dynamics of Ice Sheets, Journal of Geophysical Research 86,
+    !   11065-11072, 1981
+    !
+    ! See also the UFEMISM 1.0 paper (2021) for a more human-readable version
+
+    ! Extended by Tijn to include expressions for the ice velocities and thinning rates
+
+  contains
+    procedure :: H => calc_Halfar_ice_thickness
+
+  end type type_Halfar_solution
+
+  type(type_Halfar_solution) :: Halfar
 
 contains
 
-  subroutine Halfar_dome( A, n, H0, R0, x, y, t, H)
+  subroutine calc_Halfar_ice_thickness( self, A, n, H0, R0, x, y, t, H)
     ! Describes an ice-sheet at time t (in years) conforming to the Halfar similarity
     ! function with dome thickness H0 and margin radius R0 at t0.
     !
@@ -19,6 +37,7 @@ contains
     !   11065-11072, 1981
 
     ! In/output variables:
+    class(type_Halfar_solution), intent(in   ) :: self
     real(dp), intent(in   ) :: A          ! [Pa^-3 yr^-1] Glen's flow law parameter
     real(dp), intent(in   ) :: n          ! [ ]           Glen's flow law exponent
     real(dp), intent(in   ) :: H0         ! [m]           Thickness at ice divide at t=0
@@ -36,14 +55,14 @@ contains
 
     tp = (t * sec_per_year) + t0
 
-    r = SQRT(x**2._dp + y**2._dp)
+    r = sqrt(x**2._dp + y**2._dp)
 
     f1 = (t0/tp)**(2._dp/(5._dp * n + 3._dp))
     f2 = (t0/tp)**(1._dp/(5._dp * n + 3._dp))
     f3 = (r/R0)
 
-    H = H0 * f1 * MAX( 0._dp, (1._dp - (f2*f3)**((n + 1._dp)/n)))**(n/(2._dp * n + 1._dp))
+    H = H0 * f1 * max( 0._dp, (1._dp - (f2*f3)**((n + 1._dp)/n)))**(n/(2._dp * n + 1._dp))
 
-  end subroutine Halfar_dome
+  end subroutine calc_Halfar_ice_thickness
 
 end module Halfar_SIA_solution

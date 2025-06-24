@@ -5,7 +5,7 @@ module idealised_geometries
   use model_configuration, only: C
   use ice_geometry_basics, only: ice_surface_elevation
   use parameters, only: pi
-  use Halfar_SIA_solution, only: Halfar_dome
+  use Halfar_SIA_solution, only: Halfar
   use Bueler_SIA_solution, only: Bueler_dome
 
   implicit none
@@ -134,7 +134,7 @@ contains
     end if
 #endif
 
-    call Halfar_dome( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+    call Halfar%H( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
       x, y, 0._dp, Hi)
     Hb = 0._dp
     SL = -10000._dp
