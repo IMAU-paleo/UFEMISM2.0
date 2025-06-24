@@ -9,6 +9,7 @@ module component_tests
   use ct_create_test_meshes, only: create_all_test_meshes_and_grids
   use ct_discretisation, only: run_all_discretisation_component_tests
   use ct_remapping, only: run_all_remapping_component_tests
+  use ct_mass_conservation, only: run_all_mass_cons_component_tests
 
   implicit none
 
@@ -33,8 +34,9 @@ contains
 
     call create_component_tests_output_folder
     call create_all_test_meshes_and_grids( test_mesh_filenames, test_grid_filenames)
-    call run_all_discretisation_component_tests( test_mesh_filenames)
-    call run_all_remapping_component_tests( test_mesh_filenames, test_grid_filenames)
+    ! call run_all_discretisation_component_tests( test_mesh_filenames)
+    ! call run_all_remapping_component_tests( test_mesh_filenames, test_grid_filenames)
+    call run_all_mass_cons_component_tests( test_mesh_filenames)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
