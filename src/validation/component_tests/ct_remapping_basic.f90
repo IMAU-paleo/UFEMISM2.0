@@ -7,7 +7,7 @@ module ct_remapping_basic
   use grid_types, only: type_grid
   use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use mpi_basic, only: par
-  use analytical_solutions, only: Halfar_dome
+  use Halfar_SIA_solution, only: Halfar_dome
 
   implicit none
 

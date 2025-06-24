@@ -5,7 +5,8 @@ module idealised_geometries
   use model_configuration, only: C
   use ice_geometry_basics, only: ice_surface_elevation
   use parameters, only: pi
-  use analytical_solutions, only: Halfar_dome, Bueler_dome
+  use Halfar_SIA_solution, only: Halfar_dome
+  use Bueler_SIA_solution, only: Bueler_dome
 
   implicit none
 
