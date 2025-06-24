@@ -134,8 +134,8 @@ contains
     end if
 #endif
 
-    call Halfar%H( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
-      x, y, 0._dp, Hi)
+    Hi = Halfar%H( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
+      x, y, 0._dp)
     Hb = 0._dp
     SL = -10000._dp
     Hs = ice_surface_elevation( Hi, Hb, SL)

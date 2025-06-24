@@ -94,7 +94,7 @@ contains
     real(dp), parameter :: R0 = 2000e3_dp
     real(dp), parameter :: t = 0._dp
 
-    call Halfar%H( A, n, H0, R0, x, y, t, d)
+    d = Halfar%H( A, n, H0, R0, x, y, t)
 
   end function test_function_Halfar
 
