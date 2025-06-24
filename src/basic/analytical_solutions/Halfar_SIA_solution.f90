@@ -65,4 +65,49 @@ contains
 
   end subroutine calc_Halfar_ice_thickness
 
+  real(dp) function r( x,y)
+    real(dp), intent(in) :: x,y
+    r = sqrt( x**2 + y**2)
+  end function r
+
+  real(dp) function p1( n)
+    real(dp), intent(in) :: n
+    p1 = -2._dp / (5._dp*n + 3._dp)
+  end function p1
+  real(dp) function p2( n)
+    real(dp), intent(in) :: n
+    p2 = -1._dp / (5._dp*n + 3._dp)
+  end function p2
+  real(dp) function p3( n)
+    real(dp), intent(in) :: n
+    p3 = (n+1._dp) / n
+  end function p3
+  real(dp) function p4( n)
+    real(dp), intent(in) :: n
+    p4 = n / (2._dp*n + 1._dp)
+  end function p4
+
+  real(dp) function f1( n,t0,t)
+    real(dp), intent(in) :: n,t0,t
+    f1 = ((t0 + t * sec_per_year) / t0)**p1( n)
+  end function f1
+  real(dp) function f2( n,t0,t)
+    real(dp), intent(in) :: n,t0,t
+    f2 = ((t0 + t * sec_per_year) / t0)**p2( n)
+  end function f2
+  real(dp) function f3( R0,x,y)
+    real(dp), intent(in) :: R0,x,y
+    f3 = r(x,y) / R0
+  end function f3
+
+  real(dp) function G( n,R0,t0,x,y,t)
+    real(dp), intent(in) :: n,R0,t0,x,y,t
+    G = 1._dp - (f2( n,t0,t) * f3( R0,x,y))**p3( n)
+  end function G
+
+  real(dp) function H_new( n,H0,R0,t0,x,y,t)
+    real(dp), intent(in) :: n,H0,R0,t0,x,y,t
+    H_new = H0 * f1( n,t0,t) * G( n,R0,t0,x,y,t)**p4( n)
+  end function H_new
+
 end module Halfar_SIA_solution
