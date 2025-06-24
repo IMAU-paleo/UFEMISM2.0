@@ -1,4 +1,13 @@
 module Halfar_SIA_solution
+  ! Describes an ice-sheet at time t (in years) conforming to the Halfar similarity
+  ! function with dome thickness H0 and margin radius R0 at t0.
+
+  ! Halfar, P.: On the Dynamics of Ice Sheets, Journal of Geophysical Research 86,
+  !   11065-11072, 1981
+
+  ! See also the UFEMISM 1.0 paper (2021) for a more human-readable version
+
+  ! Extended by Tijn to include expressions for the ice velocities and thinning rates
 
   use precisions, only: dp
   use parameters, only: sec_per_year, ice_density, grav
@@ -10,23 +19,10 @@ module Halfar_SIA_solution
   public :: Halfar
 
   type type_Halfar_solution
-    ! Describes an ice-sheet at time t (in years) conforming to the Halfar similarity
-    ! function with dome thickness H0 and margin radius R0 at t0.
-    !
-    ! Halfar, P.: On the Dynamics of Ice Sheets, Journal of Geophysical Research 86,
-    !   11065-11072, 1981
-    !
-    ! See also the UFEMISM 1.0 paper (2021) for a more human-readable version
-
-    ! Extended by Tijn to include expressions for the ice velocities and thinning rates
-
     private
-
   contains
-
     procedure, public :: H
     procedure, public :: dH_dt
-
   end type type_Halfar_solution
 
   type(type_Halfar_solution) :: Halfar
