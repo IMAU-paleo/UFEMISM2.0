@@ -282,6 +282,7 @@ contains
         do vi = mesh%vi1, mesh%vi2
           do z = 1, C%nz_ocean
             ocean%T(vi, z) = ocean%transient%T0(vi, z) + GI_at_time * (ocean%transient%T0_cold(vi, z) - ocean%transient%T0(vi, z))
+            ocean%S(vi, z) = ocean%transient%S0(vi, z) + GI_at_time * (ocean%transient%S0_cold(vi, z) - ocean%transient%S0(vi, z))
           end do
         end do
 
