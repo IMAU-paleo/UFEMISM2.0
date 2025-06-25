@@ -752,6 +752,20 @@ CONTAINS
     call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%H)
     deallocate( d_loc)
 
+    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_V, npx%T, d_loc)
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%T, npx%wT, mesh_new%pai_V%n_nih)
+    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%T)
+    deallocate( d_loc)
+
+    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_V, npx%S, d_loc)
+    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%S, npx%wS, mesh_new%pai_V%n_nih)
+    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%S)
+    deallocate( d_loc)
+
     call reallocate_dist_shared( npx%H_b, npx%wH_b, mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( npx%H_c, npx%wH_c, mesh_new%pai_E%n_nih)
     call reallocate_dist_shared( npx%U,   npx%wU,   mesh_new%pai_Tri%n_nih)
@@ -772,20 +786,6 @@ CONTAINS
     npx%V_c( mesh_new%pai_E%i1_nih  :mesh_new%pai_E%i2_nih  ) => npx%V_c
     npx%T  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%T
     npx%S  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%S
-
-    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
-    call hybrid_to_dist( mesh_old%pai_V, npx%T, d_loc)
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
-    call reallocate_dist_shared( npx%T, npx%wT, mesh_new%pai_V%n_nih)
-    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%T)
-    deallocate( d_loc)
-
-    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
-    call hybrid_to_dist( mesh_old%pai_V, npx%S, d_loc)
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
-    call reallocate_dist_shared( npx%S, npx%wS, mesh_new%pai_V%n_nih)
-    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%S)
-    deallocate( d_loc)
 
     ! == Re-initialise ==
 
