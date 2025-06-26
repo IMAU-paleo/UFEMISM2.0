@@ -183,6 +183,12 @@ contains
       SMB%SMB( vi) = -1._dp * Halfar%dH_dt( C%uniform_Glens_flow_factor, C%Glens_flow_law_exponent, &
         C%refgeo_idealised_Halfar_H0, C%refgeo_idealised_Halfar_R0, &
         mesh%V( vi,1), mesh%V( vi,2), 0._dp)
+
+      ! The analytical solution diverges to infinite dH/dt at the margin, limit this
+      SMB%SMB( vi) = max( SMB%SMB( vi), -50._dp)
+      if (sqrt( mesh%V( vi,1)**2 + mesh%V( vi,2)**2) > C%refgeo_idealised_Halfar_R0 - 1e-2_dp) then
+        SMB%SMB( vi) = -50._dp
+      end if
     end do
 
     ! Finalise routine path
