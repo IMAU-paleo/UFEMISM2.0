@@ -16,11 +16,14 @@ MODULE laddie_main
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D
+  USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, & 
+                                                                     map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
   use laddie_operators                                       , only: update_laddie_operators
+  use laddie_velocity                                        , only: map_UV_b_c
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
+  use mesh_disc_apply_operators                              , only: map_b_a_2D
   use mesh_integrate_over_domain                             , only: integrate_over_domain, calc_and_print_min_mean_max
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mpi_distributed_shared_memory, only: reallocate_dist_shared, hybrid_to_dist, dist_to_hybrid
@@ -215,7 +218,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
-    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -721,7 +723,7 @@ CONTAINS
     END SELECT
 
     ! == Re-initialise ==
-    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, .TRUE., region_name)
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, .FALSE., region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -740,6 +742,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_timestep'
     real(dp), dimension(:), allocatable                   :: d_loc
+    integer                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -747,17 +750,43 @@ CONTAINS
     ! DENK DROM - this should be cleaned up once the remapping code is ported to hybrid memory
     allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
     call hybrid_to_dist( mesh_old%pai_V, npx%H, d_loc)
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
     call reallocate_dist_shared( npx%H, npx%wH, mesh_new%pai_V%n_nih)
     call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%H)
     deallocate( d_loc)
 
+    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_V, npx%T, d_loc)
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%T, npx%wT, mesh_new%pai_V%n_nih)
+    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%T)
+    deallocate( d_loc)
+
+    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_V, npx%S, d_loc)
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%S, npx%wS, mesh_new%pai_V%n_nih)
+    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%S)
+    deallocate( d_loc)
+
+    allocate( d_loc( mesh_old%ti1:mesh_old%ti2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_Tri, npx%U, d_loc)
+    call map_from_mesh_tri_to_mesh_tri_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%U, npx%wU, mesh_new%pai_Tri%n_nih)
+    call dist_to_hybrid( mesh_new%pai_Tri, d_loc, npx%U)
+    deallocate( d_loc)
+
+    allocate( d_loc( mesh_old%ti1:mesh_old%ti2), source = 0._dp)
+    call hybrid_to_dist( mesh_old%pai_Tri, npx%V, d_loc)
+    call map_from_mesh_tri_to_mesh_tri_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
+    call reallocate_dist_shared( npx%V, npx%wV, mesh_new%pai_Tri%n_nih)
+    call dist_to_hybrid( mesh_new%pai_Tri, d_loc, npx%V)
+    deallocate( d_loc)
+
     call reallocate_dist_shared( npx%H_b, npx%wH_b, mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( npx%H_c, npx%wH_c, mesh_new%pai_E%n_nih)
-    call reallocate_dist_shared( npx%U,   npx%wU,   mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( npx%U_a, npx%wU_a, mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( npx%U_c, npx%wU_c, mesh_new%pai_E%n_nih)
-    call reallocate_dist_shared( npx%V,   npx%wV,   mesh_new%pai_Tri%n_nih)
     call reallocate_dist_shared( npx%V_a, npx%wV_a, mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( npx%V_c, npx%wV_c, mesh_new%pai_E%n_nih)
 
@@ -773,25 +802,20 @@ CONTAINS
     npx%T  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%T
     npx%S  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%S
 
-    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
-    call hybrid_to_dist( mesh_old%pai_V, npx%T, d_loc)
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
-    call reallocate_dist_shared( npx%T, npx%wT, mesh_new%pai_V%n_nih)
-    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%T)
-    deallocate( d_loc)
-
-    allocate( d_loc( mesh_old%vi1:mesh_old%vi2), source = 0._dp)
-    call hybrid_to_dist( mesh_old%pai_V, npx%S, d_loc)
-    CALL map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, d_loc, '2nd_order_conservative')
-    call reallocate_dist_shared( npx%S, npx%wS, mesh_new%pai_V%n_nih)
-    call dist_to_hybrid( mesh_new%pai_V, d_loc, npx%S)
-    deallocate( d_loc)
-
-    ! == Re-initialise ==
+    do vi = mesh_new%vi1, mesh_new%vi2
+      npx%H( vi) = max(npx%H( vi), C%laddie_thickness_minimum)
+      npx%H( vi) = min(npx%H( vi), C%laddie_thickness_maximum)
+    end do
 
     ! Layer thickness on b and c grid
-    CALL map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
-    CALL map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
+    call map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
+    call map_H_a_c( mesh_new, laddie, npx%H, npx%H_c)
+
+    ! Velocities to a and c grid
+    call map_b_a_2D( mesh_new, npx%U, npx%U_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
+    call map_b_a_2D( mesh_new, npx%V, npx%V_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
+
+    call map_UV_b_c( mesh_new, laddie, npx%U, npx%V, npx%U_c, npx%V_c)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

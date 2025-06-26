@@ -19,7 +19,7 @@ module laddie_output
 
   public :: create_laddie_output_fields_file, create_laddie_output_scalar_file, &
             write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, &
-            buffer_laddie_scalars            
+            buffer_laddie_scalars
 
 contains
 
@@ -346,13 +346,11 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, H_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
     ! Melt scalars
-    call integrate_over_domain( mesh, laddie%melt, melt_int)
-    melt_mean = melt_int / laddie%area_a * sec_per_year
-    melt_max = maxval( laddie%melt, laddie%mask_a) * sec_per_year
-    call MPI_ALLREDUCE( MPI_IN_PLACE, melt_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    melt_min = minval( laddie%melt, laddie%mask_a) * sec_per_year
-    call MPI_ALLREDUCE( MPI_IN_PLACE, melt_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
-    melt_tot = melt_int * sec_per_year * 1.0E-09_dp ! [Gt/yr] 
+    call integrate_over_domain( mesh, laddie%melt, melt_int, max_d = melt_max, min_d = melt_min)
+    melt_mean = melt_int * sec_per_year / laddie%area_a
+    melt_max  = melt_max * sec_per_year
+    melt_min  = melt_min * sec_per_year
+    melt_tot  = melt_int * sec_per_year * 1.0E-09_dp ! [Gt/yr]
 
     Uabs_max = maxval( sqrt( laddie%now%U**2 + laddie%now%V**2), laddie%mask_b)
     call MPI_ALLREDUCE( MPI_IN_PLACE, Uabs_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -366,12 +364,8 @@ contains
     call MPI_ALLREDUCE( MPI_IN_PLACE, T_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
     ! Salinity scalars
-    call integrate_over_domain( mesh, laddie%now%S, S_int)
+    call integrate_over_domain( mesh, laddie%now%S, S_int, max_d = S_max, min_d = S_min)
     S_mean = S_int / laddie%area_a
-    S_max = maxval( laddie%now%S, laddie%mask_a)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, S_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    S_min = minval( laddie%now%S, laddie%mask_a)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, S_min, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
     ! Volume fluxes
     call integrate_over_domain( mesh, laddie%entr, entr_tot)

@@ -33,6 +33,7 @@ module remapping_main
   public :: map_from_vertical_to_vertical_2D_ocean
   public :: map_from_mesh_vertices_to_transect_2D, map_from_mesh_vertices_to_transect_3D
   public :: map_from_mesh_triangles_to_transect_2D, map_from_mesh_triangles_to_transect_3D
+  public :: map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
   public :: map_from_mesh_tri_to_mesh_tri_2D, map_from_mesh_tri_to_mesh_tri_3D
 
 contains
@@ -874,6 +875,37 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine map_from_mesh_to_mesh_3D
+
+  ! From a mesh to a mesh
+  subroutine map_from_mesh_tri_to_mesh_tri_with_reallocation_2D( mesh_src, mesh_dst, d_partial, method)
+    ! Map a 2-D data field from a mesh to a mesh.
+
+    ! In/output variables
+    type(type_mesh),                     intent(in)    :: mesh_src
+    type(type_mesh),                     intent(in)    :: mesh_dst
+    real(dp), dimension(:    ), allocatable, intent(inout) :: d_partial
+    character(len=*), optional,          intent(in)    :: method
+
+    ! Local variables:
+    character(len=1024), parameter                     :: routine_name = 'map_from_mesh_tri_to_mesh_tri_with_reallocation_2D'
+    real(dp), dimension(:    ), allocatable            :: d_partial_new
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! allocate memory for the remapped data field
+    allocate( d_partial_new( mesh_dst%ti1: mesh_dst%ti2))
+
+    ! Remap the data
+    call map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, d_partial, d_partial_new, method)
+
+    ! Move allocation (and automatically also deallocate old memory, nice little bonus!)
+    call MOVE_ALLOC( d_partial_new, d_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
 
   subroutine map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
