@@ -13,7 +13,6 @@ module ct_remapping_mesh_to_grid
   use netcdf_io_main
   use apply_maps, only: clear_all_maps_involving_this_mesh
   use remapping_main, only: map_from_mesh_vertices_to_xy_grid_2D, map_from_mesh_triangles_to_xy_grid_2D
-  use analytical_solutions, only: Halfar_dome
   use ct_remapping_basic, only: calc_test_function_on_grid, calc_test_function_on_mesh, &
     calc_test_function_on_mesh_triangles
 

@@ -154,7 +154,10 @@ UFEMISM_source = \
   basic/math_utilities/tridiagonal_solver.f90 \
   basic/math_utilities/shape_functions.f90 \
   \
-  basic/analytical_solutions.f90 \
+  basic/analytical_solutions/Halfar_SIA_solution.f90 \
+  basic/analytical_solutions/Bueler_SIA_solution.f90 \
+  basic/analytical_solutions/Schoof_SSA_solution.f90 \
+  \
   basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
   basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
   basic/CSR_matrix_algebra/CSR_matrix_solving.f90 \
