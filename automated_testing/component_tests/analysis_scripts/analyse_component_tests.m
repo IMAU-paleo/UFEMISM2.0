@@ -17,7 +17,7 @@ if isempty( input_args)
 
   foldername_automated_testing = '/Users/Beren017/Documents/GitHub/UFEMISM2.0/automated_testing';
   addpath('/Users/Beren017/Documents/GitHub/UFEMISM2.0/tools/matlab/')
-  do_print_figures = false;
+  do_print_figures = true;
 
 elseif isscalar( input_args)
   % Assume this is a GitHub Workflow run

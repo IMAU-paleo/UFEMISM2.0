@@ -49,8 +49,19 @@ function analyse_remapping_test( filename_short)
 
     %% Set up figure
 
-    clim_abs = [-4,4];
-    clim_err = [-1,1];
+    if contains( filename_full,'linear')
+      clim_abs = [-1.2,-0.8];
+      clim_err = [-0.2,0.2];
+    elseif contains( filename_full,'periodic')
+      clim_abs = [-10,10];
+      clim_err = [-2,2];
+    elseif contains( filename_full,'Halfar')
+      clim_abs = [-4,4];
+      clim_err = [-1,1];
+    else
+      % error('unknown test function, need to define clim')
+    end
+
     cmap_abs = crameri('bam',33);
     cmap_err = crameri('vik',33);
 
