@@ -35,7 +35,8 @@ addpath([foldername_automated_testing '/component_tests/analysis_scripts'])
 addpath([foldername_automated_testing '/scoreboard/scripts'])
 
 %% Run sets of component tests
-analyse_component_tests_discretisation( foldername_automated_testing, do_print_figures);
-analyse_component_tests_remapping(      foldername_automated_testing, do_print_figures);
+analyse_component_tests_discretisation(    foldername_automated_testing, do_print_figures);
+analyse_component_tests_remapping(         foldername_automated_testing, do_print_figures);
+analyse_component_tests_mass_conservation( foldername_automated_testing, do_print_figures);
 
 end

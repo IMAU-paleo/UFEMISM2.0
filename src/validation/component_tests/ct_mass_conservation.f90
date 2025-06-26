@@ -206,7 +206,7 @@ contains
 
     ! Write results to output
     call write_mass_cons_test_results_to_file( &
-      foldername_mass_cons, test_mesh_filename, mesh, dHi_dt_ex, &
+      foldername_mass_cons, test_mesh_filename, mesh, Hi, dHi_dt_ex, &
       dHi_dt_expl, dHi_dt_semiimpl, dHi_dt_impl, dHi_dt_overimpl)
 
     ! Remove routine from call stack
@@ -216,15 +216,19 @@ contains
 
   ! !> Write the results of mass conservation test= for a particular mesh to a file.
   subroutine write_mass_cons_test_results_to_file( &
-    foldername_mass_cons, test_mesh_filename, mesh, dHi_dt_ex, &
+    foldername_mass_cons, test_mesh_filename, mesh, Hi, dHi_dt_ex, &
     dHi_dt_expl, dHi_dt_semiimpl, dHi_dt_impl, dHi_dt_overimpl)
 
     ! In/output variables:
     character(len=*),                       intent(in) :: foldername_mass_cons
     character(len=*),                       intent(in) :: test_mesh_filename
     type(type_mesh),                        intent(in) :: mesh
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in) :: Hi
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(in) :: dHi_dt_ex
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in) :: dHi_dt_expl, dHi_dt_semiimpl, dHi_dt_impl, dHi_dt_overimpl
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in) :: dHi_dt_expl
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in) :: dHi_dt_semiimpl
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in) :: dHi_dt_impl
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in) :: dHi_dt_overimpl
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'write_mass_cons_test_results_to_file'
@@ -246,6 +250,7 @@ contains
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
 
     ! ! Add all the variables
+    call add_field_mesh_dp_2D_notime( filename, ncid, 'Hi')
     call add_field_mesh_dp_2D_notime( filename, ncid, 'dHi_dt_ex')
     call add_field_mesh_dp_2D_notime( filename, ncid, 'dHi_dt_explicit')
     call add_field_mesh_dp_2D_notime( filename, ncid, 'dHi_dt_semiimplicit')
@@ -253,6 +258,7 @@ contains
     call add_field_mesh_dp_2D_notime( filename, ncid, 'dHi_dt_overimplicit')
 
     ! Write all the variables
+    call write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'Hi'                 , Hi)
     call write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'dHi_dt_ex'          , dHi_dt_ex)
     call write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'dHi_dt_explicit'    , dHi_dt_expl)
     call write_to_field_multopt_mesh_dp_2D_notime( mesh, filename, ncid, 'dHi_dt_semiimplicit', dHi_dt_semiimpl)
