@@ -218,7 +218,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_laddie_model'
-    INTEGER                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -743,6 +742,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_laddie_timestep'
     real(dp), dimension(:), allocatable                   :: d_loc
+    integer                                               :: vi
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -802,7 +802,10 @@ CONTAINS
     npx%T  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%T
     npx%S  ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => npx%S
 
-    ! == Re-initialise ==
+    do vi = mesh_new%vi1, mesh_new%vi2
+      npx%H( vi) = max(npx%H( vi), C%laddie_thickness_minimum)
+      npx%H( vi) = min(npx%H( vi), C%laddie_thickness_maximum)
+    end do
 
     ! Layer thickness on b and c grid
     call map_H_a_b( mesh_new, laddie, npx%H, npx%H_b)
