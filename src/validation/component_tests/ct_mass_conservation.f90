@@ -11,6 +11,7 @@ module ct_mass_conservation
     add_field_mesh_dp_2D_notime, write_to_field_multopt_mesh_dp_2D_notime
   use tests_main, only: test_mesh_is_self_consistent
   use assertions_basic, only: assert
+  use Halfar_SIA_solution, only: Halfar
   use conservation_of_mass_main, only: calc_dHi_dt
 
   implicit none
@@ -95,6 +96,8 @@ contains
     character(len=1024), parameter      :: routine_name = 'run_mass_cons_test_on_mesh'
     type(type_mesh)                     :: mesh
     integer                             :: ncid
+    real(dp)                            :: A, n, H0, R0, x, y, t
+    integer                             :: vi, ti
     real(dp), dimension(:), allocatable :: Hi, Hb, Hs, SL
     real(dp), dimension(:), allocatable :: u_vav_b, v_vav_b, dHi_dt_ex
     real(dp), dimension(:), allocatable :: SMB, BMB, LMB, AMB
@@ -145,18 +148,61 @@ contains
     ! Calculate ice thickness, vertically averaged velocities and thinning rates from
     ! the extended Halfar solution
 
+    A  = 1e-16_dp
+    n  = 3._dp
+    H0 = 6000._dp
+    R0 = 1500e3_dp
+    t  = 0._dp
+
+    do vi = mesh%vi1, mesh%vi2
+      x = mesh%V( vi,1)
+      y = mesh%V( vi,2)
+
+      Hi       ( vi) = Halfar%H    ( A, n, H0, R0, x, y, t)
+      dHi_dt_ex( vi) = Halfar%dH_dt( A, n, H0, R0, x, y, t)
+
+      Hb( vi) = 0._dp
+      Hs( vi) = Hi( vi)
+      SL( vi) = -100._dp
+    end do
+
+    do ti = mesh%ti1, mesh%ti2
+      u_vav_b( ti) = Halfar%u_vav( A, n, H0, R0, mesh%Tricc( ti,1), mesh%Tricc( ti,2), t)
+      v_vav_b( ti) = Halfar%v_vav( A, n, H0, R0, mesh%Tricc( ti,1), mesh%Tricc( ti,2), t)
+    end do
+
     ! Calculate modelled thinning rates using different solvers
+    SMB             = 0._dp
+    BMB             = 0._dp
+    LMB             = 0._dp
+    AMB             = 0._dp
+    fraction_margin = 1._dp
+    mask_noice      = .false.
+    dHi_dt_target   = 0._dp
+    dt              = 0.1_dp
 
     ! Explicit
+    C%choice_ice_integration_method = 'explicit'
+    call calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, &
+      fraction_margin, mask_noice, dt, dHi_dt_expl, Hi_tplusdt, divQ, dHi_dt_target)
 
     ! Semi-implicit
+    C%choice_ice_integration_method = 'semi-implicit'
+    C%dHi_semiimplicit_fs = 0.5_dp
+    call calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, &
+      fraction_margin, mask_noice, dt, dHi_dt_semiimpl, Hi_tplusdt, divQ, dHi_dt_target)
 
     ! Implicit
+    C%choice_ice_integration_method = 'semi-implicit'
+    C%dHi_semiimplicit_fs = 1._dp
+    call calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, &
+      fraction_margin, mask_noice, dt, dHi_dt_impl, Hi_tplusdt, divQ, dHi_dt_target)
 
     ! Over-implicit
-
-    ! call calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, &
-    !   fraction_margin, mask_noice, dt, dHi_dt, Hi_tplusdt, divQ, dHi_dt_target)
+    C%choice_ice_integration_method = 'semi-implicit'
+    C%dHi_semiimplicit_fs = 1.5_dp
+    call calc_dHi_dt( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB, &
+      fraction_margin, mask_noice, dt, dHi_dt_overimpl, Hi_tplusdt, divQ, dHi_dt_target)
 
     ! Write results to output
     call write_mass_cons_test_results_to_file( &
