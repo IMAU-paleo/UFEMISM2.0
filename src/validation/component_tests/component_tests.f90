@@ -34,8 +34,8 @@ contains
 
     call create_component_tests_output_folder
     call create_all_test_meshes_and_grids( test_mesh_filenames, test_grid_filenames)
-    ! call run_all_discretisation_component_tests( test_mesh_filenames)
-    ! call run_all_remapping_component_tests( test_mesh_filenames, test_grid_filenames)
+    call run_all_discretisation_component_tests( test_mesh_filenames)
+    call run_all_remapping_component_tests( test_mesh_filenames, test_grid_filenames)
     call run_all_mass_cons_component_tests( test_mesh_filenames)
 
     ! Finalise routine path
