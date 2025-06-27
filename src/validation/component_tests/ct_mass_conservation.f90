@@ -21,16 +21,6 @@ module ct_mass_conservation
 
   public :: run_all_mass_cons_component_tests
 
-  abstract interface
-    subroutine test_function_Hi_uv( mesh, Hi, dHi_dt_ex, u_vav_b, v_vav_b)
-      use mesh_types, only: type_mesh
-      use precisions, only: dp
-      type(type_mesh),                        intent(in   ) :: mesh
-      real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: Hi, dHi_dt_ex
-      real(dp), dimension(mesh%ti1:mesh%ti2), intent(  out) :: u_vav_b, v_vav_b
-    end subroutine test_function_Hi_uv
-  end interface
-
 contains
 
   !> Run all mass conservation component tests.
@@ -104,11 +94,11 @@ contains
     character(len=*), intent(in) :: test_mesh_filename
 
     ! Local variables:
-    character(len=1024), parameter          :: routine_name = 'run_mass_cons_test_on_mesh'
-    integer                                 :: ncid
-    type(type_mesh)                         :: mesh
-    procedure(test_function_Hi_uv), pointer :: test_function_ptr
-    character(len=1024)                     :: function_name
+    character(len=1024), parameter      :: routine_name = 'run_mass_cons_test_on_mesh'
+    integer                             :: ncid
+    type(type_mesh)                     :: mesh
+    real(dp), dimension(:), allocatable :: Hi, u_vav_b, v_vav_b, dHi_dt_ex
+    character(len=1024)                 :: ice_sheet_name
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -125,22 +115,27 @@ contains
     ! Check mesh self-consistency
     call assert( test_mesh_is_self_consistent( mesh), 'mesh is not self-consistent')
 
-    ! Run all the mapping tests with different test functions
+    ! Run all the mapping tests with different test ice sheets
 
-    test_function_ptr => test_function_Hi_uv_linear
-    function_name = 'linear'
-    call run_mass_cons_test_on_mesh_with_function( foldername_mass_cons, test_mesh_filename, &
-      mesh, test_function_ptr, function_name)
+    allocate( Hi       (mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( u_vav_b  (mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( v_vav_b  (mesh%ti1:mesh%ti2), source = 0._dp)
+    allocate( dHi_dt_ex(mesh%vi1:mesh%vi2), source = 0._dp)
 
-    test_function_ptr => test_function_Hi_uv_periodic
-    function_name = 'periodic'
-    call run_mass_cons_test_on_mesh_with_function( foldername_mass_cons, test_mesh_filename, &
-      mesh, test_function_ptr, function_name)
+    call setup_test_ice_sheet_linear( mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex)
+    ice_sheet_name = 'linear'
+    call run_mass_cons_test_on_mesh_with_ice_sheet( foldername_mass_cons, test_mesh_filename, &
+      mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex, ice_sheet_name)
 
-    test_function_ptr => test_function_Hi_uv_Halfar
-    function_name = 'Halfar'
-    call run_mass_cons_test_on_mesh_with_function( foldername_mass_cons, test_mesh_filename, &
-      mesh, test_function_ptr, function_name)
+    call setup_test_ice_sheet_periodic( mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex)
+    ice_sheet_name = 'periodic'
+    call run_mass_cons_test_on_mesh_with_ice_sheet( foldername_mass_cons, test_mesh_filename, &
+      mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex, ice_sheet_name)
+
+    call setup_test_ice_sheet_Halfar( mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex)
+    ice_sheet_name = 'Halfar'
+    call run_mass_cons_test_on_mesh_with_ice_sheet( foldername_mass_cons, test_mesh_filename, &
+      mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex, ice_sheet_name)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -148,59 +143,34 @@ contains
   end subroutine run_mass_cons_test_on_mesh
 
   !> Run the mass conservation test on a particular mesh and a particular ice sheet
-  subroutine run_mass_cons_test_on_mesh_with_function( foldername_mass_cons, test_mesh_filename, &
-    mesh, test_function_ptr, function_name)
+  subroutine run_mass_cons_test_on_mesh_with_ice_sheet( foldername_mass_cons, test_mesh_filename, &
+    mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex, ice_sheet_name)
 
     ! In/output variables:
     character(len=*),                        intent(in   ) :: foldername_mass_cons
     character(len=*),                        intent(in   ) :: test_mesh_filename
     type(type_mesh),                         intent(in   ) :: mesh
-    procedure(test_function_Hi_uv), pointer, intent(in   ) :: test_function_ptr
-    character(len=1024),                     intent(in   ) :: function_name
+    real(dp), dimension(mesh%vi1:mesh%vi2),  intent(in   ) :: Hi
+    real(dp), dimension(mesh%ti1:mesh%ti2),  intent(in   ) :: u_vav_b, v_vav_b
+    real(dp), dimension(mesh%vi1:mesh%vi2),  intent(in   ) :: dHi_dt_ex
+    character(len=1024),                     intent(in   ) :: ice_sheet_name
 
     ! Local variables:
-    character(len=1024), parameter      :: routine_name = 'run_mass_cons_test_on_mesh_with_function'
-    real(dp), dimension(:), allocatable :: Hi, Hb, Hs, SL
-    real(dp), dimension(:), allocatable :: u_vav_b, v_vav_b, dHi_dt_ex
-    real(dp), dimension(:), allocatable :: SMB, BMB, LMB, AMB
-    real(dp), dimension(:), allocatable :: fraction_margin
-    logical,  dimension(:), allocatable :: mask_noice
-    real(dp)                            :: dt
-    real(dp), dimension(:), allocatable :: Hi_tplusdt
-    real(dp), dimension(:), allocatable :: divQ, dHi_dt_target
-    real(dp), dimension(:), allocatable :: dHi_dt_expl, dHi_dt_semiimpl, dHi_dt_impl, dHi_dt_overimpl
+    character(len=1024), parameter         :: routine_name = 'run_mass_cons_test_on_mesh_with_function'
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: Hb, Hs, SL
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: SMB, BMB, LMB, AMB
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: fraction_margin
+    logical,  dimension(mesh%vi1:mesh%vi2) :: mask_noice
+    real(dp)                               :: dt
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: Hi_tplusdt
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: divQ, dHi_dt_target
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: dHi_dt_expl, dHi_dt_semiimpl, dHi_dt_impl, dHi_dt_overimpl
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%primary) write(0,*) '       Test function ' // &
-      colour_string(trim(function_name), 'light blue'), '...'
-
-    ! Allocate memory
-    allocate( Hi             ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( Hb             ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( Hs             ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( SL             ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( u_vav_b        ( mesh%ti1:mesh%ti2), source = 0._dp)
-    allocate( v_vav_b        ( mesh%ti1:mesh%ti2), source = 0._dp)
-    allocate( dHi_dt_ex      ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( SMB            ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( BMB            ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( LMB            ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( AMB            ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( fraction_margin( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( mask_noice     ( mesh%vi1:mesh%vi2), source = .false.)
-    allocate( Hi_tplusdt     ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( divQ           ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( dHi_dt_target  ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( dHi_dt_expl    ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( dHi_dt_semiimpl( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( dHi_dt_impl    ( mesh%vi1:mesh%vi2), source = 0._dp)
-    allocate( dHi_dt_overimpl( mesh%vi1:mesh%vi2), source = 0._dp)
-
-    ! Calculate ice thickness, vertically averaged velocities and thinning rates from
-    ! the provided test ice sheet
-    call test_function_ptr( mesh, Hi, dHi_dt_ex, u_vav_b, v_vav_b)
+    if (par%primary) write(0,*) '       Test ice sheet ' // &
+      colour_string(trim(ice_sheet_name), 'light blue'), '...'
 
     Hb              = 0._dp
     Hs              = Hi
@@ -242,13 +212,13 @@ contains
 
     ! Write results to output
     call write_mass_cons_test_results_to_file( &
-      foldername_mass_cons, test_mesh_filename, function_name, mesh, Hi, dHi_dt_ex, &
+      foldername_mass_cons, test_mesh_filename, ice_sheet_name, mesh, Hi, dHi_dt_ex, &
       dHi_dt_expl, dHi_dt_semiimpl, dHi_dt_impl, dHi_dt_overimpl)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
-  end subroutine run_mass_cons_test_on_mesh_with_function
+  end subroutine run_mass_cons_test_on_mesh_with_ice_sheet
 
   ! !> Write the results of mass conservation test= for a particular mesh to a file.
   subroutine write_mass_cons_test_results_to_file( &
@@ -311,12 +281,13 @@ contains
   end subroutine write_mass_cons_test_results_to_file
 
   !> A test ice sheet with radially outward increasing velocities and a constant thickness
-  subroutine test_function_Hi_uv_linear( mesh, Hi, dHi_dt_ex, u_vav_b, v_vav_b)
+  subroutine setup_test_ice_sheet_linear( mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex)
 
     ! In/output variables:
     type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: Hi, dHi_dt_ex
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: Hi
     real(dp), dimension(mesh%ti1:mesh%ti2), intent(  out) :: u_vav_b, v_vav_b
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: dHi_dt_ex
 
     ! Local variables:
     real(dp) :: u0, H0, x, y
@@ -337,15 +308,16 @@ contains
       v_vav_b( ti) = u0 * y
     end do
 
-  end subroutine test_function_Hi_uv_linear
+  end subroutine setup_test_ice_sheet_linear
 
   !> A test ice sheet with some periodic functions for thickness and velocities
-  subroutine test_function_Hi_uv_periodic( mesh, Hi, dHi_dt_ex, u_vav_b, v_vav_b)
+  subroutine setup_test_ice_sheet_periodic( mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex)
 
     ! In/output variables:
     type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: Hi, dHi_dt_ex
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: Hi
     real(dp), dimension(mesh%ti1:mesh%ti2), intent(  out) :: u_vav_b, v_vav_b
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: dHi_dt_ex
 
     ! Local variables:
     real(dp) :: u0, H0, lambda, x, y, H, u, v, du_dx, dv_dy, dH_dx, dH_dy
@@ -378,15 +350,16 @@ contains
       v_vav_b( ti) = v
     end do
 
-  end subroutine test_function_Hi_uv_periodic
+  end subroutine setup_test_ice_sheet_periodic
 
   !> The Halfar solution as a test ice sheet
-  subroutine test_function_Hi_uv_Halfar( mesh, Hi, dHi_dt_ex, u_vav_b, v_vav_b)
+  subroutine setup_test_ice_sheet_Halfar( mesh, Hi, u_vav_b, v_vav_b, dHi_dt_ex)
 
     ! In/output variables:
     type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: Hi, dHi_dt_ex
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: Hi
     real(dp), dimension(mesh%ti1:mesh%ti2), intent(  out) :: u_vav_b, v_vav_b
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(  out) :: dHi_dt_ex
 
     ! Local variables:
     real(dp) :: A, n, H0, R0, t, x, y
@@ -410,6 +383,6 @@ contains
       v_vav_b( ti) = Halfar%v_vav( A, n, H0, R0, mesh%Tricc( ti,1), mesh%Tricc( ti,2), t)
     end do
 
-  end subroutine test_function_Hi_uv_Halfar
+  end subroutine setup_test_ice_sheet_Halfar
 
 end module ct_mass_conservation
