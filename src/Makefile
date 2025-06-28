@@ -418,6 +418,7 @@ UFEMISM_source = \
   validation/component_tests/ct_remapping_mesh_to_grid.f90 \
   validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
   validation/component_tests/ct_remapping.f90 \
+  validation/component_tests/ct_mass_conservation.f90 \
   validation/component_tests/component_tests.f90 \
   \
   main/UFEMISM_program.f90
