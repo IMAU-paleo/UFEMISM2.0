@@ -151,7 +151,7 @@ function write_to_scoreboard_file( filename_short, m, dHi_dt_ex, dHi_dt_explicit
   % Set up a scoreboard results structure
   test_name = filename_short(5:end-3);
   single_run = initialise_single_test_run( test_name, ...
-    'component_tests/remapping/mesh_vertices_to_grid');
+    'component_tests/mass_conservation/mesh_vertices_to_grid');
 
   % Calculate cost functions
   rmse_explicit     = sqrt( mean( (dHi_dt_explicit(    m) - dHi_dt_ex(m)).^2));
