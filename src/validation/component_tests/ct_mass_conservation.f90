@@ -302,8 +302,8 @@ contains
     end do
 
     do ti = mesh%ti1, mesh%ti2
-      x = mesh%TriGC( ti,1)
-      y = mesh%TriGC( ti,2)
+      x = mesh%Tricc( ti,1)
+      y = mesh%Tricc( ti,2)
       u_vav_b( ti) = u0 * x
       v_vav_b( ti) = u0 * y
     end do
@@ -342,8 +342,8 @@ contains
     end do
 
     do ti = mesh%ti1, mesh%ti2
-      x = mesh%TriGC( ti,1)
-      y = mesh%TriGC( ti,2)
+      x = mesh%Tricc( ti,1)
+      y = mesh%Tricc( ti,2)
       u     = u0 * sin( 2._dp*pi*x / lambda)
       v     = u0 * sin( 2._dp*pi*y / lambda)
       u_vav_b( ti) = u
