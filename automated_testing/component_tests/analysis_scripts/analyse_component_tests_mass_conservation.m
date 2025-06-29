@@ -43,6 +43,7 @@ function analyse_remapping_test( filename_short)
   dHi_dt_overimplicit = ncread( filename_full, 'dHi_dt_overimplicit');
 
   m = Hi > 100;
+  m( mesh.VBI > 0) = false;
 
   % Plot error
   if do_print_figures
@@ -50,7 +51,7 @@ function analyse_remapping_test( filename_short)
     %% Set up figure
 
     if contains( filename_full,'linear')
-      clim_abs = [-1.2,-0.8];
+      clim_abs = -1 + [-1,1]*1e-3;
       clim_err = [-0.2,0.2];
     elseif contains( filename_full,'periodic')
       clim_abs = [-10,10];
@@ -85,7 +86,7 @@ function analyse_remapping_test( filename_short)
           colormap(ax,cmap_err)
           set(ax,'clim',clim_err)
         end
-        set(ax,'xlim',[mesh.xmin,mesh.xmax]*0.55,'ylim',[mesh.ymin,mesh.ymax]*0.55)
+        % set(ax,'xlim',[mesh.xmin,mesh.xmax]*0.55,'ylim',[mesh.ymin,mesh.ymax]*0.55)
       end
     end
 
@@ -106,6 +107,13 @@ function analyse_remapping_test( filename_short)
     ylabel( H.Cbar_err,'err dH/dt')
 
     %% Plot results
+
+    dHi_dt_ex(           ~m) = dHi_dt_ex( ~m);
+    dHi_dt_explicit(     ~m) = dHi_dt_ex( ~m);
+    dHi_dt_semiimplicit( ~m) = dHi_dt_ex( ~m);
+    dHi_dt_implicit(     ~m) = dHi_dt_ex( ~m);
+    dHi_dt_overimplicit( ~m) = dHi_dt_ex( ~m);
+
     set( H.Patch(1,1),'facevertexcdata',dHi_dt_ex)
     set( H.Patch(1,2),'facevertexcdata',dHi_dt_explicit)
     set( H.Patch(1,3),'facevertexcdata',dHi_dt_semiimplicit)
@@ -117,12 +125,6 @@ function analyse_remapping_test( filename_short)
     err_semiimplicit = dHi_dt_semiimplicit - dHi_dt_ex;
     err_implicit     = dHi_dt_implicit     - dHi_dt_ex;
     err_overimplicit = dHi_dt_overimplicit - dHi_dt_ex;
-
-    err_ex(           ~m) = 0;
-    err_explicit(     ~m) = 0;
-    err_semiimplicit( ~m) = 0;
-    err_implicit(     ~m) = 0;
-    err_overimplicit( ~m) = 0;
 
     set( H.Patch(2,1),'facevertexcdata',err_ex          )
     set( H.Patch(2,2),'facevertexcdata',err_explicit    )
