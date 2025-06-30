@@ -673,6 +673,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL_config           = ''
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT_config           = ''
 
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_NAM_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_EAS_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_GRL_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_ANT_config      = ''
+    
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_NAM_config      = ''
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_EAS_config      = ''
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_GRL_config      = ''
@@ -845,6 +850,7 @@ MODULE model_configuration
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
+    REAL(dp)            :: BMB_Holland_Cmelt_config                     = 34.8_dp                          ! equivalent to 8.19e-5 if it was an exchange velocity gamma
 
     ! "laddie_py"
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config              = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
@@ -1737,6 +1743,11 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT
 
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_ANT
+
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_NAM
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_EAS
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_GRL
@@ -1911,6 +1922,7 @@ MODULE model_configuration
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma
+    REAL(dp)            :: BMB_Holland_Cmelt
 
     ! "laddie"
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system
@@ -2791,6 +2803,10 @@ CONTAINS
       filename_ocean_snapshot_EAS_config                          , &
       filename_ocean_snapshot_GRL_config                          , &
       filename_ocean_snapshot_ANT_config                          , &
+      filename_ocean_warm_snapshot_NAM_config                     , &
+      filename_ocean_warm_snapshot_EAS_config                     , &
+      filename_ocean_warm_snapshot_GRL_config                     , &
+      filename_ocean_warm_snapshot_ANT_config                     , &
       filename_ocean_cold_snapshot_NAM_config                     , &
       filename_ocean_cold_snapshot_EAS_config                     , &
       filename_ocean_cold_snapshot_GRL_config                     , &
@@ -2897,6 +2913,7 @@ CONTAINS
       uniform_BMB_config                                          , &
       uniform_BMB_ROI_config                                      , &
       BMB_Favier2019_gamma_config                                 , &
+      BMB_Holland_Cmelt_config                                    , &
       choice_BMB_laddie_system_config                             , &
       filename_BMB_laddie_configname_config                       , &
       filename_BMB_laddie_initial_restart_config                  , &
@@ -3748,6 +3765,11 @@ CONTAINS
     C%filename_ocean_snapshot_GRL                            = filename_ocean_snapshot_GRL_config
     C%filename_ocean_snapshot_ANT                            = filename_ocean_snapshot_ANT_config
 
+    C%filename_ocean_warm_snapshot_NAM                       = filename_ocean_warm_snapshot_NAM_config
+    C%filename_ocean_warm_snapshot_EAS                       = filename_ocean_warm_snapshot_EAS_config
+    C%filename_ocean_warm_snapshot_GRL                       = filename_ocean_warm_snapshot_GRL_config
+    C%filename_ocean_warm_snapshot_ANT                       = filename_ocean_warm_snapshot_ANT_config
+
     C%filename_ocean_cold_snapshot_NAM                       = filename_ocean_cold_snapshot_NAM_config
     C%filename_ocean_cold_snapshot_EAS                       = filename_ocean_cold_snapshot_EAS_config
     C%filename_ocean_cold_snapshot_GRL                       = filename_ocean_cold_snapshot_GRL_config
@@ -3921,6 +3943,7 @@ CONTAINS
 
     ! "parameterised"
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
+    C%BMB_Holland_Cmelt                                      = BMB_Holland_Cmelt_config
 
     ! "laddie"
     C%choice_BMB_laddie_system                               = choice_BMB_laddie_system_config
