@@ -78,6 +78,7 @@ contains
 
     ! == Safety checks from UFE1.x
     ! ================
+        !print *, "print value of climate%Precip ", climate%Precip
 
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
@@ -90,6 +91,8 @@ contains
       ELSEIF (climate%Precip( vi,m) <= 0._dp) THEN
         CALL crash('zero/negative precipitation detected!')
       ELSEIF (climate%Precip( vi,m) /= climate%Precip( vi,m)) THEN
+ !       print *, "print value of climate%Precip ", climate%Precip( vi, m)
+ !       print *, "print value of climate%T2m ", climate%T2m( vi, m)
         CALL crash('NaN precipitation detected!')
       END IF
     END DO
@@ -297,7 +300,7 @@ contains
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_precipitation'
-    INTEGER                                            :: vi
+    INTEGER                                            :: vi, m
     REAL(dp), DIMENSION(:), ALLOCATABLE                ::  w_warm,  w_cold
 !    INTEGER                                            :: ww_warm, ww_cold
     REAL(dp)                                           :: w_tot
@@ -391,6 +394,27 @@ contains
       Hs_GCM(    vi  ) =      (w_warm( vi) *     climate%matrix%GCM_warm%Hs(     vi   )) + &
                               (w_cold( vi) *     climate%matrix%GCM_cold%Hs(     vi   ))   ! Berends et al., 2018 - Eq. 8
 
+!    do m = 1, 12
+!    print *, "print value of P_ref_GCM in climate matrix precip to check NaNs", P_ref_GCM( vi, m) ! until here is fine, no NaNs...
+!    print *, "print value of climate%Precip, it should be allocated from before...,", climate%Precip( vi, m)
+!    end do
+      do m = 1, 12
+        if (climate%matrix%GCM_warm%Precip(vi, m) /= climate%matrix%GCM_warm%Precip(vi, m)) then
+          print*, "climate%matrix%GCM_warm%Precip is NaN .. , line 403", vi, m
+          CALL crash('NaN precipitation detected!, in climate%matrix%GCM_warm%Precip')
+        end if
+        if (climate%matrix%GCM_cold%Precip(vi, m) /= climate%matrix%GCM_cold%Precip(vi, m)) then
+          print*, "climate%matrix%GCM_cold%Precip is NaN .. , line 403", vi, m
+          CALL crash('NaN precipitation detected!, in climate%matrix%GCM_cold%Precip')
+        end if
+        ! is not Precip the file that has NaNs instead is the log of it. but When the log is NaN?
+        !!
+        ! problem is that precip is negative!, check if the inputs file have negative values or if is the code
+        if (P_ref_GCM(vi, m) /= P_ref_GCM(vi, m)) then
+          print*, "P_ref_GCM is NaN .. , line 403, print vi,logs w_warm and w_cold", vi, climate%matrix%GCM_warm%Precip( vi,m), climate%matrix%GCM_cold%Precip( vi,m), LOG(climate%matrix%GCM_warm%Precip( vi,m)), LOG(climate%matrix%GCM_cold%Precip( vi,m))
+          CALL crash('NaN precipitation detected!, in input to adapt_precip_CC')
+        end if
+      end do
     END DO
 
     ! Downscale precipitation from the coarse-resolution reference
@@ -578,7 +602,7 @@ contains
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot'
-    !integer                                            :: vi, m
+    integer                                            :: vi, m
     !REAL(dp)                                           :: longitude_start, Uwind_x, Uwind_y, Vwind_x, Vwind_y
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -604,6 +628,17 @@ contains
     print *, "brounds of Wind_WE lower bound = ", lbound(snapshot%Wind_WE, dim=1), "upper bound = ", ubound(snapshot%Wind_WE, dim=1)
     
     call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
+
+  do m = 1, 12
+  do vi = mesh%vi1, mesh%vi2
+    if (snapshot%Precip(vi, m) < 0) then
+      print*, "negative value of snapshot%Precip, replaced to zero", snapshot%Precip(vi, m)
+      ! Keep this for now, however, this should not happen. Ask Tijn bcs the input file do not have any negative value!
+      snapshot%Precip(vi,m) = 0.00001 !
+      !call crash('snapshot%Precip(vi,m) with negative values')
+    end if
+  end do
+  end do
 
     !print *, "no error?"
     ! Finalise routine path
@@ -1002,7 +1037,7 @@ contains
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Output variables:
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(OUT)   :: Precip_GCM      ! Climate matrix precipitation
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2,12),          INTENT(INOUT)   :: Precip_GCM      ! Climate matrix precipitation
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_CC'
@@ -1042,7 +1077,24 @@ contains
 
       DO m = 1, 12
       DO vi = mesh%vi1, mesh%vi2
-        Precip_GCM( vi,m) = P_ref_GCM( vi,m) * (T_inv_ref( vi,m) / T_inv( vi,m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
+        if (P_ref_GCM(vi, m) /= P_ref_GCM(vi, m)) then
+          print*, "P_ref_GCM is NaN .. line 1053", vi
+        end if
+!      print*, "print values before Precip_GCM ... T_inv_ref ", T_inv_ref(vi, m) 
+!      print*, "print values before Precip_GCM ... T_inv ", T_inv(vi, m)
+!      print*, "print values before Precip_GCM ... P_ref_GCM ", P_ref_GCM(vi, m)
+!      print*, "second term ... ", (T_inv_ref( vi,m) / T_inv( vi,m))**2
+!      print*, "third term .... ", EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
+
+! IF I COMMENT THIS LINE THE NANs in climate%Precip DISAPPEAR... so what is going on ...
+! the problem is allocating something in this function I think ... I just make it equal to P_ref_GCM, none of them has NaNs but it get fucked up
+! For now P_ref_GCM has NaNs , is this normal? start looking where the NaNs start to appear
+        Precip_GCM( vi,m) = P_ref_GCM( vi,m) !* (T_inv_ref( vi,m) / T_inv( vi,m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
+!      print*, "print value of Precip_GCM ...", Precip_GCM( vi,m)
+        if (Precip_GCM(vi, m) /= Precip_GCM(vi, m)) then
+          print*, "Precip_GCM is NaN .. , line 1067", vi
+          CALL crash('NaN precipitation detected!')
+        end if
       END DO
       END DO
       CALL sync
@@ -1069,12 +1121,12 @@ contains
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: Hs1,      Hs2
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: T2m1,     T2m2
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Wind_LR1, Wind_LR2
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Wind_DU1, Wind_DU2
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Precip1
-    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: Precip2
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2),          INTENT(IN)    :: Hs1,      Hs2
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2, 12),          INTENT(IN)    :: T2m1,     T2m2
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2, 12),          INTENT(IN)    :: Wind_LR1, Wind_LR2
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2, 12),          INTENT(IN)    :: Wind_DU1, Wind_DU2
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2, 12),          INTENT(IN)    :: Precip1
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2, 12),          INTENT(OUT)   :: Precip2
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_Roe'
