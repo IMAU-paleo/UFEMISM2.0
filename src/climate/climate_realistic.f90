@@ -61,19 +61,6 @@ CONTAINS
     ! the ice sheet surface elevation in the forcing climate and the model's ice sheet surface elevation
     CALL apply_lapse_rate_geometry_corrections( mesh, ice, climate)
 
-<<<<<<< HEAD
-    ! Run the chosen realistic climate model
-    IF     (C%choice_climate_model_realistic == 'snapshot') THEN
-      ! Do nothing
-    ELSEIF (C%choice_climate_model_realistic == 'climate_matrix') THEN
-      ! This is probably where we will update insolation, CO2, etc...
-      CALL crash('choice_climate_model_realistic climate_matrix not implemented yet!"')
-      CALL get_insolation_at_time( mesh, time, forcing, climate%Q_TOA)
-      ! the update of CO2 at time is done in climate_matrix now
-      !CALL get_climate_at_time( mesh, time, forcing, climate)
-    ELSE
-      CALL crash('unknown choice_climate_model_realistic "' // TRIM( C%choice_climate_model_realistic) // '"')
-=======
     ! if needed for IMAU-ITM or climate matrix, we need to update insolation
     IF (climate%snapshot%has_insolation) THEN
       CALL get_insolation_at_time( mesh, time, climate)
@@ -85,7 +72,6 @@ CONTAINS
       !ELSE
       !  CALL crash('unknown choice_climate_model_realistic "' // TRIM( C%choice_climate_model_realistic) // '"')
       END IF
->>>>>>> upstream/main
     END IF
 
     ! Finalise routine path
@@ -214,15 +200,8 @@ CONTAINS
 
     IF     ((C%choice_climate_model_realistic == 'snapshot') .AND. (climate%snapshot%do_lapse_rates .eqv. .TRUE.)) THEN
 
-<<<<<<< HEAD
-    ! CO2 record
-    if (C%choice_matrix_forcing == 'CO2_direct') call initialise_CO2_record( forcing)
-    
-    ! d18O record - not yet implemented
-=======
       allocate( T_inv     (mesh%vi1:mesh%vi2, 12))
       allocate( T_inv_ref (mesh%vi1:mesh%vi2, 12))
->>>>>>> upstream/main
 
       
       do vi = mesh%vi1, mesh%vi2

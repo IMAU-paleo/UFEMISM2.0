@@ -12,7 +12,8 @@ module climate_matrix
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
   USE grid_types                                             , ONLY: type_grid
-  USE climate_model_types                                    , ONLY: type_climate_model, type_global_forcing, type_climate_model_matrix, type_climate_snapshot
+  USE climate_model_types                                    , ONLY: type_climate_model, type_climate_model_matrix, type_climate_model_snapshot
+  USE global_forcing_types                                   , ONLY: type_global_forcing
   use SMB_model_types, only: type_SMB_model
 !  USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, get_insolation_at_time, update_CO2_at_model_time
@@ -67,7 +68,7 @@ contains
 
     ! Update forcing at model time
     ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
-    CALL get_insolation_at_time( mesh, time, forcing, climate%Q_TOA)
+    CALL get_insolation_at_time( mesh, time, climate)
     CALL update_CO2_at_model_time( time, forcing) 
 
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
@@ -858,7 +859,8 @@ contains
     ! ==================================================================
 ! ADDED snapshot%forcing
 ! CHANGED TO forcing, I am not sure if it should be this way tho
-    CALL get_insolation_at_time( mesh, snapshot%orbit_time, forcing, snapshot%Q_TOA)
+! now it is mesh, time, climate ... I think should be snapshot but check later!
+    CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot)
 
     ! Create temporary "dummy" climate, ice & SMB data structures,
     ! so we can run the SMB model and determine the reference albedo field
