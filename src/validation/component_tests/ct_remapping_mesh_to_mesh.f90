@@ -9,8 +9,8 @@ module ct_remapping_mesh_to_mesh
   use parameters
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string, warning
   use mesh_types, only: type_mesh
-  use ct_remapping_basic, only: calc_test_function_on_mesh
-  use remapping_main, only: map_from_mesh_to_mesh_2D
+  use ct_remapping_basic, only: calc_test_function_on_mesh, calc_test_function_on_mesh_triangles
+  use remapping_main, only: map_from_mesh_to_mesh_2D, map_from_mesh_tri_to_mesh_tri_2D
   use apply_maps, only: clear_all_maps_involving_this_mesh
   use netcdf_io_main
   use netcdf, only: NF90_DOUBLE, NF90_PUT_VAR
@@ -110,10 +110,14 @@ contains
     integer                               :: ncid
     type(type_mesh)                       :: mesh1, mesh2
     real(dp), dimension(:), allocatable   :: d_mesh1_ex, d_mesh2_ex
+    real(dp), dimension(:), allocatable   :: d_mesh1_b_ex, d_mesh2_b_ex
     real(dp), dimension(:), allocatable   :: d_mesh2_nn, d_mesh2_trilin, d_mesh2_cons
+    real(dp), dimension(:), allocatable   :: d_mesh2_b_cons
     real(dp), dimension(:), allocatable   :: d_mesh1_ex_tot
+    real(dp), dimension(:), allocatable   :: d_mesh1_b_ex_tot
     character(len=1024)                   :: filename
     integer                               :: id_dim_mesh1_nV, id_var_mesh1_A, id_var_d_mesh1_ex
+    integer                               :: id_dim_mesh1_nTri, id_var_mesh1_TriA, id_var_d_mesh1_b_ex
     integer                               :: nerr
 
     ! Add routine to call stack
@@ -137,18 +141,22 @@ contains
     call setup_mesh_from_file( filename_mesh2, ncid, mesh2)
     call close_netcdf_file( ncid)
 
-    ! Calculate exact solution on the grid and the mesh
+    ! Calculate exact solution on both meshes
     call calc_test_function_on_mesh( mesh1, d_mesh1_ex)
     call calc_test_function_on_mesh( mesh2, d_mesh2_ex)
+    call calc_test_function_on_mesh_triangles( mesh1, d_mesh1_b_ex)
+    call calc_test_function_on_mesh_triangles( mesh2, d_mesh2_b_ex)
 
     ! Map data to the new mesh
     allocate( d_mesh2_nn    ( mesh2%nV_loc))
     allocate( d_mesh2_trilin( mesh2%nV_loc))
     allocate( d_mesh2_cons  ( mesh2%nV_loc))
+    allocate( d_mesh2_b_cons( mesh2%nTri_loc))
 
-    call map_from_mesh_to_mesh_2D( mesh1, mesh2, d_mesh1_ex, d_mesh2_nn    , 'nearest_neighbour')
-    call map_from_mesh_to_mesh_2D( mesh1, mesh2, d_mesh1_ex, d_mesh2_trilin, 'trilin')
-    call map_from_mesh_to_mesh_2D( mesh1, mesh2, d_mesh1_ex, d_mesh2_cons  , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, d_mesh1_ex  , d_mesh2_nn    , 'nearest_neighbour')
+    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, d_mesh1_ex  , d_mesh2_trilin, 'trilin')
+    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, d_mesh1_ex  , d_mesh2_cons  , '2nd_order_conservative')
+    call map_from_mesh_tri_to_mesh_tri_2D( mesh1, mesh2, d_mesh1_b_ex, d_mesh2_b_cons, '2nd_order_conservative')
 
     ! Write results to NetCDF
     ! (NOTE: deviates slightly from the style of the other tests, as there is no easy support
@@ -162,23 +170,36 @@ contains
     call create_variable(  filename, ncid, 'mesh1_A'   , NF90_DOUBLE, (/ id_dim_mesh1_nV /), id_var_mesh1_A)
     call create_variable(  filename, ncid, 'd_mesh1_ex', NF90_DOUBLE, (/ id_dim_mesh1_nV /), id_var_d_mesh1_ex)
 
-    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_ex')
-    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_nn')
-    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_trilin')
-    call add_field_mesh_dp_2D_notime( filename, ncid, 'd_mesh2_cons')
+    call create_dimension( filename, ncid, 'mesh1_nTri'  , mesh1%nTri, id_dim_mesh1_nTri)
+    call create_variable(  filename, ncid, 'mesh1_TriA'  , NF90_DOUBLE, (/ id_dim_mesh1_nTri /), id_var_mesh1_TriA)
+    call create_variable(  filename, ncid, 'd_mesh1_b_ex', NF90_DOUBLE, (/ id_dim_mesh1_nTri /), id_var_d_mesh1_b_ex)
+
+    call add_field_mesh_dp_2D_notime  ( filename, ncid, 'd_mesh2_ex')
+    call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_mesh2_b_ex')
+    call add_field_mesh_dp_2D_notime  ( filename, ncid, 'd_mesh2_nn')
+    call add_field_mesh_dp_2D_notime  ( filename, ncid, 'd_mesh2_trilin')
+    call add_field_mesh_dp_2D_notime  ( filename, ncid, 'd_mesh2_cons')
+    call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_mesh2_b_cons')
 
     if (par%primary) allocate( d_mesh1_ex_tot( mesh1%nV))
     call gather_to_primary( d_mesh1_ex, d_mesh1_ex_tot)
 
+    if (par%primary) allocate( d_mesh1_b_ex_tot( mesh1%nTri))
+    call gather_to_primary( d_mesh1_b_ex, d_mesh1_b_ex_tot)
+
     if (par%primary) then
-      nerr = NF90_PUT_VAR( ncid, id_var_mesh1_A   , mesh1%A)
-      nerr = NF90_PUT_VAR( ncid, id_var_d_mesh1_ex, d_mesh1_ex_tot)
+      nerr = NF90_PUT_VAR( ncid, id_var_mesh1_A     , mesh1%A)
+      nerr = NF90_PUT_VAR( ncid, id_var_d_mesh1_ex  , d_mesh1_ex_tot)
+      nerr = NF90_PUT_VAR( ncid, id_var_mesh1_TriA  , mesh1%TriA)
+      nerr = NF90_PUT_VAR( ncid, id_var_d_mesh1_b_ex, d_mesh1_b_ex_tot)
     end if
 
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_ex'    , d_mesh2_ex)
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_nn'    , d_mesh2_nn)
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_trilin', d_mesh2_trilin)
-    call write_to_field_multopt_mesh_dp_2D_notime( mesh2, filename, ncid, 'd_mesh2_cons'  , d_mesh2_cons)
+    call write_to_field_multopt_mesh_dp_2D_notime  ( mesh2, filename, ncid, 'd_mesh2_ex'    , d_mesh2_ex)
+    call write_to_field_multopt_mesh_dp_2D_b_notime( mesh2, filename, ncid, 'd_mesh2_b_ex'  , d_mesh2_b_ex)
+    call write_to_field_multopt_mesh_dp_2D_notime  ( mesh2, filename, ncid, 'd_mesh2_nn'    , d_mesh2_nn)
+    call write_to_field_multopt_mesh_dp_2D_notime  ( mesh2, filename, ncid, 'd_mesh2_trilin', d_mesh2_trilin)
+    call write_to_field_multopt_mesh_dp_2D_notime  ( mesh2, filename, ncid, 'd_mesh2_cons'  , d_mesh2_cons)
+    call write_to_field_multopt_mesh_dp_2D_b_notime( mesh2, filename, ncid, 'd_mesh2_b_cons', d_mesh2_b_cons)
 
     call close_netcdf_file( ncid)
 

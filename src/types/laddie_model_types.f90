@@ -33,19 +33,74 @@ MODULE laddie_model_types
 
   END TYPE type_laddie_timestep
 
+  type type_scalar_output_buffer
+    !< Memory for buffering scalar output (from every model time step) between output writing intervals
+
+    integer :: n_mem         !< Number of timeframes for which memory has been allocated
+    integer :: n             !< Number of timeframes that are currently buffered
+
+    real(dp), dimension(:), allocatable :: time
+
+    real(dp), dimension(:), allocatable :: layer_volume
+    real(dp), dimension(:), allocatable :: area_a
+    real(dp), dimension(:), allocatable :: area_b
+
+    real(dp), dimension(:), allocatable :: thickness_mean
+    real(dp), dimension(:), allocatable :: thickness_min
+    real(dp), dimension(:), allocatable :: thickness_max
+
+    real(dp), dimension(:), allocatable :: melt_mean
+    real(dp), dimension(:), allocatable :: melt_max
+    real(dp), dimension(:), allocatable :: melt_min
+    real(dp), dimension(:), allocatable :: melt_tot
+
+    real(dp), dimension(:), allocatable :: uabs_max
+
+    real(dp), dimension(:), allocatable :: T_mean
+    real(dp), dimension(:), allocatable :: T_max
+    real(dp), dimension(:), allocatable :: T_min
+
+    real(dp), dimension(:), allocatable :: S_mean
+    real(dp), dimension(:), allocatable :: S_max
+    real(dp), dimension(:), allocatable :: S_min
+
+    real(dp), dimension(:), allocatable :: entr_tot
+    real(dp), dimension(:), allocatable :: entr_dmin_tot
+    real(dp), dimension(:), allocatable :: detr_tot
+    real(dp), dimension(:), allocatable :: divQH_sum
+
+  end type type_scalar_output_buffer
+
   TYPE type_laddie_model
     ! The laddie model structure
 
     ! Output
-    character(len=1024)                         :: output_filename
-    logical                                     :: output_file_matches_current_mesh
+    character(len=1024)                         :: output_fields_filename
+    character(len=1024)                         :: output_scalar_filename
+    logical                                     :: output_fields_file_matches_current_mesh
 
     ! Time domain
-    REAL(dp)                                    :: dt                          ! [s]               Time step
-    REAL(dp)                                    :: tend                        ! [s]               Time end of Laddie cycle
+    real(dp)                                    :: dt                          ! [s]               Time step
+    real(dp)                                    :: tend                        ! [s]               Time end of Laddie cycle
 
     real(dp), dimension(:), contiguous, pointer :: dH_dt           => null()  ! [m s^-1]          Layer thickness change
     type(MPI_WIN) :: wdH_dt
+
+    ! Forcing
+    real(dp), dimension(:),   contiguous, pointer :: Hi                 => null()  ! [m]               Ice thickness
+    real(dp), dimension(:),   contiguous, pointer :: Hib                => null()  ! [m]               Ice base elevation (w.r.t. PD sea level)
+    real(dp), dimension(:),   contiguous, pointer :: dHib_dx_b          => null()  ! []                Horizontal derivative of ice draft on b-grid
+    real(dp), dimension(:),   contiguous, pointer :: dHib_dy_b          => null()  ! []                Horizontal derivative of ice draft on b-grid
+    logical,  dimension(:),   contiguous, pointer :: mask_icefree_land  => null()  ! []                T: ice-free land , F: otherwise
+    logical,  dimension(:),   contiguous, pointer :: mask_icefree_ocean => null()  ! []                T: ice-free ocean, F: otherwise
+    logical,  dimension(:),   contiguous, pointer :: mask_grounded_ice  => null()  ! []                T: grounded ice  , F: otherwise
+    logical,  dimension(:),   contiguous, pointer :: mask_floating_ice  => null()  ! []                T: floating ice  , F: otherwise
+    real(dp), dimension(:,:), contiguous, pointer :: Ti                 => null()  ! [K]               Englacial temperature
+    real(dp), dimension(:,:), contiguous, pointer :: T_ocean            => null()  ! [degrees Celsius] 3-D ocean temperature
+    real(dp), dimension(:,:), contiguous, pointer :: S_ocean            => null()  ! [PSU]             3-D ocean salinity
+    type(MPI_WIN) :: wHi, wHib, wdHib_dx_b, wdHib_dy_b
+    type(MPI_WIN) :: wmask_icefree_land, wmask_icefree_ocean, wmask_grounded_ice, wmask_floating_ice
+    type(MPI_WIN) :: wTi, wT_ocean, wS_ocean
 
     ! Ambient fields
     real(dp), dimension(:), contiguous, pointer :: T_amb           => null()  ! [degrees Celsius] Ambient temperature at layer base
@@ -127,6 +182,12 @@ MODULE laddie_model_types
     logical,  dimension(:), contiguous, pointer :: mask_oc_b       => null()  !                   Icefree ocean mask on b-grid
     type(MPI_WIN) :: wmask_a, wmask_gr_a, wmask_oc_a, wmask_b, wmask_gl_b, wmask_cf_b, wmask_oc_b
 
+    ! Domains and areas
+    real(dp), dimension(:), contiguous, pointer :: domain_a        => null()  ! []                Floating domain on a grid
+    real(dp), dimension(:), contiguous, pointer :: domain_b        => null()  ! []                Floating domain on b grid
+    type(MPI_WIN) :: wdomain_a, wdomain_b
+    real(dp)                                    :: area_a                     ! [m^2]             Integrated area on a grid
+    real(dp)                                    :: area_b                     ! [m^2]             Integrated area on b grid
 
     ! Mapping operators
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_b
@@ -134,10 +195,14 @@ MODULE laddie_model_types
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_UV_b_c
 
     ! Timestepping types
+    TYPE(type_laddie_timestep)              :: nm1                         !                   Timestep n minus 1
     TYPE(type_laddie_timestep)              :: now                         !                   Timestep now
     TYPE(type_laddie_timestep)              :: np1                         !                   Timestep n plus 1
     TYPE(type_laddie_timestep)              :: np12                        !                   Timestep n plus 1/2
     TYPE(type_laddie_timestep)              :: np13                        !                   Timestep n plus 1/3
+
+    ! Scalar output buffer
+    type(type_scalar_output_buffer)         :: buffer
 
   END TYPE type_laddie_model
 

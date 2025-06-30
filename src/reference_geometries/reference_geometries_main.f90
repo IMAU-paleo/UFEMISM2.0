@@ -15,7 +15,6 @@ module reference_geometries_main
   use grid_basic, only: type_grid, setup_square_grid
   use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use ice_geometry_basics, only: ice_surface_elevation
-  use analytical_solutions, only: Halfar_dome, Bueler_dome
   use netcdf_io_main
   use remapping_main, only: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
   use preprocess_geometry, only: smooth_model_geometry, remove_Lake_Vostok, remove_Ellesmere, remove_tiny_islands
@@ -692,7 +691,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'initialise_reference_geometry_raw_from_file_mesh'
-    integer                        :: ncid, id_var
+    integer                        :: ncid, id_var, vi
     logical                        :: has_SL
 
     ! Add routine to path
@@ -744,6 +743,13 @@ contains
       end if
 
     end if !  if (timeframe_refgeo /= 1E9_dp) then
+
+    ! Remove extremely thin ice (especially a problem in BedMachine Greenland)
+    do vi = refgeo%mesh_raw%vi1, refgeo%mesh_raw%vi2
+      if (refgeo%Hi_mesh_raw( vi) < C%refgeo_Hi_min) then
+        refgeo%Hi_mesh_raw( vi) = 0._dp
+      end if
+    end do
 
     ! Finalise routine path
     call finalise_routine( routine_name)

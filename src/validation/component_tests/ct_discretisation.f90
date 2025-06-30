@@ -8,6 +8,7 @@ module ct_discretisation
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
   use ct_discretisation_mapping_derivatives, only: run_all_map_deriv_tests
+  use ct_discretisation_solve_Laplace_eq, only: run_all_Laplace_eq_solving_tests
 
   implicit none
 
@@ -36,6 +37,7 @@ contains
     call create_discretisation_component_tests_output_folder( foldername_discretisation)
 
     call run_all_map_deriv_tests( foldername_discretisation, test_mesh_filenames)
+    call run_all_Laplace_eq_solving_tests( foldername_discretisation, test_mesh_filenames)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

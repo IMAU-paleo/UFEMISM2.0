@@ -14,7 +14,8 @@ module apply_maps
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use petsc_basic, only: multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D, &
     mat_petsc2CSR
-  use mesh_utilities, only: set_border_vertices_to_interior_mean_dp_2D, set_border_vertices_to_interior_mean_dp_3D
+  use mesh_utilities, only: set_border_vertices_to_interior_mean_dp_2D, set_border_vertices_to_interior_mean_dp_3D, &
+    set_border_triangles_to_interior_mean_dp_2D, set_border_triangles_to_interior_mean_dp_3D
   use mpi_distributed_memory, only: gather_to_all
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary, distribute_gridded_data_from_primary
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D_wrapper, &
@@ -32,7 +33,8 @@ module apply_maps
     apply_map_mesh_triangles_to_xy_grid_2D, apply_map_mesh_triangles_to_xy_grid_3D, &
     apply_map_mesh_to_mesh_2D, apply_map_mesh_to_mesh_3D, &
     apply_map_mesh_vertices_to_transect_2D, apply_map_mesh_vertices_to_transect_3D, &
-    apply_map_mesh_triangles_to_transect_2D, apply_map_mesh_triangles_to_transect_3D
+    apply_map_mesh_triangles_to_transect_2D, apply_map_mesh_triangles_to_transect_3D, &
+    apply_map_mesh_tri_to_mesh_tri_2D, apply_map_mesh_tri_to_mesh_tri_3D
 
   ! The Atlas: the complete collection of all mapping objects.
   type(type_map), dimension(1000) :: Atlas
@@ -529,7 +531,6 @@ contains
   ! ===== mesh to mesh =====
   ! ========================
 
-  !> Map a 2-D data field from a mesh to a mesh.
   subroutine apply_map_mesh_to_mesh_2D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
 
     ! In/output variables
@@ -557,7 +558,6 @@ contains
 
   end subroutine apply_map_mesh_to_mesh_2D
 
-  !> Map a 3-D data field from a mesh to a mesh.
   subroutine apply_map_mesh_to_mesh_3D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
 
     ! In/output variables
@@ -584,6 +584,60 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine apply_map_mesh_to_mesh_3D
+
+  subroutine apply_map_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
+
+    ! In/output variables
+    type(type_mesh),        intent(in)  :: mesh_src
+    type(type_mesh),        intent(in)  :: mesh_dst
+    type(type_map),         intent(in)  :: map
+    real(dp), dimension(:), intent(in)  :: d_src_partial
+    real(dp), dimension(:), intent(out) :: d_dst_partial
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_map_mesh_tri_to_mesh_tri_2D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Perform the mapping operation as a matrix multiplication
+    call multiply_PETSc_matrix_with_vector_1D( map%M, d_src_partial, d_dst_partial)
+
+    ! Set values of border triangles to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+    call set_border_triangles_to_interior_mean_dp_2D( mesh_dst, d_dst_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_tri_to_mesh_tri_2D
+
+  subroutine apply_map_mesh_tri_to_mesh_tri_3D( mesh_src, mesh_dst, map, d_src_partial, d_dst_partial)
+
+    ! In/output variables
+    type(type_mesh),          intent(in)  :: mesh_src
+    type(type_mesh),          intent(in)  :: mesh_dst
+    type(type_map),           intent(in)  :: map
+    real(dp), dimension(:,:), intent(in)  :: d_src_partial
+    real(dp), dimension(:,:), intent(out) :: d_dst_partial
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_map_mesh_tri_to_mesh_tri_3D'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Perform the mapping operation as a matrix multiplication
+    call multiply_PETSc_matrix_with_vector_2D( map%M, d_src_partial, d_dst_partial)
+
+    ! Set values of border vertices to mean of interior neighbours
+    ! Used to fix problems with conservative remapping on the border
+    call set_border_triangles_to_interior_mean_dp_3D( mesh_dst, d_dst_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_map_mesh_tri_to_mesh_tri_3D
 
   ! ===== mesh to transect =====
   ! ============================

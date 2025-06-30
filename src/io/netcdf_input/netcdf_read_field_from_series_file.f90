@@ -46,10 +46,6 @@ contains
 
     ! == Read data from file
     ! ======================
-
-    ! Read time
-    !call read_time_from_file(filename, series_time)
-    !if (par%primary) WRITE(0,*) '     Successfully read time.'
     
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_reading( filename, ncid)
@@ -157,7 +153,6 @@ contains
     else
     
       ! allocate memory
-      !if (par%primary) allocate( d_grid_with_time( grid_loc%nlon, vec_loc%nlat, 12, 1)) ! probably not used
       allocate( d_vec_with_time( 1, 12, vec_loc%nlat))
 
       ! Find out which timeframe to read
@@ -236,9 +231,6 @@ contains
     if (par%primary) WRITE(0,*) '     Opening file to read time...'
     call open_existing_netcdf_file_for_reading( filename, ncid)
 
-    ! Check if the file contains a valid time dimension and variable
-    !call check_time( filename, ncid)
-
     ! inquire size of time dimension
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = nt)
 
@@ -249,12 +241,8 @@ contains
     allocate( time( nt))
 
     ! Read time from file
-    !if (par%primary) WRITE(0,*) '     Reading variable...'
     call read_var_primary( filename, ncid, id_var_time, time)
-    !if (par%primary) WRITE(0,*) '     MPI broadcasting...'
     call MPI_BCAST( time, nt, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    !time = time_from_file
-    !deallocate(time)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

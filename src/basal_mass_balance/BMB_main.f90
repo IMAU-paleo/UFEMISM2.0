@@ -26,7 +26,6 @@ MODULE BMB_main
   use ice_geometry_basics, only: is_floating
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   use netcdf_io_main
-  use ocean_main                                             , ONLY: remap_ocean_model
 
   IMPLICIT NONE
 
@@ -35,7 +34,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, SMB, BMB, region_name, time)
+  SUBROUTINE run_BMB_model( mesh, ice, ocean, refgeo, SMB, BMB, region_name, time, is_initial)
     ! Calculate the basal mass balance
 
     ! In/output variables:
@@ -47,6 +46,7 @@ CONTAINS
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
+    logical,                                intent(in)    :: is_initial 
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model'
@@ -133,11 +133,7 @@ CONTAINS
       CASE ('laddie_py')
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .FALSE.)
       CASE ('laddie')
-        IF (time == C%start_time_of_run) THEN
-          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie_init, region_name)
-        ELSE
-          CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, C%time_duration_laddie, region_name)
-        END IF
+        CALL run_laddie_model( mesh, ice, ocean, BMB%laddie, time, is_initial, region_name)
 
         DO vi = mesh%vi1, mesh%vi2
           BMB%BMB( vi) = -BMB%laddie%melt( vi) * sec_per_year
@@ -523,8 +519,8 @@ CONTAINS
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
-    TYPE(type_ice_model),                   INTENT(INOUT) :: ice
-    TYPE(type_ocean_model),                 INTENT(INOUT) :: ocean
+    TYPE(type_ice_model),                   INTENT(IN)    :: ice
+    TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
@@ -583,7 +579,7 @@ CONTAINS
       CASE ('idealised')
         ! No need to do anything
       CASE ('parameterised')
-        CALL remap_ocean_model( mesh_old, mesh_new, ice, ocean, region_name)
+        ! we only need to run the BMB model again, considering the ocean model is remapped just before a call to this function
         CALL run_BMB_model_parameterised( mesh_new, ice, ocean, BMB)
       CASE ('inverted')
         ! No need to do anything

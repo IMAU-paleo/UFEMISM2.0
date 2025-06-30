@@ -11,9 +11,7 @@ MODULE laddie_physics
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
-  USE ice_model_types                                        , ONLY: type_ice_model
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
-  USE ocean_model_types                                      , ONLY: type_ocean_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
 
   IMPLICIT NONE
@@ -23,13 +21,12 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_melt_rate( mesh, ice, laddie, npx, Hstar, time)
+  SUBROUTINE compute_melt_rate( mesh, laddie, npx, Hstar, time)
     ! Compute melt rate using the three equations
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
@@ -76,12 +73,12 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          ! Solve three equations
-         That = freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
+         That = freezing_lambda_2 + freezing_lambda_3*laddie%Hib( vi)
          IF (time == C%start_time_of_run .OR. C%choice_thermo_model == 'none') THEN
            ! Ignore heat diffusion into ice
            Chat = cp_ocean / L_fusion
          ELSE
-           Chat = cp_ocean / (L_fusion - cp_ice * ice%Ti( vi, 1))
+           Chat = cp_ocean / (L_fusion - cp_ice * laddie%Ti( vi, 1))
          END IF
 
          Bval = Chat*laddie%gamma_T( vi)*(That - npx%T( vi)) + laddie%gamma_S( vi)*(1 + Chat*Ctil*(That + freezing_lambda_1*npx%S( vi)))
@@ -105,7 +102,7 @@ CONTAINS
              ! Ignore heat diffusion into ice
              laddie%T_base( vi) = (laddie%melt( vi) * L_fusion - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
            ELSE
-             laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * ice%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
+             laddie%T_base( vi) = (laddie%melt( vi) * (L_fusion - cp_ice * laddie%Ti( vi, 1)) - cp_ocean * laddie%gamma_T( vi) * npx%T( vi)) / Dval
            END IF
          END IF
 
@@ -117,13 +114,12 @@ CONTAINS
 
   END SUBROUTINE compute_melt_rate
 
-  SUBROUTINE compute_entrainment( mesh, ice, laddie, npx, Hstar)
+  SUBROUTINE compute_entrainment( mesh, laddie, npx, Hstar)
     ! Compute entrainment rate
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
     REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
@@ -141,7 +137,7 @@ CONTAINS
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
          ! Get salinity at ice base
-         laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 - freezing_lambda_3 * ice%Hib( vi)) / freezing_lambda_1
+         laddie%S_base( vi) = (laddie%T_base( vi) - freezing_lambda_2 - freezing_lambda_3 * laddie%Hib( vi)) / freezing_lambda_1
 
          ! Get buoyancy at ice base
          laddie%drho_base( vi) = C%uniform_laddie_eos_linear_beta  * (npx%S( vi)-laddie%S_base( vi)) &
@@ -165,14 +161,13 @@ CONTAINS
 
   END SUBROUTINE compute_entrainment
 
-  SUBROUTINE compute_freezing_temperature( mesh, ice, laddie, npx)
+  SUBROUTINE compute_freezing_temperature( mesh, laddie, npx)
     ! Compute freezing temperature at ice shelf base, based on Laddie salinity.
     ! TODO can maybe be merged with ice computation
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
 
@@ -185,7 +180,7 @@ CONTAINS
 
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 + freezing_lambda_3*ice%Hib( vi)
+         laddie%T_freeze( vi) = freezing_lambda_1*npx%S( vi) + freezing_lambda_2 + freezing_lambda_3*laddie%Hib( vi)
        END IF
     END DO
 

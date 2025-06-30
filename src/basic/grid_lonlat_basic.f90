@@ -96,13 +96,11 @@ CONTAINS
 
   END SUBROUTINE deallocate_lonlat_grid
 
-  SUBROUTINE deallocate_lat_grid( vec)
+  SUBROUTINE deallocate_lat_grid( grd)
     ! Deallocate memory for a lat-only grid object
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_grid_lat),              INTENT(INOUT) :: vec
+    TYPE(type_grid_lat),              INTENT(INOUT) :: grd
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_lat_grid'
@@ -110,9 +108,9 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (ALLOCATED( vec%lat )) DEALLOCATE( vec%lat )
-    IF (ALLOCATED( vec%ij2n)) DEALLOCATE( vec%ij2n)
-    IF (ALLOCATED( vec%n2ij)) DEALLOCATE( vec%n2ij)
+    IF (ALLOCATED( grd%lat )) DEALLOCATE( grd%lat )
+    IF (ALLOCATED( grd%ij2n)) DEALLOCATE( grd%ij2n)
+    IF (ALLOCATED( grd%n2ij)) DEALLOCATE( grd%n2ij)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

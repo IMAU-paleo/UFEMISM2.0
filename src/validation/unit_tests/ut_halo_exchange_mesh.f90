@@ -18,6 +18,7 @@ module ut_halo_exchange_mesh
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
   use mesh_refinement_basic, only: refine_mesh_uniform
   use mesh_secondary, only: calc_all_secondary_mesh_data
+  use mesh_contiguous_domains, only: enforce_contiguous_process_domains
 
   implicit none
 
@@ -62,6 +63,7 @@ contains
     call allocate_mesh_primary( mesh, name, 100, 200, C%nC_mem)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
     call refine_mesh_uniform( mesh, res_max, alpha_min)
+    call enforce_contiguous_process_domains( mesh)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
 
     ! Test halo exchange on this mesh

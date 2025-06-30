@@ -74,25 +74,21 @@ jobs:
           name: scoreboard_file_integrated_tests_idealised_SSA_icestream
           path: automated_testing/scoreboard/scoreboard_files
 
-      - name: Download scoreboard file for integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invpwf_40km
+      - name: Download scoreboard file for integrated_tests/idealised/Berends2023_nudging
         uses: actions/download-artifact@v4
         with:
-          name: scoreboard_file_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invpwf_40km
+          name: scoreboard_file_integrated_tests_idealised_Berends2023_nudging
+          path: automated_testing/scoreboard/scoreboard_files
+
+      - name: Download scoreboard file for integrated_tests/realistic/Antarctica/initialisation/Ant_init_20kyr_invBMB_invfric_40km
+        uses: actions/download-artifact@v4
+        with:
+          name: scoreboard_file_integrated_tests_realistic_Antarctica_initialisation_Ant_init_20kyr_invBMB_invfric_40km
           path: automated_testing/scoreboard/scoreboard_files
 
 # ===============================
 # ===== Finalise scoreboard =====
 # ===============================
-
-      - name: Commit scoreboard files
-        # See https://github.com/marketplace/actions/add-commit
-        if: ${{ github.event_name == 'pull_request' }} # Only do this for pull requests
-        uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
-        with:
-          add: automated_testing/scoreboard/scoreboard_files/*.xml
-          author_name: ${{ github.actor }} (from UFEMISM test suite workflow)
-          message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
-          push: true
 
       - name: Create scoreboard visualisation
         uses: matlab-actions/run-command@v2
@@ -106,3 +102,13 @@ jobs:
         with:
           name: scoreboard
           path: automated_testing/test_reports/scoreboard.html
+
+      - name: Commit scoreboard files
+        # See https://github.com/marketplace/actions/add-commit
+        if: ${{ github.event_name == 'pull_request' }} # Only do this for pull requests
+        uses: EndBug/add-and-commit@v9 # You can change this to use a specific version.
+        with:
+          add: automated_testing/scoreboard/scoreboard_files/*.xml
+          author_name: ${{ github.actor }} (from UFEMISM test suite workflow)
+          message: 'Update scoreboard files (from UFEMISM test suite workflow by ${{ github.actor }})'
+          push: true

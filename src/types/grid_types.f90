@@ -70,15 +70,10 @@ module grid_types
 
     ! Basic properties
     character(len=256)                      :: name         !           A nice name tag
-    !integer                                 :: nlon         !           Number of grid cells in the longitude direction
     integer                                 :: nlat         !           Number of grid cells in the latitude direction
     integer                                 :: n            !           Total number of grid cells (= nx * ny)
-    !real(dp)                                :: dlon         ! [degrees] Resolution in the longitude direction
     real(dp)                                :: dlat         ! [degrees] Resolution in the latitude direction
-    !real(dp), dimension(:    ), allocatable :: lon          ! [degrees east ] Longitude of each grid point
     real(dp), dimension(:    ), allocatable :: lat          ! [degrees north] Latitude  of each grid point
-    !real(dp)                                :: lonmin       ! [degrees east ] Lon/lat range covered by the grid
-    !real(dp)                                :: lonmax       ! [degrees east ]
     real(dp)                                :: latmin       ! [degrees north]
     real(dp)                                :: latmax       ! [degrees north]
 

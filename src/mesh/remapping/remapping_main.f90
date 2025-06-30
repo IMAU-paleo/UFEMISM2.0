@@ -33,6 +33,8 @@ module remapping_main
   public :: map_from_vertical_to_vertical_2D_ocean
   public :: map_from_mesh_vertices_to_transect_2D, map_from_mesh_vertices_to_transect_3D
   public :: map_from_mesh_triangles_to_transect_2D, map_from_mesh_triangles_to_transect_3D
+  public :: map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
+  public :: map_from_mesh_tri_to_mesh_tri_2D, map_from_mesh_tri_to_mesh_tri_3D
 
 contains
 
@@ -873,6 +875,189 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine map_from_mesh_to_mesh_3D
+
+  ! From a mesh to a mesh
+  subroutine map_from_mesh_tri_to_mesh_tri_with_reallocation_2D( mesh_src, mesh_dst, d_partial, method)
+    ! Map a 2-D data field from a mesh to a mesh.
+
+    ! In/output variables
+    type(type_mesh),                     intent(in)    :: mesh_src
+    type(type_mesh),                     intent(in)    :: mesh_dst
+    real(dp), dimension(:    ), allocatable, intent(inout) :: d_partial
+    character(len=*), optional,          intent(in)    :: method
+
+    ! Local variables:
+    character(len=1024), parameter                     :: routine_name = 'map_from_mesh_tri_to_mesh_tri_with_reallocation_2D'
+    real(dp), dimension(:    ), allocatable            :: d_partial_new
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! allocate memory for the remapped data field
+    allocate( d_partial_new( mesh_dst%ti1: mesh_dst%ti2))
+
+    ! Remap the data
+    call map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, d_partial, d_partial_new, method)
+
+    ! Move allocation (and automatically also deallocate old memory, nice little bonus!)
+    call MOVE_ALLOC( d_partial_new, d_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
+
+  subroutine map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+    ! Map a 2-D data field from a mesh to a mesh.
+
+    ! In/output variables
+    type(type_mesh),                     intent(in)    :: mesh_src
+    type(type_mesh),                     intent(in)    :: mesh_dst
+    real(dp), dimension(:    ),          intent(in)    :: d_src_partial
+    real(dp), dimension(:    ),          intent(out)   :: d_dst_partial
+    character(len=*), optional,          intent(in)    :: method
+
+    ! Local variables:
+    character(len=1024), parameter                     :: routine_name = 'map_from_mesh_tri_to_mesh_tri_2D'
+    logical                                            :: are_identical
+    integer                                            :: mi, mi_valid
+    logical                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! if the two meshes are identical, the remapping operation is trivial
+    call check_if_meshes_are_identical( mesh_src, mesh_dst, are_identical)
+    if (are_identical) then
+      d_dst_partial = d_src_partial
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .false.
+    do mi = 1, size( Atlas, 1)
+      if (Atlas( mi)%name_src == trim(mesh_src%name)//'_triangles' .and. &
+          Atlas( mi)%name_dst == trim(mesh_dst%name)//'_triangles') then
+        ! if so specified, look for a mapping object with the correct method
+        if (present( method)) then
+          if (Atlas( mi)%method /= method) cycle
+        end if
+        found_map = .true.
+        mi_valid  = mi
+        exit
+      end if
+    end do
+
+    ! if no appropriate mapping object could be found, create one.
+    if (.not. found_map) then
+      found_empty_page = .false.
+      do mi = 1, size( Atlas,1)
+        if (.not. Atlas( mi)%is_in_use) then
+          found_empty_page = .true.
+          if (present( method)) then
+            SELECT CASE (method)
+              CASE('2nd_order_conservative')
+                call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
+                  mesh_src, mesh_dst, Atlas( mi))
+              CASE DEFAULT
+                call crash('unknown remapping method "' // trim( method) // '"')
+            end SELECT
+          else
+              call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
+                mesh_src, mesh_dst, Atlas( mi))
+          end if
+          mi_valid = mi
+          exit
+        end if
+      end do
+      ! Safety
+      if (.not. found_empty_page) call crash('No more room in Atlas - assign more memory!')
+    end if
+
+    ! Apply the appropriate mapping object
+    call apply_map_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, Atlas( mi), d_src_partial, d_dst_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_tri_to_mesh_tri_2D
+
+  subroutine map_from_mesh_tri_to_mesh_tri_3D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+    ! Map a 3-D data field from a mesh to a mesh.
+
+    ! In/output variables
+    type(type_mesh),                     intent(in)    :: mesh_src
+    type(type_mesh),                     intent(in)    :: mesh_dst
+    real(dp), dimension(:,:  ),          intent(in)    :: d_src_partial
+    real(dp), dimension(:,:  ),          intent(out)   :: d_dst_partial
+    character(len=*), optional,          intent(in)    :: method
+
+    ! Local variables:
+    character(len=1024), parameter                     :: routine_name = 'map_from_mesh_to_mesh_3D'
+    logical                                            :: are_identical
+    integer                                            :: mi, mi_valid
+    logical                                            :: found_map, found_empty_page
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! if the two meshes are identical, the remapping operation is trivial
+    call check_if_meshes_are_identical( mesh_src, mesh_dst, are_identical)
+    if (are_identical) then
+      d_dst_partial = d_src_partial
+      call finalise_routine( routine_name)
+      return
+    end if
+
+    ! Browse the Atlas to see if an appropriate mapping object already exists.
+    found_map = .false.
+    do mi = 1, size( Atlas, 1)
+      if (Atlas( mi)%name_src == trim(mesh_src%name)//'_triangles' .and. &
+          Atlas( mi)%name_dst == trim(mesh_dst%name)//'_triangles') then
+        ! if so specified, look for a mapping object with the correct method
+        if (present( method)) then
+          if (Atlas( mi)%method /= method) cycle
+        end if
+        found_map = .true.
+        mi_valid  = mi
+        exit
+      end if
+    end do
+
+    ! if no appropriate mapping object could be found, create one.
+    if (.not. found_map) then
+      found_empty_page = .false.
+      do mi = 1, size( Atlas,1)
+        if (.not. Atlas( mi)%is_in_use) then
+          found_empty_page = .true.
+          if (present( method)) then
+            SELECT CASE (method)
+              CASE('2nd_order_conservative')
+                call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
+                  mesh_src, mesh_dst, Atlas( mi))
+              CASE DEFAULT
+                call crash('unknown remapping method "' // trim( method) // '"')
+            end SELECT
+          else
+              call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
+                mesh_src, mesh_dst, Atlas( mi))
+          end if
+          mi_valid = mi
+          exit
+        end if
+      end do
+      ! Safety
+      if (.not. found_empty_page) call crash('No more room in Atlas - assign more memory!')
+    end if
+
+    ! Apply the appropriate mapping object
+    call apply_map_mesh_tri_to_mesh_tri_3D( mesh_src, mesh_dst, Atlas( mi), d_src_partial, d_dst_partial)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine map_from_mesh_tri_to_mesh_tri_3D
 
   ! From a vertical grid to another within the same mesh
   subroutine map_from_vertical_to_vertical_2D_ocean( mesh, vert_src, vert_dst, d_src_partial, d_dst_partial)

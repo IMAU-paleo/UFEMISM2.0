@@ -10,11 +10,12 @@ from utils import *
 class Mesh(object):
     """ Properties and functions of a single mesh """
 
-    def __init__(self, directory, mesh):
+    def __init__(self, directory, mesh, file='main_output_ANT'):
         """ Gather basic info from run """
 
         self.directory = directory
         self.mesh = mesh
+        self.file = file
 
         self.got_voronois = False
         self.got_triangles = False
@@ -39,9 +40,15 @@ class Mesh(object):
 
         #Add data (voronois / triangles)
         for v,varname in enumerate(variables):
-            pcoll = self.get_pcoll(varname,t)
 
-            ax[v].add_collection(pcoll)
+            #Add data
+            pcoll = self.get_pcoll(varname,t)
+            im = ax[v].add_collection(pcoll)
+            im.cmap.set_bad('magenta')
+
+            #Add grounding line
+            gl = self.get_GL(t)
+            ax[v].plot(gl[0,:],gl[1,:],c='yellow',lw=.25)
 
             #Make up subplot
             ax[v].set_xlim([self.ds.xmin,self.ds.xmax])
@@ -74,7 +81,7 @@ class Mesh(object):
         self.close()
 
     def open(self):
-        self.ds = xr.open_dataset(f'{self.directory}/main_output_ANT_{self.mesh:05d}.nc')
+        self.ds = xr.open_dataset(f'{self.directory}/{self.file}_{self.mesh:05d}.nc')
         self.Ntimes = len(self.ds.time)
     
     def close(self):
@@ -94,11 +101,10 @@ class Mesh(object):
     def get_triangles(self):
         """ Extract triangles as patches """
         self.triangles = []
-        #for ti in range(0,len(self.ds.ti)):
-            #nVVor = self.ds.nVVor[vi].values
-            #VVor = self.ds.VVor[:nVVor,vi].values
-            #Vor = self.ds.Vor[:,VVor-1].values
-            #self.triangles.append(Polygon(Tri.T))
+        for ti in range(0,len(self.ds.ti)):
+            Tri = self.ds.Tri[:,ti].values
+            V = self.ds.V[:,Tri-1].values
+            self.triangles.append(Polygon(V.T))
         
         self.got_triangles = True
 
@@ -106,7 +112,14 @@ class Mesh(object):
         """ Get patch collection """
 
         #Get data
-        var = self.get_data(varname,t)
+        if varname == 'Uabs_lad':
+            var1 = self.get_data('U_lad',t)
+            var2 = self.get_data('V_lad',t)
+            var = (var1**2+var2**2)**.5
+        elif varname[:3] == 'BMB':
+            var = self.get_data('BMB',t)
+        else:
+            var = self.get_data(varname,t)
 
         #Get colormap info
         cmap,norm = get_cmap(varname)
@@ -124,7 +137,7 @@ class Mesh(object):
             print(f'ERROR: variable {varname} is not on vertices or triangles')
 
         # Fill array
-        if varname == 'BMB':
+        if varname[:3] == 'BMB':
             #Reverse values for BMB
             pcoll.set_array(-var.values)
         else:
@@ -132,10 +145,23 @@ class Mesh(object):
 
         return pcoll
 
+    def get_GL(self,t):
+        """ Extract grounding line """
+
+        # Read variable
+        try:
+            var = self.ds['grounding_line']
+            var = var.isel(time=t)
+        except:
+            print(f'ERROR: could not read grounding_line')
+            return
+
+        return var
+
     def get_data(self,varname,t):
         """ Get data array of variable for time slice t"""
 
-        # Read variable 
+        # Read variable
         try: 
             var = self.ds[varname]
         except:

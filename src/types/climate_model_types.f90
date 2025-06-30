@@ -11,7 +11,7 @@ MODULE climate_model_types
 
 ! ===== Types =====
 ! =================
-  TYPE type_climate_snapshot
+  TYPE type_climate_model_snapshot
     ! A single climate snapshot
 
     CHARACTER(LEN=256)                      :: name                          ! 'ERA40', 'HadCM3_PI', etc.
@@ -23,7 +23,7 @@ MODULE climate_model_types
     REAL(dp),                   ALLOCATABLE     :: orbit_obl
     REAL(dp),                   ALLOCATABLE     :: orbit_pre
     REAL(dp),                   ALLOCATABLE     :: sealevel
-    INTEGER :: wCO2, worbit_time, worbit_ecc, worbit_obl, worbit_pre, wsealevel
+    !INTEGER :: wCO2, worbit_time, worbit_ecc, worbit_obl, worbit_pre, wsealevel
 
     ! Climate data
     REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: Hs                            ! Orography (m w.r.t. PD sea level)
@@ -38,28 +38,39 @@ MODULE climate_model_types
     REAL(dp), DIMENSION(:,:), ALLOCATABLE     :: Wind_DU                       ! Monthly mean wind speed in the y-direction (m/s)
     !INTEGER :: wHs, wmask_ice, wmask_ocean, wmask_shelf, wT2m, wPrecip, wHs_ref, wWind_WE, wWind_SN, wWind_LR, wWind_DU
 
-    ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
-    REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: lambda
-    INTEGER :: wlambda
+          ! lapse-rate correction variables for GCM snapshots 
+      REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: lambda ! Spatially variable (see Berends et al., 2018)
+      LOGICAL                                   :: do_lapse_rates     ! whether or not to apply the lapse rates below
+      REAL(dp)                                  :: lapse_rate_precip  ! single-value per region (precipitation)
+      REAL(dp)                                  :: lapse_rate_temp    ! single-value per region (precipitation)
+
+      ! Insolation variables
+      LOGICAL                                     :: has_insolation          ! whether or not this instance of the climate model needs insolation data
+      INTEGER,                    ALLOCATABLE     :: ins_nyears
+      INTEGER,                    ALLOCATABLE     :: ins_nlat,ins_nlon
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_time
+      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_lat
+      REAL(dp),                   ALLOCATABLE     :: ins_t0, ins_t1
+      INTEGER,                    ALLOCATABLE     :: ins_ti0,ins_ti1
+      REAL(dp), DIMENSION(:,:  ), ALLOCATABLE     :: ins_Q_TOA0, ins_Q_TOA1
 
     ! Reference absorbed insolation (for GCM snapshots), or insolation at model time for the applied climate
     REAL(dp), DIMENSION(:,:), ALLOCATABLE     :: Q_TOA                         ! Monthly mean insolation at the top of the atmosphere (W/m2) (taken from the prescribed insolation solution at orbit_time)
     REAL(dp), DIMENSION(:,:), ALLOCATABLE     :: Albedo                        ! Monthly mean surface albedo (calculated using our own SMB scheme for consistency)
     REAL(dp), DIMENSION(:  ), ALLOCATABLE     :: I_abs                         ! Total yearly absorbed insolation, used in the climate matrix for interpolation
-    !INTEGER :: wQ_TOA, wAlbedo, wI_abs
 
-  END TYPE type_climate_snapshot
+  END TYPE type_climate_model_snapshot
   
    TYPE type_climate_model_matrix
     ! The "matrix" climate model option: three GCM snapshots (warm, cold, and PI), and a PD reanalysis snapshot to use for bias correction
 
     ! The three GCM snapshots
-    TYPE(type_climate_snapshot)             :: GCM_PI
-    TYPE(type_climate_snapshot)             :: GCM_warm
-    TYPE(type_climate_snapshot)             :: GCM_cold
+    TYPE(type_climate_model_snapshot)             :: GCM_PI
+    TYPE(type_climate_model_snapshot)             :: GCM_warm
+    TYPE(type_climate_model_snapshot)             :: GCM_cold
 
     ! The present-day climate
-    TYPE(type_climate_snapshot)             :: PD_obs
+    TYPE(type_climate_model_snapshot)             :: PD_obs
 
     ! GCM bias
     REAL(dp), DIMENSION(:,:), ALLOCATABLE     :: GCM_bias_T2m
@@ -102,47 +113,11 @@ MODULE climate_model_types
     REAL(dp)                                :: t_next
     
     ! Add different climate model options
+    TYPE(type_climate_model_snapshot)       :: snapshot
     TYPE(type_climate_model_matrix)         :: matrix             ! The "matrix"          climate model option: three GCM snapshots (warm, cold, and PI), and a PD reanalysis snapshot to use for bias correction
 
   END TYPE type_climate_model
   
-  TYPE type_global_forcing
-    ! Data structure containing model forcing data - CO2 record, d18O record, (global) insolation record
-
-      ! CO2 record
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_time
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: CO2_record
-      REAL(dp)                                    :: CO2_obs
-
-! not implemented yet, commented for now
-      ! d18O record
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_time
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: d18O_record
-      REAL(dp),                   ALLOCATABLE     :: d18O_obs
-      REAL(dp),                   ALLOCATABLE     :: d18O_obs_PD
-      INTEGER :: wd18O_time, wd18O_record, wd18O_obs, wd18O_obs_PD
-
-      ! Insolation reconstruction
-      !TYPE(type_netcdf_insolation)                :: netcdf_ins
-      INTEGER,                    ALLOCATABLE     :: ins_nyears
-      INTEGER,                    ALLOCATABLE     :: ins_nlat,ins_nlon
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_time
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: ins_lat
-      REAL(dp),                   ALLOCATABLE     :: ins_t0, ins_t1
-      INTEGER,                    ALLOCATABLE     :: ins_ti0,ins_ti1
-      REAL(dp), DIMENSION(:,:  ), ALLOCATABLE     :: ins_Q_TOA0, ins_Q_TOA1
-
-      ! Global mean sea level
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: sea_level_time
-      REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: sea_level_record 
-      REAL(dp),                   ALLOCATABLE     :: sl_t0, sl_t1, sl_at_t0, sl_at_t1
-      
-      
-      
-      INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
-      
-
-  END TYPE type_global_forcing
 
 CONTAINS
 
