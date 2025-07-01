@@ -96,7 +96,8 @@ class Figure(object):
 
         fig.suptitle(f'Year {field.Timeframe.time:.0f}')
 
-        plt.savefig(f'{self.directory}{figname}.png',bbox_inches = 'tight', pad_inches = 0,dpi=450)
+        fullfigname = os.path.join(self.directory,f'{figname}.png')
+        plt.savefig(fullfigname, bbox_inches = 'tight', pad_inches = 0,dpi=450)
         print(f'Created {figname}')
         plt.close()
 
