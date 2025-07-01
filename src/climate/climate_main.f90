@@ -39,7 +39,7 @@ CONTAINS
     TYPE(type_grid),                        INTENT(IN)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
-    TYPE(type_global_forcing),              INTENT(IN)    :: forcing
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
     TYPE(type_SMB_model), optional,         INTENT(IN)    :: SMB
@@ -117,7 +117,7 @@ CONTAINS
     type(type_grid),                        intent(in)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
-    TYPE(type_global_forcing),              INTENT(IN)    :: forcing
+    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:

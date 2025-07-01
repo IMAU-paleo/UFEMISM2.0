@@ -16,13 +16,13 @@ module climate_matrix
   USE global_forcing_types                                   , ONLY: type_global_forcing
   use SMB_model_types, only: type_SMB_model
 !  USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
-  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, get_insolation_at_time, update_CO2_at_model_time
+  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, initialise_insolation_forcing, initialise_CO2_record, get_insolation_at_time, update_CO2_at_model_time
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
   use mesh_data_smoothing, only: smooth_Gaussian
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D ! do I need to add more?
   use erf_mod, only: error_function
-  use SMB_parameterised, only: run_SMB_model_parameterised_IMAUITM
+  use SMB_IMAU_ITM, only: run_SMB_model_IMAUITM
   ! check the previous calleds
 !  use forcing_module, only: get_insolation_at_time, update_CO2_at_model_time
 ! added in climate_realistic the subroutines initialise_global_forcing, get_insolation_at_time, update_insolation_timeframes_from_file
@@ -64,13 +64,15 @@ contains
 
     IF (par%primary)  WRITE(*,"(A)") '      Running climate matrix model...'
 
-    print *, "size of SMB%Albedo just after entering run =", size(SMB%Albedo, 1), 'times', size(SMB%Albedo, 2)
+    print *, "size of SMB%Albedo just after entering run =", size(SMB%IMAUITM%Albedo, 1), 'times', size(SMB%IMAUITM%Albedo, 2)
 
     ! Update forcing at model time
     ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
-    CALL get_insolation_at_time( mesh, time, climate)
+    CALL get_insolation_at_time( mesh, time, climate%snapshot)
+    print *, "get insolation at time worked"
+    ! before the get_insolation_at_time updated the value of climate%Q_TOA, now it does to climate%snapshot%Q_TOA
     CALL update_CO2_at_model_time( time, forcing) 
-
+    print *, "update CO2 at model time worked"
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name, forcing)
 
@@ -187,7 +189,7 @@ contains
     DO m = 1, 12
       ! Calculate modelled absorbed insolation. Berends et al., 2018 - Eq. 2
       climate%matrix%I_abs( vi) = climate%matrix%I_abs( vi) + & 
-                                  climate%Q_TOA( vi,m) * (1._dp - SMB%Albedo( vi, m))  
+                                  climate%snapshot%Q_TOA( vi,m) * (1._dp - SMB%IMAUITM%Albedo( vi, m))  
     END DO
     END DO
     call sync
@@ -209,22 +211,24 @@ contains
                         ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
       else
         w_ins( vi)= 0.0_dp ! just for now IDK if it makes sense physically
-        print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
+        !print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
       end if
-    !print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
-    !print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
-    !print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
+    print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
+    print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
+    print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
     !print *, "print value of w_ins", w_ins(vi), "and vi = ", vi
     END DO
     call sync
-
+    
     IF (par%primary)  WRITE(*,"(A)") '   error step 1.5 ...'
     w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
                                                            (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
     ! Smooth the weighting field
+    IF (par%primary)  WRITE(*,"(A)") '   error step 1.6 ...'
     w_ins_smooth( mesh%vi1:mesh%vi2) = w_ins( mesh%vi1:mesh%vi2)
+    IF (par%primary)  WRITE(*,"(A)") '   error step 1.7 ...'
     CALL smooth_Gaussian( mesh, grid, w_ins_smooth, 200000._dp)
-
+    IF (par%primary)  WRITE(*,"(A)") '   error step 1.8 ...'
     ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       w_ice( mesh%vi1:mesh%vi2) = (1._dp * w_ins(        mesh%vi1:mesh%vi2) + &
@@ -508,14 +512,22 @@ contains
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
     ! Get reference absorbed insolation for the GCM snapshots
+    ! I think inside this code I need to change the section of the forcings to use the one in climate realistic
     CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, forcing, ice)
     CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, forcing, ice)
 
     ! Initialise applied climate with present-day observations
 ! initialise climate model for realistic climate, just for now, so I will have all allocate from the realistic climate
-   call initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
-   ! this will also initialise the insolation and CO2 routine
+!! CHANGE THIS PART OF THE CODE, INSTEAD OF CALLING THE INITIALISE WRITE THE CODE HERE, THE IDEA IS INITIALISE
+! FOR THE VARIABLE BELOW AS ALSO THE SAME THAT DOES IN REALISTIC, JUST CLIMATE% AND CLIMATE%SNAPSHOT FOR Q_TOA...
 
+!! MAIN VARIABLES ARE INITALISED ALREADY IN MAIN.. SO I NEED TO ALLOCATE THE ONES FOR THE ISOLATION FORCING, SHOULD BE THE SAME AS ABOVE NO?
+!! CHANGE THE INITIALISE CODE FROM CLIMATE REALISTIC TO MAKE IT WORK FOR SNAPSHOTS, AND THEN I CAN INITIALISE IT FOR EACH SNAPSHOT THAT I HAVE
+!! THEN TWO OPTIONS, OVERWRITE THE VALUES FOR climate%Ins or whatever, or change the code to make it work for climate%snapshot
+   call initialise_insolation_forcing( climate%snapshot, mesh) ! this will initialise climate%snapshot%Q_TOA
+   !call initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
+   ! this will also initialise the insolation and CO2 routine
+   call initialise_CO2_record( forcing)
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
       climate%T2m(     vi,m) = climate%matrix%PD_obs%T2m(     vi,m)
@@ -541,7 +553,7 @@ contains
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_climate_snapshot),         INTENT(INOUT) :: snapshot
+    TYPE(type_climate_model_snapshot),   INTENT(INOUT) :: snapshot
     CHARACTER(LEN=*),                    INTENT(IN)    :: name
 
     ! Local variables:
@@ -577,10 +589,11 @@ contains
 
     allocate( snapshot%lambda( mesh%vi1:mesh%vi2))
     !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%lambda,         snapshot%wlambda        )
-    
-    allocate( snapshot%Q_TOA(  mesh%vi1:mesh%vi2, 12))
-    allocate( snapshot%Albedo( mesh%vi1:mesh%vi2, 12))
-    allocate( snapshot%I_abs(  mesh%vi1:mesh%vi2))
+   
+    ! these are now also allocated in initalise_insolation_forcing, commented for now?
+    !allocate( snapshot%Q_TOA(  mesh%vi1:mesh%vi2, 12))
+    !allocate( snapshot%Albedo( mesh%vi1:mesh%vi2, 12))
+    !allocate( snapshot%I_abs(  mesh%vi1:mesh%vi2))
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Q_TOA,          snapshot%wQ_TOA         )
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Albedo,         snapshot%wAlbedo        )
     !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%I_abs,          snapshot%wI_abs         )
@@ -599,7 +612,7 @@ contains
     ! In/output variables:
     CHARACTER(LEN=256),                 INTENT(IN)    :: filename
     TYPE(type_mesh),                    INTENT(IN)    :: mesh
-    TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
+    TYPE(type_climate_model_snapshot),        INTENT(INOUT) :: snapshot
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot'
@@ -657,7 +670,7 @@ contains
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_climate_snapshot),         INTENT(IN)    :: GCM_PI, PD_obs
+    TYPE(type_climate_model_snapshot),   INTENT(IN)    :: GCM_PI, PD_obs
     !type(type_climate_model_matrix), intent(out) :: matrix
    !dimension(mesh%ti1:mesh%ti2,mesh%nz) try with this 
     REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),          INTENT(OUT)   :: GCM_bias_T2m
@@ -697,7 +710,7 @@ contains
 
     ! In/output variables:
     TYPE(type_mesh),                      INTENT(IN)    :: mesh
-    TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
+    TYPE(type_climate_model_snapshot),          INTENT(INOUT) :: snapshot
     REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),           INTENT(IN)    :: bias_T2m
     REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),           INTENT(IN)    :: bias_Precip
 
@@ -731,8 +744,8 @@ contains
     ! In/output variables:
     TYPE(type_mesh),                      INTENT(IN)    :: mesh
     TYPE(type_grid),                      INTENT(IN)    :: grid_smooth
-    TYPE(type_climate_snapshot),          INTENT(IN)    :: snapshot_PI
-    TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
+    TYPE(type_climate_model_snapshot),          INTENT(IN)    :: snapshot_PI
+    TYPE(type_climate_model_snapshot),          INTENT(INOUT) :: snapshot
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_calc_spatially_variable_lapserate'
@@ -839,7 +852,7 @@ contains
 
     ! In/output variables:
     TYPE(type_mesh),                      INTENT(IN)    :: mesh
-    TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
+    TYPE(type_climate_model_snapshot),    INTENT(INOUT) :: snapshot
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
     type(type_ice_model),                   intent(in)    :: ice
@@ -854,7 +867,8 @@ contains
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
+    ! Initialise the insolation variables inside snapshot
+    call initialise_insolation_forcing(snapshot, mesh)
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
 ! ADDED snapshot%forcing
@@ -872,7 +886,7 @@ contains
     ! Allocate shared memory
     allocate( climate_dummy%T2m(    mesh%vi1:mesh%vi2, 12))
     allocate( climate_dummy%Precip( mesh%vi1:mesh%vi2, 12))
-    allocate( climate_dummy%Q_TOA(  mesh%vi1:mesh%vi2, 12))
+    allocate( climate_dummy%snapshot%Q_TOA(  mesh%vi1:mesh%vi2, 12))
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%T2m,    climate_dummy%wT2m)
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Precip, climate_dummy%wPrecip)
     !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Q_TOA,  climate_dummy%wQ_TOA)
@@ -880,7 +894,7 @@ contains
     ! Copy climate fields
     climate_dummy%T2m(    mesh%vi1:mesh%vi2,:) = snapshot%T2m(    mesh%vi1:mesh%vi2,:)
     climate_dummy%Precip( mesh%vi1:mesh%vi2,:) = snapshot%Precip( mesh%vi1:mesh%vi2,:)
-    climate_dummy%Q_TOA(  mesh%vi1:mesh%vi2,:) = snapshot%Q_TOA(  mesh%vi1:mesh%vi2,:)
+    climate_dummy%snapshot%Q_TOA(  mesh%vi1:mesh%vi2,:) = snapshot%Q_TOA(  mesh%vi1:mesh%vi2,:)
 
     ! Ice
     ! ===
@@ -917,19 +931,19 @@ contains
 
     ! SMB
     ! ===
-    allocate( SMB_dummy%AlbedoSurf      (mesh%vi1:mesh%vi2))
-    allocate( SMB_dummy%Rainfall        (mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Snowfall        (mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%AddedFirn       (mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Melt            (mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Refreezing      (mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Refreezing_year (mesh%vi1:mesh%vi2))
-    allocate( SMB_dummy%Runoff          (mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Albedo          (mesh%vi1:mesh%vi2, 12))
-    allocate( SMB_dummy%Albedo_year     (mesh%vi1:mesh%vi2))
-    allocate( SMB_dummy%SMB_monthly     (mesh%vi1:mesh%vi2,12))
-    allocate( SMB_dummy%FirnDepth       (mesh%vi1:mesh%vi2,12))
-    allocate( SMB_dummy%MeltPreviousYear(mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%IMAUITM%AlbedoSurf      (mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%IMAUITM%Rainfall        (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%IMAUITM%Snowfall        (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%IMAUITM%AddedFirn       (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%IMAUITM%Melt            (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%IMAUITM%Refreezing      (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%IMAUITM%Refreezing_year (mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%IMAUITM%Runoff          (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%IMAUITM%Albedo          (mesh%vi1:mesh%vi2, 12))
+    allocate( SMB_dummy%IMAUITM%Albedo_year     (mesh%vi1:mesh%vi2))
+    allocate( SMB_dummy%IMAUITM%SMB_monthly     (mesh%vi1:mesh%vi2,12))
+    allocate( SMB_dummy%IMAUITM%FirnDepth       (mesh%vi1:mesh%vi2,12))
+    allocate( SMB_dummy%IMAUITM%MeltPreviousYear(mesh%vi1:mesh%vi2))
     allocate( SMB_dummy%SMB             (mesh%vi1:mesh%vi2))
     SMB_dummy%SMB = 0._dp
 
@@ -941,28 +955,28 @@ contains
 
     IF (par%primary) THEN
       IF     (region_name == 'NAM') THEN
-        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_NAM
-        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_NAM
-        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_NAM
-        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_NAM
+        SMB_dummy%IMAUITM%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_NAM
+        SMB_dummy%IMAUITM%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_NAM
+        SMB_dummy%IMAUITM%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_NAM
+        SMB_dummy%IMAUITM%C_refr         = C%SMB_IMAUITM_C_refr_NAM
         choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_NAM
       ELSEIF (region_name == 'EAS') THEN
-        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_EAS
-        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_EAS
-        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_EAS
-        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_EAS
+        SMB_dummy%IMAUITM%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_EAS
+        SMB_dummy%IMAUITM%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_EAS
+        SMB_dummy%IMAUITM%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_EAS
+        SMB_dummy%IMAUITM%C_refr         = C%SMB_IMAUITM_C_refr_EAS
         choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_EAS
       ELSEIF (region_name == 'GRL') THEN
-        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_GRL
-        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_GRL
-        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_GRL
-        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_GRL
+        SMB_dummy%IMAUITM%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_GRL
+        SMB_dummy%IMAUITM%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_GRL
+        SMB_dummy%IMAUITM%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_GRL
+        SMB_dummy%IMAUITM%C_refr         = C%SMB_IMAUITM_C_refr_GRL
         choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_GRL
       ELSEIF (region_name == 'ANT') THEN
-        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_ANT
-        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_ANT
-        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_ANT
-        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_ANT
+        SMB_dummy%IMAUITM%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_ANT
+        SMB_dummy%IMAUITM%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_ANT
+        SMB_dummy%IMAUITM%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_ANT
+        SMB_dummy%IMAUITM%C_refr         = C%SMB_IMAUITM_C_refr_ANT
         choice_SMB_IMAUITM_init_firn_dummy = C%choice_SMB_IMAUITM_init_firn_ANT
       END IF
     END IF ! IF (par%primary) THEN
@@ -978,11 +992,11 @@ contains
     ! Initialise with a uniform firn layer over the ice sheet
     DO vi = mesh%vi1, mesh%vi2
       IF (ice%Hi( vi) > 0._dp) THEN
-        SMB_dummy%FirnDepth(        vi,:) = C%SMB_IMAUITM_initial_firn_thickness
-        SMB_dummy%MeltPreviousYear(   vi) = 0._dp
+        SMB_dummy%IMAUITM%FirnDepth(        vi,:) = C%SMB_IMAUITM_initial_firn_thickness
+        SMB_dummy%IMAUITM%MeltPreviousYear(   vi) = 0._dp
       ELSE
-        SMB_dummy%FirnDepth(        vi,:) = 0._dp
-        SMB_dummy%MeltPreviousYear(   vi) = 0._dp
+        SMB_dummy%IMAUITM%FirnDepth(        vi,:) = 0._dp
+        SMB_dummy%IMAUITM%MeltPreviousYear(   vi) = 0._dp
       END IF
     END DO
 
@@ -990,28 +1004,28 @@ contains
     DO vi = mesh%vi1, mesh%vi2
       ! Background albedo
       IF (ice%Hb( vi) < 0._dp) THEN
-        SMB_dummy%AlbedoSurf( vi) = 0.1_dp ! albedo_water
+        SMB_dummy%IMAUITM%AlbedoSurf( vi) = 0.1_dp ! albedo_water
       ELSE
-        SMB_dummy%AlbedoSurf( vi) = 0.2_dp ! albedo_soil
+        SMB_dummy%IMAUITM%AlbedoSurf( vi) = 0.2_dp ! albedo_soil
       END IF
       IF (ice%Hi( vi) > 0._dp) THEN
-        SMB_dummy%AlbedoSurf(  vi) = 0.85_dp ! albedo_snow
+        SMB_dummy%IMAUITM%AlbedoSurf(  vi) = 0.85_dp ! albedo_snow
       END IF
-      SMB_dummy%Albedo( vi,:) = SMB_dummy%AlbedoSurf( vi)
+      SMB_dummy%IMAUITM%Albedo( vi,:) = SMB_dummy%IMAUITM%AlbedoSurf( vi)
     END DO
 
     ! Run the SMB model for 10 years for this particular climate
     ! (experimentally determined to be long enough to converge)
     if (par%primary) write(*,"(A)") '      Running SMB during initialise_matrix_calc_absorbed_insolation'
     DO i = 1, 10
-      CALL run_SMB_model_parameterised_IMAUITM( mesh, ice_dummy, climate_dummy, SMB_dummy)
+      CALL run_SMB_model_IMAUITM( mesh, ice_dummy, SMB_dummy, climate_dummy)
     END DO
 
     ! Calculate yearly total absorbed insolation
     snapshot%I_abs( mesh%vi1:mesh%vi2) = 0._dp
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-      snapshot%I_abs( vi) = snapshot%I_abs( vi) + snapshot%Q_TOA( vi,m) * (1._dp - SMB_dummy%Albedo( vi,m))
+      snapshot%I_abs( vi) = snapshot%I_abs( vi) + snapshot%Q_TOA( vi,m) * (1._dp - SMB_dummy%IMAUITM%Albedo( vi,m))
     END DO
     END DO
 
