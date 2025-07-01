@@ -186,8 +186,8 @@ MODULE laddie_model_types
     real(dp), dimension(:), contiguous, pointer :: domain_a        => null()  ! []                Floating domain on a grid
     real(dp), dimension(:), contiguous, pointer :: domain_b        => null()  ! []                Floating domain on b grid
     type(MPI_WIN) :: wdomain_a, wdomain_b
-    real(dp)                                    :: area_a                     ! [s]               Integrated area on a grid
-    real(dp)                                    :: area_b                     ! [s]               Integrated area on b grid
+    real(dp)                                    :: area_a                     ! [m^2]             Integrated area on a grid
+    real(dp)                                    :: area_b                     ! [m^2]             Integrated area on b grid
 
     ! Mapping operators
     TYPE(type_sparse_matrix_CSR_dp)         :: M_map_H_a_b

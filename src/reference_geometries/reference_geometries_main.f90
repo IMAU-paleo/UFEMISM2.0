@@ -15,7 +15,6 @@ module reference_geometries_main
   use grid_basic, only: type_grid, setup_square_grid
   use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use ice_geometry_basics, only: ice_surface_elevation
-  use analytical_solutions, only: Halfar_dome, Bueler_dome
   use netcdf_io_main
   use remapping_main, only: map_from_xy_grid_to_mesh_2D, map_from_mesh_to_mesh_2D
   use preprocess_geometry, only: smooth_model_geometry, remove_Lake_Vostok, remove_Ellesmere, remove_tiny_islands
