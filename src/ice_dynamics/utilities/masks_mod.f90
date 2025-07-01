@@ -253,7 +253,8 @@ contains
         case ('')
           ! No region requested: don't need to do anything
           exit
-        case ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC','TransMounts','DotsonCrosson', 'Franka_WAIS', & ! Antarctica
+        case ('PineIsland','Thwaites','Amery','RiiserLarsen','SipleCoast', 'LarsenC', &
+              'TransMounts','DotsonCrosson', 'Franka_WAIS', 'Dotson_channel', &                                       ! Antarctica
               'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                    ! Greenland
               'Patagonia', &                                                                                          ! Patagonia
               'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                              ! Idealised
@@ -332,6 +333,8 @@ contains
               call calc_polygon_CalvMIP_quarter( poly_ROI)
             case ('Franka_WAIS')
               call calc_polygon_Franka_WAIS( poly_ROI)
+            case ('Dotson_channel')
+              call calc_polygon_Dotson_channel( poly_ROI)
             case default
               ! Requested area not in this model domain; skip
               cycle
