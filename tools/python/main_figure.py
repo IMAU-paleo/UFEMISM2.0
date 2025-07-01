@@ -90,6 +90,8 @@ class Figure(object):
             field.ax.set_yticks([])
 
         plt.savefig(f'{self.directory}{figname}.png',bbox_inches = 'tight', pad_inches = 0,dpi=450)
+        print(f'Created {figname}')
+        plt.close()
 
         return
 
@@ -128,6 +130,8 @@ class Field(object):
             uvar = self.Timeframe.ds['U_lad']
             vvar = self.Timeframe.ds['V_lad']
             self.data = (uvar**2+vvar**2)**.5
+        elif self.varname[:3] == 'BMB':
+            self.data = -self.Timeframe.ds['BMB']
         else:
             try:
                 self.data = self.Timeframe.ds[self.varname]
@@ -135,19 +139,22 @@ class Field(object):
                 print(f"ERROR: {self.varname} not in Timeframe")
                 return
 
-        if self.varname == 'BMB':
-            self.data = -self.data
-
         if self.mask is not None:
-            if not self.Timeframe.got_mask:
-                self.Timeframe.get_mask()
+            if 'vi' in self.data.dims:
+                if not self.Timeframe.got_mask:
+                    self.Timeframe.get_mask()
 
-            if self.mask == 'shelf':
-                self.data = xr.where(self.Timeframe.mask == 4, self.data, np.nan)
-            elif self.mask == 'ice':
-                self.data = xr.where([x in [3,4] for x in self.Timeframe.mask], self.data, np.nan)
+                if self.mask == 'shelf':
+                    self.data = xr.where(self.Timeframe.mask == 4, self.data, np.nan)
+                elif self.mask == 'ice':
+                    self.data = xr.where([x in [3,4] for x in self.Timeframe.mask], self.data, np.nan)
+                else:
+                    raise ValueError('Invalid option for mask')
+            elif 'ti' in self.data.dims:
+                # Just mask out zero values, no clean option yet
+                self.data = xr.where(self.data==0, np.nan, self.data)
             else:
-                raise ValueError('Invalid option for mask')
+                print(f'ERROR: variable {varname} is not on vertices or triangles')
 
             message = f"Extracted {self.varname} with mask {self.mask}"
         else:
