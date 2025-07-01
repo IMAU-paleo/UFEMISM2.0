@@ -2,7 +2,7 @@ module allocate_dist_shared_mod
 
   use precisions, only: dp
   use mpi_basic, only: par, sync_node
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, n_MPI_windows_used
   use, intrinsic :: iso_c_binding, only: c_ptr, c_f_pointer
   use mpi_f08, only: MPI_WIN, MPI_ADDRESS_KIND, MPI_WIN_ALLOCATE_SHARED, MPI_INFO_NULL, &
     MPI_WIN_SHARED_QUERY
@@ -75,8 +75,8 @@ contains
     if (par%node_primary) p = .false.
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -127,8 +127,8 @@ contains
     if (par%node_primary) p = .false.
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -179,8 +179,8 @@ contains
     if (par%node_primary) p = .false.
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -231,8 +231,8 @@ contains
     if (par%node_primary) p = 0
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -283,8 +283,8 @@ contains
     if (par%node_primary) p = 0
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -335,8 +335,8 @@ contains
     if (par%node_primary) p = 0
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -387,8 +387,8 @@ contains
     if (par%node_primary) p = 0._dp
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -439,8 +439,8 @@ contains
     if (par%node_primary) p = 0._dp
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -491,8 +491,8 @@ contains
     if (par%node_primary) p = 0._dp
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -543,8 +543,8 @@ contains
     if (par%node_primary) p = 0._dp
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -595,8 +595,8 @@ contains
     if (par%node_primary) p = 0._dp
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -647,8 +647,8 @@ contains
     if (par%node_primary) p = 0._dp
     call sync_node
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows + 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used + 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
