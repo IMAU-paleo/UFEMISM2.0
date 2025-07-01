@@ -7,7 +7,7 @@ module ct_remapping_basic
   use grid_types, only: type_grid
   use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
   use mpi_basic, only: par
-  use analytical_solutions, only: Halfar_dome
+  use Halfar_SIA_solution, only: Halfar
 
   implicit none
 
@@ -94,7 +94,7 @@ contains
     real(dp), parameter :: R0 = 2000e3_dp
     real(dp), parameter :: t = 0._dp
 
-    call Halfar_dome( A, n, H0, R0, x, y, t, d)
+    d = Halfar%H( A, n, H0, R0, x, y, t)
 
   end function test_function_Halfar
 

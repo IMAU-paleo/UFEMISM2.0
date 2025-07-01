@@ -12,7 +12,7 @@ module sliding_laws
   use mesh_disc_apply_operators, only: map_b_a_2D
   use mesh_utilities, only: extrapolate_Gaussian
   use mpi_distributed_memory, only: gather_to_all
-  use analytical_solutions, only: Schoof2006_icestream
+  use Schoof_SSA_solution, only: Schoof2006_icestream
 
   implicit none
 

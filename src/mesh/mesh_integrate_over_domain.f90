@@ -17,13 +17,14 @@ module mesh_integrate_over_domain
 
 contains
 
-  subroutine integrate_over_domain( mesh, d, int_d)
+  subroutine integrate_over_domain( mesh, d, int_d, max_d, min_d)
     !< Integrate a function defined on the mesh over the domain
 
     ! In/output variables:
     type(type_mesh),                intent(in   ) :: mesh
     real(dp), dimension(:), target, intent(in   ) :: d
     real(dp),                       intent(  out) :: int_d
+    real(dp),             optional, intent(  out) :: max_d, min_d
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'integrate_over_domain'
@@ -33,23 +34,23 @@ contains
     call init_routine( routine_name)
 
     if     (size( d,1) == mesh%pai_V%n_loc) then
-      call integrate_over_domain_a( mesh, d, int_d)
+      call integrate_over_domain_a( mesh, d, int_d, max_d, min_d)
     elseif (size( d,1) == mesh%pai_V%n_nih) then
       d_nih( mesh%pai_V%i1_nih:mesh%pai_V%i2_nih) => d
       d_loc => d_nih( mesh%pai_V%i1:mesh%pai_V%i2)
-      call integrate_over_domain_a( mesh, d_loc, int_d)
+      call integrate_over_domain_a( mesh, d_loc, int_d, max_d, min_d)
     elseif (size( d,1) == mesh%pai_Tri%n_loc) then
-      call integrate_over_domain_b( mesh, d, int_d)
+      call integrate_over_domain_b( mesh, d, int_d, max_d, min_d)
     elseif (size( d,1) == mesh%pai_Tri%n_nih) then
       d_nih( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih) => d
       d_loc => d_nih( mesh%pai_Tri%i1:mesh%pai_Tri%i2)
-      call integrate_over_domain_b( mesh, d_loc, int_d)
+      call integrate_over_domain_b( mesh, d_loc, int_d, max_d, min_d)
     elseif (size( d,1) == mesh%pai_E%n_loc) then
-      call integrate_over_domain_c( mesh, d, int_d)
+      call integrate_over_domain_c( mesh, d, int_d, max_d, min_d)
     elseif (size( d,1) == mesh%pai_E%n_nih) then
       d_nih( mesh%pai_E%i1_nih:mesh%pai_E%i2_nih) => d
       d_loc => d_nih( mesh%pai_E%i1:mesh%pai_E%i2)
-      call integrate_over_domain_c( mesh, d_loc, int_d)
+      call integrate_over_domain_c( mesh, d_loc, int_d, max_d, min_d)
     else
       call crash('invalid vector size')
     end if
@@ -141,13 +142,14 @@ contains
 
   end subroutine calc_and_print_min_mean_max
 
-  subroutine integrate_over_domain_a( mesh, d, int_d)
+  subroutine integrate_over_domain_a( mesh, d, int_d, max_d, min_d)
     !< Integrate a function defined on the mesh vertices over the domain
 
     ! In/output variables:
     type(type_mesh),                         intent(in   ) :: mesh
     real(dp), dimension( mesh%vi1:mesh%vi2), intent(in   ) :: d
     real(dp),                                intent(  out) :: int_d
+    real(dp),                      optional, intent(  out) :: max_d, min_d
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'integrate_over_domain_a'
@@ -162,18 +164,29 @@ contains
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
+    if (present( max_d)) then
+      max_d = maxval( d)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, max_d, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    end if
+
+    if (present( min_d)) then
+      min_d = minval( d)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, min_d, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine integrate_over_domain_a
 
-  subroutine integrate_over_domain_b( mesh, d, int_d)
+  subroutine integrate_over_domain_b( mesh, d, int_d, max_d, min_d)
     !< Integrate a function defined on the mesh vertices over the domain
 
     ! In/output variables:
     type(type_mesh),                         intent(in   ) :: mesh
     real(dp), dimension( mesh%ti1:mesh%ti2), intent(in   ) :: d
     real(dp),                                intent(  out) :: int_d
+    real(dp),                      optional, intent(  out) :: max_d, min_d
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'integrate_over_domain_b'
@@ -188,18 +201,29 @@ contains
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
+    if (present( max_d)) then
+      max_d = maxval( d)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, max_d, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    end if
+
+    if (present( min_d)) then
+      min_d = minval( d)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, min_d, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    end if
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine integrate_over_domain_b
 
-  subroutine integrate_over_domain_c( mesh, d, int_d)
+  subroutine integrate_over_domain_c( mesh, d, int_d, max_d, min_d)
     !< Integrate a function defined on the mesh edges over the domain
 
     ! In/output variables:
     type(type_mesh),                         intent(in   ) :: mesh
     real(dp), dimension( mesh%ei1:mesh%ei2), intent(in   ) :: d
     real(dp),                                intent(  out) :: int_d
+    real(dp),                      optional, intent(  out) :: max_d, min_d
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'integrate_over_domain_c'
@@ -213,6 +237,16 @@ contains
       int_d = int_d + d( ei) * mesh%EA( ei)
     end do
     call MPI_ALLREDUCE( MPI_IN_PLACE, int_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    if (present( max_d)) then
+      max_d = maxval( d)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, max_d, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    end if
+
+    if (present( min_d)) then
+      min_d = minval( d)
+      call MPI_ALLREDUCE( MPI_IN_PLACE, min_d, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)
