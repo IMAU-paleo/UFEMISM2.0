@@ -39,9 +39,10 @@ class Figure(object):
 
         return f"Set figure orientation to {self.orientation}"
 
-    def add_field(self,Field):
+    def add_field(self, Timeframe, varname, mask=None):
+        field = Field(Timeframe, varname, mask=mask)
 
-        self.fields[Field.name] = Field
+        self.fields[field.name] = field
         return 
 
     def delete_field(self,fieldname):
