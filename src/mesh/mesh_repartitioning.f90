@@ -96,7 +96,7 @@ contains
     call deallocate_dist_shared( mask_active_b_tot, wmask_active_b_tot)
 
     ! Finalise routine path
-    call finalise_routine( routine_name)
+    call finalise_routine( routine_name, n_extra_MPI_windows_expected = 12)
 
   end subroutine repartition_mesh
 

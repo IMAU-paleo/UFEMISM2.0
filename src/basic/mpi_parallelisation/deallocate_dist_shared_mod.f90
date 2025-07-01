@@ -1,7 +1,7 @@
 module deallocate_dist_shared_mod
 
   use precisions, only: dp
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, n_MPI_windows_used
   use mpi_f08, only: MPI_WIN, MPI_WIN_FREE
 
   implicit none
@@ -48,8 +48,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -76,8 +76,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -104,8 +104,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -132,8 +132,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -160,8 +160,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -188,8 +188,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -216,8 +216,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -244,8 +244,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -272,8 +272,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -300,8 +300,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -328,8 +328,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
@@ -356,8 +356,8 @@ contains
     nullify( p)
     call MPI_WIN_FREE( win, ierr)
 
-    ! ! Update the n_MPI_windows memory leak tracker
-    ! n_MPI_windows = n_MPI_windows - 1
+    ! Update the shared memory leak tracker
+    n_MPI_windows_used = n_MPI_windows_used - 1
 
     ! Add routine to path
     call finalise_routine( routine_name)
