@@ -10,10 +10,11 @@ from utils import *
 class Mesh(object):
     """ Properties and functions of a single mesh """
 
-    def __init__(self, directory, mesh_number, file='main_output_ANT'):
+    def __init__(self, Run, mesh_number, file='main_output_ANT'):
         """ Gather basic info from run """
 
-        self.directory = directory
+        self.Run = Run
+        self.directory = self.Run.directory
         self.mesh_number = mesh_number
         self.file = file
 
@@ -28,63 +29,6 @@ class Mesh(object):
 
     def __str__(self):
         return f"Mesh number {self.mesh_number} of Run '{self.directory}'"
-
-    def make_plot(self,variables,t,f=None,ncols=1,dpi=1200,format='png',purpose='single'):
-        """ Make a figure of requested variables at time slice t """
-
-        assert purpose in ['single','movie'], 'ERROR: invalid purpose in make_plot'
-
-        if purpose == 'movie':
-            assert f is not None, "ERROR: provide frame number f in make_plot or change purpose to 'single' "
-            assert format == 'png', "ERROR: format for movie must be 'png'"
-
-        # Open data set
-        self.open()
-
-        #Prepare figure
-        fig,ax = plt.subplots(len(variables),ncols,sharex=True,sharey=True)
-
-        #Add data (voronois / triangles)
-        for v,varname in enumerate(variables):
-
-            #Add data
-            pcoll = self.get_pcoll(varname,t)
-            im = ax[v].add_collection(pcoll)
-            im.cmap.set_bad('magenta')
-
-            #Add grounding line
-            gl = self.get_GL(t)
-            ax[v].plot(gl[0,:],gl[1,:],c='yellow',lw=.25)
-
-            #Make up subplot
-            ax[v].set_xlim([self.ds.xmin,self.ds.xmax])
-            ax[v].set_ylim([self.ds.ymin,self.ds.ymax])
-            ax[v].set_aspect(1)
-
-        #Add time if movie
-        if purpose=='movie':
-            ax[0].set_title(f'Year {self.ds.time[t].values:.0f}')
-
-        #Save figure
-        if purpose=='single':
-            check_create_dir(f'{self.directory}/figures')
-            figname = f'{self.directory}/figures/'
-            for varname in variables:
-                figname += f'{varname}_'
-            figname += f'{int(self.ds.time[t].values):06d}.{format}'
-        elif purpose=='movie':
-            check_create_dir(f'{self.directory}/movie')
-            figname = f'{self.directory}/movie/frame_{f:03d}.png'
-
-        plt.savefig(figname,dpi=dpi)
-        print(f'Created {figname}')
-
-        #Clean up
-        plt.close()
-        del fig, ax, pcoll
-
-        # Close data set
-        self.close()
 
     def open(self):
         self.ds = xr.open_dataset(f'{self.directory}/{self.file}_{self.mesh_number:05d}.nc')
@@ -134,6 +78,7 @@ class Timeframe(object):
         self.t = t
 
         self.ds = self.Mesh.ds.isel(time=t)
+        self.time = self.ds.time.values
 
         self.got_gl = False
         self.got_mask = False

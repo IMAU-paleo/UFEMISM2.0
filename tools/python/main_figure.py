@@ -54,7 +54,7 @@ class Figure(object):
         print(self.fields.keys())
         return
 
-    def make(self,figname,dxmin=0,dxmax=0,dymin=0,dymax=0):
+    def make(self,figname,dxmin=0,dxmax=0,dymin=0,dymax=0, add_gl=True):
 
         fig = plt.figure(figsize=self.figsize,constrained_layout=True)
 
@@ -83,11 +83,18 @@ class Figure(object):
             cbar = plt.colorbar(im,cax=field.cax,orientation=self.orientation)
             cbar.set_label(field.varname)
 
+            if add_gl:
+                if not field.Timeframe.got_gl:
+                    field.Timeframe.get_gl()
+                field.ax.plot(field.Timeframe.gl[0,:],field.Timeframe.gl[1,:],c='k',lw=.5)
+
             field.ax.set_xlim([field.xmin+dxmin,field.xmax-dxmax])
             field.ax.set_ylim([field.ymin+dymin,field.ymax-dymax])
             field.ax.set_aspect(1)
             field.ax.set_xticks([])
             field.ax.set_yticks([])
+
+        fig.suptitle(f'Year {field.Timeframe.time:.0f}')
 
         plt.savefig(f'{self.directory}{figname}.png',bbox_inches = 'tight', pad_inches = 0,dpi=450)
         print(f'Created {figname}')
