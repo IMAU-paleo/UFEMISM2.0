@@ -87,6 +87,8 @@ CONTAINS
         ! TODO figure out which of the below lines is best
         !CALL compute_divQUV_upstream( mesh, laddie, npx, laddie%Hstar_b)
         CALL compute_divQUV_upstream( mesh, laddie, npx_ref, npx_ref%H_b)
+      CASE ('fesom')
+        CALL compute_divQUV_fesom( mesh, laddie, npx_ref, npx_ref%H_b)
     END SELECT
 
     ! == Integrate U and V ==
@@ -330,6 +332,87 @@ CONTAINS
     call finalise_routine( routine_name)
 
   end subroutine compute_divQUV_upstream
+
+  subroutine compute_divQUV_fesom( mesh, laddie, npxref, Hstar_b)
+    ! Upstream scheme
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_model),                intent(inout) :: laddie
+    type(type_laddie_timestep),             intent(in)    :: npxref
+    real(dp), dimension(mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih), intent(in)    :: Hstar_b
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'compute_divQUV_fesom'
+    integer                                               :: ti, tj, ci, ei
+    real(dp)                                              :: u_perp
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call exchange_halos( mesh, laddie%mask_gl_b)
+    call exchange_halos( mesh, laddie%mask_cf_b)
+    call exchange_halos( mesh, laddie%mask_b)
+    call exchange_halos( mesh, npxref%U)
+    call exchange_halos( mesh, npxref%V)
+    call exchange_halos( mesh, npxref%U_c)
+    call exchange_halos( mesh, npxref%V_c)
+    ! call exchange_halos( mesh, Hstar_b, H_b_tot) ! Already done in compute_UV_npx
+
+    ! Initialise with zeros
+    laddie%divQU( mesh%ti1:mesh%ti2) = 0.0_dp
+    laddie%divQV( mesh%ti1:mesh%ti2) = 0.0_dp
+
+    ! == Loop over triangles ==
+    ! =========================
+
+    do ti = mesh%ti1, mesh%ti2
+
+      if (laddie%mask_b( ti)) then
+
+        ! Loop over all connections of triangle ti
+        do ci = 1, 3
+
+          tj = mesh%TriC( ti, ci)
+          ei = mesh%TriE( ti, ci)
+
+          ! Skip if no connecting triangle on this side
+          if (tj == 0) cycle
+
+          ! Skip connection if neighbour is grounded. No flux across grounding line
+          if (laddie%mask_gl_b( tj)) cycle
+
+          ! Calculate vertically averaged water velocity component perpendicular to this edge
+          u_perp = npxref%U_c( ei) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci) &
+                 + npxref%V_c( ei) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
+
+          ! Calculate upstream momentum divergence
+          ! =============================
+          ! u_perp > 0: flow is exiting this triangle into triangle tj
+          if (u_perp > 0) then
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * Hstar_b( ti) * npxref%U( ti)* u_perp / mesh%TriA( ti)
+          ! u_perp < 0: flow is entering this triangle into triangle tj
+          else
+            laddie%divQU( ti) = laddie%divQU( ti) + mesh%TriCw( ti, ci) * Hstar_b( tj) * npxref%U( tj)* u_perp / mesh%TriA( ti)
+          end if
+
+          ! V momentum
+          if (u_perp > 0) then
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * Hstar_b( ti) * npxref%V( ti)* u_perp / mesh%TriA( ti)
+          else
+            laddie%divQV( ti) = laddie%divQV( ti) + mesh%TriCw( ti, ci) * Hstar_b( tj) * npxref%V( tj)* u_perp / mesh%TriA( ti)
+          end if
+
+        end do ! do ci = 1, 3
+
+      end if ! (laddie%mask_b( ti))
+
+    end do ! do ti = mesh%ti1, mesh%ti2
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine compute_divQUV_fesom
 
   subroutine map_UV_b_c( mesh, laddie, U, V, U_c, V_c)
     ! Calculate velocities on the c-grid for solving the layer thickness equation
