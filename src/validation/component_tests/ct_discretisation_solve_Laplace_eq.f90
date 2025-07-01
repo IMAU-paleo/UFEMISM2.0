@@ -153,8 +153,8 @@ contains
     c  = -1e-9_dp
     r0 = mesh%xmax * 0.8_dp
     do ti = mesh%ti1, mesh%ti2
-      x = mesh%Trigc( ti,1)
-      y = mesh%Trigc( ti,2)
+      x = mesh%Tricc( ti,1)
+      y = mesh%Tricc( ti,2)
       f_ex_nih( ti) = -c/4._dp * r0**2 + c/4._dp * (x**2 + y**2)
     end do
 
@@ -175,8 +175,8 @@ contains
 
     do ti = mesh%ti1, mesh%ti2
 
-      x = mesh%Trigc( ti,1)
-      y = mesh%Trigc( ti,2)
+      x = mesh%Tricc( ti,1)
+      y = mesh%Tricc( ti,2)
 
       if (norm2([x,y]) >= r0) then
         ! f = f_ex

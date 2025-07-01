@@ -2650,8 +2650,8 @@ CONTAINS
     INTEGER                                                      :: vi, iti, tj
     REAL(dp)                                                     :: dist
 
-    ! This triangle's geometric centre
-    gc = mesh%TriGC( ti,:)
+    ! This triangle's circumcentre
+    gc = mesh%Tricc( ti,:)
 
     ! The point where we want to copy the previous velocity solution
     IF (gc( 1) > 0._dp) THEN
@@ -2675,7 +2675,7 @@ CONTAINS
 
     DO iti = 1, mesh%niTri( vi)
       tj = mesh%iTri( vi,iti)
-      dist = NORM2( p - mesh%TriGC( tj,:))
+      dist = NORM2( p - mesh%Tricc( tj,:))
       ti_copy(  iti) = tj
       wti_copy( iti) = 1._dp / dist**2
     END DO
@@ -2706,7 +2706,7 @@ CONTAINS
     real(dp)               :: dist
 
     ! This triangle's geometric centre
-    gc = mesh%TriGC( ti,:)
+    gc = mesh%Tricc( ti,:)
 
     ! The point where we want to copy the previous velocity solution
     p(2) = gc(2)
@@ -2726,7 +2726,7 @@ CONTAINS
 
     do iti = 1, mesh%niTri( vi)
       tj = mesh%iTri( vi,iti)
-      dist = norm2( p - mesh%TriGC( tj,:))
+      dist = norm2( p - mesh%Tricc( tj,:))
       ti_copy(  iti) = tj
       wti_copy( iti) = 1._dp / dist**2
     end do

@@ -269,8 +269,8 @@ subroutine calc_matrix_operators_mesh_a_b( mesh)
 
     ! The vertex represented by this matrix row
     ti = mesh%n2ti( row)
-    x  = mesh%TriGC( ti,1)
-    y  = mesh%TriGC( ti,2)
+    x  = mesh%Tricc( ti,1)
+    y  = mesh%Tricc( ti,2)
 
     ! Clean up previous map
     do i = 1, stackN
@@ -584,8 +584,8 @@ subroutine calc_matrix_operators_mesh_b_a( mesh)
         ti = stack( i)
         n_c = n_c + 1
         i_c( n_c) = ti
-        x_c( n_c) = mesh%TriGC( ti,1)
-        y_c( n_c) = mesh%TriGC( ti,2)
+        x_c( n_c) = mesh%Tricc( ti,1)
+        y_c( n_c) = mesh%Tricc( ti,2)
       end do
 
       ! Calculate shape functions
@@ -685,8 +685,8 @@ subroutine calc_matrix_operators_mesh_b_b( mesh)
 
     ! The triangle represented by this matrix row
     ti = mesh%n2ti( row)
-    x  = mesh%TriGC( ti,1)
-    y  = mesh%TriGC( ti,2)
+    x  = mesh%Tricc( ti,1)
+    y  = mesh%Tricc( ti,2)
 
     ! Clean up previous map
     do i = 1, stackN
@@ -718,8 +718,8 @@ subroutine calc_matrix_operators_mesh_b_b( mesh)
         if (tj == ti) cycle
         n_c = n_c + 1
         i_c( n_c) = tj
-        x_c( n_c) = mesh%TriGC( tj,1)
-        y_c( n_c) = mesh%TriGC( tj,2)
+        x_c( n_c) = mesh%Tricc( tj,1)
+        y_c( n_c) = mesh%Tricc( tj,2)
       end do
 
       ! Calculate shape functions
@@ -830,8 +830,8 @@ subroutine calc_matrix_operators_mesh_b_b_2nd_order( mesh)
 
     ! The triangle represented by this matrix row
     ti = mesh%n2ti( row)
-    x  = mesh%TriGC( ti,1)
-    y  = mesh%TriGC( ti,2)
+    x  = mesh%Tricc( ti,1)
+    y  = mesh%Tricc( ti,2)
 
     ! Clean up previous map
     do i = 1, stackN
@@ -863,8 +863,8 @@ subroutine calc_matrix_operators_mesh_b_b_2nd_order( mesh)
         if (tj == ti) cycle
         n_c = n_c + 1
         i_c( n_c) = tj
-        x_c( n_c) = mesh%TriGC( tj,1)
-        y_c( n_c) = mesh%TriGC( tj,2)
+        x_c( n_c) = mesh%Tricc( tj,1)
+        y_c( n_c) = mesh%Tricc( tj,2)
       end do
 
       ! Calculate shape functions
@@ -1014,8 +1014,8 @@ subroutine calc_matrix_operators_mesh_b_c( mesh)
         ti = stack( i)
         n_c = n_c + 1
         i_c( n_c) = ti
-        x_c( n_c) = mesh%TriGC( ti,1)
-        y_c( n_c) = mesh%TriGC( ti,2)
+        x_c( n_c) = mesh%Tricc( ti,1)
+        y_c( n_c) = mesh%Tricc( ti,2)
       end do
 
       ! Calculate shape functions
@@ -1256,8 +1256,8 @@ subroutine calc_matrix_operators_mesh_c_b( mesh)
 
     ! The vertex represented by this matrix row
     ti = mesh%n2ti( row)
-    x  = mesh%TriGC( ti,1)
-    y  = mesh%TriGC( ti,2)
+    x  = mesh%Tricc( ti,1)
+    y  = mesh%Tricc( ti,2)
 
     ! Clean up previous map
     do i = 1, stackN

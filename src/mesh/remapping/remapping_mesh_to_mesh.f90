@@ -472,7 +472,7 @@ contains
       call MatGetRow( A_mxydx_a_b, n-1, ncols, cols_, vals_, perr)
       do k = 1, ncols
         ti = cols_( k)+1
-        w1x_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
+        w1x_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%Tricc( ti,1) * w0_row( k))
         call MatSetValues( w1x, 1, [n-1], 1, [cols_( k)], [w1x_row_( k)], INSERT_VALUES, perr)
       end do
       call MatRestoreRow( A_mxydx_a_b, n-1, ncols, cols_, vals_, perr)
@@ -481,7 +481,7 @@ contains
       call MatGetRow( A_xydy_a_b, n-1, ncols, cols_, vals_, perr)
       do k = 1, ncols
         ti = cols_( k)+1
-        w1y_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
+        w1y_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%Tricc( ti,2) * w0_row( k))
         call MatSetValues( w1y, 1, [n-1], 1, [cols_( k)], [w1y_row_( k)], INSERT_VALUES, perr)
       end do
       call MatRestoreRow( A_xydy_a_b, n-1, ncols, cols_, vals_, perr)
@@ -577,7 +577,7 @@ contains
       call MatGetRow( A_mxydx, n-1, ncols, cols_, vals_, perr)
       do k = 1, ncols
         ti = cols_( k)+1
-        w1x_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,1) * w0_row( k))
+        w1x_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%Tricc( ti,1) * w0_row( k))
         call MatSetValues( w1x, 1, [n-1], 1, [cols_( k)], [w1x_row_( k)], INSERT_VALUES, perr)
       end do
       call MatRestoreRow( A_mxydx, n-1, ncols, cols_, vals_, perr)
@@ -586,7 +586,7 @@ contains
       call MatGetRow( A_xydy, n-1, ncols, cols_, vals_, perr)
       do k = 1, ncols
         ti = cols_( k)+1
-        w1y_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%TriGC( ti,2) * w0_row( k))
+        w1y_row_( k) = (vals_( k) / A_overlap_tot) - (mesh_src%Tricc( ti,2) * w0_row( k))
         call MatSetValues( w1y, 1, [n-1], 1, [cols_( k)], [w1y_row_( k)], INSERT_VALUES, perr)
       end do
       call MatRestoreRow( A_xydy, n-1, ncols, cols_, vals_, perr)

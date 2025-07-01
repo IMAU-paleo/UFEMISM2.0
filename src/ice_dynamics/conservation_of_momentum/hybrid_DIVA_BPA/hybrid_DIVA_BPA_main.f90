@@ -544,7 +544,7 @@ contains
 
       ! Find all triangles that lie within this region of interest
       do ti = mesh%ti1, mesh%ti2
-        p = mesh%TriGC( ti,:)
+        p = mesh%Tricc( ti,:)
         if (is_in_polygon( poly_ROI, p)) then
           hybrid%mask_BPA_b(  ti) = .true.
           hybrid%mask_DIVA_b( ti) = .false.
@@ -635,7 +635,7 @@ contains
 
     ! Determine BPA solving masks on the mesh
     do ti = mesh%ti1, mesh%ti2
-      p = mesh%TriGC( ti,:)
+      p = mesh%Tricc( ti,:)
       if (is_in_polygons( poly_mult, p)) then
         hybrid%mask_BPA_b(  ti) = .true.
         hybrid%mask_DIVA_b( ti) = .false.

@@ -5,7 +5,6 @@ module mesh_contiguous_domains
   use precisions, only: dp
   use mesh_types, only: type_mesh
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use plane_geometry, only: geometric_center
   use sorting, only: quick_n_dirty_sort
 
   implicit none
@@ -158,21 +157,9 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! Calculate triangle geometric centres
+    ! List x-coordinates of triangle circumcentres
     do ti = 1, mesh%nTri
-
-      via = mesh%Tri( ti,1)
-      vib = mesh%Tri( ti,2)
-      vic = mesh%Tri( ti,3)
-
-      va = mesh%V( via,:)
-      vb = mesh%V( vib,:)
-      vc = mesh%V( vic,:)
-
-      gc = geometric_center( va, vb, vc)
-
-      xx( ti) = gc( 1)
-
+      xx( ti) = mesh%Tricc( ti,1)
     end do
 
     ! Sort triangles by x-coordinate

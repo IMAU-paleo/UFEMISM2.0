@@ -282,8 +282,8 @@ contains
 
     ! b-grid (triangles)
     do ti = mesh%ti1, mesh%ti2
-      x = mesh%Trigc( ti,1)
-      y = mesh%Trigc( ti,2)
+      x = mesh%Tricc( ti,1)
+      y = mesh%Tricc( ti,2)
       d_all = test_function_ptr( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax)
       d      = d_all( 1)
       ddx    = d_all( 2)

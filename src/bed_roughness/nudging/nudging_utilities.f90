@@ -118,7 +118,7 @@ contains
 
       do iti = 1, mesh%niTri( vi)
         ti = mesh%iTri( vi,iti)
-        dist = norm2( mesh%TriGC( ti,:) - pt)
+        dist = norm2( mesh%Tricc( ti,:) - pt)
         w = 1._dp / dist**2
         w_tot = w_tot + w
         u_pt  = u_pt  + w * u_b_tot( ti)
@@ -236,7 +236,7 @@ contains
 
       do iti = 1, mesh%niTri( vi)
         ti = mesh%iTri( vi,iti)
-        dist = norm2( mesh%TriGC( ti,:) - pt)
+        dist = norm2( mesh%Tricc( ti,:) - pt)
         if (dist == 0._dp) call crash('whaa!')
         w = 1._dp / dist**2
         w_tot = w_tot + w

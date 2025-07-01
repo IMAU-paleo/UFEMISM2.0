@@ -670,7 +670,7 @@ contains
 
     triangles_are_sorted = .true.
     do ti = 2, mesh%nTri
-      triangles_are_sorted = triangles_are_sorted .and. mesh%Trigc( ti,1) >= mesh%Trigc( ti-1,1) - mesh%tol_dist
+      triangles_are_sorted = triangles_are_sorted .and. mesh%Tricc( ti,1) >= mesh%Tricc( ti-1,1) - mesh%tol_dist
     end do
     call unit_test( triangles_are_sorted, trim(test_name)//'/triangles_are_sorted')
 
