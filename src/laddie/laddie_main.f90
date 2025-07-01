@@ -16,7 +16,7 @@ MODULE laddie_main
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE BMB_model_types                                        , ONLY: type_BMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
-  USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, & 
+  USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, &
                                                                      map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
@@ -32,6 +32,7 @@ MODULE laddie_main
       write_to_laddie_output_fields_file, write_to_laddie_output_scalar_file, buffer_laddie_scalars
   use laddie_integration, only: integrate_euler, integrate_fbrk3, integrate_lfra, move_laddie_timestep
   use mesh_repartitioning, only: repartition_mesh, repartition
+  use mesh_memory, only: deallocate_mesh
 
   IMPLICIT NONE
 
@@ -73,6 +74,9 @@ CONTAINS
 
     ! Un-repartition laddie
     call repartition_laddie( mesh_repartitioned, mesh, laddie)
+
+    ! Clean up after yourself
+    call deallocate_mesh( mesh_repartitioned)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
