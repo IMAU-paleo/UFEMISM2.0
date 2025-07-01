@@ -38,7 +38,7 @@ subroutine run_LMB_model_GlacialIndex(mesh, ice, LMB, time)
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_LMB_model_GlacialIndex'
-    REAL(dp)                                              :: GI_at_time
+    REAL(dp)                                              :: GI_at_time, LMB_at_time
     INTEGER                                               :: vi
 
   ! Add routine to path
@@ -50,10 +50,11 @@ subroutine run_LMB_model_GlacialIndex(mesh, ice, LMB, time)
   END IF
 
   call interpolate_value_from_forcing_record(LMB%GI%GI_t0, LMB%GI%GI_t1, LMB%GI%GI_at_t0, LMB%GI%GI_at_t1, time, GI_at_time)
+  LMB_at_time = LMB%GI%LMB_warm + GI_at_time * (LMB%GI%LMB_cold - LMB%GI%LMB_warm)
 
   do vi = mesh%vi1, mesh%vi2
     if (ice%mask_cf_fl( vi) .OR. ice%mask_cf_gr( vi)) then
-      LMB%LMB(vi) = LMB%GI%LMB_warm + GI_at_time * (LMB%GI%LMB_cold - LMB%GI%LMB_warm)
+      LMB%LMB(vi) = LMB_at_time
     end if
   end do
 
