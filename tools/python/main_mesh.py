@@ -124,76 +124,6 @@ class Mesh(object):
 
         return f"Finished computing triangle polygons"
 
-    def get_pcoll(self,varname,t):
-        """ Get patch collection """
-
-        #Get data
-        if varname == 'Uabs_lad':
-            var1 = self.get_data('U_lad',t)
-            var2 = self.get_data('V_lad',t)
-            var = (var1**2+var2**2)**.5
-        elif varname[:3] == 'BMB':
-            var = self.get_data('BMB',t)
-        else:
-            var = self.get_data(varname,t)
-
-        #Get colormap info
-        cmap,norm = get_cmap(varname)
-
-        #Check type (voronoi / triangle)
-        if 'vi' in var.dims:
-            if not self.got_voronois:
-                self.get_voronois()
-            pcoll = PatchCollection(self.voronois,cmap=cmap,norm=norm)
-        elif 'ti' in var.dims:
-            if not self.got_triangles:
-                self.get_triangles()
-            pcoll = PatchCollection(self.triangles,cmap=cmap,norm=norm)
-        else:
-            print(f'ERROR: variable {varname} is not on vertices or triangles')
-
-        # Fill array
-        if varname[:3] == 'BMB':
-            #Reverse values for BMB
-            pcoll.set_array(-var.values)
-        else:
-            pcoll.set_array(var.values)
-
-        return pcoll
-
-    def get_GL(self,t):
-        """ Extract grounding line """
-
-        # Read variable
-        try:
-            var = self.ds['grounding_line']
-            var = var.isel(time=t)
-        except:
-            print(f'ERROR: could not read grounding_line')
-            return
-
-        return var
-
-    def get_data(self,varname,t):
-        """ Get data array of variable for time slice t"""
-
-        # Read variable
-        try: 
-            var = self.ds[varname]
-        except:
-            print(f'ERROR: could not read variable {varname}, make sure dataset is open and variable exists')
-            return
-
-        # Extract time slice
-        try:
-            var = var.isel(time=t)
-        except:
-            print(f'ERROR: requested time slice {t} is not available')
-            return
-    
-        return var
-
-
 class Timeframe(object):
     """ Single timeframe of a mesh """
 
@@ -246,3 +176,52 @@ class Timeframe(object):
         self.got_mask = True
 
         return
+
+    def get_pcoll(self,varname):
+        """ Get patch collection """
+
+        #Get data
+        if varname == 'Uabs_lad':
+            var1 = self.get_data('U_lad')
+            var2 = self.get_data('V_lad')
+            var = (var1**2+var2**2)**.5
+        elif varname[:3] == 'BMB':
+            var = self.get_data('BMB')
+        else:
+            var = self.get_data(varname)
+
+        #Get colormap info
+        cmap,norm = get_cmap(varname)
+
+        #Check type (voronoi / triangle)
+        if 'vi' in var.dims:
+            if not self.Mesh.got_voronois:
+                self.Mesh.get_voronois()
+            pcoll = PatchCollection(self.Mesh.voronois,cmap=cmap,norm=norm)
+        elif 'ti' in var.dims:
+            if not self.Mesh.got_triangles:
+                self.Mesh.get_triangles()
+            pcoll = PatchCollection(self.Mesh.triangles,cmap=cmap,norm=norm)
+        else:
+            print(f'ERROR: variable {varname} is not on vertices or triangles')
+
+        # Fill array
+        if varname[:3] == 'BMB':
+            #Reverse values for BMB
+            pcoll.set_array(-var.values)
+        else:
+            pcoll.set_array(var.values)
+
+        return pcoll
+
+    def get_data(self,varname):
+        """ Get data array of variable """
+
+        # Read variable
+        try: 
+            var = self.ds[varname]
+        except:
+            print(f'ERROR: could not read variable {varname}, make sure dataset is open and variable exists')
+            return
+
+        return var
