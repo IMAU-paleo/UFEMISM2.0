@@ -51,22 +51,23 @@ class Figure(object):
 
     def print_fields(self):
 
-        return self.fields.keys()
+        print(self.fields.keys())
+        return
 
     def make(self,figname,dxmin=0,dxmax=0,dymin=0,dymax=0):
 
         fig = plt.figure(figsize=self.figsize,constrained_layout=True)
 
         if self.orientation=='horizontal':
-            nrows = len(self.fields)
-            ncols = 2
+            nrows = 2
+            ncols = len(self.fields)
             spec = gridspec.GridSpec(nrows,ncols,figure=fig,height_ratios=[self.cbar_ratio,1],hspace=0.01,wspace=0.01)
             for k,key in enumerate(self.fields.keys()):
                 self.fields[key].ax = fig.add_subplot(spec[0,k])
                 self.fields[key].cax = fig.add_subplot(spec[1,k])
         else:
-            self.nrows = 2
-            self.ncols = len(self.fields)
+            nrows = len(self.fields)
+            ncols = 2
             spec = gridspec.GridSpec(nrows,ncols,figure=fig,width_ratios=[self.cbar_ratio,1],hspace=0.01,wspace=0.01)
             for k,key in enumerate(self.fields.keys()):
                 self.fields[key].ax = fig.add_subplot(spec[k,0])
@@ -74,9 +75,10 @@ class Figure(object):
 
         for k,key in enumerate(self.fields.keys()):
             field = self.fields[key]
-            field.get_mcoll()
+            if field.mask is not None:
+                field.get_mcoll()
+                im = field.ax.add_collection(field.mcoll)
             field.get_pcoll()
-            im = field.ax.add_collection(field.mcoll)
             im = field.ax.add_collection(field.pcoll)
             cbar = plt.colorbar(im,cax=field.cax,orientation=self.orientation)
             cbar.set_label(field.varname)
@@ -121,11 +123,17 @@ class Field(object):
     def get_data(self):
         """ Extract data values """
 
-        try:
-            self.data = self.Timeframe.ds[self.varname]
-        except KeyError:
-            print(f"ERROR: {self.varname} not in Timeframe")
-            return
+
+        if self.varname == 'Uabs_lad':
+            uvar = self.Timeframe.ds['U_lad']
+            vvar = self.Timeframe.ds['V_lad']
+            self.data = (uvar**2+vvar**2)**.5
+        else:
+            try:
+                self.data = self.Timeframe.ds[self.varname]
+            except KeyError:
+                print(f"ERROR: {self.varname} not in Timeframe")
+                return
 
         if self.varname == 'BMB':
             self.data = -self.data
