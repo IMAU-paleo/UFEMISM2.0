@@ -28,6 +28,9 @@ jobs:
       - name: Verify compiler setup
         run: gfortran --version
 
+      - name: Ask mpifort which compiler it is calling (should be gfortran?)
+        run: mpifort --show
+
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
