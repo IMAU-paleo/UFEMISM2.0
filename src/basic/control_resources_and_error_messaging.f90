@@ -182,8 +182,14 @@ CONTAINS
       ! If it is larger than at the start, mention this
       if (resource_tracker( i)%n_MPI_windows_used_final > &
         resource_tracker( i)%n_MPI_windows_used_initial + n_extra_MPI_windows_expected_) then
+
+        ! Some exceptions where extra used MPI windows should not be interpreted as a memory leak
         if (index( routine_path, 'UFEMISM_program/initialise') == 0 .and. &
-            index( routine_path, 'allocate_dist_shared') == 0) then
+            index( routine_path, 'allocate_dist_shared') == 0 .and. &
+            index( routine_path, 'run_all_unit_tests') == 0 .and. &
+            index( routine_path, 'run_all_multinode_unit_tests') == 0 .and. &
+            index( routine_path, 'run_all_component_tests') == 0) then
+
           call warning('shared memory was allocated but not freed, possibly memory leak ' // &
             '(n_init = {int_01}, n_final = {int_02})', &
             int_01 = resource_tracker( i)%n_MPI_windows_used_initial, &
