@@ -201,10 +201,6 @@ module mesh_types
     type(type_sparse_matrix_CSR_dp)         :: M_map_a_b
     type(type_sparse_matrix_CSR_dp)         :: M_ddx_a_b
     type(type_sparse_matrix_CSR_dp)         :: M_ddy_a_b
-    ! a-grid (vertices) to c-grid (edges)
-    type(type_sparse_matrix_CSR_dp)         :: M_map_a_c
-    type(type_sparse_matrix_CSR_dp)         :: M_ddx_a_c
-    type(type_sparse_matrix_CSR_dp)         :: M_ddy_a_c
     ! b-grid (triangles) to a-grid (vertices)
     type(type_sparse_matrix_CSR_dp)         :: M_map_b_a
     type(type_sparse_matrix_CSR_dp)         :: M_ddx_b_a
@@ -212,21 +208,6 @@ module mesh_types
     ! b-grid (triangles) to b-grid (triangles)
     type(type_sparse_matrix_CSR_dp)         :: M_ddx_b_b
     type(type_sparse_matrix_CSR_dp)         :: M_ddy_b_b
-    ! b-grid (triangles) to c-grid (edges)
-    type(type_sparse_matrix_CSR_dp)         :: M_map_b_c
-    type(type_sparse_matrix_CSR_dp)         :: M_ddx_b_c
-    type(type_sparse_matrix_CSR_dp)         :: M_ddy_b_c
-    ! c-grid (edges) to a-grid (vertices)
-    type(type_sparse_matrix_CSR_dp)         :: M_map_c_a
-    type(type_sparse_matrix_CSR_dp)         :: M_ddx_c_a
-    type(type_sparse_matrix_CSR_dp)         :: M_ddy_c_a
-    ! c-grid (edges) to b-grid (triangles)
-    type(type_sparse_matrix_CSR_dp)         :: M_map_c_b
-    type(type_sparse_matrix_CSR_dp)         :: M_ddx_c_b
-    type(type_sparse_matrix_CSR_dp)         :: M_ddy_c_b
-    ! c-grid (edges) to c-grid (edges)
-    type(type_sparse_matrix_CSR_dp)         :: M_ddx_c_c
-    type(type_sparse_matrix_CSR_dp)         :: M_ddy_c_c
 
     ! b-grid (triangles) to b-grid (triangles), 2nd-order accurate
     type(type_sparse_matrix_CSR_dp)         :: M2_ddx_b_b
