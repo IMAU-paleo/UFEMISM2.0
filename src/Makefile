@@ -282,6 +282,8 @@ UFEMISM_source = \
   ocean/ocean_utilities.f90 \
   ocean/ocean_extrapolation.f90 \
   ocean/ocean_idealised.f90 \
+  ocean/ocean_deltaT.f90 \
+  ocean/ocean_GlacialIndex.f90 \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
   \

@@ -686,10 +686,10 @@ contains
       ! Main ocean variables
       case ('T_ocean')
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ocean%T, d_grid_vec_partial_3D_ocean)
-        call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'T_ocean', d_grid_vec_partial_3D_ocean)
+        call write_to_field_multopt_grid_dp_3D_ocean( grid, filename, ncid, 'T_ocean', d_grid_vec_partial_3D_ocean)
       case ('S_ocean')
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, region%ocean%S, d_grid_vec_partial_3D_ocean)
-        call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'S_ocean', d_grid_vec_partial_3D_ocean)
+        call write_to_field_multopt_grid_dp_3D_ocean( grid, filename, ncid, 'S_ocean', d_grid_vec_partial_3D_ocean)
       case ('T_draft')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%ocean%T_draft, d_grid_vec_partial_2D)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'T_draft', d_grid_vec_partial_2D)
@@ -1465,9 +1465,9 @@ contains
 
       ! Main ocean variables
       case ('T_ocean')
-        call add_field_grid_dp_3D_ocean_notime( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
+        call add_field_grid_dp_3D_ocean( filename, ncid, 'T_ocean', long_name = 'Ocean temperature', units = 'deg C')
       case ('S_ocean')
-        call add_field_grid_dp_3D_ocean_notime( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'psu')
+        call add_field_grid_dp_3D_ocean( filename, ncid, 'S_ocean', long_name = 'Ocean salinity', units = 'psu')
       case ('T_draft')
         call add_field_grid_dp_2D( filename, ncid, 'T_draft', long_name = 'Ocean temperature at ice draft', units = 'deg C')
       case ('T_freezing_point')
