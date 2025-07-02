@@ -21,10 +21,13 @@ MODULE control_resources_and_error_messaging
   LOGICAL             :: do_display_path   = .FALSE.
 
   CHARACTER(LEN=1024) :: routine_path
+  integer             :: n_MPI_windows_used
 
   TYPE subroutine_resource_tracker
     CHARACTER(LEN = 2048) :: routine_path
     REAL(dp)              :: tstart, tcomp
+    integer               :: n_MPI_windows_used_initial
+    integer               :: n_MPI_windows_used_final
   END TYPE subroutine_resource_tracker
 
   TYPE( subroutine_resource_tracker), DIMENSION(:), ALLOCATABLE :: resource_tracker
@@ -59,6 +62,9 @@ CONTAINS
 
     ! Initialise the routine path
     routine_path = 'UFEMISM_program'
+
+    ! Initialise the shared memory leak tracker
+    n_MPI_windows_used = 0
 
   END SUBROUTINE initialise_control_and_resource_tracker
 
@@ -112,6 +118,9 @@ CONTAINS
       CALL find_subroutine_in_resource_tracker( i)
       resource_tracker( i)%tstart = MPI_WTIME()
 
+      ! Check how many MPI windows are in use when this subroutine is initialised
+      resource_tracker( i)%n_MPI_windows_used_initial = n_MPI_windows_used
+
     ELSE
 
       routine_path = TRIM( routine_path) // '_NOTRACK'
@@ -122,7 +131,7 @@ CONTAINS
 
   END SUBROUTINE init_routine
 
-  SUBROUTINE finalise_routine( routine_name)
+  SUBROUTINE finalise_routine( routine_name, n_extra_MPI_windows_expected)
     ! Finalise; remove the current routine name from the routine path
 
     IMPLICIT NONE
@@ -130,6 +139,7 @@ CONTAINS
     ! In/output variables:
     ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
     CHARACTER(LEN=256)                                 , INTENT(IN)    :: routine_name
+    integer, optional, intent(in) :: n_extra_MPI_windows_expected
 
 #if (DO_RESOURCE_TRACKING)
 
@@ -137,6 +147,7 @@ CONTAINS
     LOGICAL                                                            :: do_track_resource_use
     INTEGER                                                            :: len_path_tot, i
     REAL(dp)                                                           :: dt
+    integer :: n_extra_MPI_windows_expected_
 
     ! If so specified, print the current routine path to the terminal (useful for debugging)
     IF (do_display_path) THEN
@@ -158,6 +169,27 @@ CONTAINS
       CALL find_subroutine_in_resource_tracker( i)
       dt = MPI_WTIME() - resource_tracker( i)%tstart
       resource_tracker( i)%tcomp = resource_tracker( i)%tcomp + dt
+
+      ! Check how many MPI windows are in use when this subroutine is finalised
+      resource_tracker( i)%n_MPI_windows_used_final = n_MPI_windows_used
+
+      if (present( n_extra_MPI_windows_expected)) then
+        n_extra_MPI_windows_expected_ = n_extra_MPI_windows_expected
+      else
+        n_extra_MPI_windows_expected_ = 0
+      end if
+
+      ! If it is larger than at the start, mention this
+      if (resource_tracker( i)%n_MPI_windows_used_final > &
+        resource_tracker( i)%n_MPI_windows_used_initial + n_extra_MPI_windows_expected_) then
+        if (index( routine_path, 'UFEMISM_program/initialise') == 0 .and. &
+            index( routine_path, 'allocate_dist_shared') == 0) then
+          call warning('shared memory was allocated but not freed, possibly memory leak ' // &
+            '(n_init = {int_01}, n_final = {int_02})', &
+            int_01 = resource_tracker( i)%n_MPI_windows_used_initial, &
+            int_02 = resource_tracker( i)%n_MPI_windows_used_final)
+        end if
+      end if
 
       ! Find where in the string exactly the current routine name is located
       i = INDEX( routine_path, routine_name)
