@@ -66,7 +66,7 @@ CONTAINS
     CALL setup_mesh_parallelisation(            mesh, mask_active_a_tot, mask_active_b_tot)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    CALL finalise_routine( routine_name, n_extra_MPI_windows_expected = 12)
 
   END SUBROUTINE calc_all_secondary_mesh_data
 
