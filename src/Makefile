@@ -365,6 +365,8 @@ UFEMISM_source = \
   \
   main/UFEMISM_main_model.f90 \
   \
+  laddie/laddie_dummy_domain.f90 \
+  \
   validation/unit_tests/ut_basic.f90 \
   validation/unit_tests/ut_mpi.f90 \
   validation/unit_tests/ut_petsc.f90 \
