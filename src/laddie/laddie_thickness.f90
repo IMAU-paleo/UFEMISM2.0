@@ -177,7 +177,7 @@ CONTAINS
           ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-          u_perp = npx%U_c( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + npx%V_c( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+          u_perp = npx%U_c( ei) * mesh%nhat_cb( vi,ci,1) + npx%V_c( ei) * mesh%nhat_cb( vi,ci,2)
 
           ! Calculate upwind momentum divergence
           ! =============================

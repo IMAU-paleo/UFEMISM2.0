@@ -306,57 +306,36 @@ CONTAINS
 
     ! Local variables
     character(len=1024), parameter :: routine_name = 'calc_connection_lengths'
-    integer                        :: vi, vj, ci, ti, tj
+    integer                        :: ti, n, tj
 
     ! Add routine to path
     call init_routine( routine_name)
 
+    call calc_unit_normal_vector_cell_boundaries( mesh)
+
     ! Allocate clean memory
-    if (allocated( mesh%D_x)) deallocate( mesh%D_x)
-    if (allocated( mesh%D_y)) deallocate( mesh%D_y)
-    if (allocated( mesh%D)) deallocate( mesh%D)
     if (allocated( mesh%TriD_x)) deallocate( mesh%TriD_x)
     if (allocated( mesh%TriD_y)) deallocate( mesh%TriD_y)
     if (allocated( mesh%TriD)) deallocate( mesh%TriD)
-    allocate( mesh%D_x( mesh%nV, mesh%nC_mem), source = 0._dp)
-    allocate( mesh%D_y( mesh%nV, mesh%nC_mem), source = 0._dp)
-    allocate( mesh%D( mesh%nV, mesh%nC_mem), source = 0._dp)
     allocate( mesh%TriD_x( mesh%nTri, 3), source = 0._dp)
     allocate( mesh%TriD_y( mesh%nTri, 3), source = 0._dp)
     allocate( mesh%TriD( mesh%nTri, 3), source = 0._dp)
 
-    ! Vertex-vertex connections
-    do vi = 1, mesh%nV
-      do ci = 1, mesh%nC( vi)
-
-      ! Connection ci from vertex vi leads through edge ei to vertex vj
-      vj = mesh%C(  vi,ci)
-
-      ! Get x, and y components
-      mesh%D_x( vi, ci) = mesh%V( vj,1) - mesh%V( vi,1)
-      mesh%D_y( vi, ci) = mesh%V( vj,2) - mesh%V( vi,2)
-
-      ! Get absolute distance
-      mesh%D( vi, ci)   = sqrt( mesh%D_x( vi, ci)**2 + mesh%D_y( vi, ci)**2)
-
-      end do
-    end do
-
     ! Triangle-triangle connections
     do ti = 1, mesh%nTri
-      do ci = 1, 3
+      do n = 1, 3
 
-        ! Connection ci from triangle ti to triangle tj
-        tj = mesh%TriC( ti, ci)
+        ! Connection n from triangle ti to triangle tj
+        tj = mesh%TriC( ti, n)
 
         if (tj == 0) cycle
 
         ! Get x and y components
-        mesh%TriD_x( ti, ci) = mesh%Tricc( tj, 1) - mesh%Tricc( ti, 1)
-        mesh%TriD_y( ti, ci) = mesh%Tricc( tj, 2) - mesh%Tricc( ti, 2)
+        mesh%TriD_x( ti, n) = mesh%Tricc( tj, 1) - mesh%Tricc( ti, 1)
+        mesh%TriD_y( ti, n) = mesh%Tricc( tj, 2) - mesh%Tricc( ti, 2)
 
         ! Get absolute distance
-        mesh%TriD( ti, ci) = sqrt( mesh%TriD_x( ti, ci)**2 + mesh%TriD_y( ti, ci)**2)
+        mesh%TriD( ti, n) = sqrt( mesh%TriD_x( ti, n)**2 + mesh%TriD_y( ti, n)**2)
 
       end do
     end do
@@ -365,6 +344,49 @@ CONTAINS
     call finalise_routine( routine_name)
 
   end subroutine calc_connection_lengths
+
+  subroutine calc_unit_normal_vector_cell_boundaries( mesh)
+
+    ! In/output variables
+    type(type_mesh), intent(inout) :: mesh
+
+    ! Local variables
+    character(len=1024), parameter :: routine_name = 'calc_unit_normal_vector_cell_boundaries'
+    integer                        :: vi, ei, vj, ci
+    real(dp), dimension(2)         :: p, q, n_cb
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Allocate clean memory
+    if (allocated( mesh%nhat_cb)) deallocate( mesh%nhat_cb)
+    allocate( mesh%nhat_cb( mesh%nV, mesh%nC_mem, 2), source = 0._dp)
+
+    ! Vertex-vertex connections
+    do vi = 1, mesh%nV
+      do ci = 1, mesh%nC( vi)
+
+      ! Connection ci from vertex vi leads through edge ei to vertex vj
+      ei = mesh%VE( vi,ci)
+      vj = mesh%C(  vi,ci)
+
+      ! Find the endpoints [p,q] of the cell boundary section
+      call find_shared_Voronoi_boundary( mesh, ei, p, q)
+
+      ! Calculate the unit normal vector to this cell boundary section
+      n_cb = [p(2) - q(2), q(1) - p(1)]
+      mesh%nhat_cb( vi,ci,:) = n_cb / norm2( n_cb)
+
+      ! Make sure it points from vi to vj
+      if (mesh%EV( ei,1) == vj) mesh%nhat_cb( vi,ci,:) = -mesh%nhat_cb( vi,ci,:)
+
+      end do
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_unit_normal_vector_cell_boundaries
 
   SUBROUTINE calc_triangle_areas( mesh)
     ! Find the areas of all the triangles

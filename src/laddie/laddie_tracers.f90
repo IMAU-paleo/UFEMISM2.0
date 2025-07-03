@@ -102,7 +102,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_diffTS'
     INTEGER                                               :: vi, vj, ci, ei
-    REAL(dp)                                              :: Kh
+    REAL(dp)                                              :: Kh, D
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -130,8 +130,9 @@ CONTAINS
 
             Kh = C%laddie_diffusivity
 
-            laddie%diffT( vi) = laddie%diffT( vi) + (npxref%T( vj) - npxref%T( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
-            laddie%diffS( vi) = laddie%diffS( vi) + (npxref%S( vj) - npxref%S( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/mesh%D( vi, ci)
+            D = norm2( mesh%V( vj,:) - mesh%V( vi,:))
+            laddie%diffT( vi) = laddie%diffT( vi) + (npxref%T( vj) - npxref%T( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
+            laddie%diffS( vi) = laddie%diffS( vi) + (npxref%S( vj) - npxref%S( vi)) * Kh * npxref%H_c( ei) / mesh%A( vi) * mesh%Cw( vi, ci)/D
           END IF
         END DO
 
@@ -194,7 +195,7 @@ CONTAINS
           ei = mesh%VE( vi,ci)
 
           ! Calculate vertically averaged ice velocity component perpendicular to this shared Voronoi cell boundary section
-          u_perp = npx%U_c( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + npx%V_c( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+          u_perp = npx%U_c( ei) * mesh%nhat_cb( vi,ci,1) + npx%V_c( ei) * mesh%nhat_cb( vi,ci,2)
 
           ! Calculate upwind momentum divergence
           ! =============================

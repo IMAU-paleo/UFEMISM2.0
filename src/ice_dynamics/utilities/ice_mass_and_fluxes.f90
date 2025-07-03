@@ -390,7 +390,7 @@ contains
 
         ! Calculate vertically averaged ice velocity component perpendicular
         ! to this shared Voronoi cell boundary section
-        u_perp = u_vav_c_tot( ei) * mesh%D_x( vi, ci)/mesh%D( vi, ci) + v_vav_c_tot( ei) * mesh%D_y( vi, ci)/mesh%D( vi, ci)
+        u_perp = u_vav_c_tot( ei) * mesh%nhat_cb( vi,ci,1) + v_vav_c_tot( ei) * mesh%nhat_cb( vi,ci,2)
 
         ! Calculate the flux: if u_perp > 0, that means that this mass is
         ! flowing out from our transitional vertex. If so, add it its (negative) total.
