@@ -29,7 +29,7 @@ def get_cmap(varname):
         linscale = .25
         fracpos = (np.log10(vmax/linthresh)+linscale)/(np.log10(vmax/linthresh)+np.log10(-(vmin/linthresh))+2*linscale)
         nneg = np.int_((1-fracpos)*256)
-        colors1 = plt.get_cmap('cmo.ice')(np.linspace(0,1.,nneg+1))
+        colors1 = plt.get_cmap('cmo.ice_r')(np.linspace(0,1.,nneg+1))
         colors2 = plt.get_cmap('inferno')(np.linspace(0., 1, 256-nneg-1))
         colors = np.vstack((colors1, colors2))
 

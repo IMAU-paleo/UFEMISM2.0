@@ -160,7 +160,7 @@ contains
     ! call print_parallelisation_info( mesh)
 
     ! Finalise routine path
-    call finalise_routine( routine_name)
+    call finalise_routine( routine_name, n_extra_MPI_windows_expected = 12)
 
   end subroutine setup_mesh_parallelisation
 

@@ -17,13 +17,21 @@ class Run(object):
         self.runname = os.path.basename(self.directory)
 
         self.Nmeshes = int(sorted(glob.glob(f'{self.directory}/main_output_ANT_0*.nc'))[-1][-8:-3])
+
+    def __repr__(self):
+        return f"Run('{self.directory}')"
+
+    def __str__(self):
+        """ Spit out info on this run """
+        return f"Run '{self.runname}' containing {self.Nmeshes} meshes"
     
-    def get_mesh(self,mesh,file='main_output_ANT'):
+    def get_mesh(self,mesh_number,file='main_output_ANT'):
         """ Gather info on a given mesh """
 
-        assert mesh <= self.Nmeshes, 'Mesh number too high, not available in output'
+        assert mesh_number <= self.Nmeshes, 'Mesh number too high, not available in output'
+        assert mesh_number >= 1, 'Mesh number too low, should be at least 1'
 
-        mesh = Mesh(self.directory,mesh,file=file)
+        mesh = Mesh(self.directory,mesh_number,file=file)
 
         return mesh
     
