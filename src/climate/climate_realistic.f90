@@ -278,27 +278,27 @@ CONTAINS
       climate%snapshot%ins_Q_TOA0 = 0._dp
       climate%snapshot%ins_Q_TOA1 = 0._dp
       
-      ! Read the fields at ins_t0
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
-      
-      ! if the start time is after the closest t0, we read one record after for t1
-      call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = climate%snapshot%ins_t0)
+      ! find the closest timeframe to the start of the run
+      call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = C%start_time_of_run)
+      call warning('Start time is {dp_01} and cloest_t0 is {dp_02}', dp_01 =  C%start_time_of_run, dp_02 = closest_t0)
 
       if (C%start_time_of_run >= closest_t0) then
-        !if (par%primary) WRITE(0,*) '     start time is after closest ins_t0, reading one step further...'
+        if (par%primary) WRITE(0,*) '     start time is after ins_t0, reading one step further for ins_t1...'
+        climate%snapshot%ins_t0 = closest_t0
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
       else
         ! otherwise we read one record before for t1
-        !if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier...'
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
+        if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier for t0, and using that one for t1...'
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t0, time_to_read = C%start_time_of_run-1000._dp)
+        climate%snapshot%ins_t1 = closest_t0
       end if
 
-      if (climate%snapshot%ins_t1 == closest_t0) then
-        !if (par%primary) WRITE(0,*) '     Closest insolation time frames are the same, insolation will be constant from now on...'
-        climate%snapshot%ins_Q_TOA1 = climate%snapshot%ins_Q_TOA0
-      else
-        call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
-      end if
+      call warning('insolation timeframes at t = {dp_01} are ins_t0={dp_02} and ins_t1={dp_03}', dp_01 =  C%start_time_of_run, dp_02 = climate%snapshot%ins_t0, dp_03 = climate%snapshot%ins_t1)
+
+      ! Read the fields at ins_t0
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
+      ! Read the fields at ins_t1
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -418,6 +418,8 @@ CONTAINS
       !END IF ! IF (par%primary) THEN
       call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
       call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
+
+      call warning('insolation timeframes at t = {dp_01} are ins_t0={dp_02} and ins_t1={dp_03}', dp_01 =  time, dp_02 = climate%snapshot%ins_t0, dp_03 = climate%snapshot%ins_t1)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
