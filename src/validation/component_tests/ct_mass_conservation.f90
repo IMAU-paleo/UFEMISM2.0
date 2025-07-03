@@ -302,8 +302,8 @@ contains
     end do
 
     do ti = mesh%ti1, mesh%ti2
-      x = mesh%Tricc( ti,1)
-      y = mesh%Tricc( ti,2)
+      x = mesh%Trigc( ti,1)
+      y = mesh%Trigc( ti,2)
       u_vav_b( ti) = u0 * x
       v_vav_b( ti) = u0 * y
     end do
@@ -342,8 +342,8 @@ contains
     end do
 
     do ti = mesh%ti1, mesh%ti2
-      x = mesh%Tricc( ti,1)
-      y = mesh%Tricc( ti,2)
+      x = mesh%Trigc( ti,1)
+      y = mesh%Trigc( ti,2)
       u     = u0 * sin( 2._dp*pi*x / lambda)
       v     = u0 * sin( 2._dp*pi*y / lambda)
       u_vav_b( ti) = u
@@ -379,8 +379,8 @@ contains
     end do
 
     do ti = mesh%ti1, mesh%ti2
-      u_vav_b( ti) = Halfar%u_vav( A, n, H0, R0, mesh%Tricc( ti,1), mesh%Tricc( ti,2), t)
-      v_vav_b( ti) = Halfar%v_vav( A, n, H0, R0, mesh%Tricc( ti,1), mesh%Tricc( ti,2), t)
+      u_vav_b( ti) = Halfar%u_vav( A, n, H0, R0, mesh%Trigc( ti,1), mesh%Trigc( ti,2), t)
+      v_vav_b( ti) = Halfar%v_vav( A, n, H0, R0, mesh%Trigc( ti,1), mesh%Trigc( ti,2), t)
     end do
 
   end subroutine setup_test_ice_sheet_Halfar
