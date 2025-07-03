@@ -20,8 +20,10 @@ module laddie_dummy_domain
   use laddie_main, only: update_laddie_forcing 
   use laddie_utilities, only: allocate_laddie_model, allocate_laddie_timestep
   use mesh_memory, only: allocate_mesh_primary
+  use mesh_parallel_creation, only: broadcast_mesh
   use mesh_dummy_meshes, only: initialise_dummy_mesh_16
   use mesh_secondary, only: calc_all_secondary_mesh_data
+  use mesh_disc_calc_matrix_operators_2D, only: calc_all_matrix_operators_mesh
   use grid_basic, only: setup_square_grid
   use mesh_translation_tables, only: calc_field_to_vector_form_translation_tables
 
@@ -91,6 +93,9 @@ contains
     character(len=1024)            :: name
     integer                        :: vi
 
+    ! Add routine to call stack
+    call init_routine( routine_name)
+
     ! Create the simple test mesh
     ! ===========================
     name = 'test_mesh'
@@ -101,8 +106,9 @@ contains
 
     call allocate_mesh_primary( mesh, name, 16, 18, C%nC_mem)
     call initialise_dummy_mesh_16( mesh, xmin, xmax, ymin, ymax)
+    call broadcast_mesh( mesh)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
-    call calc_field_to_vector_form_translation_tables( mesh)
+    call calc_all_matrix_operators_mesh( mesh)
 
     ! Set up ice and bed geometry
     ! ===========================
@@ -110,39 +116,57 @@ contains
     call allocate_ice_model( mesh, ice)
 
     ! Define Hi and Hb
-    ice%Hi(  1) = 1000._dp
-    ice%Hi(  2) = 1000._dp
-    ice%Hi(  3) = 1000._dp
-    ice%Hi(  4) = 1000._dp
-    ice%Hi(  5) = 1000._dp
-    ice%Hi(  6) = 400._dp
-    ice%Hi(  7) = 100._dp
-    ice%Hi(  8) = 0._dp
-    ice%Hi(  9) = 400._dp
-    ice%Hi( 10) = 200._dp
-    ice%Hi( 11) = 100._dp
-    ice%Hi( 12) = 0._dp
-    ice%Hi( 13) = 400._dp
-    ice%Hi( 14) = 100._dp
-    ice%Hi( 15) = 0._dp
-    ice%Hi( 16) = 0._dp
-
-    ice%Hb(  1) = 0._dp
-    ice%Hb(  2) = 0._dp
-    ice%Hb(  3) = 0._dp
-    ice%Hb(  4) = 0._dp
-    ice%Hb(  5) = -800._dp
-    ice%Hb(  6) = -600._dp
-    ice%Hb(  7) = -400._dp
-    ice%Hb(  8) = -600._dp
-    ice%Hb(  9) = 0._dp
-    ice%Hb( 10) = -400._dp
-    ice%Hb( 11) = -400._dp
-    ice%Hb( 12) = -1000._dp
-    ice%Hb( 13) = 0._dp
-    ice%Hb( 14) = -600._dp
-    ice%Hb( 15) = -1000._dp
-    ice%Hb( 16) = -1000._dp
+    do vi = mesh%vi1, mesh%vi2
+      if (vi == 1) then
+        ice%Hi( vi) = 1000._dp
+        ice%Hb( vi) = 0._dp
+      elseif (vi == 2) then
+        ice%Hi( vi) = 1000._dp
+        ice%Hb( vi) = 0._dp
+      elseif (vi == 3) then
+        ice%Hi( vi) = 1000._dp
+        ice%Hb( vi) = 0._dp
+      elseif (vi == 4) then
+        ice%Hi( vi) = 1000._dp
+        ice%Hb( vi) = 0._dp
+      elseif (vi == 5) then
+        ice%Hi( vi) = 1000._dp
+        ice%Hb( vi) = -800._dp
+      elseif (vi == 6) then
+        ice%Hi( vi) = 400._dp
+        ice%Hb( vi) = -600._dp
+      elseif (vi == 7) then
+        ice%Hi( vi) = 100._dp
+        ice%Hb( vi) = -400._dp
+      elseif (vi == 8) then
+        ice%Hi( vi) = 0._dp
+        ice%Hb( vi) = -600._dp
+      elseif (vi == 9) then
+        ice%Hi( vi) = 400._dp
+        ice%Hb( vi) = 0._dp
+      elseif (vi == 10) then
+        ice%Hi( vi) = 200._dp
+        ice%Hb( vi) = -400._dp
+      elseif (vi == 11) then
+        ice%Hi( vi) = 100._dp
+        ice%Hb( vi) = -400._dp
+      elseif (vi == 12) then
+        ice%Hi( vi) = 0._dp
+        ice%Hb( vi) = -1000._dp
+      elseif (vi == 13) then
+        ice%Hi( vi) = 400._dp
+        ice%Hb( vi) = 0._dp
+      elseif (vi == 14) then
+        ice%Hi( vi) = 100._dp
+        ice%Hb( vi) = -600._dp
+      elseif (vi == 15) then
+        ice%Hi( vi) = 0._dp
+        ice%Hb( vi) = -1000._dp
+      elseif (vi == 16) then
+        ice%Hi( vi) = 0._dp
+        ice%Hb( vi) = 1000._dp
+      end if
+    end do
 
     ! Compute masks
     call determine_masks( mesh, ice)
@@ -151,6 +175,9 @@ contains
     call calc_ice_shelf_base_slopes_onesided( mesh, ice)
 
     ! Define Ti
+    do vi = mesh%vi1, mesh%vi2
+      ice%Ti( vi, :) = 253._dp
+    end do
 
     ! Set up ocean forcing
     ! ====================
@@ -176,6 +203,8 @@ contains
 
     ! Port ice and ocean info to laddie
     ! =================================
+
+    call allocate_laddie_model( mesh, laddie)
 
     call update_laddie_forcing( mesh, ice, ocean, laddie)
 

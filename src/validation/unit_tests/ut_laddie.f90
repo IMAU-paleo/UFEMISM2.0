@@ -24,6 +24,8 @@ module ut_laddie
       extrapolate_ocean_forcing_horizontal_cavity, &
       extrapolate_ocean_forcing_vertical, extrapolate_ocean_forcing_horizontal_everywhere
   use mesh_translation_tables, only: calc_field_to_vector_form_translation_tables
+  use laddie_model_types, only: type_laddie_model
+  use laddie_dummy_domain, only: create_dummy_domain_16
   use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_signaling_nan
 
   implicit none
@@ -44,13 +46,12 @@ subroutine unit_tests_laddie_main( test_name_parent)
   character(len=1024), parameter :: routine_name = 'unit_tests_laddie_main'
   character(len=1024), parameter :: test_name_local = 'laddie'
   character(len=1024)            :: test_name
-  real(dp)                       :: xmin, xmax, ymin, ymax, NaN
-  character(len=1024)            :: name
   type(type_mesh)                :: mesh
-  integer                        :: vi, k, ierr
+  type(type_laddie_model)        :: laddie
   type(type_ice_model)           :: ice
   type(type_ocean_model)         :: ocean
   logical                        :: test_result
+  integer                        :: vi, k, ierr
 
   ! Add routine to call stack
   call init_routine( routine_name)
@@ -58,117 +59,18 @@ subroutine unit_tests_laddie_main( test_name_parent)
   ! Add test name to list
   test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-  ! Define NaN
-  NaN = ieee_value( NaN, ieee_signaling_nan)
-
-  ! Create a simple test mesh
-  name = 'test_mesh'
-  xmin = -50e3_dp
-  xmax =  50e3_dp
-  ymin = -50e3_dp
-  ymax =  50e3_dp
-
-  call allocate_mesh_primary( mesh, name, 5, 4, C%nC_mem)
-  call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
-  call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
-  call calc_field_to_vector_form_translation_tables( mesh)
-
-  ! Set up ice and bed geometry
-  ! ========
-
-  call allocate_ice_model( mesh, ice)
-
-  do vi = mesh%vi1, mesh%vi2
-    if (vi == 1) then
-      ! Open ocean, deep bedrock
-      ice%Hi( vi) = 0._dp
-      ice%Hb( vi) = -2050._dp
-    elseif (vi == 2) then
-      ! Open ocean, shallower bedrock
-      ice%Hi( vi) = 0._dp
-      ice%Hb( vi) = -1050._dp
-    elseif (vi == 3) then
-      ! Grounded ice above sea level
-      ice%Hi( vi) = 1000._dp
-      ice%Hb( vi) = 150._dp
-    elseif (vi == 4) then
-      ! Grounded ice below sea level
-      ice%Hi( vi) = 1000._dp
-      ice%Hb( vi) = -150._dp
-    elseif (vi == 5) then
-      ! Cavity, intermediate bedrock
-      ice%Hi( vi) = 300._dp
-      ice%Hb( vi) = -1550._dp
-    end if
-  end do
-
-  ! Get surface and basal topography
-  do vi = mesh%vi1, mesh%vi2
-    ice%Hs ( vi) = ice_surface_elevation( ice%Hi( vi), ice%Hb( vi), 0._dp)
-    ice%Hib( vi) = ice%Hs( vi) - ice%Hi( vi)
-  end do
-
-  ! Set up offshore ocean forcing
-  ! ========
-
-  ! Vertical grid
-  C%ocean_vertical_grid_max_depth = 5000._dp
-  C%ocean_vertical_grid_dz = 100._dp
-
-  if (allocated( C%z_ocean)) deallocate( C%z_ocean)
-  call initialise_ocean_vertical_grid
-
-  ! Ocean temperatures
-  if (allocated( ocean%T)) deallocate( ocean%T)
-  allocate( ocean%T( mesh%vi1:mesh%vi2,C%nz_ocean))
-
-  do vi = mesh%vi1, mesh%vi2
-    if (vi == 1) then
-      ! Cold ocean
-      ocean%T( vi, :) = 0._dp
-    elseif (vi == 2) then
-      ! Warm ocean
-      do k = 1, C%nz_ocean
-        ocean%T( vi, k) = 1.e-3*C%z_ocean( k)
-      end do
-    else
-      ! No data available
-      ocean%T( vi, :) = NaN
-    end if
-  end do
-
-  ! Step 0
-  ! ======
+  ! Create dummy domain
+  call create_dummy_domain_16( mesh, ice, ocean, laddie)
 
   test_result = .true.
 
-  ! Prepare, remove forcing values below bedrock
-  call extrapolate_ocean_forcing_preparation( mesh, ice, ocean%T)
-
-  do vi = mesh%vi1, mesh%vi2
-    if (vi == 1) then
-      ! Check values above and below bedrock
-      if (      isnan( ocean%T( vi, 21))) test_result = .false.
-      if (.not. isnan( ocean%T( vi, 22))) test_result = .false.
-    elseif (vi == 2) then
-      ! Check values above and below bedrock
-      if (      isnan( ocean%T( vi, 11))) test_result = .false.
-      if (.not. isnan( ocean%T( vi, 12))) test_result = .false.
-    else
-      ! All other values should still be NaN
-      do k = 1, C%nz_ocean
-        if (.not. isnan( ocean%T( vi, k))) test_result = .false.
-      end do
-    end if
-  end do
-
   call MPI_ALLREDUCE( MPI_IN_PLACE, test_result, 1, MPI_LOGICAL, MPI_LAND, MPI_COMM_WORLD, ierr)
 
-  call unit_test( test_result, trim( test_name) // '/step_0')
+  call unit_test( test_result, trim( test_name) // '/main')
 
   ! Remove routine from call stack
   call finalise_routine( routine_name)
 
-end subroutine unit_tests_ocean_extrapolation_main
+end subroutine unit_tests_laddie_main
 
 end module ut_laddie
