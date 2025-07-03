@@ -296,19 +296,19 @@ CONTAINS
 
       if (C%start_time_of_run >= closest_t0) then
         if (par%primary) WRITE(0,*) '     start time is after ins_t0, reading one step further for ins_t1...'
-        climate%snapshot%ins_t0 = closest_t0
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
+        snapshot%ins_t0 = closest_t0
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
       else
         ! otherwise we read one record before for t1
         if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier for t0, and using that one for t1...'
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t0, time_to_read = C%start_time_of_run-1000._dp)
-        climate%snapshot%ins_t1 = closest_t0
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t0, time_to_read = C%start_time_of_run-1000._dp)
+        snapshot%ins_t1 = closest_t0
       end if
 print *, "values of closest_t0 ", closest_t0, "and snapshot%ins_t1 ", snapshot%ins_t1
       ! Read the fields at ins_t0
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
       ! Read the fields at ins_t1
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA1, time_to_read = snapshot%ins_t1)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -432,7 +432,7 @@ print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot
       call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
       call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA1, time_to_read = snapshot%ins_t1)
 
-      call warning('insolation timeframes at t = {dp_01} are ins_t0={dp_02} and ins_t1={dp_03}', dp_01 =  time, dp_02 = climate%snapshot%ins_t0, dp_03 = climate%snapshot%ins_t1)
+      call warning('insolation timeframes at t = {dp_01} are ins_t0={dp_02} and ins_t1={dp_03}', dp_01 =  time, dp_02 = snapshot%ins_t0, dp_03 = snapshot%ins_t1)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')

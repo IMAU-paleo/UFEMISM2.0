@@ -211,7 +211,7 @@ contains
                         ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
       else
         w_ins( vi)= 0.0_dp ! just for now IDK if it makes sense physically
-!        print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
+        print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
       end if
     !print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
     !print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
