@@ -211,11 +211,11 @@ contains
                         ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
       else
         w_ins( vi)= 0.0_dp ! just for now IDK if it makes sense physically
-        !print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
+!        print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
       end if
-    print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
-    print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
-    print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
+    !print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
+    !print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
+    !print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
     !print *, "print value of w_ins", w_ins(vi), "and vi = ", vi
     END DO
     call sync
@@ -646,7 +646,7 @@ contains
   do m = 1, 12
   do vi = mesh%vi1, mesh%vi2
     if (snapshot%Precip(vi, m) < 0) then
-      print*, "negative value of snapshot%Precip, replaced to zero", snapshot%Precip(vi, m)
+      !print*, "negative value of snapshot%Precip, replaced to zero", snapshot%Precip(vi, m), "in ", snapshot%name
       ! Keep this for now, however, this should not happen. Ask Tijn bcs the input file do not have any negative value!
       snapshot%Precip(vi,m) = 0.00001 !
       !call crash('snapshot%Precip(vi,m) with negative values')
@@ -869,12 +869,14 @@ contains
     CALL init_routine( routine_name)
     ! Initialise the insolation variables inside snapshot
     call initialise_insolation_forcing(snapshot, mesh)
+    print *, "sum of Q_TOA, after initialisation ", sum(snapshot%Q_TOA), "name ", snapshot%name
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
 ! ADDED snapshot%forcing
 ! CHANGED TO forcing, I am not sure if it should be this way tho
 ! now it is mesh, time, climate ... I think should be snapshot but check later!
     CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot)
+    print *, "sum of Q_TOA, after get_insolation_at_time ", sum(snapshot%Q_TOA), "name ", snapshot%name
 
     ! Create temporary "dummy" climate, ice & SMB data structures,
     ! so we can run the SMB model and determine the reference albedo field
@@ -1293,7 +1295,7 @@ contains
     END DO
 
     call sync
-    print *, "error fixed!!"
+    !print *, "error fixed!!"
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

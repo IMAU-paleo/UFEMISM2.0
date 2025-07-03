@@ -289,10 +289,11 @@ CONTAINS
       snapshot%ins_lat    = 0._dp
       snapshot%ins_Q_TOA0 = 0._dp
       snapshot%ins_Q_TOA1 = 0._dp
+      snapshot%Q_TOA      = 0._dp
       
       ! Read the fields at ins_t0
       call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
-      
+      !print *, "values of ins_Q_TOA0 = ", snapshot%ins_Q_TOA0
       ! if the start time is after the closest t0, we read one record after for t1
       call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = snapshot%ins_t0)
 
@@ -304,7 +305,7 @@ CONTAINS
         !if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier...'
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t1, time_to_read = C%start_time_of_run-1000._dp)
       end if
-
+print *, "values of closest_t0 ", closest_t0, "and snapshot%ins_t1 ", snapshot%ins_t1
       if (snapshot%ins_t1 == closest_t0) then
         !if (par%primary) WRITE(0,*) '     Closest insolation time frames are the same, insolation will be constant from now on...'
         snapshot%ins_Q_TOA1 = snapshot%ins_Q_TOA0
@@ -349,6 +350,7 @@ CONTAINS
       time_applied = C%static_insolation_time
     ELSEIF (C%choice_insolation_forcing == 'realistic') THEN
       time_applied = time
+      print *, "value of time in get_insolation_at_time", time_applied
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
     END IF
@@ -374,10 +376,12 @@ CONTAINS
       end if
       wt1 = 1._dp - wt0
     end if
-
+print *, "value of wt0 ", wt0, "  and wt1 ", wt1
+print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot%ins_Q_TOA1)
     ! Interpolate the two timeframes
     do vi = mesh%vi1, mesh%vi2
       do m = 1, 12
+      !print *, "value of Q_TOA0 ", snapshot%ins_Q_TOA0(vi, m), "and Q_TOA1 ", snapshot%ins_Q_TOA1( vi, m)
         snapshot%Q_TOA(vi, m) = wt0 * snapshot%ins_Q_TOA0(vi, m) + wt1 * snapshot%ins_Q_TOA1(vi, m)
       end do
     end do
