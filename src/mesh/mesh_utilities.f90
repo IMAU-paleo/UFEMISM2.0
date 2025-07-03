@@ -372,6 +372,75 @@ CONTAINS
 
   END SUBROUTINE find_shared_Voronoi_boundary
 
+  SUBROUTINE find_shared_barycentric_dual_cell_boundary( mesh, ei, cc1, cc2)
+    ! Return the endpoints of the shared Voronoi cell boundary represented by edge ei
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_mesh),          INTENT(IN)          :: mesh
+    INTEGER,                  INTENT(IN)          :: ei
+    REAL(dp), DIMENSION(2),   INTENT(OUT)         :: cc1, cc2
+
+    ! Local variables
+    REAL(dp)                                      :: dx
+    INTEGER                                       :: til,tir,ti
+    REAL(dp), DIMENSION(2)                        :: cc1_raw, cc2_raw
+    LOGICAL                                       :: is_valid_line
+
+    dx = ((mesh%xmax - mesh%xmin) + (mesh%ymax - mesh%ymin)) / 100._dp
+
+    til = mesh%ETri( ei,1)
+    tir = mesh%ETri( ei,2)
+
+    IF (mesh%EBI( ei) == 0) THEN
+      ! This is an internal edge, with two adjacent triangles
+
+      cc1_raw = mesh%Trigc( til,:)
+      cc2_raw = mesh%Trigc( tir,:)
+
+      ! Crop the line to the mesh domain
+      CALL crop_line_to_domain( cc1_raw, cc2_raw, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, mesh%tol_dist, cc1, cc2, is_valid_line)
+
+      ! Safety
+      IF (.NOT. is_valid_line) CALL crash('find_shared_Voronoi_boundary - couldnt crop shared Voronoi boundary!')
+
+    ELSE ! IF (mesh%EBI( ei) == 0) THEN
+      ! This edge lies on the domain border, so the two vertices share only a single triangle
+
+      IF     (til > 0 .AND. tir == 0) THEN
+        ti = til
+      ELSEIF (tir > 0 .AND. til == 0) THEN
+        ti = tir
+      ELSE
+        CALL crash('find_shared_Voronoi_boundary - something is seriously wrong with EBI!')
+      END IF
+
+      cc1 = mesh%Trigc( ti,:)
+
+      ! Get the projection of this circumcentre on the domain border
+      IF     (mesh%EBI( ei) == 1) THEN
+        ! Northern border
+        cc2 = [cc1( 1), mesh%ymax + dx]
+      ELSEIF (mesh%EBI( ei) == 3) THEN
+        ! Eastern border
+        cc2 = [mesh%xmax + dx, cc1( 2)]
+      ELSEIF (mesh%EBI( ei) == 5) THEN
+        ! Southern border
+        cc2 = [cc1( 1), mesh%ymin - dx]
+      ELSEIF (mesh%EBI( ei) == 7) THEN
+        ! Western border
+        cc2 = [mesh%xmin - dx, cc1( 2)]
+      END IF
+
+      ! The circumcentre itself may not lie outside of the domain
+      cc1( 1) = MIN( mesh%xmax, MAX( mesh%xmin, cc1( 1) ))
+      cc1( 2) = MIN( mesh%ymax, MAX( mesh%ymin, cc1( 2) ))
+
+    END IF ! IF (mesh%EBI( ei) == 0) THEN
+
+  END SUBROUTINE find_shared_barycentric_dual_cell_boundary
+
 ! == Some basic geometrical operations
 
   SUBROUTINE list_border_vertices_all( mesh, nvi_border, lvi_border)

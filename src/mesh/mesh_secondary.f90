@@ -12,7 +12,7 @@ MODULE mesh_secondary
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
   USE model_configuration                                    , ONLY: C
   USE mesh_types                                             , ONLY: type_mesh
-  USE mesh_utilities                                         , ONLY: calc_Voronoi_cell, find_shared_Voronoi_boundary, find_corner_vertices
+  use mesh_utilities, only: calc_Voronoi_cell, find_shared_barycentric_dual_cell_boundary, find_corner_vertices
   use line_integrals, only: line_integral_xdy, line_integral_xydy, line_integral_mxydx
   use plane_geometry, only: cross2, geometric_center, triangle_area
   use projections, only: inverse_oblique_sg_projection
@@ -51,6 +51,7 @@ CONTAINS
 
     ! Secondary geometry data
     CALL construct_mesh_edges(                  mesh)
+    CALL calc_triangle_geometric_centres(       mesh)
     call find_corner_vertices(                  mesh)
     call construct_Voronoi_mesh(                mesh)
     CALL calc_TriBI(                            mesh)
@@ -60,7 +61,6 @@ CONTAINS
     CALL calc_connection_lengths(               mesh)
     CALL calc_triangle_areas(                   mesh)
     CALL calc_mesh_resolution(                  mesh)
-    CALL calc_triangle_geometric_centres(       mesh)
     CALL calc_lonlat(                           mesh, lambda_M, phi_M, beta_stereo)
     CALL initialise_scaled_vertical_coordinate( mesh)
     CALL setup_mesh_parallelisation(            mesh, mask_active_a_tot, mask_active_b_tot)
@@ -267,7 +267,7 @@ CONTAINS
     do vi = 1, mesh%nV
       do ci = 1, mesh%nC( vi)
         ei = mesh%VE( vi,ci)
-        call find_shared_Voronoi_boundary( mesh, ei, p, q)
+        call find_shared_barycentric_dual_cell_boundary( mesh, ei, p, q)
         mesh%Cw( vi,ci) = norm2( p-q)
       end do
     end do
@@ -371,7 +371,7 @@ CONTAINS
       vj = mesh%C(  vi,ci)
 
       ! Find the endpoints [p,q] of the cell boundary section
-      call find_shared_Voronoi_boundary( mesh, ei, p, q)
+      call find_shared_barycentric_dual_cell_boundary( mesh, ei, p, q)
 
       ! Calculate the unit normal vector to this cell boundary section
       n_cb = [p(2) - q(2), q(1) - p(1)]
