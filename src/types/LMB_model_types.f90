@@ -11,6 +11,18 @@ MODULE LMB_model_types
 
 ! ===== Types =====
 ! =================
+  TYPE type_LMB_model_GlacialIndex
+    ! Main data fields to compute the ocean model T and S transiently
+    REAL(dp),                   ALLOCATABLE     :: LMB_warm                           ! [m.i.e./yr] Lateral mass balance
+    REAL(dp),                   ALLOCATABLE     :: LMB_cold                           ! [m.i.e./yr] Lateral mass balance
+
+    ! Glacial Index record
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: GI_series_time
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: GI_series 
+    REAL(dp),                   ALLOCATABLE     :: GI_t0, GI_t1, GI_at_t0, GI_at_t1
+  
+
+  END TYPE type_LMB_model_GlacialIndex
 
   TYPE type_LMB_model
     ! The LMB model data structure.
@@ -24,6 +36,9 @@ MODULE LMB_model_types
 
     ! Timestepping
     REAL(dp)                                :: t_next
+
+    ! Transient GI-dependent LMB
+    TYPE(type_LMB_model_GlacialIndex)       :: GI
 
   END TYPE type_LMB_model
 
