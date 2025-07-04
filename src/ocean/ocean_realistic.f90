@@ -15,6 +15,9 @@ module ocean_realistic
   use ocean_model_types                                      , only: type_ocean_model
   use netcdf_io_main
   use ocean_extrapolation                                    , only: extrapolate_ocean_forcing
+  use series_utilities
+  use ocean_deltaT
+  use ocean_GlacialIndex
 
   implicit none
 
@@ -23,7 +26,7 @@ contains
 ! ===== Main routines =====
 ! =========================
 
-  subroutine run_ocean_model_realistic( mesh, ice, ocean)
+  subroutine run_ocean_model_realistic( mesh, ice, ocean, time)
     ! Calculate the ocean
     !
     ! Use an realistic ocean scheme
@@ -32,6 +35,7 @@ contains
     type(type_mesh),                        intent(in)    :: mesh
     type(type_ice_model),                   intent(in)    :: ice
     type(type_ocean_model),                 intent(inout) :: ocean
+    real(dp),                               intent(in)    :: time
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'run_ocean_model_realistic'
@@ -42,7 +46,6 @@ contains
     ! Run the chosen realistic ocean model
     select case (C%choice_ocean_model_realistic)
       case ('snapshot')
-
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)
           case('initialisation')
@@ -50,6 +53,9 @@ contains
           case default
             call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
         end select
+
+      case ('transient')
+        call run_ocean_model_transient(mesh, ocean, time)  
 
       case default
         call crash('unknown choice_ocean_model_realistic "' // trim( C%choice_ocean_model_realistic) // '"')
@@ -60,7 +66,7 @@ contains
 
   end subroutine run_ocean_model_realistic
 
-  subroutine initialise_ocean_model_realistic( mesh, ice, ocean, region_name)
+  subroutine initialise_ocean_model_realistic( mesh, ice, ocean, region_name, start_time_of_run)
     ! Initialise the ocean model
     !
     ! Use an realistic ocean scheme
@@ -70,6 +76,7 @@ contains
     type(type_ice_model),                   intent(in)    :: ice
     type(type_ocean_model),                 intent(inout) :: ocean
     character(len=3),                       intent(in)    :: region_name
+    real(dp),                               intent(in)    :: start_time_of_run
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'initialise_ocean_model_realistic'
@@ -113,6 +120,9 @@ contains
             call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
         end select
 
+      case ('transient')  
+          call initialise_ocean_model_transient(mesh, ice, ocean, region_name, start_time_of_run)
+
       case default
         call crash('unknown choice_ocean_model_realistic "' // trim( C%choice_ocean_model_realistic) // '"')
     end select
@@ -121,5 +131,65 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine initialise_ocean_model_realistic
+
+  subroutine initialise_ocean_model_transient(mesh, ice, ocean, region_name, start_time_of_run)
+  ! Initialise the ocean model
+    !
+    ! Use an realistic ocean scheme
+
+    ! In- and output variables
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_ice_model),                   intent(in)    :: ice
+    type(type_ocean_model),                 intent(inout) :: ocean
+    character(len=3),                       intent(in)    :: region_name
+    real(dp),                               intent(in)    :: start_time_of_run
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'initialise_ocean_model_transient'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    select case (C%choice_ocean_model_transient)
+      case ('deltaT')
+        call initialise_ocean_model_deltaT( mesh, ice, ocean, region_name, start_time_of_run)
+      
+      case ('GlacialIndex')
+        call initialise_ocean_model_GlacialIndex( mesh, ice, ocean, region_name, start_time_of_run)
+
+      case default
+        call crash('unknown choice_ocean_model_transient "' // trim( C%choice_ocean_model_transient) // '"')
+    end select
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  end subroutine initialise_ocean_model_transient
+
+  subroutine run_ocean_model_transient(mesh, ocean, time)
+  ! Runs a transient ocean model
+    ! In- and output variables
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_ocean_model),                 intent(inout) :: ocean
+    real(dp),                               intent(in)    :: time
+
+    ! Local variables
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_transient'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    select case (C%choice_ocean_model_transient)
+      case('deltaT')
+        call run_ocean_model_deltaT(mesh, ocean, time)
+        
+      case('GlacialIndex')
+        call run_ocean_model_GlacialIndex(mesh, ocean, time)
+
+      end select
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  end subroutine run_ocean_model_transient
 
 end module ocean_realistic
