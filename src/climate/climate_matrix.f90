@@ -71,7 +71,9 @@ contains
     CALL get_insolation_at_time( mesh, time, climate%snapshot)
     print *, "get insolation at time worked"
     ! before the get_insolation_at_time updated the value of climate%Q_TOA, now it does to climate%snapshot%Q_TOA
-    CALL update_CO2_at_model_time( time, forcing) 
+    print *, "value of time that goes to update_CO2_.. ", time 
+    print *, "min ...", MINVAL( forcing%CO2_time), "and max ", MAXVAL( forcing%CO2_time)
+    CALL update_CO2_at_model_time( time, forcing)
     print *, "update CO2 at model time worked"
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name, forcing)

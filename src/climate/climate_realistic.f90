@@ -533,7 +533,7 @@ print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot
     ! and the number of rows being equal to C%CO2_record_length
 
     ! NOTE: assumes time is listed in kyr BP (so LGM would be -21.0); converts to yr after reading!
-
+! MODIFIED NOW IS IN YRS, NO CONVERSION
     IMPLICIT NONE
     
     ! In/output variables:
@@ -588,15 +588,15 @@ print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot
 !      CLOSE( UNIT  = 1337)
 !    IF (par%primary) THEN
 
-      IF (C%start_time_of_run/1000._dp < forcing%CO2_time(1)) THEN
+      IF (C%start_time_of_run < forcing%CO2_time(1)) THEN
          CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
       END IF
-      IF (C%end_time_of_run/1000._dp > forcing%CO2_time(C%CO2_record_length)) THEN
+      IF (C%end_time_of_run > forcing%CO2_time(C%CO2_record_length)) THEN
          CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
       END IF
 
       ! Convert from kyr to yr
-      forcing%CO2_time = forcing%CO2_time * 1000._dp
+      !forcing%CO2_time = forcing%CO2_time * 1000._dp
 
 !    END IF ! IF (par%primary)
     

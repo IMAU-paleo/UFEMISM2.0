@@ -409,7 +409,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(OUT)   :: region
     CHARACTER(LEN=3),                                    INTENT(IN)    :: region_name
-    TYPE(type_global_forcing)                          , INTENT(IN)    :: forcing
+    TYPE(type_global_forcing)                          , INTENT(INOUT)    :: forcing
     REAL(dp)                                           , INTENT(IN)    :: start_time_of_run
 
     ! Local variables:
@@ -496,7 +496,7 @@ CONTAINS
     ! ===== Climate =====
     ! ===================
 
-    CALL initialise_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, regional_forcing, region%name)
+    CALL initialise_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, forcing, region%name)
 
     ! ===== Ocean =====
     ! =================
@@ -532,7 +532,7 @@ CONTAINS
     ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, regional_forcing, region%name, C%start_time_of_run, region%SMB)
+    CALL run_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, forcing, region%name, C%start_time_of_run, region%SMB)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
