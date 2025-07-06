@@ -44,7 +44,7 @@ contains
     if (.not. present( pai)) then
       sum_d = count( d)
     else
-      sum_d = count( d( pai%i1_nih:pai%i2_nih))
+      sum_d = count( d( pai%i1:pai%i2))
     end if
 
     call log_checksum_int( sum_d, var_name)
@@ -63,7 +63,7 @@ contains
     if (.not. present( pai)) then
       sum_d = count( d)
     else
-      sum_d = count( d( pai%i1_nih:pai%i2_nih,:))
+      sum_d = count( d( pai%i1:pai%i2,:))
     end if
 
     call log_checksum_int( sum_d, var_name)
@@ -104,7 +104,7 @@ contains
     if (.not. present( pai)) then
       sum_d = sum( d)
     else
-      sum_d = sum( d( pai%i1_nih:pai%i2_nih))
+      sum_d = sum( d( pai%i1:pai%i2))
     end if
 
     call log_checksum_int( sum_d, var_name)
@@ -123,7 +123,7 @@ contains
     if (.not. present( pai)) then
       sum_d = sum( d)
     else
-      sum_d = sum( d( pai%i1_nih:pai%i2_nih,:))
+      sum_d = sum( d( pai%i1:pai%i2,:))
     end if
 
     call log_checksum_int( sum_d, var_name)
@@ -164,7 +164,7 @@ contains
     if (.not. present( pai)) then
       sum_d = sum( d)
     else
-      sum_d = sum( d( pai%i1_nih:pai%i2_nih))
+      sum_d = sum( d( pai%i1:pai%i2))
     end if
 
     call log_checksum_dp( sum_d, var_name)
@@ -183,7 +183,7 @@ contains
     if (.not. present( pai)) then
       sum_d = sum( d)
     else
-      sum_d = sum( d( pai%i1_nih:pai%i2_nih,:))
+      sum_d = sum( d( pai%i1:pai%i2,:))
     end if
 
     call log_checksum_dp( sum_d, var_name)
