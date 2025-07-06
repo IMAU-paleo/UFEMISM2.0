@@ -140,6 +140,8 @@ UFEMISM_source = \
   basic/mpi_parallelisation/halo_exchange_mod.f90 \
   basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
   basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
+	\
+	basic/checksum_mod.f90 \
   \
   basic/math_utilities/flip_mod.f90 \
   basic/math_utilities/permute_mod.f90 \
