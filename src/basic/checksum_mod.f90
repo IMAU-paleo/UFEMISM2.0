@@ -243,6 +243,7 @@ contains
     filename_checksum_logfile = trim( C%output_dir) // '/checksum_logfile.txt'
     open( file = trim( filename_checksum_logfile), newunit = unit_checksum_logfile)
     write( unit_checksum_logfile,*) '-= Checksum logfile =-'
+    checksum_logfile_exists = .true.
   end subroutine create_checksum_logfile
 
 end module checksum_mod
