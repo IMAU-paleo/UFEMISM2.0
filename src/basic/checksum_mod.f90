@@ -37,7 +37,7 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    integer :: sum_d
+    integer :: sum_d, ierr
 
     if (.not. C%do_write_checksum_log) return
 
@@ -46,6 +46,8 @@ contains
     else
       sum_d = count( d( pai%i1:pai%i2))
     end if
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     call log_checksum_int( sum_d, var_name)
 
@@ -56,7 +58,7 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    integer :: sum_d
+    integer :: sum_d, ierr
 
     if (.not. C%do_write_checksum_log) return
 
@@ -65,6 +67,8 @@ contains
     else
       sum_d = count( d( pai%i1:pai%i2,:))
     end if
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     call log_checksum_int( sum_d, var_name)
 
