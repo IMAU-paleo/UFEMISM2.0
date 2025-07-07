@@ -97,7 +97,7 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    integer :: sum_d
+    integer :: sum_d, ierr
 
     if (.not. C%do_write_checksum_log) return
 
@@ -106,6 +106,8 @@ contains
     else
       sum_d = sum( d( pai%i1:pai%i2))
     end if
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     call log_checksum_int( sum_d, var_name)
 
@@ -116,7 +118,7 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    integer :: sum_d
+    integer :: sum_d, ierr
 
     if (.not. C%do_write_checksum_log) return
 
@@ -125,6 +127,8 @@ contains
     else
       sum_d = sum( d( pai%i1:pai%i2,:))
     end if
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     call log_checksum_int( sum_d, var_name)
 
@@ -158,6 +162,7 @@ contains
     type(type_par_arr_info), optional, intent(in) :: pai
 
     real(dp) :: sum_d
+    integer  :: ierr
 
     if (.not. C%do_write_checksum_log) return
 
@@ -166,6 +171,8 @@ contains
     else
       sum_d = sum( d( pai%i1:pai%i2))
     end if
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     call log_checksum_dp( sum_d, var_name)
 
@@ -177,6 +184,7 @@ contains
     type(type_par_arr_info), optional, intent(in) :: pai
 
     real(dp) :: sum_d
+    integer  :: ierr
 
     if (.not. C%do_write_checksum_log) return
 
@@ -185,6 +193,8 @@ contains
     else
       sum_d = sum( d( pai%i1:pai%i2,:))
     end if
+
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     call log_checksum_dp( sum_d, var_name)
 
@@ -198,9 +208,6 @@ contains
 
     ! Local variables:
     character(len=1024) :: str
-    integer             :: ierr
-
-    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     str = 'sum(' // trim( var_name) // ') = {int_01} [' // trim( routine_path) // ']'
     call insert_val_into_string_int( str, '{int_01}', sum_d)
@@ -217,9 +224,6 @@ contains
 
     ! Local variables:
     character(len=1024) :: str
-    integer             :: ierr
-
-    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     str = 'sum(' // trim( var_name) // ') = {int_01} [' // trim( routine_path) // ']'
     call insert_val_into_string_dp( str, '{int_01}', sum_d)
