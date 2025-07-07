@@ -84,6 +84,7 @@ CONTAINS
     CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b, d_a_is_hybrid = .true., ddx_b_is_hybrid = .true.)
     CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b, d_a_is_hybrid = .true., ddy_b_is_hybrid = .true.)
 
+    call checksum( laddie%drho_amb      , 'laddie%drho_amb      ', mesh%pai_V)
     call checksum( laddie%ddrho_amb_dx_b, 'laddie%ddrho_amb_dx_b', mesh%pai_Tri)
     call checksum( laddie%ddrho_amb_dy_b, 'laddie%ddrho_amb_dy_b', mesh%pai_Tri)
     call checksum( laddie%dH_dx_b       , 'laddie%dH_dx_b       ', mesh%pai_Tri)
