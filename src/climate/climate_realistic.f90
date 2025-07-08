@@ -278,7 +278,7 @@ CONTAINS
       ALLOCATE(snapshot%ins_lat            (   snapshot%ins_nlat))
       ALLOCATE(snapshot%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
       ALLOCATE(snapshot%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
-      !ALLOCATE(snapshot%lambda             (mesh%vi1:mesh%vi2))
+      !ALLOCATE(snapshot%lambda             (mesh%vi1:mesh%vi2)) ! initialised in climate matrix routine
       ALLOCATE(snapshot%Q_TOA              (mesh%vi1:mesh%vi2,12))
       ALLOCATE(snapshot%Albedo             (mesh%vi1:mesh%vi2,12))
       ALLOCATE(snapshot%I_abs              (mesh%vi1:mesh%vi2))
@@ -304,7 +304,7 @@ CONTAINS
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t0, time_to_read = C%start_time_of_run-1000._dp)
         snapshot%ins_t1 = closest_t0
       end if
-print *, "values of closest_t0 ", closest_t0, "and snapshot%ins_t1 ", snapshot%ins_t1
+
       ! Read the fields at ins_t0
       call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
       ! Read the fields at ins_t1
@@ -347,7 +347,6 @@ print *, "values of closest_t0 ", closest_t0, "and snapshot%ins_t1 ", snapshot%i
       time_applied = C%static_insolation_time
     ELSEIF (C%choice_insolation_forcing == 'realistic') THEN
       time_applied = time
-      print *, "value of time in get_insolation_at_time", time_applied
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
     END IF
@@ -373,8 +372,7 @@ print *, "values of closest_t0 ", closest_t0, "and snapshot%ins_t1 ", snapshot%i
       end if
       wt1 = 1._dp - wt0
     end if
-print *, "value of wt0 ", wt0, "  and wt1 ", wt1
-print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot%ins_Q_TOA1)
+
     ! Interpolate the two timeframes
     do vi = mesh%vi1, mesh%vi2
       do m = 1, 12
@@ -519,9 +517,7 @@ print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot
       !call MPI_BCAST(forcing%CO2_obs, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
     !END IF
     !call distribute_from_primary_dp_1D(forcing%CO2_obs)
-    ! not working, check in the code of ice_dynamics_main what is distributing with this, a real? or more like a vector...
-    ! compare with the things that I asked to chatgpt before, doing this it calculates for every core. w_CO2 = -0.5 now. 
-    print *, "print value of forcing%CO2_obs in climate realistic...", forcing%CO2_obs
+    !print *, "print value of forcing%CO2_obs in climate realistic...", forcing%CO2_obs
     CALL sync
 
     ! Finalise routine path
@@ -529,11 +525,10 @@ print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot
 
   END SUBROUTINE update_CO2_at_model_time
   SUBROUTINE initialise_CO2_record( forcing)
-    ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is an ASCII text file with at least two columns (time in kyr and CO2 in ppmv)
+    ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is a file with time in yr and CO2 in ppmv
     ! and the number of rows being equal to C%CO2_record_length
 
-    ! NOTE: assumes time is listed in kyr BP (so LGM would be -21.0); converts to yr after reading!
-! MODIFIED NOW IS IN YRS, NO CONVERSION
+    ! NOTE: assumes time is listed in yr BP (so LGM would be -21000)
     IMPLICIT NONE
     
     ! In/output variables:
@@ -559,9 +554,6 @@ print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot
     ! Allocate shared memory to take the data
     allocate( forcing%CO2_time(   C%CO2_record_length))
     allocate( forcing%CO2_record( C%CO2_record_length))
-    !CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_time,   forcing%wCO2_time  )
-    !CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_record, forcing%wCO2_record)
-    !CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )
 
     ! Read CO2 record (time and values) from specified text file
     IF (par%primary)  WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
@@ -589,14 +581,14 @@ print *, "sum of Q_TOA0 ", sum(snapshot%ins_Q_TOA0), "and Q_TOA1 ", sum(snapshot
 !    IF (par%primary) THEN
 
       IF (C%start_time_of_run < forcing%CO2_time(1)) THEN
+      print *, "print value of forcing%CO2_time(first), ", forcing%CO2_time(1)
          CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
       END IF
       IF (C%end_time_of_run > forcing%CO2_time(C%CO2_record_length)) THEN
+      print *, "value of forcing%CO2_time(last), ", forcing%CO2_time(C%CO2_record_length)
          CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
       END IF
 
-      ! Convert from kyr to yr
-      !forcing%CO2_time = forcing%CO2_time * 1000._dp
 
 !    END IF ! IF (par%primary)
     

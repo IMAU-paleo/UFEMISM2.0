@@ -484,6 +484,7 @@ CONTAINS
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
     ! Set up a regional frocing data type so the regional models can run asynchronously
+    ! this causes trouble during running, it will initialise regional_forcing instead of forcing, so variables will not be allocated later on for the run
     regional_forcing = forcing
     
     ! ===== Ice dynamics =====

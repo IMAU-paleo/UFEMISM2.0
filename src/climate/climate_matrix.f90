@@ -64,17 +64,17 @@ contains
 
     IF (par%primary)  WRITE(*,"(A)") '      Running climate matrix model...'
 
-    print *, "size of SMB%Albedo just after entering run =", size(SMB%IMAUITM%Albedo, 1), 'times', size(SMB%IMAUITM%Albedo, 2)
+    !print *, "size of SMB%Albedo just after entering run =", size(SMB%IMAUITM%Albedo, 1), 'times', size(SMB%IMAUITM%Albedo, 2)
 
     ! Update forcing at model time
     ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
     CALL get_insolation_at_time( mesh, time, climate%snapshot)
-    print *, "get insolation at time worked"
+    !print *, "get insolation at time worked"
     ! before the get_insolation_at_time updated the value of climate%Q_TOA, now it does to climate%snapshot%Q_TOA
-    print *, "value of time that goes to update_CO2_.. ", time 
-    print *, "min ...", MINVAL( forcing%CO2_time), "and max ", MAXVAL( forcing%CO2_time)
+    !print *, "value of time that goes to update_CO2_.. ", time 
+    !print *, "min ...", MINVAL( forcing%CO2_time), "and max ", MAXVAL( forcing%CO2_time)
     CALL update_CO2_at_model_time( time, forcing)
-    print *, "update CO2 at model time worked"
+    !print *, "update CO2 at model time worked"
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name, forcing)
 
@@ -147,8 +147,8 @@ contains
     
     IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix temperature model...'
 
-    print *, "value of vi1", mesh%vi1
-    print *, "size of w_ins to check if is parallelised", size(w_ins)
+    !print *, "value of vi1", mesh%vi1
+    !print *, "size of w_ins to check if is parallelised", size(w_ins)
     
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
@@ -168,10 +168,10 @@ contains
       call crash('must only be called with the correct forcing method, check your code!')
 
     end select
-    print *, "value of CO2 = ", CO2
+    !print *, "value of CO2 = ", CO2
     call sync
     
-    print *, '   error step 0.1...', CO2
+    !print *, '   error step 0.1...', CO2
     ! If CO2 ~= warm snap -> weight is 1. If ~= cold snap -> weight is 0.
     ! Otherwise interpolate. Berends et al., 2018 - Eq. 1
     w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / &
@@ -185,7 +185,7 @@ contains
     !IF (par%primary) print *, "value of Albedo",SMB%Albedo
 
     climate%matrix%I_abs( mesh%vi1:mesh%vi2) = 0._dp
-    print *, '   error step 0.2... print w_CO2', w_CO2
+    !print *, '   error step 0.2... print w_CO2', w_CO2
     call sync
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
@@ -196,13 +196,13 @@ contains
     END DO
     call sync
 
-    print *, "error step1..."
+    !print *, "error step1..."
     !IF (par%primary)  WRITE(*,"(A)") '   error step 1...'
     ! Calculate "direct" weighting field
     ! Berends et al., 2018 - Eq. 3
-    print *, "size of matrix%I_abs =", size(climate%matrix%I_abs)
-    print *, "size of matrix%GCM_warm%I_abs =", size(climate%matrix%GCM_warm%I_abs, 1)
-    print *, "size of matrix%GCM%cold%I_abs =", size(climate%matrix%GCM_cold%I_abs, 1)
+    !print *, "size of matrix%I_abs =", size(climate%matrix%I_abs)
+    !print *, "size of matrix%GCM_warm%I_abs =", size(climate%matrix%GCM_warm%I_abs, 1)
+    !print *, "size of matrix%GCM%cold%I_abs =", size(climate%matrix%GCM_cold%I_abs, 1)
     DO vi = mesh%vi1, mesh%vi2
       ! If absorbed insolation ~= warm snap -> weight is 1.
       ! If ~= cold snap -> weight is 0. Otherwise interpolate
@@ -212,6 +212,8 @@ contains
                         ( climate%matrix%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) / &
                         ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
       else
+      ! I ADDED THIS BEFORE BECAUSE I HAD NANS VALUES IN THE PRECIPITATION, IT WAS CAUSING THESE... IS IT NEEDED?, maybe trigger an error instead of making it 0
+        call crash('absorbed insolation in warm and cold snap are equal - causing a division by zero')
         w_ins( vi)= 0.0_dp ! just for now IDK if it makes sense physically
         print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
       end if
@@ -222,15 +224,15 @@ contains
     END DO
     call sync
     
-    IF (par%primary)  WRITE(*,"(A)") '   error step 1.5 ...'
+    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.5 ...'
     w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
                                                            (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
     ! Smooth the weighting field
-    IF (par%primary)  WRITE(*,"(A)") '   error step 1.6 ...'
+    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.6 ...'
     w_ins_smooth( mesh%vi1:mesh%vi2) = w_ins( mesh%vi1:mesh%vi2)
-    IF (par%primary)  WRITE(*,"(A)") '   error step 1.7 ...'
+    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.7 ...'
     CALL smooth_Gaussian( mesh, grid, w_ins_smooth, 200000._dp)
-    IF (par%primary)  WRITE(*,"(A)") '   error step 1.8 ...'
+    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.8 ...'
     ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       w_ice( mesh%vi1:mesh%vi2) = (1._dp * w_ins(        mesh%vi1:mesh%vi2) + &
@@ -241,7 +243,7 @@ contains
       w_ice( mesh%vi1:mesh%vi2) = (1._dp * w_ins_smooth( mesh%vi1:mesh%vi2) + &
                                    6._dp * w_ins_av) / 7._dp
     END IF
-    IF (par%primary)  WRITE(*,"(A)") '   error step 2...'
+    !IF (par%primary)  WRITE(*,"(A)") '   error step 2...'
 
 
     ! Combine interpolation weights from absorbed insolation and CO2 into the final weights fields
@@ -261,7 +263,7 @@ contains
 !! In UFE1.x here are two more options, glacial matrix and glacial index
 !! lines 1050 - 1080 in climate_module.f90
 !! ==============================================================================================================
-    IF (par%primary)  WRITE(*,"(A)") '   error step 3...'
+    !IF (par%primary)  WRITE(*,"(A)") '   error step 3...'
 
     ! Interpolate between the GCM snapshots
     ! =====================================
@@ -309,7 +311,6 @@ contains
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_precipitation'
     INTEGER                                            :: vi, m
     REAL(dp), DIMENSION(:), ALLOCATABLE                ::  w_warm,  w_cold
-!    INTEGER                                            :: ww_warm, ww_cold
     REAL(dp)                                           :: w_tot
     REAL(dp), DIMENSION(:,:), ALLOCATABLE                :: T_ref_GCM, P_ref_GCM
     REAL(dp), DIMENSION(:),   ALLOCATABLE                :: Hs_GCM
@@ -325,17 +326,11 @@ contains
     allocate( T_ref_GCM( mesh%vi1:mesh%vi2, 12))
     allocate( P_ref_GCM( mesh%vi1:mesh%vi2, 12))
     allocate( Hs_GCM(    mesh%vi1:mesh%vi2))
-!    CALL allocate_shared_dp_1D(     mesh%nV, w_warm,         ww_warm        )
-!    CALL allocate_shared_dp_1D(     mesh%nV, w_cold,         ww_cold        )
-!    CALL allocate_shared_dp_2D( 12, mesh%nV, T_ref_GCM,      wT_ref_GCM     )
-!    CALL allocate_shared_dp_2D( 12, mesh%nV, P_ref_GCM,      wP_ref_GCM     )
-!    CALL allocate_shared_dp_1D(     mesh%nV, Hs_GCM,         wHs_GCM        )
 
     IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix precipitation model...'
 
     ! Calculate interpolation weights based on ice geometry
     ! =====================================================
-!! changed ice%Hs_a to ice%Hs
     ! First calculate the total ice volume term (second term in the equation)
     w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, &
       (SUM( ice%Hs) - SUM( climate%matrix%GCM_warm%Hs)) / (SUM( climate%matrix%GCM_cold%Hs) - SUM( climate%matrix%GCM_warm%Hs)) ))
@@ -378,9 +373,7 @@ contains
       w_warm( mesh%vi1:mesh%vi2) = 1._dp - w_cold( mesh%vi1:mesh%vi2)
 
     END IF
-!
-!!! CHECK THE ChANGES DONE ABOvE WITH IMAU-ICE, MAKE SENSE AS BEFORE?
-!
+
     IF (C%switch_glacial_index_precip) THEN ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
       w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) )) )
       w_cold( mesh%vi1:mesh%vi2) = w_tot
@@ -464,10 +457,7 @@ contains
     allocate( climate%matrix%I_abs(           mesh%vi1:mesh%vi2))
     allocate( climate%matrix%GCM_bias_T2m(    mesh%vi1:mesh%vi2, 12))
     allocate( climate%matrix%GCM_bias_Precip( mesh%vi1:mesh%vi2, 12))
-    print *, "size of GCM_bias_T2m called just before allocate climate snapshot", size(climate%matrix%GCM_bias_T2m, dim=1)
-    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, climate%matrix%I_abs          , climate%matrix%wI_abs          )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_T2m   , climate%matrix%wGCM_bias_T2m   )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%matrix%GCM_bias_Precip, climate%matrix%wGCM_bias_Precip)
+    !print *, "size of GCM_bias_T2m called just before allocate climate snapshot", size(climate%matrix%GCM_bias_T2m, dim=1)
 
     ! Allocate memory for the regional ERA40 climate and the final applied climate
     CALL allocate_climate_snapshot( mesh, climate%matrix%PD_obs,   name = 'PD_obs'  )
@@ -514,22 +504,17 @@ contains
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
 
     ! Get reference absorbed insolation for the GCM snapshots
-    ! I think inside this code I need to change the section of the forcings to use the one in climate realistic
     CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, forcing, ice)
     CALL initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, forcing, ice)
 
-    ! Initialise applied climate with present-day observations
-! initialise climate model for realistic climate, just for now, so I will have all allocate from the realistic climate
-!! CHANGE THIS PART OF THE CODE, INSTEAD OF CALLING THE INITIALISE WRITE THE CODE HERE, THE IDEA IS INITIALISE
-! FOR THE VARIABLE BELOW AS ALSO THE SAME THAT DOES IN REALISTIC, JUST CLIMATE% AND CLIMATE%SNAPSHOT FOR Q_TOA...
-
-!! MAIN VARIABLES ARE INITALISED ALREADY IN MAIN.. SO I NEED TO ALLOCATE THE ONES FOR THE ISOLATION FORCING, SHOULD BE THE SAME AS ABOVE NO?
-!! CHANGE THE INITIALISE CODE FROM CLIMATE REALISTIC TO MAKE IT WORK FOR SNAPSHOTS, AND THEN I CAN INITIALISE IT FOR EACH SNAPSHOT THAT I HAVE
-!! THEN TWO OPTIONS, OVERWRITE THE VALUES FOR climate%Ins or whatever, or change the code to make it work for climate%snapshot
+   ! initialise the insolation forcing
    call initialise_insolation_forcing( climate%snapshot, mesh) ! this will initialise climate%snapshot%Q_TOA
-   !call initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
-   ! this will also initialise the insolation and CO2 routine
+
+   ! initialise CO2 forcing
    call initialise_CO2_record( forcing)
+
+    ! Initialise applied climate with present-day observations
+
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
       climate%T2m(     vi,m) = climate%matrix%PD_obs%T2m(     vi,m)
@@ -573,34 +558,15 @@ contains
     allocate( snapshot%Wind_SN( mesh%vi1:mesh%vi2, 12))
     allocate( snapshot%Wind_LR( mesh%vi1:mesh%vi2, 12))
     allocate( snapshot%Wind_DU( mesh%vi1:mesh%vi2, 12))
-    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%Hs,             snapshot%wHs            )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%T2m,            snapshot%wT2m           )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Precip,         snapshot%wPrecip        )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_WE,        snapshot%wWind_WE       )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_SN,        snapshot%wWind_SN       )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_LR,        snapshot%wWind_LR       )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Wind_DU,        snapshot%wWind_DU       )
-
-! this is not needed anymore, check!they need to be defined in types!
-!    CALL allocate_shared_dp_0D(                       snapshot%CO2,            snapshot%wCO2           )
-!    CALL allocate_shared_dp_0D(                       snapshot%orbit_time,     snapshot%worbit_time    )
-!    CALL allocate_shared_dp_0D(                       snapshot%orbit_ecc,      snapshot%worbit_ecc     )
-!    CALL allocate_shared_dp_0D(                       snapshot%orbit_obl,      snapshot%worbit_obl     )
-!    CALL allocate_shared_dp_0D(                       snapshot%orbit_pre,      snapshot%worbit_pre     )
-!    CALL allocate_shared_dp_0D(                       snapshot%sealevel,       snapshot%wsealevel      )
 
     allocate( snapshot%lambda( mesh%vi1:mesh%vi2))
-    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%lambda,         snapshot%wlambda        )
-   
-    ! these are now also allocated in initalise_insolation_forcing, commented for now?
+    ! these are now allocated in initalise_insolation_forcing, commented for now?
     !allocate( snapshot%Q_TOA(  mesh%vi1:mesh%vi2, 12))
     !allocate( snapshot%Albedo( mesh%vi1:mesh%vi2, 12))
     !allocate( snapshot%I_abs(  mesh%vi1:mesh%vi2))
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Q_TOA,          snapshot%wQ_TOA         )
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, snapshot%Albedo,         snapshot%wAlbedo        )
-    !CALL allocate_shared_dp_2D(     grid%ny, grid%nx, snapshot%I_abs,          snapshot%wI_abs         )
-    print *, "value of vi1 =", mesh%vi1, "value of vi2 = ", mesh%vi2
-    print *, "size of wind just after the allocation in allocate_climate_snapshot ... ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
+    
+    !print *, "value of vi1 =", mesh%vi1, "value of vi2 = ", mesh%vi2
+    !print *, "size of wind just after the allocation in allocate_climate_snapshot ... ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -626,22 +592,14 @@ contains
     ! Write message to screen
     IF (par%primary) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
 
-    ! here in IMAU-ICE it check the name variable of the wind. In UFEMISM2.0 the subroutine is called as inquire_var_multopt
-    ! to use it would need to have ncid this means open the netcdf file and it will be a lot of code writing that do not look nice
-    ! For simplicity now, we will assume that wind is WE, SN as UFE1.x
-    ! call inquire_var_multopt( filename, ncid, var_name_options = 'x||X||x1||X1||x-coordinate||X-coordinate||easting', id_var)
-
-! 5th input now is: time_to_read = timeframe_SMB_prescribed. Is optional but think about it
     CALL read_field_from_file_2D(         filename, field_name_options_Hs , mesh, snapshot%Hs     )
     CALL read_field_from_file_2D_monthly( filename, 'T2m'                 , mesh, snapshot%T2m    )
     CALL read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, snapshot%Precip )
     call read_field_from_file_2D_monthly( filename, 'Wind_WE||uas||'      , mesh, snapshot%Wind_WE) ! is needed the last ||? I copy it from SMB_realistic
     call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
-!    call save_variable_as_netcdf_dp_2D(snapshot%T2m, 'snapshot%T2m')
-!    call save_variable_as_netcdf_dp_2D(snapshot%Wind_WE, 'snapshot%Wind_WE')
-    print *, "size of T2m before rotate_wind.. ", size(snapshot%T2m, dim=1), "times ", size(snapshot%T2m, dim=2)
-    print *, "size of Wind_WE before rotate_wind.. ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
-    print *, "brounds of Wind_WE lower bound = ", lbound(snapshot%Wind_WE, dim=1), "upper bound = ", ubound(snapshot%Wind_WE, dim=1)
+!    print *, "size of T2m before rotate_wind.. ", size(snapshot%T2m, dim=1), "times ", size(snapshot%T2m, dim=2)
+!    print *, "size of Wind_WE before rotate_wind.. ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
+!    print *, "brounds of Wind_WE lower bound = ", lbound(snapshot%Wind_WE, dim=1), "upper bound = ", ubound(snapshot%Wind_WE, dim=1)
     
     call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
 
@@ -651,7 +609,7 @@ contains
       !print*, "negative value of snapshot%Precip, replaced to zero", snapshot%Precip(vi, m), "in ", snapshot%name
       ! Keep this for now, however, this should not happen. Ask Tijn bcs the input file do not have any negative value!
       snapshot%Precip(vi,m) = 0.00001 !
-      !call crash('snapshot%Precip(vi,m) with negative values')
+      call crash('snapshot%Precip(vi,m) with negative values')
     end if
   end do
   end do
@@ -796,7 +754,6 @@ contains
     END DO
     END DO
 
-!! this call still work? or is different now? check
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT_mean_nonice, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_nonice,       1, MPI_INTEGER,          MPI_SUM, MPI_COMM_WORLD, ierr)
 
@@ -824,7 +781,7 @@ contains
       END IF
 
     END DO
-! again check this call later
+
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, lambda_mean_ice, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_ice,           1, MPI_INTEGER,          MPI_SUM, MPI_COMM_WORLD, ierr)
 
@@ -871,14 +828,12 @@ contains
     CALL init_routine( routine_name)
     ! Initialise the insolation variables inside snapshot
     call initialise_insolation_forcing(snapshot, mesh)
-    print *, "sum of Q_TOA, after initialisation ", sum(snapshot%Q_TOA), "name ", snapshot%name
+    !print *, "sum of Q_TOA, after initialisation ", sum(snapshot%Q_TOA), "name ", snapshot%name
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
-! ADDED snapshot%forcing
-! CHANGED TO forcing, I am not sure if it should be this way tho
-! now it is mesh, time, climate ... I think should be snapshot but check later!
+
     CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot)
-    print *, "sum of Q_TOA, after get_insolation_at_time ", sum(snapshot%Q_TOA), "name ", snapshot%name
+    !print *, "sum of Q_TOA, after get_insolation_at_time ", sum(snapshot%Q_TOA), "name ", snapshot%name
 
     ! Create temporary "dummy" climate, ice & SMB data structures,
     ! so we can run the SMB model and determine the reference albedo field
@@ -898,6 +853,7 @@ contains
     ! Copy climate fields
     climate_dummy%T2m(    mesh%vi1:mesh%vi2,:) = snapshot%T2m(    mesh%vi1:mesh%vi2,:)
     climate_dummy%Precip( mesh%vi1:mesh%vi2,:) = snapshot%Precip( mesh%vi1:mesh%vi2,:)
+    ! is needed to allocate it as climate%snapshot because is used in that way later on SMB-ITM
     climate_dummy%snapshot%Q_TOA(  mesh%vi1:mesh%vi2,:) = snapshot%Q_TOA(  mesh%vi1:mesh%vi2,:)
 
     ! Ice
@@ -950,12 +906,6 @@ contains
     allocate( SMB_dummy%IMAUITM%MeltPreviousYear(mesh%vi1:mesh%vi2))
     allocate( SMB_dummy%SMB             (mesh%vi1:mesh%vi2))
     SMB_dummy%SMB = 0._dp
-
-! not needed anymore.. commment for now
-!    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_constant, SMB_dummy%wC_abl_constant)
-!    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Ts,       SMB_dummy%wC_abl_Ts      )
-!    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Q,        SMB_dummy%wC_abl_Q       )
-!    CALL allocate_shared_dp_0D( SMB_dummy%C_refr,         SMB_dummy%wC_refr        )
 
     IF (par%primary) THEN
       IF     (region_name == 'NAM') THEN
@@ -1020,7 +970,7 @@ contains
 
     ! Run the SMB model for 10 years for this particular climate
     ! (experimentally determined to be long enough to converge)
-    if (par%primary) write(*,"(A)") '      Running SMB during initialise_matrix_calc_absorbed_insolation'
+    !if (par%primary) write(*,"(A)") '      Running SMB during initialise_matrix_calc_absorbed_insolation'
     DO i = 1, 10
       CALL run_SMB_model_IMAUITM( mesh, ice_dummy, SMB_dummy, climate_dummy)
     END DO
@@ -1070,8 +1020,6 @@ contains
     ! Allocate shared memory
     allocate( T_inv(     mesh%vi1:mesh%vi2, 12))
     allocate( T_inv_ref( mesh%vi1:mesh%vi2, 12))
-!    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv,     wT_inv    )
-!    CALL allocate_shared_dp_2D( mesh%nV, 12, T_inv_ref, wT_inv_ref)
 
     ! Calculate inversion layer temperatures
     DO m = 1, 12
@@ -1109,7 +1057,7 @@ contains
 ! IF I COMMENT THIS LINE THE NANs in climate%Precip DISAPPEAR... so what is going on ...
 ! the problem is allocating something in this function I think ... I just make it equal to P_ref_GCM, none of them has NaNs but it get fucked up
 ! For now P_ref_GCM has NaNs , is this normal? start looking where the NaNs start to appear
-        Precip_GCM( vi,m) = P_ref_GCM( vi,m) !* (T_inv_ref( vi,m) / T_inv( vi,m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
+        Precip_GCM( vi,m) = P_ref_GCM( vi,m) * (T_inv_ref( vi,m) / T_inv( vi,m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
 !      print*, "print value of Precip_GCM ...", Precip_GCM( vi,m)
         if (Precip_GCM(vi, m) /= Precip_GCM(vi, m)) then
           print*, "Precip_GCM is NaN .. , line 1067", vi
@@ -1124,10 +1072,6 @@ contains
         CALL crash('ERROR - adapt_precip_CC should only be used for Greenland and Antarctica!')
       END IF
     END IF
-
-    ! Clean up after yourself
-    !CALL deallocate_shared( wT_inv)
-    !CALL deallocate_shared( wT_inv_ref)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1163,16 +1107,9 @@ contains
     allocate( dHs_dx2( mesh%vi1:mesh%vi2))
     allocate( dHs_dy1( mesh%vi1:mesh%vi2))
     allocate( dHs_dy2( mesh%vi1:mesh%vi2))
-!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx1,     wdHs_dx1   )
-!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dx2,     wdHs_dx2   )
-!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy1,     wdHs_dy1   )
-!    CALL allocate_shared_dp_1D( mesh%nv,     dHs_dy2,     wdHs_dy2   )
     allocate( Precip_RL1( mesh%vi1:mesh%vi2, 12))
     allocate( Precip_RL2( mesh%vi1:mesh%vi2, 12))
     allocate( dPrecip_RL( mesh%vi1:mesh%vi2, 12))
-!    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL1,  wPrecip_RL1)
-!    CALL allocate_shared_dp_2D( mesh%nv, 12, Precip_RL2,  wPrecip_RL2)
-!    CALL allocate_shared_dp_2D( mesh%nv, 12, dPrecip_RL,  wdPrecip_RL)
 
     ! Calculate surface slopes for both states
     CALL ddx_a_a_2D( mesh, Hs1, dHs_dx1)
@@ -1280,7 +1217,6 @@ contains
 
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
-     ! write (10,*) (wind_WE)
       ! calculate x and y from the zonal wind
       Uwind_x =   wind_WE( vi,m) * SIN((pi/180._dp) * (mesh%lon( vi) - longitude_start))
       Uwind_y = - wind_WE( vi,m) * COS((pi/180._dp) * (mesh%lon( vi) - longitude_start))
@@ -1297,7 +1233,6 @@ contains
     END DO
 
     call sync
-    !print *, "error fixed!!"
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
