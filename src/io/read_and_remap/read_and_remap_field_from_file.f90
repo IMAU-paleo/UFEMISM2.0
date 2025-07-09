@@ -9,7 +9,7 @@ module read_and_remap_field_from_file
   use precisions, only: dp
   use mpi_basic, only: par
   use model_configuration, only: C
-  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
+  use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int, warning
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
   use remapping_main
@@ -749,8 +749,8 @@ contains
       if (ndims_of_var /= 1) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
       if (.not. ANY( dims_of_var == id_dim_time)) call crash('variable "' // trim( var_name) // '" in file "' // trim( filename) // '" does not have time as a dimension!')
 
-      ! Inquire length of time dimension
-      call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
+      ! Find timeframe to read
+      call find_timeframe( filename, ncid, time_to_read, ti)
 
       ! Read the data
       call read_var_primary( filename, ncid, id_var, d_with_time, start = (/ ti /), count = (/ 1 /))
