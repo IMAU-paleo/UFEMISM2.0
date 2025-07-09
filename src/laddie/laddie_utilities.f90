@@ -19,6 +19,7 @@ MODULE laddie_utilities
   use mesh_integrate_over_domain, only: average_over_domain
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD
   use mpi_distributed_shared_memory, only: allocate_dist_shared
+  use checksum_mod, only: checksum
 
   IMPLICIT NONE
 
@@ -51,6 +52,8 @@ CONTAINS
          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, laddie%S_ocean( vi,:), Hstar( vi) - laddie%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
+    call checksum( laddie%T_amb, 'laddie%T_amb', mesh%pai_V)
+    call checksum( laddie%S_amb, 'laddie%S_amb', mesh%pai_V)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -75,6 +78,7 @@ CONTAINS
 
     call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_b, &
       mesh%pai_V, H_a, mesh%pai_Tri, H_b)
+    call checksum( H_b, 'H_b', mesh%pai_Tri)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -99,6 +103,7 @@ CONTAINS
 
     call multiply_CSR_matrix_with_vector_1D( laddie%M_map_H_a_c, &
       mesh%pai_V, H_a, mesh%pai_E, H_c)
+    call checksum( H_c, 'H_c', mesh%pai_E)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

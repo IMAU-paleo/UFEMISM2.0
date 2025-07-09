@@ -165,16 +165,11 @@ contains
     character(len=1024), parameter      :: routine_name = 'run_all_map_deriv_tests_on_mesh_with_function'
     real(dp), dimension(:), allocatable :: d_a_ex, ddx_a_ex, ddy_a_ex
     real(dp), dimension(:), allocatable :: d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex
-    real(dp), dimension(:), allocatable :: d_c_ex, ddx_c_ex, ddy_c_ex
-    real(dp), dimension(:), allocatable ::        d_a_b, d_a_c
-    real(dp), dimension(:), allocatable :: d_b_a,        d_b_c
-    real(dp), dimension(:), allocatable :: d_c_a, d_c_b
-    real(dp), dimension(:), allocatable :: ddx_a_a, ddx_a_b, ddx_a_c
-    real(dp), dimension(:), allocatable :: ddx_b_a, ddx_b_b, ddx_b_c
-    real(dp), dimension(:), allocatable :: ddx_c_a, ddx_c_b, ddx_c_c
-    real(dp), dimension(:), allocatable :: ddy_a_a, ddy_a_b, ddy_a_c
-    real(dp), dimension(:), allocatable :: ddy_b_a, ddy_b_b, ddy_b_c
-    real(dp), dimension(:), allocatable :: ddy_c_a, ddy_c_b, ddy_c_c
+    real(dp), dimension(:), allocatable :: d_b_a, d_a_b
+    real(dp), dimension(:), allocatable :: ddx_a_a, ddx_a_b
+    real(dp), dimension(:), allocatable :: ddx_b_a, ddx_b_b
+    real(dp), dimension(:), allocatable :: ddy_a_a, ddy_a_b
+    real(dp), dimension(:), allocatable :: ddy_b_a, ddy_b_b
     real(dp), dimension(:), allocatable :: ddx_b_b_2nd, ddy_b_b_2nd, d2dx2_b_b_2nd, d2dxdy_b_b_2nd, d2dy2_b_b_2nd
 
     ! Add routine to call stack
@@ -186,21 +181,16 @@ contains
     ! Calculate exact solutions
     call run_all_map_deriv_tests_on_mesh_with_function_calc_ex( mesh, test_function_ptr, &
       d_a_ex, ddx_a_ex, ddy_a_ex, &
-      d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex, &
-      d_c_ex, ddx_c_ex, ddy_c_ex)
+      d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex)
 
     ! Calculate discretised approximations
     call run_all_map_deriv_tests_on_mesh_with_function_calc_disc( mesh, &
-      d_a_ex, d_b_ex, d_c_ex, &
-            d_a_b, d_a_c, &
-      d_b_a,        d_b_c, &
-      d_c_a, d_c_b, &
-      ddx_a_a, ddx_a_b, ddx_a_c, &
-      ddx_b_a, ddx_b_b, ddx_b_c, &
-      ddx_c_a, ddx_c_b, ddx_c_c, &
-      ddy_a_a, ddy_a_b, ddy_a_c, &
-      ddy_b_a, ddy_b_b, ddy_b_c, &
-      ddy_c_a, ddy_c_b, ddy_c_c, &
+      d_a_ex, d_b_ex, &
+      d_a_b, d_b_a, &
+      ddx_a_a, ddx_a_b, &
+      ddx_b_a, ddx_b_b, &
+      ddy_a_a, ddy_a_b, &
+      ddy_b_a, ddy_b_b, &
       ddx_b_b_2nd, ddy_b_b_2nd, d2dx2_b_b_2nd, d2dxdy_b_b_2nd, d2dy2_b_b_2nd)
 
     ! Create an output file for the mapping/derivative tests, for a particular mesh with a particular test function
@@ -208,16 +198,11 @@ contains
       foldername_discretisation, test_mesh_filename, mesh, function_name, &
       d_a_ex, ddx_a_ex, ddy_a_ex, &
       d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex, &
-      d_c_ex, ddx_c_ex, ddy_c_ex, &
-             d_a_b, d_a_c, &
-      d_b_a,        d_b_c, &
-      d_c_a, d_c_b, &
-      ddx_a_a, ddx_a_b, ddx_a_c, &
-      ddx_b_a, ddx_b_b, ddx_b_c, &
-      ddx_c_a, ddx_c_b, ddx_c_c, &
-      ddy_a_a, ddy_a_b, ddy_a_c, &
-      ddy_b_a, ddy_b_b, ddy_b_c, &
-      ddy_c_a, ddy_c_b, ddy_c_c, &
+      d_a_b, d_b_a, &
+      ddx_a_a, ddx_a_b, &
+      ddx_b_a, ddx_b_b, &
+      ddy_a_a, ddy_a_b, &
+      ddy_b_a, ddy_b_b, &
       ddx_b_b_2nd, ddy_b_b_2nd, d2dx2_b_b_2nd, d2dxdy_b_b_2nd, d2dy2_b_b_2nd)
 
     ! Remove routine from call stack
@@ -228,19 +213,17 @@ contains
   !> Calculate the exact solutions for the mapping/derivative tests
   subroutine run_all_map_deriv_tests_on_mesh_with_function_calc_ex( mesh, test_function_ptr, &
     d_a_ex, ddx_a_ex, ddy_a_ex, &
-    d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex, &
-    d_c_ex, ddx_c_ex, ddy_c_ex)
+    d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex)
 
     ! In/output variables:
     type(type_mesh),                     intent(in)  :: mesh
     procedure(test_function), pointer                :: test_function_ptr
     real(dp), dimension(:), allocatable, intent(out) :: d_a_ex, ddx_a_ex, ddy_a_ex
     real(dp), dimension(:), allocatable, intent(out) :: d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex
-    real(dp), dimension(:), allocatable, intent(out) :: d_c_ex, ddx_c_ex, ddy_c_ex
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'run_all_map_deriv_tests_on_mesh_with_function_calc_ex'
-    integer                             :: vi,ti,ei,row
+    integer                             :: vi,ti,row
     real(dp)                            :: x,y
     real(dp), dimension(6)              :: d_all
     real(dp)                            :: d,ddx,ddy,d2dx2,d2dxdy,d2dy2
@@ -259,10 +242,6 @@ contains
     allocate( d2dx2_b_ex ( mesh%ti1:mesh%ti2))
     allocate( d2dxdy_b_ex( mesh%ti1:mesh%ti2))
     allocate( d2dy2_b_ex ( mesh%ti1:mesh%ti2))
-
-    allocate( d_c_ex     ( mesh%ei1:mesh%ei2))
-    allocate( ddx_c_ex   ( mesh%ei1:mesh%ei2))
-    allocate( ddy_c_ex   ( mesh%ei1:mesh%ei2))
 
     ! Calculate exact solutions
 
@@ -300,20 +279,6 @@ contains
       d2dy2_b_ex ( row) = d2dy2
     end do
 
-    ! c-grid (edges)
-    do ei = mesh%ei1, mesh%ei2
-      x = mesh%E( ei,1)
-      y = mesh%E( ei,2)
-      d_all = test_function_ptr( x, y, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax)
-      d      = d_all( 1)
-      ddx    = d_all( 2)
-      ddy    = d_all( 3)
-      row = mesh%ei2n( ei)
-      d_c_ex(   row) = d
-      ddx_c_ex( row) = ddx
-      ddy_c_ex( row) = ddy
-    end do
-
     ! Remove routine from call stack
     call finalise_routine( routine_name)
 
@@ -321,30 +286,21 @@ contains
 
   !> Calculate the discretised approximations for the mapping/derivative tests
   subroutine run_all_map_deriv_tests_on_mesh_with_function_calc_disc( mesh, &
-    d_a_ex, d_b_ex, d_c_ex, &
-           d_a_b, d_a_c, &
-    d_b_a,        d_b_c, &
-    d_c_a, d_c_b, &
-    ddx_a_a, ddx_a_b, ddx_a_c, &
-    ddx_b_a, ddx_b_b, ddx_b_c, &
-    ddx_c_a, ddx_c_b, ddx_c_c, &
-    ddy_a_a, ddy_a_b, ddy_a_c, &
-    ddy_b_a, ddy_b_b, ddy_b_c, &
-    ddy_c_a, ddy_c_b, ddy_c_c, &
+    d_a_ex, d_b_ex, d_a_b, d_b_a, &
+    ddx_a_a, ddx_a_b, &
+    ddx_b_a, ddx_b_b, &
+    ddy_a_a, ddy_a_b, &
+    ddy_b_a, ddy_b_b, &
     ddx_b_b_2nd, ddy_b_b_2nd, d2dx2_b_b_2nd, d2dxdy_b_b_2nd, d2dy2_b_b_2nd)
 
     ! In/output variables:
     type(type_mesh),                     intent(in)  :: mesh
-    real(dp), dimension(:),              intent(in)  :: d_a_ex, d_b_ex, d_c_ex
-    real(dp), dimension(:), allocatable, intent(out) ::        d_a_b, d_a_c
-    real(dp), dimension(:), allocatable, intent(out) :: d_b_a,        d_b_c
-    real(dp), dimension(:), allocatable, intent(out) :: d_c_a, d_c_b
-    real(dp), dimension(:), allocatable, intent(out) :: ddx_a_a, ddx_a_b, ddx_a_c
-    real(dp), dimension(:), allocatable, intent(out) :: ddx_b_a, ddx_b_b, ddx_b_c
-    real(dp), dimension(:), allocatable, intent(out) :: ddx_c_a, ddx_c_b, ddx_c_c
-    real(dp), dimension(:), allocatable, intent(out) :: ddy_a_a, ddy_a_b, ddy_a_c
-    real(dp), dimension(:), allocatable, intent(out) :: ddy_b_a, ddy_b_b, ddy_b_c
-    real(dp), dimension(:), allocatable, intent(out) :: ddy_c_a, ddy_c_b, ddy_c_c
+    real(dp), dimension(:),              intent(in)  :: d_a_ex, d_b_ex
+    real(dp), dimension(:), allocatable, intent(out) :: d_a_b, d_b_a
+    real(dp), dimension(:), allocatable, intent(out) :: ddx_a_a, ddx_a_b
+    real(dp), dimension(:), allocatable, intent(out) :: ddx_b_a, ddx_b_b
+    real(dp), dimension(:), allocatable, intent(out) :: ddy_a_a, ddy_a_b
+    real(dp), dimension(:), allocatable, intent(out) :: ddy_b_a, ddy_b_b
     real(dp), dimension(:), allocatable, intent(out) :: ddx_b_b_2nd, ddy_b_b_2nd, d2dx2_b_b_2nd, d2dxdy_b_b_2nd, d2dy2_b_b_2nd
 
     ! Local variables:
@@ -356,37 +312,19 @@ contains
     ! Allocate memory
 
     allocate( d_a_b(       mesh%ti1:mesh%ti2))
-    allocate( d_a_c(       mesh%ei1:mesh%ei2))
-
     allocate( d_b_a(       mesh%vi1:mesh%vi2))
-    allocate( d_b_c(       mesh%ei1:mesh%ei2))
-
-    allocate( d_c_a(       mesh%vi1:mesh%vi2))
-    allocate( d_c_b(       mesh%ti1:mesh%ti2))
 
     allocate( ddx_a_a(     mesh%vi1:mesh%vi2))
     allocate( ddx_a_b(     mesh%ti1:mesh%ti2))
-    allocate( ddx_a_c(     mesh%ei1:mesh%ei2))
 
     allocate( ddx_b_a(     mesh%vi1:mesh%vi2))
     allocate( ddx_b_b(     mesh%ti1:mesh%ti2))
-    allocate( ddx_b_c(     mesh%ei1:mesh%ei2))
-
-    allocate( ddx_c_a(     mesh%vi1:mesh%vi2))
-    allocate( ddx_c_b(     mesh%ti1:mesh%ti2))
-    allocate( ddx_c_c(     mesh%ei1:mesh%ei2))
 
     allocate( ddy_a_a(     mesh%vi1:mesh%vi2))
     allocate( ddy_a_b(     mesh%ti1:mesh%ti2))
-    allocate( ddy_a_c(     mesh%ei1:mesh%ei2))
 
     allocate( ddy_b_a(     mesh%vi1:mesh%vi2))
     allocate( ddy_b_b(     mesh%ti1:mesh%ti2))
-    allocate( ddy_b_c(     mesh%ei1:mesh%ei2))
-
-    allocate( ddy_c_a(     mesh%vi1:mesh%vi2))
-    allocate( ddy_c_b(     mesh%ti1:mesh%ti2))
-    allocate( ddy_c_c(     mesh%ei1:mesh%ei2))
 
     allocate( ddx_b_b_2nd(     mesh%ti1:mesh%ti2))
     allocate( ddy_b_b_2nd(     mesh%ti1:mesh%ti2))
@@ -399,30 +337,13 @@ contains
       mesh%pai_V, d_a_ex, mesh%pai_Tri, d_a_b, &
       xx_is_hybrid = .false., yy_is_hybrid = .false., &
       buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_a_c, &
-      mesh%pai_V, d_a_ex, mesh%pai_E, d_a_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_b_a, &
       mesh%pai_Tri, d_b_ex, mesh%pai_V, d_b_a, &
       xx_is_hybrid = .false., yy_is_hybrid = .false., &
       buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_b_c, &
-      mesh%pai_Tri, d_b_ex, mesh%pai_E, d_b_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
 
-
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_c_a, &
-      mesh%pai_E, d_c_ex, mesh%pai_V, d_c_a, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_map_c_b, &
-      mesh%pai_E, d_c_ex, mesh%pai_Tri, d_c_b, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
 
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_a_a, &
       mesh%pai_V, d_a_ex, mesh%pai_V, ddx_a_a, &
@@ -432,10 +353,6 @@ contains
       mesh%pai_V, d_a_ex, mesh%pai_Tri, ddx_a_b, &
       xx_is_hybrid = .false., yy_is_hybrid = .false., &
       buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_a_c, &
-      mesh%pai_V, d_a_ex, mesh%pai_E, ddx_a_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_b_a, &
       mesh%pai_Tri, d_b_ex, mesh%pai_V, ddx_b_a, &
@@ -445,23 +362,6 @@ contains
       mesh%pai_Tri, d_b_ex, mesh%pai_Tri, ddx_b_b, &
       xx_is_hybrid = .false., yy_is_hybrid = .false., &
       buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_b_c, &
-      mesh%pai_Tri, d_b_ex, mesh%pai_E, ddx_b_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
-
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_c_a, &
-      mesh%pai_E, d_c_ex, mesh%pai_V, ddx_c_a, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_c_b, &
-      mesh%pai_E, d_c_ex, mesh%pai_Tri, ddx_c_b, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddx_c_c, &
-      mesh%pai_E, d_c_ex, mesh%pai_E, ddx_c_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
 
 
@@ -473,10 +373,6 @@ contains
       mesh%pai_V, d_a_ex, mesh%pai_Tri, ddy_a_b, &
       xx_is_hybrid = .false., yy_is_hybrid = .false., &
       buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_a_c, &
-      mesh%pai_V, d_a_ex, mesh%pai_E, ddy_a_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
     call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_b_a, &
       mesh%pai_Tri, d_b_ex, mesh%pai_V, ddy_b_a, &
@@ -486,23 +382,6 @@ contains
       mesh%pai_Tri, d_b_ex, mesh%pai_Tri, ddy_b_b, &
       xx_is_hybrid = .false., yy_is_hybrid = .false., &
       buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_b_c, &
-      mesh%pai_Tri, d_b_ex, mesh%pai_E, ddy_b_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_b_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
-
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_c_a, &
-      mesh%pai_E, d_c_ex, mesh%pai_V, ddy_c_a, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_c_b, &
-      mesh%pai_E, d_c_ex, mesh%pai_Tri, ddy_c_b, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_b_nih)
-    call multiply_CSR_matrix_with_vector_1D_wrapper( mesh%M_ddy_c_c, &
-      mesh%pai_E, d_c_ex, mesh%pai_E, ddy_c_c, &
-      xx_is_hybrid = .false., yy_is_hybrid = .false., &
-      buffer_xx_nih = mesh%buffer1_d_c_nih, buffer_yy_nih = mesh%buffer2_d_c_nih)
 
 
 
@@ -537,16 +416,11 @@ contains
     foldername_discretisation, test_mesh_filename, mesh, function_name, &
     d_a_ex, ddx_a_ex, ddy_a_ex, &
     d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex, &
-    d_c_ex, ddx_c_ex, ddy_c_ex, &
-           d_a_b, d_a_c, &
-    d_b_a,        d_b_c, &
-    d_c_a, d_c_b, &
-    ddx_a_a, ddx_a_b, ddx_a_c, &
-    ddx_b_a, ddx_b_b, ddx_b_c, &
-    ddx_c_a, ddx_c_b, ddx_c_c, &
-    ddy_a_a, ddy_a_b, ddy_a_c, &
-    ddy_b_a, ddy_b_b, ddy_b_c, &
-    ddy_c_a, ddy_c_b, ddy_c_c, &
+    d_a_b, d_b_a, &
+    ddx_a_a, ddx_a_b, &
+    ddx_b_a, ddx_b_b, &
+    ddy_a_a, ddy_a_b, &
+    ddy_b_a, ddy_b_b, &
     ddx_b_b_2nd, ddy_b_b_2nd, d2dx2_b_b_2nd, d2dxdy_b_b_2nd, d2dy2_b_b_2nd)
 
     ! In/output variables:
@@ -556,16 +430,11 @@ contains
     character(len=1024),    intent(in) :: function_name
     real(dp), dimension(:), intent(in) :: d_a_ex, ddx_a_ex, ddy_a_ex
     real(dp), dimension(:), intent(in) :: d_b_ex, ddx_b_ex, ddy_b_ex, d2dx2_b_ex, d2dxdy_b_ex, d2dy2_b_ex
-    real(dp), dimension(:), intent(in) :: d_c_ex, ddx_c_ex, ddy_c_ex
-    real(dp), dimension(:), intent(in) ::        d_a_b, d_a_c
-    real(dp), dimension(:), intent(in) :: d_b_a,        d_b_c
-    real(dp), dimension(:), intent(in) :: d_c_a, d_c_b
-    real(dp), dimension(:), intent(in) :: ddx_a_a, ddx_a_b, ddx_a_c
-    real(dp), dimension(:), intent(in) :: ddx_b_a, ddx_b_b, ddx_b_c
-    real(dp), dimension(:), intent(in) :: ddx_c_a, ddx_c_b, ddx_c_c
-    real(dp), dimension(:), intent(in) :: ddy_a_a, ddy_a_b, ddy_a_c
-    real(dp), dimension(:), intent(in) :: ddy_b_a, ddy_b_b, ddy_b_c
-    real(dp), dimension(:), intent(in) :: ddy_c_a, ddy_c_b, ddy_c_c
+    real(dp), dimension(:), intent(in) :: d_a_b, d_b_a
+    real(dp), dimension(:), intent(in) :: ddx_a_a, ddx_a_b
+    real(dp), dimension(:), intent(in) :: ddx_b_a, ddx_b_b
+    real(dp), dimension(:), intent(in) :: ddy_a_a, ddy_a_b
+    real(dp), dimension(:), intent(in) :: ddy_b_a, ddy_b_b
     real(dp), dimension(:), intent(in) :: ddx_b_b_2nd, ddy_b_b_2nd, d2dx2_b_b_2nd, d2dxdy_b_b_2nd, d2dy2_b_b_2nd
 
     ! Local variables:
@@ -599,42 +468,20 @@ contains
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dxdy_b_ex')
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd2dy2_b_ex' )
 
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_c_ex'     )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_c_ex'   )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_c_ex'   )
-
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_a_b'      )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_a_c'      )
-
     call add_field_mesh_dp_2D_notime(   filename, ncid, 'd_b_a'      )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'd_b_c'      )
-
-    call add_field_mesh_dp_2D_notime(   filename, ncid, 'd_c_a'      )
-    call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd_c_b'      )
 
     call add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_a_a'    )
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_a_b'    )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_a_c'    )
 
     call add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_b_a'    )
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_b_b'    )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_b_c'    )
-
-    call add_field_mesh_dp_2D_notime(   filename, ncid, 'ddx_c_a'    )
-    call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_c_b'    )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddx_c_c'    )
 
     call add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_a_a'    )
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_a_b'    )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_a_c'    )
 
     call add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_b_a'    )
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_b_b'    )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_b_c'    )
-
-    call add_field_mesh_dp_2D_notime(   filename, ncid, 'ddy_c_a'    )
-    call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_c_b'    )
-    call add_field_mesh_dp_2D_c_notime( filename, ncid, 'ddy_c_c'    )
 
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddx_b_b_2nd'   )
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'ddy_b_b_2nd'   )
@@ -654,42 +501,20 @@ contains
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dxdy_b_ex', d2dxdy_b_ex)
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd2dy2_b_ex' , d2dy2_b_ex )
 
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_c_ex'     , d_c_ex     )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_ex'   , ddx_c_ex   )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_ex'   , ddy_c_ex   )
-
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_a_b'      , d_a_b      )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_a_c'      , d_a_c      )
-
     call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_b_a'      , d_b_a      )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'd_b_c'      , d_b_c      )
-
-    call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'd_c_a'      , d_c_a      )
-    call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'd_c_b'      , d_c_b      )
 
     call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_a_a'    , ddx_a_a    )
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_a_b'    , ddx_a_b    )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_a_c'    , ddx_a_c    )
 
     call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_b_a'    , ddx_b_a    )
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_b'    , ddx_b_b    )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_b_c'    , ddx_b_c    )
-
-    call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddx_c_a'    , ddx_c_a    )
-    call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_c_b'    , ddx_c_b    )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddx_c_c'    , ddx_c_c    )
 
     call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_a_a'    , ddy_a_a    )
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_a_b'    , ddy_a_b    )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_a_c'    , ddy_a_c    )
 
     call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_b_a'    , ddy_b_a    )
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_b'    , ddy_b_b    )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_b_c'    , ddy_b_c    )
-
-    call write_to_field_multopt_mesh_dp_2D_notime(   mesh, filename, ncid, 'ddy_c_a'    , ddy_c_a    )
-    call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_c_b'    , ddy_c_b    )
-    call write_to_field_multopt_mesh_dp_2D_c_notime( mesh, filename, ncid, 'ddy_c_c'    , ddy_c_c    )
 
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddx_b_b_2nd'    , ddx_b_b_2nd    )
     call write_to_field_multopt_mesh_dp_2D_b_notime( mesh, filename, ncid, 'ddy_b_b_2nd'    , ddy_b_b_2nd    )

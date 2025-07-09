@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<single_run>
+    <name>MISOMIP</name>
+    <category>integrated_tests/idealised/MISMIPplus</category>
+    <date_and_time>2025-07-07 05:26:48</date_and_time>
+    <git_hash_string>d2c7396554a723c4b9bf9ad9b49afde1d266c3ea</git_hash_string>
+    <cost_functions>
+        <name>err_x_GL_final_lo</name>
+        <definition>abs( min( 0, x_GL[-1] - 430e3))</definition>
+        <value>2537.0490</value>
+    </cost_functions>
+    <cost_functions>
+        <name>err_x_GL_final_hi</name>
+        <definition>abs( max( 0, x_GL[-1] - 450e3))</definition>
+        <value>0</value>
+    </cost_functions>
+</single_run>

@@ -19,6 +19,7 @@ MODULE laddie_velocity
   USE laddie_physics                                         , ONLY: compute_buoyancy
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_1D
   use mesh_halo_exchange, only: exchange_halos
+  use checksum_mod, only: checksum
 
   IMPLICIT NONE
 
@@ -59,7 +60,7 @@ CONTAINS
     CALL compute_buoyancy( mesh, laddie, npx_ref, Hstar)
 
     ! Bunch of mappings
-    call exchange_halos( mesh, laddie%detr)
+    call exchange_halos( mesh, laddie%detr     )
     call exchange_halos( mesh, laddie%Hdrho_amb)
     ! call exchange_halos( mesh, Hstar) ! Already done in integrate_fbrk3
     CALL map_a_b_2D( mesh, laddie%detr, laddie%detr_b, d_a_is_hybrid = .true., d_b_is_hybrid = .true.)
@@ -69,12 +70,25 @@ CONTAINS
     call exchange_halos( mesh, laddie%Hstar_b)
     call exchange_halos( mesh, npx_ref%H_b)
 
+    call checksum( laddie%detr       , 'laddie%detr       ', mesh%pai_V)
+    call checksum( laddie%Hdrho_amb  , 'laddie%Hdrho_amb  ', mesh%pai_V)
+    call checksum( laddie%detr_b     , 'laddie%detr_b     ', mesh%pai_Tri)
+    call checksum( laddie%Hdrho_amb_b, 'laddie%Hdrho_amb_b', mesh%pai_Tri)
+    call checksum( laddie%Hstar_b    , 'laddie%Hstar_b    ', mesh%pai_Tri)
+    call checksum( laddie%Hstar_c    , 'laddie%Hstar_c    ', mesh%pai_E)
+
     ! Bunch of derivatives
     call exchange_halos( mesh, laddie%drho_amb)
     CALL ddx_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dx_b, d_a_is_hybrid = .true., ddx_b_is_hybrid = .true.)
     CALL ddy_a_b_2D( mesh, laddie%drho_amb, laddie%ddrho_amb_dy_b, d_a_is_hybrid = .true., ddy_b_is_hybrid = .true.)
     CALL ddx_a_b_2D( mesh, Hstar, laddie%dH_dx_b, d_a_is_hybrid = .true., ddx_b_is_hybrid = .true.)
     CALL ddy_a_b_2D( mesh, Hstar, laddie%dH_dy_b, d_a_is_hybrid = .true., ddy_b_is_hybrid = .true.)
+
+    call checksum( laddie%drho_amb      , 'laddie%drho_amb      ', mesh%pai_V)
+    call checksum( laddie%ddrho_amb_dx_b, 'laddie%ddrho_amb_dx_b', mesh%pai_Tri)
+    call checksum( laddie%ddrho_amb_dy_b, 'laddie%ddrho_amb_dy_b', mesh%pai_Tri)
+    call checksum( laddie%dH_dx_b       , 'laddie%dH_dx_b       ', mesh%pai_Tri)
+    call checksum( laddie%dH_dy_b       , 'laddie%dH_dy_b       ', mesh%pai_Tri)
 
     ! Compute divergence of momentum
     SELECT CASE(C%choice_laddie_momentum_advection)
@@ -174,12 +188,20 @@ CONTAINS
       END IF ! (laddie%mask_b( ti))
     END DO !ti = mesh%ti1, mesh%ti2
 
+    call checksum( npx_new%U, 'npx_new%U', mesh%pai_Tri)
+    call checksum( npx_new%V, 'npx_new%V', mesh%pai_Tri)
+
     ! Map velocities to a and c grid
     call exchange_halos( mesh, npx_new%U)
     call exchange_halos( mesh, npx_new%V)
     CALL map_UV_b_c( mesh, laddie, npx_new%U, npx_new%V, npx_new%U_c, npx_new%V_c)
     CALL map_b_a_2D( mesh, npx_new%U, npx_new%U_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
     CALL map_b_a_2D( mesh, npx_new%V, npx_new%V_a, d_b_is_hybrid = .true., d_a_is_hybrid = .true.)
+
+    call checksum( npx_new%U_c, 'npx_new%U_c', mesh%pai_E)
+    call checksum( npx_new%V_c, 'npx_new%V_c', mesh%pai_E)
+    call checksum( npx_new%U_a, 'npx_new%U_a', mesh%pai_V)
+    call checksum( npx_new%V_a, 'npx_new%V_a', mesh%pai_V)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -246,6 +268,9 @@ CONTAINS
 
       END IF !(laddie%mask_b( ti)
     END DO !ti = mesh%ti1, mesh%ti2
+
+    call checksum( laddie%viscU, 'laddie%viscU', mesh%pai_Tri)
+    call checksum( laddie%viscV, 'laddie%viscV', mesh%pai_Tri)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -327,6 +352,9 @@ CONTAINS
       end if ! (laddie%mask_b( ti))
 
     end do ! do ti = mesh%ti1, mesh%ti2
+
+    call checksum( laddie%divQU, 'laddie%divQU', mesh%pai_Tri)
+    call checksum( laddie%divQV, 'laddie%divQV', mesh%pai_Tri)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

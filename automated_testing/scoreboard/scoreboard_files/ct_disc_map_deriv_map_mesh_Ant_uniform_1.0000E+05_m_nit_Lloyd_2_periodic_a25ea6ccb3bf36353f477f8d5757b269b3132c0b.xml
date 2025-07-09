@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_1.0000E+05_m_nit_Lloyd_2_periodic</name>
+    <category>component_tests/discretisation/mapping_and_derivatives/map</category>
+    <date_and_time>01-Jul-2025 11:40:45</date_and_time>
+    <git_hash_string>a25ea6ccb3bf36353f477f8d5757b269b3132c0b</git_hash_string>
+    <cost_functions>
+        <name>max_err_map_a_b</name>
+        <definition>abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))</definition>
+        <value>0.0033912</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_map_a_c</name>
+        <definition>abs( d_a_c - d_c_ex) ./ max( abs( d_c_ex))</definition>
+        <value>0.0034035</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_map_b_a</name>
+        <definition>abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))</definition>
+        <value>0.0030868</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_map_b_c</name>
+        <definition>abs( d_b_c - d_c_ex) ./ max( abs( d_c_ex))</definition>
+        <value>0.0018045</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_map_c_a</name>
+        <definition>abs( d_c_a - d_a_ex) ./ max( abs( d_a_ex))</definition>
+        <value>0.0021075</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_map_c_b</name>
+        <definition>abs( d_c_b - d_b_ex) ./ max( abs( d_b_ex))</definition>
+        <value>0.00084538</value>
+    </cost_functions>
+</single_run>
