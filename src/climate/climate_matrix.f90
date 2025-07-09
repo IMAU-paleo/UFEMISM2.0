@@ -15,18 +15,15 @@ module climate_matrix
   USE climate_model_types                                    , ONLY: type_climate_model, type_climate_model_matrix, type_climate_model_snapshot
   USE global_forcing_types                                   , ONLY: type_global_forcing
   use SMB_model_types, only: type_SMB_model
-!  USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, initialise_insolation_forcing, initialise_CO2_record, get_insolation_at_time, update_CO2_at_model_time
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
   use mesh_data_smoothing, only: smooth_Gaussian
-  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D ! do I need to add more?
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D
   use erf_mod, only: error_function
   use SMB_IMAU_ITM, only: run_SMB_model_IMAUITM
-  ! check the previous calleds
-!  use forcing_module, only: get_insolation_at_time, update_CO2_at_model_time
-! added in climate_realistic the subroutines initialise_global_forcing, get_insolation_at_time, update_insolation_timeframes_from_file
-  implicit none
+
+ implicit none
 
   private
 
@@ -62,19 +59,14 @@ contains
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%primary)  WRITE(*,"(A)") '      Running climate matrix model...'
+    !IF (par%primary)  WRITE(*,"(A)") '      Running climate matrix model...'
 
-    !print *, "size of SMB%Albedo just after entering run =", size(SMB%IMAUITM%Albedo, 1), 'times', size(SMB%IMAUITM%Albedo, 2)
-
-    ! Update forcing at model time
-    ! I DID THIS ACCORDING TO WHAT I FOUND IN MARTIM BRANCH, DOUBLE CHECK LATER ON, THIS WILL NOT COMPILE WITHOUT HIS CODE
+    ! Update insolation forcing at model time
     CALL get_insolation_at_time( mesh, time, climate%snapshot)
-    !print *, "get insolation at time worked"
-    ! before the get_insolation_at_time updated the value of climate%Q_TOA, now it does to climate%snapshot%Q_TOA
-    !print *, "value of time that goes to update_CO2_.. ", time 
-    !print *, "min ...", MINVAL( forcing%CO2_time), "and max ", MAXVAL( forcing%CO2_time)
+
+    ! Update CO2 forcing at model time
     CALL update_CO2_at_model_time( time, forcing)
-    !print *, "update CO2 at model time worked"
+
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( mesh, grid, ice, SMB, climate, region_name, forcing)
 
@@ -83,8 +75,6 @@ contains
 
     ! == Safety checks from UFE1.x
     ! ================
-        !print *, "print value of climate%Precip ", climate%Precip
-
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
       IF (climate%T2m( vi,m) < 150._dp) THEN
@@ -96,8 +86,6 @@ contains
       ELSEIF (climate%Precip( vi,m) <= 0._dp) THEN
         CALL crash('zero/negative precipitation detected!')
       ELSEIF (climate%Precip( vi,m) /= climate%Precip( vi,m)) THEN
- !       print *, "print value of climate%Precip ", climate%Precip( vi, m)
- !       print *, "print value of climate%T2m ", climate%T2m( vi, m)
         CALL crash('NaN precipitation detected!')
       END IF
     END DO
@@ -145,10 +133,7 @@ contains
     allocate( Hs_GCM(       mesh%vi1:mesh%vi2))
     allocate( lambda_GCM(   mesh%vi1:mesh%vi2))
     
-    IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix temperature model...'
-
-    !print *, "value of vi1", mesh%vi1
-    !print *, "size of w_ins to check if is parallelised", size(w_ins)
+    !IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix temperature model...'
     
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
@@ -168,10 +153,8 @@ contains
       call crash('must only be called with the correct forcing method, check your code!')
 
     end select
-    !print *, "value of CO2 = ", CO2
     call sync
     
-    !print *, '   error step 0.1...', CO2
     ! If CO2 ~= warm snap -> weight is 1. If ~= cold snap -> weight is 0.
     ! Otherwise interpolate. Berends et al., 2018 - Eq. 1
     w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / &
@@ -181,11 +164,8 @@ contains
     ! ===========================================================
 
     ! Calculate modelled absorbed insolation
-    ! CHECK where I_Abs will be stored it will be called as climate%matrix? 
-    !IF (par%primary) print *, "value of Albedo",SMB%Albedo
 
     climate%matrix%I_abs( mesh%vi1:mesh%vi2) = 0._dp
-    !print *, '   error step 0.2... print w_CO2', w_CO2
     call sync
     DO vi = mesh%vi1, mesh%vi2
     DO m = 1, 12
@@ -196,13 +176,9 @@ contains
     END DO
     call sync
 
-    !print *, "error step1..."
-    !IF (par%primary)  WRITE(*,"(A)") '   error step 1...'
     ! Calculate "direct" weighting field
     ! Berends et al., 2018 - Eq. 3
-    !print *, "size of matrix%I_abs =", size(climate%matrix%I_abs)
-    !print *, "size of matrix%GCM_warm%I_abs =", size(climate%matrix%GCM_warm%I_abs, 1)
-    !print *, "size of matrix%GCM%cold%I_abs =", size(climate%matrix%GCM_cold%I_abs, 1)
+
     DO vi = mesh%vi1, mesh%vi2
       ! If absorbed insolation ~= warm snap -> weight is 1.
       ! If ~= cold snap -> weight is 0. Otherwise interpolate
@@ -212,27 +188,20 @@ contains
                         ( climate%matrix%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) / &
                         ( climate%matrix%GCM_warm%I_abs( vi) - climate%matrix%GCM_cold%I_abs( vi)) ))
       else
-      ! I ADDED THIS BEFORE BECAUSE I HAD NANS VALUES IN THE PRECIPITATION, IT WAS CAUSING THESE... IS IT NEEDED?, maybe trigger an error instead of making it 0
+      ! If all the inputs are working, this should not be triggered
         call crash('absorbed insolation in warm and cold snap are equal - causing a division by zero')
-        w_ins( vi)= 0.0_dp ! just for now IDK if it makes sense physically
-        print *, "w_ins set to 0 for this vi due to an small denominator with vi=", vi, "GCM_warm%I_abs =", climate%matrix%GCM_warm%I_abs( vi), "GCM_cold%I_abs =", climate%matrix%GCM_cold%I_abs( vi)  
       end if
-    !print *, "print GCM_cold%I_abs", climate%matrix%GCM_cold%I_abs( vi)
-    !print *, "print GCM_warm%I_abs", climate%matrix%GCM_warm%I_abs( vi)
-    !print *, "print matrix%I_abs", climate%matrix%I_abs( vi)
-    !print *, "print value of w_ins", w_ins(vi), "and vi = ", vi
+
     END DO
     call sync
     
-    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.5 ...'
     w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
                                                            (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
     ! Smooth the weighting field
-    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.6 ...'
     w_ins_smooth( mesh%vi1:mesh%vi2) = w_ins( mesh%vi1:mesh%vi2)
-    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.7 ...'
+
     CALL smooth_Gaussian( mesh, grid, w_ins_smooth, 200000._dp)
-    !IF (par%primary)  WRITE(*,"(A)") '   error step 1.8 ...'
+
     ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       w_ice( mesh%vi1:mesh%vi2) = (1._dp * w_ins(        mesh%vi1:mesh%vi2) + &
@@ -243,8 +212,6 @@ contains
       w_ice( mesh%vi1:mesh%vi2) = (1._dp * w_ins_smooth( mesh%vi1:mesh%vi2) + &
                                    6._dp * w_ins_av) / 7._dp
     END IF
-    !IF (par%primary)  WRITE(*,"(A)") '   error step 2...'
-
 
     ! Combine interpolation weights from absorbed insolation and CO2 into the final weights fields
     ! Berends et al., 2018 - Eqs. 5, 9 with weights 0.5 for NAM & EAS, and 0.75 for ANT
@@ -263,7 +230,6 @@ contains
 !! In UFE1.x here are two more options, glacial matrix and glacial index
 !! lines 1050 - 1080 in climate_module.f90
 !! ==============================================================================================================
-    !IF (par%primary)  WRITE(*,"(A)") '   error step 3...'
 
     ! Interpolate between the GCM snapshots
     ! =====================================
@@ -280,7 +246,6 @@ contains
 
       ! Adapt temperature to model orography using matrix-derived lapse-rate
       DO m = 1, 12
-      !! check name variable Hs_a in UFE2 should be just Hs !
         climate%T2m( vi,:) = T_ref_GCM( vi, m) - lambda_GCM( vi) * (ice%Hs( vi) - Hs_GCM( vi))  ! Berends et al., 2018 - Eq. 11
       END DO
 
@@ -327,7 +292,7 @@ contains
     allocate( P_ref_GCM( mesh%vi1:mesh%vi2, 12))
     allocate( Hs_GCM(    mesh%vi1:mesh%vi2))
 
-    IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix precipitation model...'
+    !IF (par%primary)  WRITE(*,"(A)") '   Running climate matrix precipitation model...'
 
     ! Calculate interpolation weights based on ice geometry
     ! =====================================================
@@ -392,29 +357,7 @@ contains
                               (w_cold( vi) * LOG(climate%matrix%GCM_cold%Precip( vi,:)))) ! Berends et al., 2018 - Eq. 7
                               
       Hs_GCM(    vi  ) =      (w_warm( vi) *     climate%matrix%GCM_warm%Hs(     vi   )) + &
-                              (w_cold( vi) *     climate%matrix%GCM_cold%Hs(     vi   ))   ! Berends et al., 2018 - Eq. 8
-
-!    do m = 1, 12
-!    print *, "print value of P_ref_GCM in climate matrix precip to check NaNs", P_ref_GCM( vi, m) ! until here is fine, no NaNs...
-!    print *, "print value of climate%Precip, it should be allocated from before...,", climate%Precip( vi, m)
-!    end do
-      do m = 1, 12
-        if (climate%matrix%GCM_warm%Precip(vi, m) /= climate%matrix%GCM_warm%Precip(vi, m)) then
-          print*, "climate%matrix%GCM_warm%Precip is NaN .. , line 403", vi, m
-          CALL crash('NaN precipitation detected!, in climate%matrix%GCM_warm%Precip')
-        end if
-        if (climate%matrix%GCM_cold%Precip(vi, m) /= climate%matrix%GCM_cold%Precip(vi, m)) then
-          print*, "climate%matrix%GCM_cold%Precip is NaN .. , line 403", vi, m
-          CALL crash('NaN precipitation detected!, in climate%matrix%GCM_cold%Precip')
-        end if
-        ! is not Precip the file that has NaNs instead is the log of it. but When the log is NaN?
-        !!
-        ! problem is that precip is negative!, check if the inputs file have negative values or if is the code
-        if (P_ref_GCM(vi, m) /= P_ref_GCM(vi, m)) then
-          print*, "P_ref_GCM is NaN .. , line 403, print vi,logs w_warm and w_cold", vi, climate%matrix%GCM_warm%Precip( vi,m), climate%matrix%GCM_cold%Precip( vi,m), LOG(climate%matrix%GCM_warm%Precip( vi,m)), LOG(climate%matrix%GCM_cold%Precip( vi,m))
-          CALL crash('NaN precipitation detected!, in input to adapt_precip_CC')
-        end if
-      end do
+                              (w_cold( vi) *     climate%matrix%GCM_cold%Hs(     vi   ))   ! Berends et al., 2018 - Eq. 8                  
     END DO
 
     ! Downscale precipitation from the coarse-resolution reference
@@ -565,9 +508,6 @@ contains
     !allocate( snapshot%Albedo( mesh%vi1:mesh%vi2, 12))
     !allocate( snapshot%I_abs(  mesh%vi1:mesh%vi2))
     
-    !print *, "value of vi1 =", mesh%vi1, "value of vi2 = ", mesh%vi2
-    !print *, "size of wind just after the allocation in allocate_climate_snapshot ... ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -597,18 +537,13 @@ contains
     CALL read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, snapshot%Precip )
     call read_field_from_file_2D_monthly( filename, 'Wind_WE||uas||'      , mesh, snapshot%Wind_WE) ! is needed the last ||? I copy it from SMB_realistic
     call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
-!    print *, "size of T2m before rotate_wind.. ", size(snapshot%T2m, dim=1), "times ", size(snapshot%T2m, dim=2)
-!    print *, "size of Wind_WE before rotate_wind.. ", size(snapshot%Wind_WE, dim=1), "times ", size(snapshot%Wind_WE, dim=2)
-!    print *, "brounds of Wind_WE lower bound = ", lbound(snapshot%Wind_WE, dim=1), "upper bound = ", ubound(snapshot%Wind_WE, dim=1)
     
     call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
 
+! Check if the snapshot have negative values in the Precip after mapping to mesh
   do m = 1, 12
   do vi = mesh%vi1, mesh%vi2
     if (snapshot%Precip(vi, m) < 0) then
-      !print*, "negative value of snapshot%Precip, replaced to zero", snapshot%Precip(vi, m), "in ", snapshot%name
-      ! Keep this for now, however, this should not happen. Ask Tijn bcs the input file do not have any negative value!
-      snapshot%Precip(vi,m) = 0.00001 !
       call crash('snapshot%Precip(vi,m) with negative values')
     end if
   end do
@@ -630,9 +565,7 @@ contains
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
-    TYPE(type_climate_model_snapshot),   INTENT(IN)    :: GCM_PI, PD_obs
-    !type(type_climate_model_matrix), intent(out) :: matrix
-   !dimension(mesh%ti1:mesh%ti2,mesh%nz) try with this 
+    TYPE(type_climate_model_snapshot),   INTENT(IN)    :: GCM_PI, PD_obs 
     REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),          INTENT(OUT)   :: GCM_bias_T2m
     REAL(dp), dimension(mesh%vi1:mesh%vi2, 12),          INTENT(OUT)   :: GCM_bias_Precip
 
@@ -724,7 +657,6 @@ contains
 
     ! Allocate shared memory
     allocate( mask_calc_lambda( mesh%vi1:mesh%vi2))
-    !CALL allocate_shared_int_2D( grid%ny, grid%nx, mask_calc_lambda, wmask_calc_lambda)
 
     ! Determine where the variable lapse rate should be calculated
     ! (i.e. where has the surface elevation increased substantially)
@@ -828,12 +760,10 @@ contains
     CALL init_routine( routine_name)
     ! Initialise the insolation variables inside snapshot
     call initialise_insolation_forcing(snapshot, mesh)
-    !print *, "sum of Q_TOA, after initialisation ", sum(snapshot%Q_TOA), "name ", snapshot%name
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
 
     CALL get_insolation_at_time( mesh, snapshot%orbit_time, snapshot)
-    !print *, "sum of Q_TOA, after get_insolation_at_time ", sum(snapshot%Q_TOA), "name ", snapshot%name
 
     ! Create temporary "dummy" climate, ice & SMB data structures,
     ! so we can run the SMB model and determine the reference albedo field
@@ -866,7 +796,7 @@ contains
     ! Fill in masks for the SMB model
     DO vi = mesh%vi1, mesh%vi2
     
-   ! In IMAU-ICE SMB is runned using region%mask_noice in UFE2 is ice%mask_noice, I will keep the masks from above for ice_dummy
+   ! In IMAU-ICE SMB it uses region%mask_noice in UFE2 is ice%mask_noice, I will keep the masks from above for ice_dummy
    ! and make ice_dummy%mask_noice = ice%mask_noice to run the SMB using the dummy, following IMAU-ICE code..
       ice_dummy%mask_noice( vi) = ice%mask_noice( vi) 
 
@@ -970,7 +900,6 @@ contains
 
     ! Run the SMB model for 10 years for this particular climate
     ! (experimentally determined to be long enough to converge)
-    !if (par%primary) write(*,"(A)") '      Running SMB during initialise_matrix_calc_absorbed_insolation'
     DO i = 1, 10
       CALL run_SMB_model_IMAUITM( mesh, ice_dummy, SMB_dummy, climate_dummy)
     END DO
@@ -1045,24 +974,9 @@ contains
 
       DO m = 1, 12
       DO vi = mesh%vi1, mesh%vi2
-        if (P_ref_GCM(vi, m) /= P_ref_GCM(vi, m)) then
-          print*, "P_ref_GCM is NaN .. line 1053", vi
-        end if
-!      print*, "print values before Precip_GCM ... T_inv_ref ", T_inv_ref(vi, m) 
-!      print*, "print values before Precip_GCM ... T_inv ", T_inv(vi, m)
-!      print*, "print values before Precip_GCM ... P_ref_GCM ", P_ref_GCM(vi, m)
-!      print*, "second term ... ", (T_inv_ref( vi,m) / T_inv( vi,m))**2
-!      print*, "third term .... ", EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
 
-! IF I COMMENT THIS LINE THE NANs in climate%Precip DISAPPEAR... so what is going on ...
-! the problem is allocating something in this function I think ... I just make it equal to P_ref_GCM, none of them has NaNs but it get fucked up
-! For now P_ref_GCM has NaNs , is this normal? start looking where the NaNs start to appear
         Precip_GCM( vi,m) = P_ref_GCM( vi,m) * (T_inv_ref( vi,m) / T_inv( vi,m))**2 * EXP(22.47_dp * (T0 / T_inv_ref( vi,m) - T0 / T_inv( vi,m)))
-!      print*, "print value of Precip_GCM ...", Precip_GCM( vi,m)
-        if (Precip_GCM(vi, m) /= Precip_GCM(vi, m)) then
-          print*, "Precip_GCM is NaN .. , line 1067", vi
-          CALL crash('NaN precipitation detected!')
-        end if
+
       END DO
       END DO
       CALL sync
