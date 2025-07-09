@@ -49,7 +49,7 @@ contains
 
     call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
-    call log_checksum_int( sum_d, var_name)
+    call log_checksum_int( sum_d, 0, 0, 0, var_name)
 
   end subroutine checksum_logical_1D
 
@@ -70,7 +70,7 @@ contains
 
     call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
 
-    call log_checksum_int( sum_d, var_name)
+    call log_checksum_int( sum_d, 0, 0, 0, var_name)
 
   end subroutine checksum_logical_2D
 
@@ -92,7 +92,7 @@ contains
     call MPI_ALLREDUCE( d, max_d, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
     if (min_d /= max_d) call crash('checksum - scalar variable has different values on different processes')
 
-    call log_checksum_int( d, var_name)
+    call log_checksum_int( d, 0, 0, 0, var_name)
 
   end subroutine checksum_int_0D
 
@@ -101,19 +101,28 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    integer :: sum_d, ierr
+    integer :: sum_d, sum_abs_d, min_d, max_d, ierr
 
     if (.not. C%do_write_checksum_log) return
 
     if (.not. present( pai)) then
-      sum_d = sum( d)
+      sum_d     = sum   ( d)
+      sum_abs_d = sum( abs( d))
+      min_d     = minval( d)
+      max_d     = maxval( d)
     else
-      sum_d = sum( d( pai%i1:pai%i2))
+      sum_d     = sum     ( d( pai%i1:pai%i2))
+      sum_abs_d = sum( abs( d( pai%i1:pai%i2)))
+      min_d     = minval  ( d( pai%i1:pai%i2))
+      max_d     = maxval  ( d( pai%i1:pai%i2))
     end if
 
-    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d    , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_abs_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, min_d    , 1, MPI_INTEGER, MPI_MIN, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, max_d    , 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    call log_checksum_int( sum_d, var_name)
+    call log_checksum_int( sum_d, sum_abs_d, min_d, max_d, var_name)
 
   end subroutine checksum_int_1D
 
@@ -122,19 +131,28 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    integer :: sum_d, ierr
+    integer :: sum_d, sum_abs_d, min_d, max_d, ierr
 
     if (.not. C%do_write_checksum_log) return
 
     if (.not. present( pai)) then
-      sum_d = sum( d)
+      sum_d     = sum   ( d)
+      sum_abs_d = sum( abs( d))
+      min_d     = minval( d)
+      max_d     = maxval( d)
     else
-      sum_d = sum( d( pai%i1:pai%i2,:))
+      sum_d     = sum     ( d( pai%i1:pai%i2,:))
+      sum_abs_d = sum( abs( d( pai%i1:pai%i2,:)))
+      min_d     = minval  ( d( pai%i1:pai%i2,:))
+      max_d     = maxval  ( d( pai%i1:pai%i2,:))
     end if
 
-    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d    , 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_abs_d, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, min_d    , 1, MPI_INTEGER, MPI_MIN, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, max_d    , 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    call log_checksum_int( sum_d, var_name)
+    call log_checksum_int( sum_d, sum_abs_d, min_d, max_d, var_name)
 
   end subroutine checksum_int_2D
 
@@ -156,7 +174,7 @@ contains
     call MPI_ALLREDUCE( d, max_d, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
     if (min_d /= max_d) call crash('checksum - scalar variable has different values on different processes')
 
-    call log_checksum_dp( d, var_name)
+    call log_checksum_dp( d, 0._dp, 0._dp, 0._dp, var_name)
 
   end subroutine checksum_dp_0D
 
@@ -165,20 +183,29 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    real(dp) :: sum_d
+    real(dp) :: sum_d, sum_abs_d, min_d, max_d
     integer  :: ierr
 
     if (.not. C%do_write_checksum_log) return
 
     if (.not. present( pai)) then
-      sum_d = sum( d)
+      sum_d     = sum   ( d)
+      sum_abs_d = sum( abs( d))
+      min_d     = minval( d)
+      max_d     = maxval( d)
     else
-      sum_d = sum( d( pai%i1:pai%i2))
+      sum_d     = sum     ( d( pai%i1:pai%i2))
+      sum_abs_d = sum( abs( d( pai%i1:pai%i2)))
+      min_d     = minval  ( d( pai%i1:pai%i2))
+      max_d     = maxval  ( d( pai%i1:pai%i2))
     end if
 
-    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_abs_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, min_d    , 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, max_d    , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    call log_checksum_dp( sum_d, var_name)
+    call log_checksum_dp( sum_d, sum_abs_d, min_d, max_d, var_name)
 
   end subroutine checksum_dp_1D
 
@@ -187,50 +214,67 @@ contains
     character(len=*),                  intent(in) :: var_name
     type(type_par_arr_info), optional, intent(in) :: pai
 
-    real(dp) :: sum_d
+    real(dp) :: sum_d, sum_abs_d, min_d, max_d
     integer  :: ierr
 
     if (.not. C%do_write_checksum_log) return
 
     if (.not. present( pai)) then
-      sum_d = sum( d)
+      sum_d     = sum   ( d)
+      sum_abs_d = sum( abs( d))
+      min_d     = minval( d)
+      max_d     = maxval( d)
     else
-      sum_d = sum( d( pai%i1:pai%i2,:))
+      sum_d     = sum     ( d( pai%i1:pai%i2,:))
+      sum_abs_d = sum( abs( d( pai%i1:pai%i2,:)))
+      min_d     = minval  ( d( pai%i1:pai%i2,:))
+      max_d     = maxval  ( d( pai%i1:pai%i2,:))
     end if
 
-    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_d    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, sum_abs_d, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, min_d    , 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, max_d    , 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
-    call log_checksum_dp( sum_d, var_name)
+    call log_checksum_dp( sum_d, sum_abs_d, min_d, max_d, var_name)
 
   end subroutine checksum_dp_2D
 
-  subroutine log_checksum_int( sum_d, var_name)
+  subroutine log_checksum_int( sum_d, sum_abs_d, min_d, max_d, var_name)
 
     ! In/output variables:
-    integer,          intent(in) :: sum_d
+    integer,          intent(in) :: sum_d, sum_abs_d, min_d, max_d
     character(len=*), intent(in) :: var_name
 
     ! Local variables:
     character(len=1024) :: str
 
-    str = 'sum(' // trim( var_name) // ') = {int_01} [' // trim( routine_path) // ']'
+    str = trim( var_name) // ': sum = {int_01}, sum(abs) = {int_02}, min = {int_03}, max = {int_04} [' &
+      // trim( routine_path) // ']'
     call insert_val_into_string_int( str, '{int_01}', sum_d)
+    call insert_val_into_string_int( str, '{int_02}', sum_abs_d)
+    call insert_val_into_string_int( str, '{int_03}', min_d)
+    call insert_val_into_string_int( str, '{int_04}', max_d)
 
     call log_checksum( str)
 
   end subroutine log_checksum_int
 
-  subroutine log_checksum_dp( sum_d, var_name)
+  subroutine log_checksum_dp( sum_d, sum_abs_d, min_d, max_d, var_name)
 
     ! In/output variables:
-    real(dp),         intent(in) :: sum_d
+    real(dp),         intent(in) :: sum_d, sum_abs_d, min_d, max_d
     character(len=*), intent(in) :: var_name
 
     ! Local variables:
     character(len=1024) :: str
 
-    str = 'sum(' // trim( var_name) // ') = {int_01} [' // trim( routine_path) // ']'
-    call insert_val_into_string_dp( str, '{int_01}', sum_d)
+    str = trim( var_name) // ': sum = {dp_01}, sum(abs) = {dp_02}, min = {dp_03}, max = {dp_04} [' &
+      // trim( routine_path) // ']'
+    call insert_val_into_string_dp( str, '{dp_01}', sum_d)
+    call insert_val_into_string_dp( str, '{dp_02}', sum_abs_d)
+    call insert_val_into_string_dp( str, '{dp_03}', min_d)
+    call insert_val_into_string_dp( str, '{dp_04}', max_d)
 
     call log_checksum( str)
 

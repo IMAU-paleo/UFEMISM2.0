@@ -710,7 +710,7 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                                            :: ci
-    CHARACTER(LEN=11)                                                  :: val_str
+    CHARACTER(LEN=20)                                                  :: val_str
     INTEGER                                                            :: len_str, len_marker
 
     ! Find position ci in str where i_str occurs
@@ -720,7 +720,7 @@ CONTAINS
     IF (ci == 0) CALL crash('insert_val_into_string_dp: couldnt find marker "' // TRIM( marker) // '" in string "' // TRIM( str) // '"!')
 
     ! Write val to a string
-    WRITE( val_str,'(E11.5)') val
+    WRITE( val_str,'(E20.14)') val
 
     ! Find total string length right now
     len_str    = LEN( str)
