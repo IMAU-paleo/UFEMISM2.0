@@ -116,6 +116,9 @@ contains
         call solve_SIA( mesh, ice, ice%SIA)
         call set_ice_velocities_to_SIA_results( mesh, ice, ice%SIA)
 
+        n_visc_its = 0
+        n_Axb_its  = 0
+
       case ('SSA')
         ! Calculate velocities according to the Shallow Shelf Approximation
 
