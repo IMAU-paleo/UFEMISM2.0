@@ -944,6 +944,23 @@ MODULE model_configuration
     ! "uniform"
     REAL(dp)            :: uniform_LMB_config                           = 0._dp
 
+    ! "GlacialIndex"
+    CHARACTER(LEN=256)  :: filename_LMB_GI_NAM_config                   = ''                              ! time series file containing the glacial index record
+    CHARACTER(LEN=256)  :: filename_LMB_GI_EAS_config                   = ''                              ! time series file containing the glacial index record
+    CHARACTER(LEN=256)  :: filename_LMB_GI_GRL_config                   = ''                              ! time series file containing the glacial index record
+    CHARACTER(LEN=256)  :: filename_LMB_GI_ANT_config                   = ''                              ! time series file containing the glacial index record
+
+    REAL(dp)            :: warm_LMB_NAM_config                          = -1.0_dp                         ! constant LMB value for a "warm" (GI=0.0) period
+    REAL(dp)            :: warm_LMB_EAS_config                          = -1.0_dp                         !
+    REAL(dp)            :: warm_LMB_GRL_config                          = -1.0_dp                         !
+    REAL(dp)            :: warm_LMB_ANT_config                          = -1.0_dp                         !
+    
+    REAL(dp)            :: cold_LMB_NAM_config                          = 0.0_dp                          ! constant LMB value for a "cold" (GI=1.0) period
+    REAL(dp)            :: cold_LMB_EAS_config                          = 0.0_dp                          ! 
+    REAL(dp)            :: cold_LMB_GRL_config                          = 0.0_dp                          ! 
+    REAL(dp)            :: cold_LMB_ANT_config                          = 0.0_dp                          ! 
+
+
   ! == Glacial isostatic adjustment
   ! ===============================
 
@@ -2016,6 +2033,23 @@ MODULE model_configuration
     ! "uniform"
     REAL(dp)            :: uniform_LMB
 
+    ! "GlacialIndex"
+    CHARACTER(LEN=256)  :: filename_LMB_GI_NAM
+    CHARACTER(LEN=256)  :: filename_LMB_GI_EAS
+    CHARACTER(LEN=256)  :: filename_LMB_GI_GRL
+    CHARACTER(LEN=256)  :: filename_LMB_GI_ANT
+
+    REAL(dp)            :: warm_LMB_NAM
+    REAL(dp)            :: warm_LMB_EAS
+    REAL(dp)            :: warm_LMB_GRL
+    REAL(dp)            :: warm_LMB_ANT
+    
+    REAL(dp)            :: cold_LMB_NAM
+    REAL(dp)            :: cold_LMB_EAS
+    REAL(dp)            :: cold_LMB_GRL
+    REAL(dp)            :: cold_LMB_ANT
+  
+
   ! == Glacial isostatic adjustment
   ! ===============================
 
@@ -2964,6 +2998,18 @@ CONTAINS
       choice_LMB_model_GRL_config                                 , &
       choice_LMB_model_ANT_config                                 , &
       uniform_LMB_config                                          , &
+      filename_LMB_GI_NAM_config                                  , &
+      filename_LMB_GI_EAS_config                                  , &
+      filename_LMB_GI_GRL_config                                  , &
+      filename_LMB_GI_ANT_config                                  , &
+      warm_LMB_NAM_config                                         , &
+      warm_LMB_EAS_config                                         , &
+      warm_LMB_GRL_config                                         , &
+      warm_LMB_ANT_config                                         , &
+      cold_LMB_NAM_config                                         , &
+      cold_LMB_EAS_config                                         , &
+      cold_LMB_GRL_config                                         , &
+      cold_LMB_ANT_config                                         , &
       choice_GIA_model_config                                     , &
       dt_GIA_config                                               , &
       dx_GIA_config                                               , &
@@ -4035,6 +4081,22 @@ CONTAINS
 
     ! "uniform"
     C%uniform_LMB                                            = uniform_LMB_config
+
+    ! "GlacialIndex"
+    C%filename_LMB_GI_NAM                                    = filename_LMB_GI_NAM_config
+    C%filename_LMB_GI_EAS                                    = filename_LMB_GI_EAS_config
+    C%filename_LMB_GI_GRL                                    = filename_LMB_GI_GRL_config
+    C%filename_LMB_GI_ANT                                    = filename_LMB_GI_ANT_config
+
+    C%warm_LMB_NAM                                           = warm_LMB_NAM_config
+    C%warm_LMB_EAS                                           = warm_LMB_EAS_config
+    C%warm_LMB_GRL                                           = warm_LMB_GRL_config
+    C%warm_LMB_ANT                                           = warm_LMB_ANT_config
+    
+    C%cold_LMB_NAM                                           = cold_LMB_NAM_config
+    C%cold_LMB_EAS                                           = cold_LMB_EAS_config
+    C%cold_LMB_GRL                                           = cold_LMB_GRL_config
+    C%cold_LMB_ANT                                           = cold_LMB_ANT_config
 
   ! == Glacial isostatic adjustment
   ! ===============================
