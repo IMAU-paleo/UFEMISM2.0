@@ -171,6 +171,54 @@ CONTAINS
 
   END SUBROUTINE compute_entrainment
 
+  SUBROUTINE compute_subglacial_discharge( mesh, laddie, npx)
+  ! Compute subglacial discharge: only if CONFIGVAR is .TRUE.
+
+    ! In- and output variables
+
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_subglacial_discharge'
+    INTEGER                                               :: vi
+    REAL(dp) :: total_area 
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    total_area = 0._dp
+    ! Determine the number of cells where subgl_discharge is added
+    DO vi = mesh%vi1, mesh%vi2 
+      IF (laddie%mask_a( vi)) THEN
+        ! Check if subglacial discharge is forced in this cell
+        IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
+          total_area = total_area + mesh%A( vi) 
+        END IF
+      END IF 
+    END DO
+
+    print*, 'Total area where SGD is released:'
+    print*, total_area 
+
+    ! Determine the SGD distribution among the cells
+    DO vi = mesh%vi1, mesh%vi2 
+      IF (laddie%mask_a( vi)) THEN
+        
+        IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
+          laddie%SGD( vi) = 72._dp / total_area
+
+        END IF
+      END IF 
+    END DO
+
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE compute_subglacial_discharge
+
   SUBROUTINE compute_freezing_temperature( mesh, laddie, npx)
     ! Compute freezing temperature at ice shelf base, based on Laddie salinity.
     ! TODO can maybe be merged with ice computation

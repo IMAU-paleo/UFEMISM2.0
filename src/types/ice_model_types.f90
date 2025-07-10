@@ -260,6 +260,7 @@ MODULE ice_model_types
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_coastline              ! T: ice-free land next to ice-free ocean, F: otherwise
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_noice                  ! T: no ice is allowed here, F: ice is allowed here
     LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_ROI                    ! T: located in ROI, F: otherwise (all false when no ROI is specified)
+    LOGICAL,  DIMENSION(:    ), ALLOCATABLE :: mask_SGD                    ! T: subglacial discharge area, F: otherwise
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: mask                        ! Diagnostic, only meant for quick visual inspection in output
     INTEGER,  DIMENSION(:    ), ALLOCATABLE :: basin_ID                    ! The drainage basin to which each vertex belongs
 

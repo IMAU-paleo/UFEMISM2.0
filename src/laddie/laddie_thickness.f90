@@ -15,7 +15,7 @@ MODULE laddie_thickness
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
-                                                                     compute_freezing_temperature, compute_buoyancy
+                                                                     compute_freezing_temperature, compute_buoyancy, compute_subglacial_discharge
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   use mesh_halo_exchange, only: exchange_halos
   use checksum_mod, only: checksum
@@ -63,6 +63,11 @@ CONTAINS
 
     ! Compute entrainment
     CALL compute_entrainment( mesh, laddie, npx_ref, npx_ref%H)
+
+    ! Compute subglacial discharge
+    ! IF (C%laddie_do_subglacial_discharge) THEN
+    CALL compute_subglacial_discharge( mesh, laddie, npx_ref)
+    ! END IF 
 
     ! Do integration
     CALL integrate_H( mesh, laddie, npx_old, npx_new, dt)
@@ -121,7 +126,7 @@ CONTAINS
         laddie%detr( vi) = - MIN(laddie%entr( vi),0.0_dp)
 
         ! Get actual dHdt
-        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi)
+        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%entr_dmin( vi) + laddie%SGD( vi)
 
         ! Get actual H_n
         npx_new%H( vi) = npx_old%H( vi) + dHdt * dt
