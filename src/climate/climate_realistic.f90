@@ -12,13 +12,25 @@ MODULE climate_realistic
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
-  USE climate_model_types                                    , ONLY: type_climate_model
+  USE climate_model_types                                    , ONLY: type_climate_model, type_climate_model_snapshot
   USE global_forcing_types                                   , ONLY: type_global_forcing
   USE global_forcings_main
   USE netcdf_io_main
   USE netcdf_basic
+  use mpi_distributed_memory, only: distribute_from_primary
 
   IMPLICIT NONE
+
+  private
+
+  public :: run_climate_model_realistic
+  public :: initialise_climate_model_realistic
+  public :: initialise_global_forcings
+  public :: get_insolation_at_time
+  public :: update_CO2_at_model_time
+  public :: update_sealevel_at_model_time
+  public :: initialise_insolation_forcing
+  public :: initialise_CO2_record
 
 CONTAINS
 
@@ -53,7 +65,7 @@ CONTAINS
 
     ! if needed for IMAU-ITM or climate matrix, we need to update insolation
     IF (climate%snapshot%has_insolation) THEN
-      CALL get_insolation_at_time( mesh, time, climate)
+      CALL get_insolation_at_time( mesh, time, climate%snapshot)
     
       IF (C%choice_climate_model_realistic == 'climate_matrix') THEN
         ! This is probably where we will update insolation, CO2, etc...
@@ -150,13 +162,13 @@ CONTAINS
         IF (C%choice_insolation_forcing == 'none') THEN
           CALL crash('Chosen climate or SMB model cannot be used with choice_insolation_forcing = "none"!')
         ELSE
-          CALL initialise_insolation_forcing( climate, mesh)
+          CALL initialise_insolation_forcing( climate%snapshot, mesh)
           IF (C%start_time_of_run < 0._dp) THEN
             timeframe_init_insolation = C%start_time_of_run
           ELSE
             timeframe_init_insolation = 0._dp
           END IF
-          CALL get_insolation_at_time( mesh, timeframe_init_insolation, climate)
+          CALL get_insolation_at_time( mesh, timeframe_init_insolation, climate%snapshot)
         END IF
       END IF
 
@@ -228,13 +240,13 @@ CONTAINS
   END SUBROUTINE apply_lapse_rate_geometry_corrections
 
   ! == Insolation
-  SUBROUTINE initialise_insolation_forcing( climate, mesh)
+  SUBROUTINE initialise_insolation_forcing( snapshot, mesh)
     ! initialise the insolation series in the forcing structure
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_climate_model),   INTENT(INOUT) :: climate
+    TYPE(type_climate_model_snapshot),   INTENT(INOUT) :: snapshot
     TYPE(type_mesh),            INTENT(IN)    :: mesh
 
     ! Local variables:
@@ -257,45 +269,46 @@ CONTAINS
       IF (par%primary)   WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
 
       ! Memory allocation
-      ALLOCATE(climate%snapshot%ins_t0)
-      ALLOCATE(climate%snapshot%ins_t1)
-      ALLOCATE(climate%snapshot%ins_ti0)
-      ALLOCATE(climate%snapshot%ins_ti1)
-      ALLOCATE(climate%snapshot%ins_nlat)
-      ALLOCATE(climate%snapshot%ins_nlon)
-      ALLOCATE(climate%snapshot%ins_lat            (   climate%snapshot%ins_nlat))
-      ALLOCATE(climate%snapshot%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%snapshot%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%snapshot%lambda             (mesh%vi1:mesh%vi2))
-      ALLOCATE(climate%snapshot%Q_TOA              (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%snapshot%Albedo             (mesh%vi1:mesh%vi2,12))
-      ALLOCATE(climate%snapshot%I_abs              (mesh%vi1:mesh%vi2))
-      climate%snapshot%ins_t0     = C%start_time_of_run
-      climate%snapshot%ins_t1     = C%start_time_of_run
-      climate%snapshot%ins_nlat   = 181
-      climate%snapshot%ins_nlon   = 360
-      climate%snapshot%ins_lat    = 0._dp
-      climate%snapshot%ins_Q_TOA0 = 0._dp
-      climate%snapshot%ins_Q_TOA1 = 0._dp
+      ALLOCATE(snapshot%ins_t0)
+      ALLOCATE(snapshot%ins_t1)
+      ALLOCATE(snapshot%ins_ti0)
+      ALLOCATE(snapshot%ins_ti1)
+      ALLOCATE(snapshot%ins_nlat)
+      ALLOCATE(snapshot%ins_nlon)
+      ALLOCATE(snapshot%ins_lat            (   snapshot%ins_nlat))
+      ALLOCATE(snapshot%ins_Q_TOA0         (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(snapshot%ins_Q_TOA1         (mesh%vi1:mesh%vi2,12))
+      !ALLOCATE(snapshot%lambda             (mesh%vi1:mesh%vi2)) ! initialised in climate matrix routine
+      ALLOCATE(snapshot%Q_TOA              (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(snapshot%Albedo             (mesh%vi1:mesh%vi2,12))
+      ALLOCATE(snapshot%I_abs              (mesh%vi1:mesh%vi2))
+      snapshot%ins_t0     = C%start_time_of_run
+      snapshot%ins_t1     = C%start_time_of_run
+      snapshot%ins_nlat   = 181
+      snapshot%ins_nlon   = 360
+      snapshot%ins_lat    = 0._dp
+      snapshot%ins_Q_TOA0 = 0._dp
+      snapshot%ins_Q_TOA1 = 0._dp
+      snapshot%Q_TOA      = 0._dp
       
       ! find the closest timeframe to the start of the run
       call read_field_from_file_0D( C%filename_insolation, field_name_options_time, closest_t0, time_to_read = C%start_time_of_run)
 
       if (C%start_time_of_run >= closest_t0) then
         if (par%primary) WRITE(0,*) '     start time is after ins_t0, reading one step further for ins_t1...'
-        climate%snapshot%ins_t0 = closest_t0
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
+        snapshot%ins_t0 = closest_t0
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t1, time_to_read = C%start_time_of_run+1000._dp)
       else
         ! otherwise we read one record before for t1
         if (par%primary) WRITE(0,*) '     start time is before closest ins_t0, reading one step earlier for t0, and using that one for t1...'
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t0, time_to_read = C%start_time_of_run-1000._dp)
-        climate%snapshot%ins_t1 = closest_t0
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t0, time_to_read = C%start_time_of_run-1000._dp)
+        snapshot%ins_t1 = closest_t0
       end if
 
       ! Read the fields at ins_t0
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
       ! Read the fields at ins_t1
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA1, time_to_read = snapshot%ins_t1)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -306,14 +319,14 @@ CONTAINS
 
   END SUBROUTINE initialise_insolation_forcing
 
-  SUBROUTINE get_insolation_at_time( mesh, time, climate)
+  SUBROUTINE get_insolation_at_time( mesh, time, snapshot)
     ! Get monthly insolation at time t on the regional grid
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    TYPE(type_climate_model_snapshot),      INTENT(INOUT) :: snapshot
     REAL(dp),                               INTENT(IN)    :: time
 
     ! Local variables:
@@ -340,22 +353,22 @@ CONTAINS
 
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time_applied < climate%snapshot%ins_t0 .OR. time_applied > climate%snapshot%ins_t1) THEN
+    IF (time_applied < snapshot%ins_t0 .OR. time_applied > snapshot%ins_t1) THEN
       IF (par%primary)  WRITE(0,*) '   Model time is out of the current insolation timeframes. Updating timeframes...'
-      CALL update_insolation_timeframes_from_file( climate, time_applied, mesh)
+      CALL update_insolation_timeframes_from_file( snapshot, time_applied, mesh)
     END IF
 
     ! Calculate timeframe interpolation weights (plus safety checks for when the extend beyond the record)
-    if (climate%snapshot%ins_t1 == climate%snapshot%ins_t0) then
+    if (snapshot%ins_t1 == snapshot%ins_t0) then
       wt0 = 0._dp
       wt1 = 1._dp
     else
-      if (time_applied > climate%snapshot%ins_t1) then
+      if (time_applied > snapshot%ins_t1) then
         wt0 = 0._dp
-      elseif (time_applied < climate%snapshot%ins_t0) then
+      elseif (time_applied < snapshot%ins_t0) then
         wt0 = 1._dp
       else
-        wt0 = (climate%snapshot%ins_t1 - time_applied) / (climate%snapshot%ins_t1 - climate%snapshot%ins_t0)
+        wt0 = (snapshot%ins_t1 - time_applied) / (snapshot%ins_t1 - snapshot%ins_t0)
       end if
       wt1 = 1._dp - wt0
     end if
@@ -363,7 +376,8 @@ CONTAINS
     ! Interpolate the two timeframes
     do vi = mesh%vi1, mesh%vi2
       do m = 1, 12
-        climate%snapshot%Q_TOA(vi, m) = wt0 * climate%snapshot%ins_Q_TOA0(vi, m) + wt1 * climate%snapshot%ins_Q_TOA1(vi, m)
+      !print *, "value of Q_TOA0 ", snapshot%ins_Q_TOA0(vi, m), "and Q_TOA1 ", snapshot%ins_Q_TOA1( vi, m)
+        snapshot%Q_TOA(vi, m) = wt0 * snapshot%ins_Q_TOA0(vi, m) + wt1 * snapshot%ins_Q_TOA1(vi, m)
       end do
     end do
 
@@ -372,7 +386,7 @@ CONTAINS
 
   END SUBROUTINE get_insolation_at_time
 
-  SUBROUTINE update_insolation_timeframes_from_file( climate, time, mesh)
+  SUBROUTINE update_insolation_timeframes_from_file( snapshot, time, mesh)
     ! Read the NetCDF file containing the insolation forcing data. Only read the time frames enveloping the current
     ! coupling timestep to save on memory usage. Only done by master.
 
@@ -381,7 +395,7 @@ CONTAINS
     IMPLICIT NONE
 
     TYPE(type_mesh),                  INTENT(IN)     :: mesh
-    TYPE(type_climate_model),         INTENT(INOUT)  :: climate
+    TYPE(type_climate_model_snapshot), INTENT(INOUT)  :: snapshot
     REAL(dp),                         INTENT(IN)     :: time
 
     ! Local variables:
@@ -401,22 +415,22 @@ CONTAINS
       ! Find time indices to be read
       !IF (par%primary) THEN
 
-        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t0, time_to_read = time)
+        call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t0, time_to_read = time)
         
         ! if the desired time is after t0, we read one record after for t1
-        if (time >= climate%snapshot%ins_t0) then
-          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = time+1000._dp)
+        if (time >= snapshot%ins_t0) then
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t1, time_to_read = time+1000._dp)
         else
         ! otherwise we read one record before for t0, and that record becomes t1
-          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t1, time_to_read = time)
-          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, climate%snapshot%ins_t0, time_to_read = time-1000._dp)
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t1, time_to_read = time)
+          call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t0, time_to_read = time-1000._dp)
         end if
 
       !END IF ! IF (par%primary) THEN
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA0, time_to_read = climate%snapshot%ins_t0)
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, climate%snapshot%ins_Q_TOA1, time_to_read = climate%snapshot%ins_t1)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA1, time_to_read = snapshot%ins_t1)
 
-      call warning('insolation timeframes at t = {dp_01} are ins_t0={dp_02} and ins_t1={dp_03}', dp_01 =  time, dp_02 = climate%snapshot%ins_t0, dp_03 = climate%snapshot%ins_t1)
+      call warning('insolation timeframes at t = {dp_01} are ins_t0={dp_02} and ins_t1={dp_03}', dp_01 =  time, dp_02 = snapshot%ins_t0, dp_03 = snapshot%ins_t1)
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -426,6 +440,166 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_insolation_timeframes_from_file
+  
+! == Prescribed CO2 record
+  SUBROUTINE update_CO2_at_model_time( time, forcing)
+    ! Interpolate the data in forcing%CO2 to find the value at the queried time.
+    ! If time lies outside the range of forcing%CO2_time, return the first/last value
+    !
+    ! NOTE: assumes time is listed in yr BP, so LGM would be -21000.0, and 0.0 corresponds to January 1st 1900.
+    !
+    ! NOTE: calculates average value over the preceding 30 years. For paleo this doesn't matter
+    !       in the least, but for the historical period this makes everything more smooth.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
+    INTEGER                                            :: ti1, ti2, til, tiu
+    REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2, CO2_aux
+    REAL(dp), PARAMETER                                :: dt_smooth = 60._dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
+      ! Observed CO2 is needed for these forcing methods.
+    ELSE
+      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
+    END IF
+
+    !IF (par%primary) THEN
+
+      IF     (time < MINVAL( forcing%CO2_time)) THEN
+        ! Model time before start of CO2 record; using constant extrapolation
+        forcing%CO2_obs = forcing%CO2_record( 1)
+      ELSEIF (time > MAXVAL( forcing%CO2_time)) THEN
+        ! Model time beyond end of CO2 record; using constant extrapolation
+        forcing%CO2_obs = forcing%CO2_record( C%CO2_record_length)
+      ELSE
+
+        ! Find range of raw time frames enveloping model time
+        ti1 = 1
+        DO WHILE (forcing%CO2_time( ti1) < time - dt_smooth .AND. ti1 < C%CO2_record_length)
+          ti1 = ti1 + 1
+        END DO
+        ti1 = MAX( 1, ti1 - 1)
+
+        ti2 = 2
+        DO WHILE (forcing%CO2_time( ti2) < time             .AND. ti2 < C%CO2_record_length)
+          ti2 = ti2 + 1
+        END DO
+
+        ! Calculate conservatively-remapped time-averaged CO2
+        intCO2 = 0._dp
+        DO til = ti1, ti2 - 1
+          tiu = til + 1
+
+          ! Linear interpolation between til and tiu: CO2( t) = a + b*t
+          b = (forcing%CO2_record( tiu) - forcing%CO2_record( til)) / (forcing%CO2_time( tiu) - forcing%CO2_time( til))
+          a = forcing%CO2_record( til) - b*forcing%CO2_time( til)
+
+          ! Window of overlap between [til,tiu] and [t - dt_smooth, t]
+          tl = MAX( forcing%CO2_time( til), time - dt_smooth)
+          tu = MIN( forcing%CO2_time( tiu), time            )
+          dintCO2 = (tu - tl) * (a + b * (tl + tu) / 2._dp)
+          intCO2 = intCO2 + dintCO2
+        END DO
+        forcing%CO2_obs = intCO2 / dt_smooth
+
+      END IF
+      !CO2_aux = forcing%CO2_obs
+      !call MPI_BCAST(forcing%CO2_obs, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    !END IF
+    !call distribute_from_primary_dp_1D(forcing%CO2_obs)
+    !print *, "print value of forcing%CO2_obs in climate realistic...", forcing%CO2_obs
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_CO2_at_model_time
+  SUBROUTINE initialise_CO2_record( forcing)
+    ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is a file with time in yr and CO2 in ppmv
+    ! and the number of rows being equal to C%CO2_record_length
+
+    ! NOTE: assumes time is listed in yr BP (so LGM would be -21000)
+    IMPLICIT NONE
+    
+    ! In/output variables:
+!    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_CO2_record'
+    INTEGER                                            :: i,ios
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
+      ! Observed CO2 is needed for these forcing methods.
+    ELSE
+      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
+    END IF
+    
+      IF (par%primary)  WRITE(*,"(A)") ' Initialising CO2 record '
+
+    ! Allocate shared memory to take the data
+    allocate( forcing%CO2_time(   C%CO2_record_length))
+    allocate( forcing%CO2_record( C%CO2_record_length))
+
+    ! Read CO2 record (time and values) from specified text file
+    IF (par%primary)  WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+!    IF (par%primary) THEN
+
+!      WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+!    END IF
+! check this?!
+! I added field_name_options_CO2 in netcdf field list
+! from the funciton 3rd and 4th are outputs
+
+!! HERE IDK IF IS NEEDED TO CALL THEM INSIDE PRIMARY OR NOT.. CHECK
+      call read_field_from_series_file( C%filename_CO2_record, field_name_options_CO2, forcing%CO2_record, forcing%CO2_time)
+
+!      OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
+
+!      DO i = 1, C%CO2_record_length
+!        READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time( i), forcing%CO2_record( i)
+!        IF (ios /= 0) THEN
+!          CALL crash('length of text file "' // TRIM(C%filename_CO2_record) // '" does not match C%CO2_record_length!')
+!        END IF
+!      END DO
+
+!      CLOSE( UNIT  = 1337)
+!    IF (par%primary) THEN
+
+      IF (C%start_time_of_run < forcing%CO2_time(1)) THEN
+      print *, "print value of forcing%CO2_time(first), ", forcing%CO2_time(1)
+         CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
+      END IF
+      IF (C%end_time_of_run > forcing%CO2_time(C%CO2_record_length)) THEN
+      print *, "value of forcing%CO2_time(last), ", forcing%CO2_time(C%CO2_record_length)
+         CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
+      END IF
+
+
+!    END IF ! IF (par%primary)
+    
+    IF (par%primary)  WRITE(*,"(A)") '   Updating CO2 at model time...'
+    ! Set the value for the current (starting) model time
+    CALL update_CO2_at_model_time( C%start_time_of_run, forcing)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_CO2_record
 
 
 END MODULE climate_realistic

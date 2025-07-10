@@ -107,7 +107,7 @@ CONTAINS
 
         ! If necessary and allowed, perform a mesh update
         IF (mesh_fitness_coefficient < C%minimum_mesh_fitness_coefficient) THEN
-          CALL update_mesh( region)
+          CALL update_mesh( region, regional_forcing)
         END IF
 
       END IF ! IF (C%allow_mesh_updates) THEN
@@ -130,7 +130,7 @@ CONTAINS
       CALL run_thermodynamics_model( region)
 
       ! Calculate the climate
-      CALL run_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name, region%time)
+      CALL run_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, regional_forcing, region%name, region%time, region%SMB)
 
       ! Calculate the ocean
       CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, region%time)
@@ -409,7 +409,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(OUT)   :: region
     CHARACTER(LEN=3),                                    INTENT(IN)    :: region_name
-    TYPE(type_global_forcing)                          , INTENT(IN)    :: forcing
+    TYPE(type_global_forcing)                          , INTENT(INOUT)    :: forcing
     REAL(dp)                                           , INTENT(IN)    :: start_time_of_run
 
     ! Local variables:
@@ -484,6 +484,7 @@ CONTAINS
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
     ! Set up a regional frocing data type so the regional models can run asynchronously
+    ! this causes trouble during running, it will initialise regional_forcing instead of forcing, so variables will not be allocated later on for the run
     regional_forcing = forcing
     
     ! ===== Ice dynamics =====
@@ -495,7 +496,8 @@ CONTAINS
 
     ! ===== Climate =====
     ! ===================
-    CALL initialise_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name)
+
+    CALL initialise_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, forcing, region%name)
 
     ! ===== Ocean =====
     ! =================
@@ -531,7 +533,7 @@ CONTAINS
     ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name, C%start_time_of_run)
+    CALL run_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, forcing, region%name, C%start_time_of_run, region%SMB)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
@@ -1107,13 +1109,14 @@ CONTAINS
 ! ===== Mesh update =====
 ! =======================
 
-  SUBROUTINE update_mesh( region)
+  SUBROUTINE update_mesh( region, forcing)
     ! Update the model mesh
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_model_region),                             INTENT(INOUT) :: region
+    TYPE(type_global_forcing),                           INTENT(INOUT)    :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'update_mesh'
@@ -1205,7 +1208,7 @@ CONTAINS
 
     ! Remap all the model data from the old mesh to the new mesh
     CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%bed_roughness, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
-    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name)
+    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name, region%grid_smooth, region%ice, forcing)    
     CALL remap_ocean_model(           region%mesh, mesh_new, region%ice, region%ocean  , region%name, region%time)
     CALL remap_SMB_model(             region%mesh, mesh_new,             region%SMB    , region%name)
     CALL remap_BMB_model(             region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)

@@ -312,6 +312,7 @@ UFEMISM_source = \
   \
   climate/climate_idealised.f90 \
   climate/climate_realistic.f90 \
+  climate/climate_matrix.f90 \
   climate/climate_main.f90 \
   \
   ice_dynamics/utilities/ice_model_memory.f90 \
