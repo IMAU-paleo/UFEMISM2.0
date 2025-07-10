@@ -925,7 +925,7 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_tidal_velocity_config         = 0.1_dp                           ! [m s^-1] Uniform tidal velocity
 
     ! Subglacial discharge (SDG)
-    CHARACTER(LEN=256)  :: choice_laddie_SDG_config                     = 'idealised'                      ! Choose option for subglacial discharge. Options: 'None', 'idealised'
+    CHARACTER(LEN=256)  :: choice_laddie_SDG_config                     = 'none'                           ! Choose option for subglacial discharge. Options: 'none', 'idealised'
     CHARACTER(LEN=256)  :: choice_laddie_SDG_idealised_config           = 'MISMIPplus_PC'                  ! Choose option for idealised SDG. Options: 'MISMIPplus_PC', 'MISMIPplus_PW', 'MISMIPplus_PE'
     REAL(dp)            :: laddie_SDG_flux_config                       = 72._dp                           ! [m^3 s^-1] Total subglacial discharge flux
     ! CHARACTER(LEN=256)  :: filename_subglacial_discharge_mask_config    = ''                               ! area file containing the subglacial discharge mask on the original mesh
