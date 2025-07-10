@@ -29,6 +29,7 @@ module climate_matrix
 
   public :: run_climate_model_matrix
   public :: initialise_climate_matrix
+  public :: remap_climate_matrix_model
 
 contains
 
@@ -1152,5 +1153,127 @@ contains
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE rotate_wind_to_model_mesh
+
+  SUBROUTINE remap_climate_matrix_model( mesh_new, climate, region_name, grid, ice, forcing)
+
+  implicit none
+
+  ! In- and output variables
+    !TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
+    TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
+    TYPE(type_climate_model),               INTENT(INOUT) :: climate
+    CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    type(type_grid),                    intent(in)    :: grid
+    type(type_ice_model),               intent(in)    :: ice
+    type(type_global_forcing),          intent(inout) :: forcing
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_climate_matrix_model'
+
+  IF (par%primary)  WRITE(*,"(A)") '      Remapping climate matrix model data to the new mesh...'
+  
+  ! reallocate main variables of GCM snapshots
+  call reallocate_bounds(climate%matrix%PD_obs%Precip, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%PD_obs%T2m, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%PD_obs%Wind_WE, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%PD_obs%Wind_SN, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%PD_obs%Wind_LR, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%PD_obs%Wind_DU, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%PD_obs%Hs, mesh_new%vi1, mesh_new%vi2)
+  call reallocate_bounds(climate%matrix%PD_obs%lambda, mesh_new%vi1, mesh_new%vi2)
+
+  call reallocate_bounds(climate%matrix%GCM_PI%Precip, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_PI%T2m, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_PI%Wind_WE, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_PI%Wind_SN, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_PI%Wind_LR, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_PI%Wind_DU, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_PI%Hs, mesh_new%vi1, mesh_new%vi2)
+  call reallocate_bounds(climate%matrix%GCM_PI%lambda, mesh_new%vi1, mesh_new%vi2)
+
+  call reallocate_bounds(climate%matrix%GCM_warm%Precip, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_warm%T2m, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_warm%Wind_WE, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_warm%Wind_SN, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_warm%Wind_LR, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_warm%Wind_DU, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_warm%Hs, mesh_new%vi1, mesh_new%vi2)
+  call reallocate_bounds(climate%matrix%GCM_warm%lambda, mesh_new%vi1, mesh_new%vi2)
+
+  call reallocate_bounds(climate%matrix%GCM_cold%Precip, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_cold%T2m, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_cold%Wind_WE, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_cold%Wind_SN, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_cold%Wind_LR, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_cold%Wind_DU, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_cold%Hs, mesh_new%vi1, mesh_new%vi2)
+  call reallocate_bounds(climate%matrix%GCM_cold%lambda, mesh_new%vi1, mesh_new%vi2) 
+
+  ! reallocate main variables of climate%snapshot for insolation
+  call reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+  call reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+  call reallocate_bounds( climate%snapshot%Q_TOA, mesh_new%vi1, mesh_new%vi2,12)
+  
+  call reallocate_bounds(climate%matrix%I_abs, mesh_new%vi1, mesh_new%vi2)
+  call reallocate_bounds(climate%matrix%GCM_bias_T2m, mesh_new%vi1, mesh_new%vi2, 12)
+  call reallocate_bounds(climate%matrix%GCM_bias_Precip, mesh_new%vi1, mesh_new%vi2, 12)
+  
+  ! read the snapshots for the new mesh
+    call read_climate_snapshot( C%filename_PD_obs_climate       , mesh_new, climate%matrix%PD_obs  )
+    call read_climate_snapshot( C%filename_climate_snapshot_PI  , mesh_new, climate%matrix%GCM_PI  )
+    call read_climate_snapshot( C%filename_climate_snapshot_warm, mesh_new, climate%matrix%GCM_warm)
+    call read_climate_snapshot( C%filename_climate_snapshot_cold, mesh_new, climate%matrix%GCM_cold)
+
+    ! Use a uniform value for the warm snapshot [this assumes "warm" is actually identical to PI!]
+    climate%matrix%GCM_warm%lambda( mesh_new%vi1:mesh_new%vi2) = C%constant_lapserate
+
+    IF     (region_name == 'NAM' .OR. region_name == 'EAS') THEN
+      CALL initialise_matrix_calc_spatially_variable_lapserate( mesh_new, grid, climate%matrix%GCM_PI, climate%matrix%GCM_cold)
+    ELSEIF (region_name == 'GLR' .OR. region_name == 'ANT') THEN
+      climate%matrix%GCM_cold%lambda( mesh_new%vi1:mesh_new%vi2) = C%constant_lapserate
+      CALL sync
+    END IF
+
+    ! Calculate GCM bias
+    CALL initialise_matrix_calc_GCM_bias( mesh_new, climate%matrix%GCM_PI, climate%matrix%PD_obs, &
+      climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
+
+    ! Apply bias correction
+    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( mesh_new, climate%matrix%GCM_warm, &
+      climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
+    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction( mesh_new, climate%matrix%GCM_cold, &
+      climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip)
+
+    ! deallocate variables of the insolation from the warm and cold snapshots
+    deallocate(climate%matrix%GCM_warm%ins_t0)
+    deallocate(climate%matrix%GCM_warm%ins_t1)
+    deallocate(climate%matrix%GCM_warm%ins_ti0)
+    deallocate(climate%matrix%GCM_warm%ins_ti1)
+    deallocate(climate%matrix%GCM_warm%ins_nlat)
+    deallocate(climate%matrix%GCM_warm%ins_nlon)
+    deallocate(climate%matrix%GCM_warm%ins_lat)
+    deallocate(climate%matrix%GCM_warm%ins_Q_TOA0)
+    deallocate(climate%matrix%GCM_warm%ins_Q_TOA1)
+    deallocate(climate%matrix%GCM_warm%Q_TOA)
+    deallocate(climate%matrix%GCM_warm%Albedo)
+    deallocate(climate%matrix%GCM_warm%I_abs)
+
+    deallocate(climate%matrix%GCM_cold%ins_t0)
+    deallocate(climate%matrix%GCM_cold%ins_t1)
+    deallocate(climate%matrix%GCM_cold%ins_ti0)
+    deallocate(climate%matrix%GCM_cold%ins_ti1)
+    deallocate(climate%matrix%GCM_cold%ins_nlat)
+    deallocate(climate%matrix%GCM_cold%ins_nlon)
+    deallocate(climate%matrix%GCM_cold%ins_lat)
+    deallocate(climate%matrix%GCM_cold%ins_Q_TOA0)
+    deallocate(climate%matrix%GCM_cold%ins_Q_TOA1)
+    deallocate(climate%matrix%GCM_cold%Q_TOA)
+    deallocate(climate%matrix%GCM_cold%Albedo)
+    deallocate(climate%matrix%GCM_cold%I_abs)
+
+    ! Get reference absorbed insolation for the GCM snapshots
+    CALL initialise_matrix_calc_absorbed_insolation( mesh_new, climate%matrix%GCM_warm, region_name, forcing, ice)
+    CALL initialise_matrix_calc_absorbed_insolation( mesh_new, climate%matrix%GCM_cold, region_name, forcing, ice)
+
+  END SUBROUTINE remap_climate_matrix_model
 
 end module climate_matrix

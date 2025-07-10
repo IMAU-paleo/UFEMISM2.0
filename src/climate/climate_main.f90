@@ -20,7 +20,7 @@ MODULE climate_main
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
-  use climate_matrix                                         , only: run_climate_model_matrix, initialise_climate_matrix
+  use climate_matrix                                         , only: run_climate_model_matrix, initialise_climate_matrix, remap_climate_matrix_model
 
   IMPLICIT NONE
 
@@ -377,7 +377,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_climate_model_region
 
-  SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, region_name)
+  SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, region_name, grid, ice, forcing)
     ! Remap the climate model
 
     IMPLICIT NONE
@@ -387,6 +387,9 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    type(type_grid), optional,                    intent(in)    :: grid
+    type(type_ice_model), optional,               intent(in)    :: ice
+    type(type_global_forcing), optional,          intent(inout) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_climate_model'
@@ -423,6 +426,8 @@ CONTAINS
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
       CALL reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+    ELSEIF (choice_climate_model == 'matrix') THEN
+      call remap_climate_matrix_model( mesh_new, climate, region_name, grid, ice, forcing)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

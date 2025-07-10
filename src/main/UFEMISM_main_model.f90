@@ -107,7 +107,7 @@ CONTAINS
 
         ! If necessary and allowed, perform a mesh update
         IF (mesh_fitness_coefficient < C%minimum_mesh_fitness_coefficient) THEN
-          CALL update_mesh( region)
+          CALL update_mesh( region, regional_forcing)
         END IF
 
       END IF ! IF (C%allow_mesh_updates) THEN
@@ -1109,13 +1109,14 @@ CONTAINS
 ! ===== Mesh update =====
 ! =======================
 
-  SUBROUTINE update_mesh( region)
+  SUBROUTINE update_mesh( region, forcing)
     ! Update the model mesh
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_model_region),                             INTENT(INOUT) :: region
+    TYPE(type_global_forcing),                           INTENT(INOUT)    :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'update_mesh'
@@ -1207,7 +1208,7 @@ CONTAINS
 
     ! Remap all the model data from the old mesh to the new mesh
     CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%bed_roughness, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
-    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name)
+    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name, region%grid_smooth, region%ice, forcing)
     CALL remap_ocean_model(           region%mesh, mesh_new, region%ice, region%ocean  , region%name)
     CALL remap_SMB_model(             region%mesh, mesh_new,             region%SMB    , region%name)
     CALL remap_BMB_model(             region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
