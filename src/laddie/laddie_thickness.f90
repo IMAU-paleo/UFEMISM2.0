@@ -65,9 +65,12 @@ CONTAINS
     CALL compute_entrainment( mesh, laddie, npx_ref, npx_ref%H)
 
     ! Compute subglacial discharge
-    ! IF (C%laddie_do_subglacial_discharge) THEN
-    CALL compute_subglacial_discharge( mesh, laddie, npx_ref)
-    ! END IF 
+    IF (C%choice_laddie_SGD == 'none') THEN
+      ! do not apply SDG
+    ELSEIF (C%choice_laddie_SGD == 'idealised') THEN
+      ! do apply SDG
+      CALL compute_subglacial_discharge( mesh, laddie, npx_ref)
+    END IF 
 
     ! Do integration
     CALL integrate_H( mesh, laddie, npx_old, npx_new, dt)

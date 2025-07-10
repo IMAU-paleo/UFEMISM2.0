@@ -330,6 +330,15 @@ contains
           mask_int = 0
         end where
         call write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_ROI', mask_int)
+
+      case ('mask_SGD')
+        where (region%ice%mask_SGD)
+          mask_int = 1
+        elsewhere
+          mask_int = 0
+        end where
+        call write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_SGD', mask_int)
+
       case ('mask')
         call write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask', region%ice%mask)
       case ('basin_ID')
@@ -1025,6 +1034,10 @@ contains
         call add_field_mesh_int_2D( filename, ncid, 'mask_coastline', long_name = 'Mask indicating ice-free land next to ice-free ocean')
       case ('mask_ROI')
         call add_field_mesh_int_2D( filename, ncid, 'mask_ROI', long_name = 'Mask indicating ROI')
+      
+      case ('mask_SGD')
+        call add_field_mesh_int_2D( filename, ncid, 'mask_SGD', long_name = 'Mask indicating SGD')
+
       case ('mask')
         call add_field_mesh_int_2D( filename, ncid, 'mask', long_name = 'General mask')
       case ('basin_ID')

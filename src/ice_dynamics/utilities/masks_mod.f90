@@ -16,7 +16,7 @@ module masks_mod
 
   private
 
-  public :: determine_masks, calc_mask_ROI, calc_mask_noice, calc_mask_noice_remove_Ellesmere
+  public :: determine_masks, calc_mask_ROI, calc_mask_noice, calc_mask_noice_remove_Ellesmere, calc_mask_SGD
 
 contains
 
@@ -469,5 +469,42 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_mask_noice_remove_Ellesmere
+
+  subroutine calc_mask_SGD( mesh, ice)    
+    !< Calculate the subglacial discharge mask (SGD)
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_mask_SGD'
+    integer                        :: vi
+    real(dp) :: y_coord_channel
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (C%choice_laddie_SGD_idealised == 'MISMIPplus_PC') then
+      y_coord_channel = 0._dp
+    elseif (C%choice_laddie_SGD_idealised == 'MISMIPplus_PW') then
+      y_coord_channel = 18000._dp
+    elseif (C%choice_laddie_SGD_idealised == 'MISMIPplus_PE') then
+      y_coord_channel = -18000._dp
+    end if 
+
+    do vi = mesh%vi1, mesh%vi2
+      ! If the vertex is close to the channel, set mask true
+      if (mesh%V( vi,2) < y_coord_channel + 2500._dp .and. mesh%V( vi,2) > y_coord_channel - 2500._dp) then
+        ice%mask_SGD( vi) = .true.
+      else
+        ice%mask_SGD( vi) = .false.
+      end if 
+    end do 
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_SGD
 
 end module masks_mod

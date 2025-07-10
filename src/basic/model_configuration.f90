@@ -924,10 +924,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_laddie_tides_config                   = 'uniform'                        ! Choose option for tidal velocity. Options: 'uniform'
     REAL(dp)            :: uniform_laddie_tidal_velocity_config         = 0.1_dp                           ! [m s^-1] Uniform tidal velocity
 
-    ! Subglacial discharge (SDG)
-    CHARACTER(LEN=256)  :: choice_laddie_SDG_config                     = 'none'                           ! Choose option for subglacial discharge. Options: 'none', 'idealised'
-    CHARACTER(LEN=256)  :: choice_laddie_SDG_idealised_config           = 'MISMIPplus_PC'                  ! Choose option for idealised SDG. Options: 'MISMIPplus_PC', 'MISMIPplus_PW', 'MISMIPplus_PE'
-    REAL(dp)            :: laddie_SDG_flux_config                       = 72._dp                           ! [m^3 s^-1] Total subglacial discharge flux
+    ! Subglacial discharge (SGD)
+    CHARACTER(LEN=256)  :: choice_laddie_SGD_config                     = 'none'                           ! Choose option for subglacial discharge. Options: 'none', 'idealised'
+    CHARACTER(LEN=256)  :: choice_laddie_SGD_idealised_config           = 'MISMIPplus_PC'                  ! Choose option for idealised SGD. Options: 'MISMIPplus_PC', 'MISMIPplus_PW', 'MISMIPplus_PE'
+    REAL(dp)            :: laddie_SGD_flux_config                       = 72._dp                           ! [m^3 s^-1] Total subglacial discharge flux
     ! CHARACTER(LEN=256)  :: filename_subglacial_discharge_mask_config    = ''                               ! area file containing the subglacial discharge mask on the original mesh
 
 
@@ -2021,9 +2021,9 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_tidal_velocity
 
     ! Subglacial discharge (SGD)
-    CHARACTER(LEN=256)  :: choice_laddie_SDG
-    CHARACTER(LEN=256)  :: choice_laddie_SDG_idealised
-    REAL(dp)            :: laddie_SDG_flux  
+    CHARACTER(LEN=256)  :: choice_laddie_SGD
+    CHARACTER(LEN=256)  :: choice_laddie_SGD_idealised
+    REAL(dp)            :: laddie_SGD_flux  
 
   ! == Lateral mass balance
   ! =======================
@@ -2999,9 +2999,9 @@ CONTAINS
       laddie_thickness_maximum_config                             , &
       laddie_velocity_maximum_config                              , &
       laddie_buoyancy_minimum_config                              , &
-      choice_laddie_SDG_config                                    , &
-      choice_laddie_SDG_idealised_config                          , &
-      laddie_SDG_flux_config                                      , &
+      choice_laddie_SGD_config                                    , &
+      choice_laddie_SGD_idealised_config                          , &
+      laddie_SGD_flux_config                                      , &
       choice_laddie_tides_config                                  , &
       uniform_laddie_tidal_velocity_config                        , &
       dt_LMB_config                                               , &
@@ -4078,9 +4078,9 @@ CONTAINS
     C%uniform_laddie_tidal_velocity                          = uniform_laddie_tidal_velocity_config
 
     ! Subglacial discharge (SGD)
-    C%choice_laddie_SDG                                      = choice_laddie_SDG_config
-    C%choice_laddie_SDG_idealised                            = choice_laddie_SDG_idealised_config
-    C%laddie_SDG_flux                                        = laddie_SDG_flux_config
+    C%choice_laddie_SGD                                      = choice_laddie_SGD_config
+    C%choice_laddie_SGD_idealised                            = choice_laddie_SGD_idealised_config
+    C%laddie_SGD_flux                                        = laddie_SGD_flux_config
 
   ! == Lateral mass balance
   ! =======================

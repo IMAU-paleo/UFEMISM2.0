@@ -25,7 +25,7 @@ module ice_dynamics_main
     apply_mask_noice_direct
   use ice_geometry_basics, only: ice_surface_elevation, thickness_above_floatation, &
     Hi_from_Hb_Hs_and_SL
-  use masks_mod, only: determine_masks, calc_mask_ROI, calc_mask_noice
+  use masks_mod, only: determine_masks, calc_mask_ROI, calc_mask_noice, calc_mask_SGD
   use subgrid_ice_margin, only: calc_effective_thickness
   use zeta_gradients, only: calc_zeta_gradients
   use subgrid_grounded_fractions_main, only: calc_grounded_fractions
@@ -302,6 +302,9 @@ contains
 
     ! Compute mask_ROI only at initialisation, (NOTE: This works only for one single ROI right now)
     call calc_mask_ROI( mesh, ice, region_name)
+
+    ! Compute mask_SGD only at initialisation
+    call calc_mask_SGD( mesh, ice)
 
     ! Effective ice thickness
     ! =======================
@@ -764,6 +767,9 @@ contains
 
     ! Compute mask_ROI
     call calc_mask_ROI( mesh_new, ice, region_name)
+
+    ! Compute mask_ROI
+    call calc_mask_SGD( mesh_new, ice)
 
     ! ! Smooth the ice at the calving front to improve model stability
     ! call relax_calving_front_after_mesh_update( mesh_new, ice)

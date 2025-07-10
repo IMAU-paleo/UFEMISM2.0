@@ -414,6 +414,7 @@ contains
       case ('mask_coastline')
       case ('mask')
       case ('basin_ID')
+      case ('mask_SGD')
       case ('mask_ROI')
         ! Exception for mask_ROI, needed for offline laddie coupling
         where (region%ice%mask_ROI .eqv. .TRUE.)
@@ -1211,6 +1212,7 @@ contains
       case ('mask_coastline')
       case ('mask')
       case ('basin_ID')
+      case ('mask_SGD')
       case ('mask_ROI')
         ! Exception for mask_ROI, needed for offline laddie computation
         call add_field_grid_dp_2D( filename, ncid, 'mask_ROI', long_name = 'ROI mask', units = '')

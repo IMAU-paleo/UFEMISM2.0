@@ -199,16 +199,11 @@ CONTAINS
       END IF 
     END DO
 
-    print*, 'Total area where SGD is released:'
-    print*, total_area 
-
     ! Determine the SGD distribution among the cells
     DO vi = mesh%vi1, mesh%vi2 
       IF (laddie%mask_a( vi)) THEN
-        
         IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
-          laddie%SGD( vi) = 72._dp / total_area
-
+          laddie%SGD( vi) = C%laddie_SGD_flux / total_area
         END IF
       END IF 
     END DO
