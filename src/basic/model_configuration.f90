@@ -46,6 +46,7 @@ MODULE model_configuration
     LOGICAL             :: do_check_for_NaN_config                      = .FALSE.                          ! Whether or not fields should be checked for NaN values
     LOGICAL             :: do_time_display_config                       = .TRUE.                           ! Print current model time to screen
     logical             :: do_write_matrix_operators_config             = .false.                          ! Whether or not to write the operator matrices to output
+    logical             :: do_write_checksum_log_config                 = .false.                          ! Whether or not checksums should be calcuialted and written to the checksum log file
 
   ! == Time of simulation
   ! =====================
@@ -711,8 +712,33 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL_config           = ''
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT_config           = ''
 
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_NAM_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_EAS_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_GRL_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_ANT_config      = ''
+
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_NAM_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_EAS_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_GRL_config      = ''
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_ANT_config      = ''
+
     ! Choice of extrapolation method
     CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method_config     = 'initialisation'                 ! Method to extrapolate ocean forcing into cavities: 'initialisation'
+
+    ! Choice of transient ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_transient_config          = ''                                ! so far only 'deltaT' implemented
+
+    ! Paths to files containing the deltaT record for the transient deltaT ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_dT_NAM_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_dT_EAS_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_dT_GRL_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_dT_ANT_config                 = ''
+
+    ! Paths to files containing the GI record for the transient GlacialIndex ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_GI_NAM_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_GI_EAS_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_GI_GRL_config                 = ''
+    CHARACTER(LEN=256)  :: filename_ocean_GI_ANT_config                 = ''
 
   ! == Surface mass balance
   ! =======================
@@ -956,6 +982,23 @@ MODULE model_configuration
     ! "uniform"
     REAL(dp)            :: uniform_LMB_config                           = 0._dp
 
+    ! "GlacialIndex"
+    CHARACTER(LEN=256)  :: filename_LMB_GI_NAM_config                   = ''                              ! time series file containing the glacial index record
+    CHARACTER(LEN=256)  :: filename_LMB_GI_EAS_config                   = ''                              ! time series file containing the glacial index record
+    CHARACTER(LEN=256)  :: filename_LMB_GI_GRL_config                   = ''                              ! time series file containing the glacial index record
+    CHARACTER(LEN=256)  :: filename_LMB_GI_ANT_config                   = ''                              ! time series file containing the glacial index record
+
+    REAL(dp)            :: warm_LMB_NAM_config                          = -1.0_dp                         ! constant LMB value for a "warm" (GI=0.0) period
+    REAL(dp)            :: warm_LMB_EAS_config                          = -1.0_dp                         !
+    REAL(dp)            :: warm_LMB_GRL_config                          = -1.0_dp                         !
+    REAL(dp)            :: warm_LMB_ANT_config                          = -1.0_dp                         !
+    
+    REAL(dp)            :: cold_LMB_NAM_config                          = 0.0_dp                          ! constant LMB value for a "cold" (GI=1.0) period
+    REAL(dp)            :: cold_LMB_EAS_config                          = 0.0_dp                          ! 
+    REAL(dp)            :: cold_LMB_GRL_config                          = 0.0_dp                          ! 
+    REAL(dp)            :: cold_LMB_ANT_config                          = 0.0_dp                          ! 
+
+
   ! == Glacial isostatic adjustment
   ! ===============================
 
@@ -1129,6 +1172,7 @@ MODULE model_configuration
     LOGICAL             :: do_check_for_NaN
     LOGICAL             :: do_time_display
     logical             :: do_write_matrix_operators
+    logical             :: do_write_checksum_log
 
   ! == Time of simulation
   ! =====================
@@ -1792,8 +1836,33 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_ocean_snapshot_ANT
 
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_ANT
+
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_ANT
+
     ! Choice of extrapolation method
     CHARACTER(LEN=256)  :: choice_ocean_extrapolation_method
+
+  ! Choice of transient ocean model
+    CHARACTER(LEN=256)  :: choice_ocean_model_transient
+
+    ! Paths to files containing the deltaT record for the transient deltaT ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_dT_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_dT_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_dT_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_dT_ANT
+
+    ! Paths to files containing the GI record for the transient GlacialIndex ocean model
+    CHARACTER(LEN=256)  :: filename_ocean_GI_NAM
+    CHARACTER(LEN=256)  :: filename_ocean_GI_EAS
+    CHARACTER(LEN=256)  :: filename_ocean_GI_GRL
+    CHARACTER(LEN=256)  :: filename_ocean_GI_ANT
 
   ! == Surface mass balance
   ! =======================
@@ -2038,6 +2107,23 @@ MODULE model_configuration
 
     ! "uniform"
     REAL(dp)            :: uniform_LMB
+
+    ! "GlacialIndex"
+    CHARACTER(LEN=256)  :: filename_LMB_GI_NAM
+    CHARACTER(LEN=256)  :: filename_LMB_GI_EAS
+    CHARACTER(LEN=256)  :: filename_LMB_GI_GRL
+    CHARACTER(LEN=256)  :: filename_LMB_GI_ANT
+
+    REAL(dp)            :: warm_LMB_NAM
+    REAL(dp)            :: warm_LMB_EAS
+    REAL(dp)            :: warm_LMB_GRL
+    REAL(dp)            :: warm_LMB_ANT
+    
+    REAL(dp)            :: cold_LMB_NAM
+    REAL(dp)            :: cold_LMB_EAS
+    REAL(dp)            :: cold_LMB_GRL
+    REAL(dp)            :: cold_LMB_ANT
+  
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -2423,6 +2509,7 @@ CONTAINS
       do_check_for_NaN_config                                     , &
       do_time_display_config                                      , &
       do_write_matrix_operators_config                            , &
+      do_write_checksum_log_config                                , &
       start_time_of_run_config                                    , &
       end_time_of_run_config                                      , &
       dt_coupling_config                                          , &
@@ -2847,7 +2934,24 @@ CONTAINS
       filename_ocean_snapshot_EAS_config                          , &
       filename_ocean_snapshot_GRL_config                          , &
       filename_ocean_snapshot_ANT_config                          , &
+      filename_ocean_warm_snapshot_NAM_config                     , &
+      filename_ocean_warm_snapshot_EAS_config                     , &
+      filename_ocean_warm_snapshot_GRL_config                     , &
+      filename_ocean_warm_snapshot_ANT_config                     , &
+      filename_ocean_cold_snapshot_NAM_config                     , &
+      filename_ocean_cold_snapshot_EAS_config                     , &
+      filename_ocean_cold_snapshot_GRL_config                     , &
+      filename_ocean_cold_snapshot_ANT_config                     , &
       choice_ocean_extrapolation_method_config                    , &
+      choice_ocean_model_transient_config                         , &
+      filename_ocean_dT_NAM_config                                , &
+      filename_ocean_dT_EAS_config                                , &
+      filename_ocean_dT_GRL_config                                , &
+      filename_ocean_dT_ANT_config                                , &
+      filename_ocean_GI_NAM_config                                , &
+      filename_ocean_GI_EAS_config                                , &
+      filename_ocean_GI_GRL_config                                , &
+      filename_ocean_GI_ANT_config                                , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
       do_SMB_removal_icefree_land_config                          , &
@@ -2990,6 +3094,18 @@ CONTAINS
       choice_LMB_model_GRL_config                                 , &
       choice_LMB_model_ANT_config                                 , &
       uniform_LMB_config                                          , &
+      filename_LMB_GI_NAM_config                                  , &
+      filename_LMB_GI_EAS_config                                  , &
+      filename_LMB_GI_GRL_config                                  , &
+      filename_LMB_GI_ANT_config                                  , &
+      warm_LMB_NAM_config                                         , &
+      warm_LMB_EAS_config                                         , &
+      warm_LMB_GRL_config                                         , &
+      warm_LMB_ANT_config                                         , &
+      cold_LMB_NAM_config                                         , &
+      cold_LMB_EAS_config                                         , &
+      cold_LMB_GRL_config                                         , &
+      cold_LMB_ANT_config                                         , &
       choice_GIA_model_config                                     , &
       dt_GIA_config                                               , &
       dx_GIA_config                                               , &
@@ -3166,6 +3282,7 @@ CONTAINS
     C%do_check_for_NaN                                       = do_check_for_NaN_config
     C%do_time_display                                        = do_time_display_config
     C%do_write_matrix_operators                              = do_write_matrix_operators_config
+    C%do_write_checksum_log                                  = do_write_checksum_log_config
 
   ! == Time of simulation
   ! =====================
@@ -3827,8 +3944,33 @@ CONTAINS
     C%filename_ocean_snapshot_GRL                            = filename_ocean_snapshot_GRL_config
     C%filename_ocean_snapshot_ANT                            = filename_ocean_snapshot_ANT_config
 
+    C%filename_ocean_warm_snapshot_NAM                       = filename_ocean_warm_snapshot_NAM_config
+    C%filename_ocean_warm_snapshot_EAS                       = filename_ocean_warm_snapshot_EAS_config
+    C%filename_ocean_warm_snapshot_GRL                       = filename_ocean_warm_snapshot_GRL_config
+    C%filename_ocean_warm_snapshot_ANT                       = filename_ocean_warm_snapshot_ANT_config
+
+    C%filename_ocean_cold_snapshot_NAM                       = filename_ocean_cold_snapshot_NAM_config
+    C%filename_ocean_cold_snapshot_EAS                       = filename_ocean_cold_snapshot_EAS_config
+    C%filename_ocean_cold_snapshot_GRL                       = filename_ocean_cold_snapshot_GRL_config
+    C%filename_ocean_cold_snapshot_ANT                       = filename_ocean_cold_snapshot_ANT_config
+
     ! Choice of extrapolation method
     C%choice_ocean_extrapolation_method                      = choice_ocean_extrapolation_method_config
+
+    ! Choice of transient ocean model
+    C%choice_ocean_model_transient                           = choice_ocean_model_transient_config
+
+    ! Paths to files containing the deltaT record for the transient deltaT ocean model
+    C%filename_ocean_dT_NAM                                  = filename_ocean_dT_NAM_config
+    C%filename_ocean_dT_EAS                                  = filename_ocean_dT_EAS_config
+    C%filename_ocean_dT_GRL                                  = filename_ocean_dT_GRL_config
+    C%filename_ocean_dT_ANT                                  = filename_ocean_dT_ANT_config
+
+    ! Paths to files containing the GI record for the transient GlacialIndex ocean model
+    C%filename_ocean_GI_NAM                                  = filename_ocean_GI_NAM_config
+    C%filename_ocean_GI_EAS                                  = filename_ocean_GI_EAS_config
+    C%filename_ocean_GI_GRL                                  = filename_ocean_GI_GRL_config
+    C%filename_ocean_GI_ANT                                  = filename_ocean_GI_ANT_config
 
   ! == Surface mass balance
   ! =======================
@@ -4071,6 +4213,22 @@ CONTAINS
 
     ! "uniform"
     C%uniform_LMB                                            = uniform_LMB_config
+
+    ! "GlacialIndex"
+    C%filename_LMB_GI_NAM                                    = filename_LMB_GI_NAM_config
+    C%filename_LMB_GI_EAS                                    = filename_LMB_GI_EAS_config
+    C%filename_LMB_GI_GRL                                    = filename_LMB_GI_GRL_config
+    C%filename_LMB_GI_ANT                                    = filename_LMB_GI_ANT_config
+
+    C%warm_LMB_NAM                                           = warm_LMB_NAM_config
+    C%warm_LMB_EAS                                           = warm_LMB_EAS_config
+    C%warm_LMB_GRL                                           = warm_LMB_GRL_config
+    C%warm_LMB_ANT                                           = warm_LMB_ANT_config
+    
+    C%cold_LMB_NAM                                           = cold_LMB_NAM_config
+    C%cold_LMB_EAS                                           = cold_LMB_EAS_config
+    C%cold_LMB_GRL                                           = cold_LMB_GRL_config
+    C%cold_LMB_ANT                                           = cold_LMB_ANT_config
 
   ! == Glacial isostatic adjustment
   ! ===============================

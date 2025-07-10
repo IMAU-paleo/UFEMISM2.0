@@ -16,6 +16,7 @@ MODULE LMB_main
   USE LMB_model_types                                        , ONLY: type_LMB_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
+  use LMB_GlacialIndex
 
   IMPLICIT NONE
 
@@ -70,6 +71,8 @@ CONTAINS
             LMB%LMB( vi) = C%uniform_LMB
           END IF
         END DO
+      CASE ('GlacialIndex')  
+        CALL run_LMB_model_GlacialIndex(mesh, ice, LMB, time)
       CASE ('inverted')
         ! Nothing to do here
       CASE DEFAULT
@@ -81,7 +84,7 @@ CONTAINS
 
   END SUBROUTINE run_LMB_model
 
-  SUBROUTINE initialise_LMB_model( mesh, LMB, region_name)
+  SUBROUTINE initialise_LMB_model( mesh, LMB, region_name, start_time_of_run)
     ! Initialise the LMB model
 
     IMPLICIT NONE
@@ -90,6 +93,7 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_LMB_model),                   INTENT(OUT)   :: LMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    REAL(dp),                               INTENT(IN)    :: start_time_of_run
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'initialise_LMB_model'
@@ -132,6 +136,10 @@ CONTAINS
         ! No need to do anything
       CASE ('inverted')
         ! No need to do anything
+      CASE ('GlacialIndex')
+        if (par%primary)  write(*,"(A)") '     Initialising LMB model "' // &
+            colour_string( trim( choice_LMB_model),'light blue') // '"...'
+        CALL initialise_LMB_model_GlacialIndex(mesh, LMB, region_name, start_time_of_run)
       CASE DEFAULT
         CALL crash('unknown choice_LMB_model "' // TRIM( choice_LMB_model) // '"')
     END SELECT
@@ -187,6 +195,8 @@ CONTAINS
       CASE ('uniform')
         ! No need to do anything
       CASE ('inverted')
+        ! No need to do anything
+      CASE ('GlacialIndex')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_LMB_model "' // TRIM( choice_LMB_model) // '"')

@@ -140,6 +140,8 @@ UFEMISM_source = \
   basic/mpi_parallelisation/halo_exchange_mod.f90 \
   basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
   basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
+	\
+	basic/checksum_mod.f90 \
   \
   basic/math_utilities/flip_mod.f90 \
   basic/math_utilities/permute_mod.f90 \
@@ -282,6 +284,8 @@ UFEMISM_source = \
   ocean/ocean_utilities.f90 \
   ocean/ocean_extrapolation.f90 \
   ocean/ocean_idealised.f90 \
+  ocean/ocean_deltaT.f90 \
+  ocean/ocean_GlacialIndex.f90 \
   ocean/ocean_realistic.f90 \
   ocean/ocean_main.f90 \
   \
@@ -301,6 +305,7 @@ UFEMISM_source = \
   basal_mass_balance/BMB_laddie.f90 \
   basal_mass_balance/BMB_main.f90 \
   \
+  lateral_mass_balance/LMB_GlacialIndex.f90 \
   lateral_mass_balance/LMB_main.f90 \
   \
   artificial_mass_balance/AMB_main.f90 \

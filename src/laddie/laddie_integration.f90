@@ -17,6 +17,7 @@ module laddie_integration
   use laddie_thickness                                       , only: compute_H_npx
   use laddie_velocity                                        , only: compute_UV_npx, compute_viscUV
   use laddie_tracers                                         , only: compute_TS_npx, compute_diffTS
+  use checksum_mod, only: checksum
 
   implicit none
 
@@ -98,6 +99,7 @@ contains
       laddie%Hstar( vi) = C%laddie_fbrk3_beta1 * laddie%np13%H( vi) + (1-C%laddie_fbrk3_beta1) * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
+    call checksum( laddie%Hstar, 'laddie%Hstar', mesh%pai_V)
 
     ! Update diffusive terms
     call update_diffusive_terms( mesh, laddie, laddie%now)
@@ -120,6 +122,7 @@ contains
       laddie%Hstar( vi) = C%laddie_fbrk3_beta2 * laddie%np12%H( vi) + (1-C%laddie_fbrk3_beta2) * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
+    call checksum( laddie%Hstar, 'laddie%Hstar', mesh%pai_V)
 
     ! Update diffusive terms
     !call update_diffusive_terms( mesh, laddie, laddie%np13)
@@ -142,6 +145,7 @@ contains
       laddie%Hstar( vi) = C%laddie_fbrk3_beta3 * laddie%np1%H( vi) + (1-2*C%laddie_fbrk3_beta3) * laddie%np12%H( vi) + C%laddie_fbrk3_beta3 * laddie%now%H( vi)
     end do
     call exchange_halos( mesh, laddie%Hstar)
+    call checksum( laddie%Hstar, 'laddie%Hstar', mesh%pai_V)
 
     ! Update diffusive terms
     !call update_diffusive_terms( mesh, laddie, laddie%np12)
@@ -207,6 +211,11 @@ contains
     call exchange_halos( mesh, laddie%now%S)
     call exchange_halos( mesh, laddie%now%U_a)
     call exchange_halos( mesh, laddie%now%V_a)
+    call checksum( laddie%now%H  , 'laddie%now%H'  , mesh%pai_V)
+    call checksum( laddie%now%T  , 'laddie%now%T'  , mesh%pai_V)
+    call checksum( laddie%now%S  , 'laddie%now%S'  , mesh%pai_V)
+    call checksum( laddie%now%U_a, 'laddie%now%U_a', mesh%pai_V)
+    call checksum( laddie%now%V_a, 'laddie%now%V_a', mesh%pai_V)
 
     do ti = mesh%ti1, mesh%ti2
       laddie%now%U  ( ti) = 0.5_dp * nu * ( laddie%nm1%U  ( ti) + laddie%np1%U  ( ti) - 2._dp * laddie%now%U  ( ti))
@@ -216,6 +225,9 @@ contains
     call exchange_halos( mesh, laddie%now%U)
     call exchange_halos( mesh, laddie%now%V)
     call exchange_halos( mesh, laddie%now%H_b)
+    call checksum( laddie%now%U  , 'laddie%now%U'  , mesh%pai_Tri)
+    call checksum( laddie%now%V  , 'laddie%now%V'  , mesh%pai_Tri)
+    call checksum( laddie%now%H_b, 'laddie%now%H_b', mesh%pai_Tri)
 
     do ei = mesh%ei1, mesh%ei2
       laddie%now%H_c( ei) = 0.5_dp * nu * ( laddie%nm1%H_c( ei) + laddie%np1%H_c( ei) - 2._dp * laddie%now%H_c( ei))
@@ -225,6 +237,9 @@ contains
     call exchange_halos( mesh, laddie%now%H_c)
     call exchange_halos( mesh, laddie%now%U_c)
     call exchange_halos( mesh, laddie%now%V_c)
+    call checksum( laddie%now%H_c, 'laddie%now%H_c', mesh%pai_E)
+    call checksum( laddie%now%U_c, 'laddie%now%U_c', mesh%pai_E)
+    call checksum( laddie%now%V_c, 'laddie%now%V_c', mesh%pai_E)
 
     ! == Move time ==
     call move_laddie_timestep( mesh, laddie%now, laddie%nm1, tl, dt, .false.)
@@ -269,6 +284,18 @@ contains
     npx_dst%U_c( mesh%ei1:mesh%ei2) = npx_src%U_c( mesh%ei1:mesh%ei2)
     npx_dst%V_a( mesh%vi1:mesh%vi2) = npx_src%V_a( mesh%vi1:mesh%vi2)
     npx_dst%V_c( mesh%ei1:mesh%ei2) = npx_src%V_c( mesh%ei1:mesh%ei2)
+
+    call checksum( npx_dst%H  , 'npx_dst%H'  , mesh%pai_V)
+    call checksum( npx_dst%T  , 'npx_dst%T'  , mesh%pai_V)
+    call checksum( npx_dst%S  , 'npx_dst%S'  , mesh%pai_V)
+    call checksum( npx_dst%U  , 'npx_dst%U'  , mesh%pai_Tri)
+    call checksum( npx_dst%V  , 'npx_dst%V'  , mesh%pai_Tri)
+    call checksum( npx_dst%H_b, 'npx_dst%H_b', mesh%pai_Tri)
+    call checksum( npx_dst%H_c, 'npx_dst%H_c', mesh%pai_E)
+    call checksum( npx_dst%U_a, 'npx_dst%U_a', mesh%pai_V)
+    call checksum( npx_dst%U_c, 'npx_dst%U_c', mesh%pai_E)
+    call checksum( npx_dst%V_a, 'npx_dst%V_a', mesh%pai_V)
+    call checksum( npx_dst%V_c, 'npx_dst%V_c', mesh%pai_E)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

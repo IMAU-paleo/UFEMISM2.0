@@ -22,7 +22,7 @@ module netcdf_field_name_options
     field_name_options_VorC, field_name_options_nVVor, field_name_options_VVor, field_name_options_TriGC, field_name_options_TriA, &
     field_name_options_A, field_name_options_EA, field_name_options_R, field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, &
     field_name_options_SL, field_name_options_dHb, field_name_options_Ti, field_name_options_T_ocean, &
-    field_name_options_S_ocean, field_name_options_insolation, field_name_options_sealevel, field_name_options_CO2
+    field_name_options_S_ocean, field_name_options_dT_ocean, field_name_options_insolation, field_name_options_sealevel, field_name_options_GI, field_name_options_CO2
 
   public :: inquire_dim_multopt, inquire_var_multopt, get_first_option_from_list
 
@@ -88,10 +88,12 @@ module netcdf_field_name_options
   character(len=1024), parameter :: field_name_options_Ti             = 'Ti'
   character(len=1024), parameter :: field_name_options_T_ocean        = 'T_ocean||t_ocean||t_an||votemper'
   character(len=1024), parameter :: field_name_options_S_ocean        = 'S_ocean||s_ocean||s_an||vosaline'
+  character(len=1024), parameter :: field_name_options_dT_ocean       = 'dT||dT_ocean||dTo'
 
   ! Global forcing variables
   character(len=1024), parameter :: field_name_options_insolation     = 'Q_TOA'
   character(len=1024), parameter :: field_name_options_sealevel       = 'SL||sea_level||sl'
+  character(len=1024), parameter :: field_name_options_GI             = 'GI||gi||Glacial_Index||glacial_index||GlacialIndex'
   character(len=1024), parameter :: field_name_options_CO2            = 'CO2'
 
 contains
