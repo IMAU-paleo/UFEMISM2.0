@@ -18,6 +18,7 @@ MODULE laddie_thickness
                                                                      compute_freezing_temperature, compute_buoyancy
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, map_H_a_b, map_H_a_c
   use mesh_halo_exchange, only: exchange_halos
+  use checksum_mod, only: checksum
 
   IMPLICIT NONE
 
@@ -69,6 +70,8 @@ CONTAINS
     ! Map new values of H to b grid and c grid
     CALL map_H_a_b( mesh, laddie, npx_new%H, npx_new%H_b)
     CALL map_H_a_c( mesh, laddie, npx_new%H, npx_new%H_c)
+    call checksum( npx_new%H_b, 'npx_new%H_b', mesh%pai_Tri)
+    call checksum( npx_new%H_c, 'npx_new%H_c', mesh%pai_E)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -125,6 +128,10 @@ CONTAINS
 
       end if !(laddie%mask_a( vi)) THEN
     end do !vi = mesh%vi, mesh%v2
+    call checksum( laddie%entr_dmin, 'laddie%entr_dmin', mesh%pai_V)
+    call checksum( laddie%entr     , 'laddie%entr     ', mesh%pai_V)
+    call checksum( laddie%detr     , 'laddie%detr     ', mesh%pai_V)
+    call checksum( npx_new%H       , 'npx_new%H       ', mesh%pai_V)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -150,7 +157,10 @@ CONTAINS
     ! Calculate vertically averaged ice velocities on the edges
     call exchange_halos( mesh, npx%U_c)
     call exchange_halos( mesh, npx%V_c)
-    call exchange_halos( mesh, npx%H)
+    call exchange_halos( mesh, npx%H  )
+    call checksum( npx%U_c, 'npx%U_c', mesh%pai_E)
+    call checksum( npx%V_c, 'npx%V_c', mesh%pai_E)
+    call checksum( npx%H  , 'npx%H  ', mesh%pai_V)
 
     ! Initialise with zeros
     laddie%divQH( mesh%vi1:mesh%vi2) = 0.0_dp
@@ -200,6 +210,7 @@ CONTAINS
       END IF ! (laddie%mask_a( vi))
 
     END DO ! DO vi = mesh%vi1, mesh%vi2
+    call checksum( laddie%divQH, 'laddie%divQH', mesh%pai_V)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

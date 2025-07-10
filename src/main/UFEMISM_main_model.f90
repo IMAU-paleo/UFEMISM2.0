@@ -515,7 +515,7 @@ CONTAINS
     ! ===== Lateral mass balance =====
     ! ================================
 
-    CALL initialise_LMB_model( region%mesh, region%LMB, region%name)
+    CALL initialise_LMB_model( region%mesh, region%LMB, region%name, start_time_of_run)
 
     ! ===== Artificial mass balance =====
     ! ===================================
