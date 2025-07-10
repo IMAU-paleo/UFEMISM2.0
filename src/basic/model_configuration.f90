@@ -46,6 +46,7 @@ MODULE model_configuration
     LOGICAL             :: do_check_for_NaN_config                      = .FALSE.                          ! Whether or not fields should be checked for NaN values
     LOGICAL             :: do_time_display_config                       = .TRUE.                           ! Print current model time to screen
     logical             :: do_write_matrix_operators_config             = .false.                          ! Whether or not to write the operator matrices to output
+    logical             :: do_write_checksum_log_config                 = .false.                          ! Whether or not checksums should be calcuialted and written to the checksum log file
 
   ! == Time of simulation
   ! =====================
@@ -677,7 +678,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_EAS_config      = ''
     CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_GRL_config      = ''
     CHARACTER(LEN=256)  :: filename_ocean_warm_snapshot_ANT_config      = ''
-    
+
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_NAM_config      = ''
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_EAS_config      = ''
     CHARACTER(LEN=256)  :: filename_ocean_cold_snapshot_GRL_config      = ''
@@ -1134,6 +1135,7 @@ MODULE model_configuration
     LOGICAL             :: do_check_for_NaN
     LOGICAL             :: do_time_display
     logical             :: do_write_matrix_operators
+    logical             :: do_write_checksum_log
 
   ! == Time of simulation
   ! =====================
@@ -2434,6 +2436,7 @@ CONTAINS
       do_check_for_NaN_config                                     , &
       do_time_display_config                                      , &
       do_write_matrix_operators_config                            , &
+      do_write_checksum_log_config                                , &
       start_time_of_run_config                                    , &
       end_time_of_run_config                                      , &
       dt_coupling_config                                          , &
@@ -3186,6 +3189,7 @@ CONTAINS
     C%do_check_for_NaN                                       = do_check_for_NaN_config
     C%do_time_display                                        = do_time_display_config
     C%do_write_matrix_operators                              = do_write_matrix_operators_config
+    C%do_write_checksum_log                                  = do_write_checksum_log_config
 
   ! == Time of simulation
   ! =====================
