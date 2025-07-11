@@ -47,10 +47,10 @@ class Figure(object):
         self.fields[hash(field)] = field
         return 
 
-    def add_diff(self, Timeframe1, varname1, Timeframe2, varname2, mask=None, name='diff'):
+    def add_diff(self, Timeframe1, varname1, Timeframe2, varname2, name='diff', mask=None, vmax=None, colmap='cmo.diff'):
         field1 = Field(Timeframe1, varname1)
         field2 = Field(Timeframe2, varname2)
-        field = DiffField(field1, field2, name=name, mask=mask)
+        field = DiffField(field1, field2, name=name, mask=mask, vmax=vmax, colmap=colmap)
 
         print(f'Added difference field {name} with hash {hash(field)}')
 
@@ -233,10 +233,11 @@ class Field(object):
 class DiffField(object):
     """ Difference field between two Fields """
 
-    def __init__(self, Field1, Field2, name, mask=None):
+    def __init__(self, Field1, Field2, name, mask, vmax, colmap):
 
         self.Field1 = Field1
         self.Field2 = Field2
+        self.Timeframe = self.Field1.Timeframe
 
         self.name = name
         self.varname = 'diff'
@@ -246,6 +247,9 @@ class DiffField(object):
         self.xmax = self.Field1.xmax
         self.ymin = self.Field1.ymin
         self.ymax = self.Field1.ymax
+
+        self.vmax = vmax
+        self.colmap = colmap
 
         self.check_compatibility()
 
@@ -280,13 +284,17 @@ class DiffField(object):
 
     def get_cmap(self):
         """ Define cmap and norm """
-        self.cmap = plt.get_cmap('cmo.diff')
-        self.dmax = max(abs(self.Field1.data-self.Field2.data).values)
-        if self.dmax == 0:
-            print('WARNING: both fields are equal')
-            vmax = 1
+        self.cmap = plt.get_cmap(self.colmap)
+
+        if self.vmax is None:
+            self.dmax = max(abs(self.Field1.data-self.Field2.data).values)
+            if self.dmax == 0:
+                print('WARNING: both fields are equal')
+                vmax = 1
+            else:
+                vmax = self.dmax
         else:
-            vmax = self.dmax
+            vmax = self.vmax
 
         self.norm = mpl.colors.Normalize(vmin=-vmax,vmax=vmax,clip=True)
         return
@@ -303,6 +311,8 @@ class DiffField(object):
 
                 if self.mask == 'shelf':
                     self.data = xr.where(self.Timeframe.mask == 4, self.data, np.nan)
+                elif self.mask == 'sheet':
+                    self.data = xr.where(self.Timeframe.mask == 3, self.data, np.nan)
                 elif self.mask == 'ice':
                     self.data = xr.where([x in [3,4] for x in self.Timeframe.mask], self.data, np.nan)
                 else:
