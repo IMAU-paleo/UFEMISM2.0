@@ -863,6 +863,9 @@ MODULE model_configuration
   ! == LADDIE model
   ! ===============
 
+    ! Parallellisation
+    LOGICAL             :: do_repartition_laddie_config                 = .FALSE.                          ! Whether or not to repartition laddie to its own mesh
+
     ! Output
     LOGICAL             :: do_write_laddie_output_fields_config         = .FALSE.                          ! Whether or not to write output fields on laddie time
     LOGICAL             :: do_write_laddie_output_scalar_config         = .FALSE.                          ! Whether or not to write output scalars on laddie time
@@ -1959,6 +1962,9 @@ MODULE model_configuration
   ! == LADDIE model
   ! ===============
 
+    ! Parallellisation
+    LOGICAL             :: do_repartition_laddie
+
     ! Output
     LOGICAL             :: do_write_laddie_output_fields
     LOGICAL             :: do_write_laddie_output_scalar
@@ -2966,6 +2972,7 @@ CONTAINS
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
       conda_activate_prompt_config                                , &
+      do_repartition_laddie_config                                , &
       do_write_laddie_output_fields_config                        , &
       do_write_laddie_output_scalar_config                        , &
       time_interval_scalar_output_config                          , &
@@ -4016,6 +4023,9 @@ CONTAINS
 
   ! == LADDIE model
   ! ===============
+
+    ! Parallellisation
+    C%do_repartition_laddie                                  = do_repartition_laddie_config
 
     ! Output
     C%do_write_laddie_output_fields                          = do_write_laddie_output_fields_config
