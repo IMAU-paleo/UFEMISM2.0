@@ -194,6 +194,7 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'apply_ice_thickness_BC_matrix'
     integer                        :: vi,k1,k2,k,vj
+    character(len=1024)            :: BC_H
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -203,188 +204,66 @@ contains
 
     do vi = mesh%vi1, mesh%vi2
 
-      k1 = AA%ptr( vi)
-      k2 = AA%ptr( vi+1) - 1
-
       if     (mesh%VBI( vi) == 1 .or. mesh%VBI( vi) == 2) then
         ! Northern domain border
-
-        select case (C%BC_H_north)
-        case default
-          call crash('unknown BC_H_north "' // trim( C%BC_H_north) // '"')
-        case ('zero')
-          ! Set ice thickness to zero here
-
-          ! Set diagonal element of A to 1, rest of row to 0
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = 1._dp
-            else
-              ! Off-diagonal element
-              AA%val( k) = 0._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector and initial guess
-          bb( vi) = 0._dp
-          Hi_tplusdt( vi) = 0._dp
-
-        case ('infinite')
-          ! Set H on this vertex equal to the average value on its neighbours
-
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = real( mesh%nC( vi), dp)
-            else
-              ! Off-diagonal element
-              AA%val( k) = -1._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector
-          bb( vi) = 0._dp
-
-        end select
-
+        BC_H = C%BC_H_north
       elseif (mesh%VBI( vi) == 3 .or. mesh%VBI( vi) == 4) then
         ! Eastern domain border
-
-        select case (C%BC_H_east)
-        case default
-          call crash('unknown BC_H_east "' // trim( C%BC_H_east) // '"')
-        case ('zero')
-          ! Set ice thickness to zero here
-
-          ! Set diagonal element of A to 1, rest of row to 0
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = 1._dp
-            else
-              ! Off-diagonal element
-              AA%val( k) = 0._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector and initial guess
-          bb( vi) = 0._dp
-          Hi_tplusdt( vi) = 0._dp
-
-        case ('infinite')
-          ! Set H on this vertex equal to the average value on its neighbours
-
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = real( mesh%nC( vi), dp)
-            else
-              ! Off-diagonal element
-              AA%val( k) = -1._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector
-          bb( vi) = 0._dp
-
-        end select
-
+        BC_H = C%BC_H_east
       elseif (mesh%VBI( vi) == 5 .or. mesh%VBI( vi) == 6) then
         ! Southern domain border
-
-        select case (C%BC_H_south)
-        case default
-          call crash('BC_H_south "' // trim( C%BC_H_south) // '"')
-        case ('zero')
-          ! Set ice thickness to zero here
-
-          ! Set diagonal element of A to 1, rest of row to 0
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = 1._dp
-            else
-              ! Off-diagonal element
-              AA%val( k) = 0._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector and initial guess
-          bb( vi) = 0._dp
-          Hi_tplusdt( vi) = 0._dp
-
-        case ('infinite')
-          ! Set H on this vertex equal to the average value on its neighbours
-
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = real( mesh%nC( vi), dp)
-            else
-              ! Off-diagonal element
-              AA%val( k) = -1._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector
-          bb( vi) = 0._dp
-
-        end select
-
+        BC_H = C%BC_H_south
       elseif (mesh%VBI( vi) == 7 .or. mesh%VBI( vi) == 8) then
         ! Western domain border
-
-        select case (C%BC_H_west)
-        case default
-          call crash('BC_H_west "' // trim( C%BC_H_west) // '"')
-        case ('zero')
-          ! Set ice thickness to zero here
-
-          ! Set diagonal element of A to 1, rest of row to 0
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = 1._dp
-            else
-              ! Off-diagonal element
-              AA%val( k) = 0._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector and initial guess
-          bb( vi) = 0._dp
-          Hi_tplusdt( vi) = 0._dp
-
-        case ('infinite')
-          ! Set H on this vertex equal to the average value on its neighbours
-
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = real( mesh%nC( vi), dp)
-            else
-              ! Off-diagonal element
-              AA%val( k) = -1._dp
-            end if
-          end do ! do k = k1, k2
-
-          ! Load vector
-          bb( vi) = 0._dp
-
-        end select
-
+        BC_H = C%BC_H_west
       else
         ! Free vertex
+        cycle
       end if
+
+      select case (BC_H)
+      case default
+        call crash('unknown ice hickness boundary condition "' // trim( BC_H) // '"')
+      case ('zero')
+        ! Set ice thickness to zero here
+
+        k1 = AA%ptr( vi)
+        k2 = AA%ptr( vi+1) - 1
+
+        ! Set diagonal element of A to 1, rest of row to 0
+        do k = k1, k2
+          vj = AA%ind( k)
+          if (vj == vi) then
+            ! Diagonal element
+            AA%val( k) = 1._dp
+          else
+            ! Off-diagonal element
+            AA%val( k) = 0._dp
+          end if
+        end do ! do k = k1, k2
+
+        ! Load vector and initial guess
+        bb( vi) = 0._dp
+        Hi_tplusdt( vi) = 0._dp
+
+      case ('infinite')
+        ! Set H on this vertex equal to the average value on its neighbours
+
+        do k = k1, k2
+          vj = AA%ind( k)
+          if (vj == vi) then
+            ! Diagonal element
+            AA%val( k) = real( mesh%nC( vi), dp)
+          else
+            ! Off-diagonal element
+            AA%val( k) = -1._dp
+          end if
+        end do ! do k = k1, k2
+
+        ! Load vector
+        bb( vi) = 0._dp
+
+      end select
 
     end do ! do vi = mesh%vi1, mesh%vi2
 
