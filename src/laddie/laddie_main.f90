@@ -63,18 +63,23 @@ CONTAINS
 
     call update_laddie_forcing( mesh, ice, ocean, laddie)
 
-    ! Repartition the mesh so each process has (approximately)
-    ! the same number of ice shelf vertices/triangles
-    call repartition_mesh( mesh, mesh_repartitioned, laddie%mask_a, laddie%mask_b)
+    if (C%do_repartition_laddie) then
+      ! Repartition the mesh so each process has (approximately)
+      ! the same number of ice shelf vertices/triangles
+      call repartition_mesh( mesh, mesh_repartitioned, laddie%mask_a, laddie%mask_b)
 
-    ! Repartition laddie
-    call repartition_laddie( mesh, mesh_repartitioned, laddie)
+      ! Repartition laddie
+      call repartition_laddie( mesh, mesh_repartitioned, laddie)
 
-    ! Run laddie on the repartitioned mesh
-    call run_laddie_model_repartitioned( mesh_repartitioned, laddie, time, is_initial, region_name)
+      ! Run laddie on the repartitioned mesh
+      call run_laddie_model_leg( mesh_repartitioned, laddie, time, is_initial, region_name)
 
-    ! Un-repartition laddie
-    call repartition_laddie( mesh_repartitioned, mesh, laddie)
+      ! Un-repartition laddie
+      call repartition_laddie( mesh_repartitioned, mesh, laddie)
+    else
+      ! Run laddie on the original mesh
+      call run_laddie_model_leg( mesh, laddie, time, is_initial, region_name)
+    end if
 
     ! Clean up after yourself
     call deallocate_mesh( mesh_repartitioned)
@@ -84,8 +89,8 @@ CONTAINS
 
   end subroutine run_laddie_model
 
-  subroutine run_laddie_model_repartitioned( mesh, laddie, time, is_initial, region_name)
-    ! Run the laddie model on the repartitioned mesh
+  subroutine run_laddie_model_leg( mesh, laddie, time, is_initial, region_name)
+    ! Run one leg of the laddie model
 
     ! In/output variables
     type(type_mesh),         intent(in   ) :: mesh
@@ -95,7 +100,7 @@ CONTAINS
     character(len=3),        intent(in   ) :: region_name
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'run_laddie_model_repartitioned'
+    character(len=1024), parameter :: routine_name = 'run_laddie_model_leg'
     integer                        :: vi, ti
     real(dp)                       :: tl               ! [s] Laddie time
     real(dp)                       :: dt               ! [s] Laddie time step
@@ -218,7 +223,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  end subroutine run_laddie_model_repartitioned
+  end subroutine run_laddie_model_leg
 
   SUBROUTINE initialise_laddie_model( mesh, laddie, ocean, ice, region_name)
     ! Initialise the laddie model
