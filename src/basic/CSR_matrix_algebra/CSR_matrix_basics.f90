@@ -20,7 +20,8 @@ module CSR_matrix_basics
 
   public :: allocate_matrix_CSR_dist, deallocate_matrix_CSR_dist, duplicate_matrix_CSR_dist, &
     add_entry_CSR_dist, add_empty_row_CSR_dist, extend_matrix_CSR_dist, finalise_matrix_CSR_dist, &
-    gather_CSR_dist_to_primary, read_single_row_CSR_dist, allocate_matrix_CSR_loc
+    gather_CSR_dist_to_primary, read_single_row_CSR_dist, allocate_matrix_CSR_loc, &
+    set_diagonal_to_one_and_rest_of_row_to_zero
 
 contains
 
@@ -569,6 +570,27 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_j_node_range
+
+  subroutine set_diagonal_to_one_and_rest_of_row_to_zero( A, i)
+
+    ! In- and output variables:
+    type(type_sparse_matrix_CSR_dp), intent(inout) :: A
+    integer,                         intent(in   ) :: i
+
+    ! Local variables:
+    integer :: k
+
+    do k = A%ptr( i), A%ptr( i+1) - 1
+      if (A%ind( k) == i) then
+        ! Diagonal element
+        A%val( k) = 1._dp
+      else
+        ! Off-diagonal element
+        A%val( k) = 0._dp
+      end if
+    end do
+
+  end subroutine set_diagonal_to_one_and_rest_of_row_to_zero
 
   ! ===== CSR matrices in local memory =====
   ! ========================================
