@@ -5,7 +5,8 @@ module conservation_of_mass_semiimplicit
   use model_configuration, only: C
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
-  use CSR_matrix_basics, only: duplicate_matrix_CSR_dist, finalise_matrix_CSR_dist
+  use CSR_matrix_basics, only: duplicate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
+     set_diagonal_to_one_and_rest_of_row_to_zero, set_row_to_value, set_row_diag_to_val
   use petsc_basic, only: solve_matrix_equation_csr_petsc
   use CSR_matrix_vector_multiplication, only: multiply_csr_matrix_with_vector_1d_wrapper
   use conservation_of_mass_utilities, only: calc_ice_flux_divergence_matrix_upwind, &
@@ -193,14 +194,35 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'apply_ice_thickness_BC_matrix'
-    integer                        :: vi,k1,k2,k,vj
-    character(len=1024)            :: BC_H
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! == Boundary conditions at the domain border
-    ! ===========================================
+    call apply_ice_thickness_BC_matrix_domain_border( mesh, AA, bb, Hi_tplusdt)
+    call apply_ice_thickness_BC_matrix_mask_prescribed_thickness( mesh, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
+    call apply_ice_thickness_BC_matrix_mask_noice( mesh, mask_noice, AA, bb, Hi_tplusdt)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_ice_thickness_BC_matrix
+
+  subroutine apply_ice_thickness_BC_matrix_domain_border( mesh, AA, bb, Hi_tplusdt)
+    !< Apply boundary conditions at the domain border to the ice thickness matrix equation AA * Hi( t+dt) = bb
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: AA                    ! Stiffness matrix
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: bb                    ! Load vector
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi_tplusdt            ! Initial guess
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_ice_thickness_BC_matrix_domain_border'
+    integer                        :: vi
+    character(len=1024)            :: BC_H
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     do vi = mesh%vi1, mesh%vi2
 
@@ -227,103 +249,48 @@ contains
       case ('zero')
         ! Set ice thickness to zero here
 
-        k1 = AA%ptr( vi)
-        k2 = AA%ptr( vi+1) - 1
-
-        ! Set diagonal element of A to 1, rest of row to 0
-        do k = k1, k2
-          vj = AA%ind( k)
-          if (vj == vi) then
-            ! Diagonal element
-            AA%val( k) = 1._dp
-          else
-            ! Off-diagonal element
-            AA%val( k) = 0._dp
-          end if
-        end do ! do k = k1, k2
-
-        ! Load vector and initial guess
+        call set_diagonal_to_one_and_rest_of_row_to_zero( AA, vi)
         bb( vi) = 0._dp
         Hi_tplusdt( vi) = 0._dp
 
       case ('infinite')
         ! Set H on this vertex equal to the average value on its neighbours
 
-        do k = k1, k2
-          vj = AA%ind( k)
-          if (vj == vi) then
-            ! Diagonal element
-            AA%val( k) = real( mesh%nC( vi), dp)
-          else
-            ! Off-diagonal element
-            AA%val( k) = -1._dp
-          end if
-        end do ! do k = k1, k2
-
-        ! Load vector
+        call set_row_to_value(    AA, vi, -1._dp)
+        call set_row_diag_to_val( AA, vi, real( mesh%nC( vi), dp))
         bb( vi) = 0._dp
 
       end select
 
-    end do ! do vi = mesh%vi1, mesh%vi2
+    end do
 
-    ! Set predicted ice thickness to prescribed values where told to do so
-    ! ====================================================================
+    ! Finalise routine path
+    call finalise_routine( routine_name)
 
-    if (present( BC_prescr_mask) .or. present( BC_prescr_Hi)) then
-      ! Safety
-      if (.not. (present( BC_prescr_mask) .and. present( BC_prescr_Hi))) then
-        call crash('need to provide prescribed both Hi and mask!')
-      end if
+  end subroutine apply_ice_thickness_BC_matrix_domain_border
 
-      do vi = mesh%vi1, mesh%vi2
-        if (BC_prescr_mask( vi) == 1) then
+  subroutine apply_ice_thickness_BC_matrix_mask_noice( mesh, mask_noice, AA, bb, Hi_tplusdt)
+    !< Apply the no-ice-mask boundary conditions to the ice thickness matrix equation AA * Hi( t+dt) = bb
 
-          ! Set diagonal element of A to 1, rest of row to 0
-          k1 = AA%ptr( vi)
-          k2 = AA%ptr( vi+1) - 1
-          do k = k1, k2
-            vj = AA%ind( k)
-            if (vj == vi) then
-              ! Diagonal element
-              AA%val( k) = 1._dp
-            else
-              ! Off-diagonal element
-              AA%val( k) = 0._dp
-            end if
-          end do
+    ! In/output variables:
+    type(type_mesh),                        intent(in   ) :: mesh
+    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_noice            ! Mask of vertices where no ice is allowed
+    type(type_sparse_matrix_CSR_dp),        intent(inout) :: AA                    ! Stiffness matrix
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: bb                    ! Load vector
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi_tplusdt            ! Initial guess
 
-          ! Load vector and initial guess
-          bb        ( vi) = BC_prescr_Hi( vi)
-          Hi_tplusdt( vi) = BC_prescr_Hi( vi)
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_ice_thickness_BC_matrix_mask_noice'
+    integer                        :: vi
 
-        end if
-      end do
-
-    end if ! if (present( BC_prescr_mask) .or. present( BC_prescr_Hi)) then
-
-    ! == No-ice mask
-    ! ==============
+    ! Add routine to path
+    call init_routine( routine_name)
 
     do vi = mesh%vi1, mesh%vi2
       if (mask_noice( vi)) then
         ! Set ice thickness to zero here
 
-        ! Set diagonal element of A to 1, rest of row to 0
-        k1 = AA%ptr( vi)
-        k2 = AA%ptr( vi+1) - 1
-        do k = k1, k2
-          vj = AA%ind( k)
-          if (vj == vi) then
-            ! Diagonal element
-            AA%val( k) = 1._dp
-          else
-            ! Off-diagonal element
-            AA%val( k) = 0._dp
-          end if
-        end do ! do k = k1, k2
-
-        ! Load vector and initial guess
+        call set_diagonal_to_one_and_rest_of_row_to_zero( AA, vi)
         bb( vi) = 0._dp
         Hi_tplusdt( vi) = 0._dp
 
@@ -333,6 +300,48 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine apply_ice_thickness_BC_matrix
+  end subroutine apply_ice_thickness_BC_matrix_mask_noice
+
+  subroutine apply_ice_thickness_BC_matrix_mask_prescribed_thickness( mesh, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
+    !< Apply prescribed ice thickness boundary conditions to the ice thickness matrix equation AA * Hi( t+dt) = bb
+
+    ! In/output variables:
+    type(type_mesh),                        intent(in   )           :: mesh
+    type(type_sparse_matrix_CSR_dp),        intent(inout)           :: AA                    ! Stiffness matrix
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout)           :: bb                    ! Load vector
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout)           :: Hi_tplusdt            ! Initial guess
+    integer,  dimension(mesh%vi1:mesh%vi2), intent(in   ), optional :: BC_prescr_mask        ! Mask of vertices where thickness is prescribed
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ), optional :: BC_prescr_Hi          ! Prescribed thicknesses
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'apply_ice_thickness_BC_matrix_mask_noice'
+    integer                        :: vi
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (present( BC_prescr_mask) .or. present( BC_prescr_Hi)) then
+
+      ! Safety
+      if (.not. (present( BC_prescr_mask) .and. present( BC_prescr_Hi))) then
+        call crash('need to provide prescribed both Hi and mask!')
+      end if
+
+      do vi = mesh%vi1, mesh%vi2
+        if (BC_prescr_mask( vi) == 1) then
+
+          call set_diagonal_to_one_and_rest_of_row_to_zero( AA, vi)
+          bb        ( vi) = BC_prescr_Hi( vi)
+          Hi_tplusdt( vi) = BC_prescr_Hi( vi)
+
+        end if
+      end do
+
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine apply_ice_thickness_BC_matrix_mask_prescribed_thickness
 
 end module conservation_of_mass_semiimplicit
