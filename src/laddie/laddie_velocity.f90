@@ -98,8 +98,6 @@ CONTAINS
         laddie%divQU( mesh%ti1:mesh%ti2) = 0.0_dp
         laddie%divQV( mesh%ti1:mesh%ti2) = 0.0_dp
       CASE ('upstream')
-        ! TODO figure out which of the below lines is best
-        !CALL compute_divQUV_upstream( mesh, laddie, npx, laddie%Hstar_b)
         CALL compute_divQUV_upstream( mesh, laddie, npx_ref, npx_ref%H_b)
       CASE ('fesom')
         CALL compute_divQUV_fesom( mesh, laddie, npx_ref, npx_ref%H_b)
