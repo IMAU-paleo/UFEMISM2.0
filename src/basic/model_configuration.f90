@@ -709,13 +709,6 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_SMB_config                   = .TRUE.                           ! Whether or not the SMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_SMB_config                                = 10._dp                           ! [yr] Time step for calculating SMB
 
-    ! SMB adjustments
-    LOGICAL             :: do_SMB_removal_icefree_land_config           = .FALSE.                          ! Whether or not to remove any positive SMB over ice-free land once during model initialisation
-    LOGICAL             :: do_SMB_residual_absorb_config                = .FALSE.                          ! Whether or not to let SMB absorb "residual" dHi_dt at the end of inversions
-    REAL(dp)            :: SMB_residual_absorb_t_start_config           = +9.9E9_dp                        ! [yr] Start time for assimilation of residuals
-    REAL(dp)            :: SMB_residual_absorb_t_end_config             = +9.9E9_dp                        ! [yr] End   time for assimilation of residuals
-
-
     ! Choice of SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_NAM_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_SMB_model_EAS_config                  = 'uniform'
@@ -957,11 +950,11 @@ MODULE model_configuration
     REAL(dp)            :: warm_LMB_EAS_config                          = -1.0_dp                         !
     REAL(dp)            :: warm_LMB_GRL_config                          = -1.0_dp                         !
     REAL(dp)            :: warm_LMB_ANT_config                          = -1.0_dp                         !
-    
+
     REAL(dp)            :: cold_LMB_NAM_config                          = 0.0_dp                          ! constant LMB value for a "cold" (GI=1.0) period
-    REAL(dp)            :: cold_LMB_EAS_config                          = 0.0_dp                          ! 
-    REAL(dp)            :: cold_LMB_GRL_config                          = 0.0_dp                          ! 
-    REAL(dp)            :: cold_LMB_ANT_config                          = 0.0_dp                          ! 
+    REAL(dp)            :: cold_LMB_EAS_config                          = 0.0_dp                          !
+    REAL(dp)            :: cold_LMB_GRL_config                          = 0.0_dp                          !
+    REAL(dp)            :: cold_LMB_ANT_config                          = 0.0_dp                          !
 
 
   ! == Glacial isostatic adjustment
@@ -1799,13 +1792,6 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_SMB
     REAL(dp)            :: dt_SMB
 
-    ! SMB adjustments
-    LOGICAL             :: do_SMB_removal_icefree_land
-    LOGICAL             :: do_SMB_residual_absorb
-    REAL(dp)            :: SMB_residual_absorb_t_start
-    REAL(dp)            :: SMB_residual_absorb_t_end
-
-
     ! Choice of SMB model
     CHARACTER(LEN=256)  :: choice_SMB_model_NAM
     CHARACTER(LEN=256)  :: choice_SMB_model_EAS
@@ -2049,12 +2035,12 @@ MODULE model_configuration
     REAL(dp)            :: warm_LMB_EAS
     REAL(dp)            :: warm_LMB_GRL
     REAL(dp)            :: warm_LMB_ANT
-    
+
     REAL(dp)            :: cold_LMB_NAM
     REAL(dp)            :: cold_LMB_EAS
     REAL(dp)            :: cold_LMB_GRL
     REAL(dp)            :: cold_LMB_ANT
-  
+
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -2864,10 +2850,6 @@ CONTAINS
       filename_ocean_GI_ANT_config                                , &
       do_asynchronous_SMB_config                                  , &
       dt_SMB_config                                               , &
-      do_SMB_removal_icefree_land_config                          , &
-      do_SMB_residual_absorb_config                               , &
-      SMB_residual_absorb_t_start_config                          , &
-      SMB_residual_absorb_t_end_config                            , &
       choice_SMB_model_NAM_config                                 , &
       choice_SMB_model_EAS_config                                 , &
       choice_SMB_model_GRL_config                                 , &
@@ -3854,13 +3836,6 @@ CONTAINS
     C%do_asynchronous_SMB                                    = do_asynchronous_SMB_config
     C%dt_SMB                                                 = dt_SMB_config
 
-    ! SMB adjustments
-    C%do_SMB_removal_icefree_land                            = do_SMB_removal_icefree_land_config
-    C%do_SMB_residual_absorb                                 = do_SMB_residual_absorb_config
-    C%SMB_residual_absorb_t_start                            = SMB_residual_absorb_t_start_config
-    C%SMB_residual_absorb_t_end                              = SMB_residual_absorb_t_end_config
-
-
     ! Choice of SMB model
     C%choice_SMB_model_NAM                                   = choice_SMB_model_NAM_config
     C%choice_SMB_model_EAS                                   = choice_SMB_model_EAS_config
@@ -4102,7 +4077,7 @@ CONTAINS
     C%warm_LMB_EAS                                           = warm_LMB_EAS_config
     C%warm_LMB_GRL                                           = warm_LMB_GRL_config
     C%warm_LMB_ANT                                           = warm_LMB_ANT_config
-    
+
     C%cold_LMB_NAM                                           = cold_LMB_NAM_config
     C%cold_LMB_EAS                                           = cold_LMB_EAS_config
     C%cold_LMB_GRL                                           = cold_LMB_GRL_config

@@ -485,7 +485,7 @@ CONTAINS
 
     ! Set up a regional frocing data type so the regional models can run asynchronously
     regional_forcing = forcing
-    
+
     ! ===== Ice dynamics =====
     ! ========================
 
@@ -1423,16 +1423,6 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%primary) WRITE(0,'(A)') '   Implementing regional corrections...'
-
-    ! === SMB over ice-free land ===
-    ! ==============================
-
-    ! If so desired, remove positive SMB over ice-free land
-    IF (C%do_SMB_removal_icefree_land) THEN
-      DO vi = region%mesh%vi1, region%mesh%vi2
-        IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = MIN( region%SMB%SMB( vi), 0._dp)
-      END DO
-    END IF
 
     ! == Target dHi_dt
     ! ================
