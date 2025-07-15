@@ -27,8 +27,7 @@ module inversion_utilities
 
   private
 
-  public :: initialise_dHi_dt_target, &
-    MISMIPplus_adapt_flow_factor, BMB_inversion, LMB_inversion
+  public :: initialise_dHi_dt_target, MISMIPplus_adapt_flow_factor, BMB_inversion
 
 contains
 
