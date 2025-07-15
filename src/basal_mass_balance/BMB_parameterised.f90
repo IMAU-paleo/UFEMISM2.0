@@ -156,7 +156,7 @@ CONTAINS
       ! Melt constant if C_melt would be prescribed as an exchange velocity gamma
       !C_melt = -1._dp * C%BMB_Holland_Cmelt /(sec_per_year * (seawater_density*cp_ocean)/(ice_density*L_fusion))
       
-      BMB%BMB_shelf( vi) = C_melt * dT**(1.5) * SIN(slope_angle)**(0.5)
+      BMB%BMB_shelf( vi) = C_melt * dT**(1.5_dp) * SIN(slope_angle)**(0.5_dp)
 
       ! Apply grounded fractions
       IF (ice%mask_gl_gr( vi) .AND. ice%Hib(vi) < ice%SL(vi)) THEN
