@@ -14,7 +14,8 @@ module conservation_of_mass_utilities
 
   private
 
-  public :: calc_ice_flux_divergence_matrix_upwind, apply_mask_noice_direct, calc_flux_limited_timestep
+  public :: calc_ice_flux_divergence_matrix_upwind, apply_mask_noice_direct, calc_flux_limited_timestep, &
+    calc_n_interior_neighbours
 
 contains
 
@@ -201,5 +202,35 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_flux_limited_timestep
+
+  subroutine calc_n_interior_neighbours( mesh, mask_noice, n_interior_neighbours)
+
+    ! In/output variables:
+    type(type_mesh),                       intent(in   ) :: mesh
+    logical, dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_noice
+    integer, dimension(mesh%vi1:mesh%vi2), intent(  out) :: n_interior_neighbours
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_flux_limited_timestep'
+    logical,  dimension(mesh%nV)   :: mask_noice_tot
+    integer                        :: vi, ci, vj
+
+    ! Gather global data fields
+    call gather_to_all( mask_noice, mask_noice_tot)
+
+    do vi = mesh%vi1, mesh%vi2
+
+      n_interior_neighbours( vi) = 0
+
+      do ci = 1, mesh%nC( vi)
+        vj = mesh%C( vi,ci)
+        if (mesh%VBI( vj) == 0 .and. .not. mask_noice_tot( vj)) then
+          n_interior_neighbours( vi) = n_interior_neighbours( vi) + 1
+        end if
+      end do
+
+    end do
+
+  end subroutine calc_n_interior_neighbours
 
 end module conservation_of_mass_utilities
