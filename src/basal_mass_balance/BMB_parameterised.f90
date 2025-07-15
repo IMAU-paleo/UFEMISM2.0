@@ -108,7 +108,16 @@ CONTAINS
 
   SUBROUTINE run_BMB_model_parameterised_Holland_notaper( mesh, ice, ocean, BMB)
     ! Basal melt parameterisation using dT^3/2
-    ! Including the dependency on the slope of the ice shelf base
+    ! Including the dependency on the slope of the ice shelf base.
+    ! Note that this is the "no tapering" case. This parameterisation was presented
+    ! both with tapering and no tapering of basal melt rates towards the grounding line
+    ! Initial tests showed that this parameterisation without tapering does a job 
+    ! comparable to Favier2019, but produces less melt over the Amundsen Sea grounding 
+    ! lines, at least when using Bedmap3. In other words, it seems like this is modulated 
+    ! by a relatively flatter ice shelf base at that location in Bedmap3. Including the 
+    ! tapering can easily be done as a separate parameterisation, or as an extension to 
+    ! this one (e.g., by adding a tapering distance factor). This is left for future work, 
+    ! as the parameterisation is already doing a good job based on initial tests.
 
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
