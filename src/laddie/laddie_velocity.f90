@@ -362,7 +362,10 @@ CONTAINS
   end subroutine compute_divQUV_upstream
 
   subroutine compute_divQUV_fesom( mesh, laddie, npxref, Hstar_b)
-    ! Upstream scheme
+    ! Fesom-like scheme, where velocities on edges are derived
+    ! as averages of velocities on neigbouring vertices
+    ! in order to solve the problem of too many degrees of freedom
+    ! of triangles versus vertices
 
     ! In/output variables:
     type(type_mesh),                        intent(in)    :: mesh
@@ -372,7 +375,7 @@ CONTAINS
 
     ! Local variables:
     character(len=256), parameter                         :: routine_name = 'compute_divQUV_fesom'
-    integer                                               :: ti, tj, ci, ei
+    integer                                               :: ti, tj, ci, ei, vil, vir
     real(dp)                                              :: u_perp
 
     ! Add routine to path
@@ -383,8 +386,8 @@ CONTAINS
     call exchange_halos( mesh, laddie%mask_b)
     call exchange_halos( mesh, npxref%U)
     call exchange_halos( mesh, npxref%V)
-    call exchange_halos( mesh, npxref%U_c)
-    call exchange_halos( mesh, npxref%V_c)
+    call exchange_halos( mesh, npxref%U_a)
+    call exchange_halos( mesh, npxref%V_a)
     ! call exchange_halos( mesh, Hstar_b, H_b_tot) ! Already done in compute_UV_npx
 
     ! Initialise with zeros
@@ -403,6 +406,8 @@ CONTAINS
 
           tj = mesh%TriC( ti, ci)
           ei = mesh%TriE( ti, ci)
+          vil = mesh%EV( ei, 1)
+          vir = mesh%EV( ei, 2)
 
           ! Skip if no connecting triangle on this side
           if (tj == 0) cycle
@@ -411,8 +416,8 @@ CONTAINS
           if (laddie%mask_gl_b( tj)) cycle
 
           ! Calculate vertically averaged water velocity component perpendicular to this edge
-          u_perp = npxref%U_c( ei) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci) &
-                 + npxref%V_c( ei) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
+          u_perp = 0.5*(npxref%U_a( vil) + npxref%U_a( vir)) * mesh%TriD_x( ti, ci) / mesh%TriD( ti, ci) &
+                 + 0.5*(npxref%V_a( vil) + npxref%V_a( vir)) * mesh%TriD_y( ti, ci) / mesh%TriD( ti, ci)
 
           ! Calculate upstream momentum divergence
           ! =============================
