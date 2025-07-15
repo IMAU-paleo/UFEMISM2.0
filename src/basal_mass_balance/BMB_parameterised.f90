@@ -107,7 +107,7 @@ CONTAINS
   end subroutine run_BMB_model_parameterised_Favier2019
 
   SUBROUTINE run_BMB_model_parameterised_Holland_notaper( mesh, ice, ocean, BMB)
-    ! Basal melt parameterisation using dT^2/3
+    ! Basal melt parameterisation using dT^3/2
     ! Including the dependency on the slope of the ice shelf base
 
     ! In/output variables
