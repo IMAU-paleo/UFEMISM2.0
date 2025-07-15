@@ -6,12 +6,11 @@ module conservation_of_mass_semiimplicit
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_matrix_basics, only: duplicate_matrix_CSR_dist, finalise_matrix_CSR_dist, &
-     set_diagonal_to_one_and_rest_of_row_to_zero, set_row_to_value, set_row_diag_to_val
+     set_diagonal_to_one_and_rest_of_row_to_zero
   use petsc_basic, only: solve_matrix_equation_csr_petsc
   use CSR_matrix_vector_multiplication, only: multiply_csr_matrix_with_vector_1d_wrapper
-  use conservation_of_mass_utilities, only: calc_ice_flux_divergence_matrix_upwind, &
-    calc_flux_limited_timestep, apply_mask_noice_direct
-  use conservation_of_mass_explicit, only: apply_ice_thickness_bc_explicit
+  use conservation_of_mass_utilities, only: calc_ice_flux_divergence_matrix_upwind
+  use conservation_of_mass_explicit, only: calc_dHi_dt_explicit, apply_ice_thickness_BC_explicit
 
   implicit none
 
@@ -91,16 +90,25 @@ contains
 
     ! Local variables:
     character(len=1024), parameter         :: routine_name = 'calc_dHi_dt_semiimplicit'
+    real(dp), dimension(mesh%vi1:mesh%vi2) :: AMB_ex, dHi_dt_ex, Hi_tplusdt_ex, divQ_ex
+    real(dp)                               :: dt_ex
     type(type_sparse_matrix_CSR_dp)        :: M_divQ
     type(type_sparse_matrix_CSR_dp)        :: AA
     real(dp), dimension(mesh%vi1:mesh%vi2) :: bb
     integer                                :: vi, k1, k2, k, vj
     real(dp)                               :: dt_max
-    real(dp), dimension(mesh%vi1:mesh%vi2) :: dHi_dt_dummy
     integer                                :: n_Axb_its
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! First calculate the explicit solution (used to estimate the time step,
+    ! and to apply boundary conditions at the domain border)
+    dt_ex = dt
+    call calc_dHi_dt_explicit( mesh, Hi, Hb, SL, u_vav_b, v_vav_b, SMB, BMB, LMB, AMB_ex, &
+      fraction_margin, mask_noice, dt_ex, dHi_dt_ex, Hi_tplusdt_ex, divQ_ex, &
+      dHi_dt_target, BC_prescr_mask, BC_prescr_Hi)
+    dt_max = dt_ex
 
     ! Calculate the ice flux divergence matrix M_divQ using an upwind scheme
     call calc_ice_flux_divergence_matrix_upwind( mesh, u_vav_b, v_vav_b, fraction_margin, M_divQ)
@@ -110,15 +118,6 @@ contains
       mesh%pai_V, Hi, mesh%pai_V, divQ, &
       xx_is_hybrid = .false., yy_is_hybrid = .false., &
       buffer_xx_nih = mesh%buffer1_d_a_nih, buffer_yy_nih = mesh%buffer2_d_a_nih)
-
-    ! Calculate an estimate of the rate of ice thickness change dHi/dt
-    dHi_dt_dummy = -divQ + SMB + BMB + LMB - dHi_dt_target
-
-    ! Calculate largest time step possible based on that estimate
-    call calc_flux_limited_timestep( mesh, Hi, dHi_dt_dummy, dt_max)
-
-    ! Constrain dt based on new limit
-    dt = MIN( dt, dt_max)
 
     ! Calculate the stiffness matrix A and the load vector b
 
@@ -143,14 +142,14 @@ contains
 
     ! Load vector
     do vi = mesh%vi1, mesh%vi2
-      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * divQ( vi)) + max( -1._dp * Hi( vi), dt * (SMB( vi) + BMB( vi) + LMB( vi) - dHi_dt_target( vi)))
+      bb( vi) = Hi( vi) - (dt * (1._dp - C%dHi_semiimplicit_fs) * divQ( vi)) + max( -1._dp * Hi( vi), dt * (fraction_margin( vi) * (SMB( vi) + BMB( vi) - dHi_dt_target( vi)) + LMB( vi)))
     end do
 
     ! Take the current ice thickness plus the current thinning rate as the initial guess
     Hi_tplusdt = Hi + dt * dHi_dt
 
     ! Apply boundary conditions
-    call apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
+    call apply_ice_thickness_BC_matrix( mesh, mask_noice, Hb, SL, Hi_tplusdt_ex, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
 
     ! Solve for Hi_tplusdt
     call solve_matrix_equation_CSR_PETSc( AA, bb, Hi_tplusdt, C%dHi_PETSc_rtol, C%dHi_PETSc_abstol, &
@@ -158,12 +157,6 @@ contains
 
     ! Store the corresponding dH/dt in the artificial mass balance field
     AMB = (Hi_tplusdt - Hi) / dt
-
-    ! Enforce Hi = 0 where told to do so
-    call apply_mask_noice_direct( mesh, mask_noice, Hi_tplusdt)
-
-    ! Apply boundary conditions at the domain border
-    call apply_ice_thickness_BC_explicit( mesh, mask_noice, Hb, SL, Hi_tplusdt)
 
     ! Calculate dH/dt
     dHi_dt = (Hi_tplusdt - Hi) / dt
@@ -180,12 +173,15 @@ contains
 
   end subroutine calc_dHi_dt_semiimplicit
 
-  subroutine apply_ice_thickness_BC_matrix( mesh, mask_noice, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
+  subroutine apply_ice_thickness_BC_matrix( mesh, mask_noice, Hb, SL, Hi_tplusdt_ex, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     !< Apply boundary conditions to the ice thickness matrix equation AA * Hi( t+dt) = bb
 
     ! In/output variables:
     type(type_mesh),                        intent(in   )           :: mesh
-    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   )           :: mask_noice            ! Mask of vertices where no ice is allowed
+    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   )           :: mask_noice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   )           :: Hb
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   )           :: SL
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout)           :: Hi_tplusdt_ex
     type(type_sparse_matrix_CSR_dp),        intent(inout)           :: AA                    ! Stiffness matrix
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout)           :: bb                    ! Load vector
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout)           :: Hi_tplusdt            ! Initial guess
@@ -198,7 +194,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call apply_ice_thickness_BC_matrix_domain_border( mesh, AA, bb, Hi_tplusdt)
+    call apply_ice_thickness_BC_matrix_domain_border( mesh, mask_noice, Hb, SL, Hi_tplusdt_ex, AA, bb, Hi_tplusdt)
     call apply_ice_thickness_BC_matrix_mask_prescribed_thickness( mesh, AA, bb, Hi_tplusdt, BC_prescr_mask, BC_prescr_Hi)
     call apply_ice_thickness_BC_matrix_mask_noice( mesh, mask_noice, AA, bb, Hi_tplusdt)
 
@@ -207,11 +203,15 @@ contains
 
   end subroutine apply_ice_thickness_BC_matrix
 
-  subroutine apply_ice_thickness_BC_matrix_domain_border( mesh, AA, bb, Hi_tplusdt)
+  subroutine apply_ice_thickness_BC_matrix_domain_border( mesh, mask_noice, Hb, SL, Hi_tplusdt_ex, AA, bb, Hi_tplusdt)
     !< Apply boundary conditions at the domain border to the ice thickness matrix equation AA * Hi( t+dt) = bb
 
     ! In/output variables:
     type(type_mesh),                        intent(in   ) :: mesh
+    logical,  dimension(mesh%vi1:mesh%vi2), intent(in   ) :: mask_noice
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: Hb
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(in   ) :: SL
+    real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi_tplusdt_ex
     type(type_sparse_matrix_CSR_dp),        intent(inout) :: AA                    ! Stiffness matrix
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: bb                    ! Load vector
     real(dp), dimension(mesh%vi1:mesh%vi2), intent(inout) :: Hi_tplusdt            ! Initial guess
@@ -219,49 +219,18 @@ contains
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'apply_ice_thickness_BC_matrix_domain_border'
     integer                        :: vi
-    character(len=1024)            :: BC_H
 
     ! Add routine to path
     call init_routine( routine_name)
 
+    call apply_ice_thickness_BC_explicit( mesh, mask_noice, Hb, SL, Hi_tplusdt_ex)
+
     do vi = mesh%vi1, mesh%vi2
-
-      if     (mesh%VBI( vi) == 1 .or. mesh%VBI( vi) == 2) then
-        ! Northern domain border
-        BC_H = C%BC_H_north
-      elseif (mesh%VBI( vi) == 3 .or. mesh%VBI( vi) == 4) then
-        ! Eastern domain border
-        BC_H = C%BC_H_east
-      elseif (mesh%VBI( vi) == 5 .or. mesh%VBI( vi) == 6) then
-        ! Southern domain border
-        BC_H = C%BC_H_south
-      elseif (mesh%VBI( vi) == 7 .or. mesh%VBI( vi) == 8) then
-        ! Western domain border
-        BC_H = C%BC_H_west
-      else
-        ! Free vertex
-        cycle
-      end if
-
-      select case (BC_H)
-      case default
-        call crash('unknown ice hickness boundary condition "' // trim( BC_H) // '"')
-      case ('zero')
-        ! Set ice thickness to zero here
-
+      if (mesh%VBI( vi) > 0) then
         call set_diagonal_to_one_and_rest_of_row_to_zero( AA, vi)
-        bb( vi) = 0._dp
-        Hi_tplusdt( vi) = 0._dp
-
-      case ('infinite')
-        ! Set H on this vertex equal to the average value on its neighbours
-
-        call set_row_to_value(    AA, vi, -1._dp)
-        call set_row_diag_to_val( AA, vi, real( mesh%nC( vi), dp))
-        bb( vi) = 0._dp
-
-      end select
-
+        bb( vi) = Hi_tplusdt_ex( vi)
+        Hi_tplusdt( vi) = Hi_tplusdt_ex( vi)
+      end if
     end do
 
     ! Finalise routine path
