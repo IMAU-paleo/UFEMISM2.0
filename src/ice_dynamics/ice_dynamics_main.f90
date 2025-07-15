@@ -41,7 +41,6 @@ module ice_dynamics_main
   use bed_roughness_main, only: initialise_bed_roughness_model, remap_bed_roughness_model
   use predictor_corrector_scheme, only: remap_pc_scheme, create_restart_file_pc_scheme, &
     write_to_restart_file_pc_scheme, initialise_pc_scheme, run_ice_dynamics_model_pc
-  use direct_scheme, only: run_ice_dynamics_model_direct
   use ice_model_memory, only: allocate_ice_model
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D
   use climate_realistic, only: update_sealevel_in_model
@@ -98,8 +97,6 @@ contains
       select case (C%choice_timestepping)
       case default
         call crash('unknown choice_timestepping "' // trim( C%choice_timestepping) // '"!')
-      case ('direct')
-        call run_ice_dynamics_model_direct( region, dt_max)
       case ('pc')
         call run_ice_dynamics_model_pc( region, dt_max)
       end select
