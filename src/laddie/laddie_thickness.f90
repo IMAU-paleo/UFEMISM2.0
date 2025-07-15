@@ -61,9 +61,6 @@ CONTAINS
     ! Compute melt rate
     CALL compute_melt_rate( mesh, laddie, npx_ref, npx_ref%H, time)
 
-    ! Compute entrainment
-    CALL compute_entrainment( mesh, laddie, npx_ref, npx_ref%H)
-
     ! Compute subglacial discharge
     IF (C%choice_laddie_SGD == 'none') THEN
       ! do not apply SDG
@@ -71,6 +68,9 @@ CONTAINS
       ! do apply SDG
       CALL compute_subglacial_discharge( mesh, laddie, npx_ref)
     END IF 
+
+    ! Compute entrainment
+    CALL compute_entrainment( mesh, laddie, npx_ref, npx_ref%H)
 
     ! Do integration
     CALL integrate_H( mesh, laddie, npx_old, npx_new, dt)
@@ -109,7 +109,7 @@ CONTAINS
       if (laddie%mask_a( vi)) then
 
         ! Get first guess at dHdt
-        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi)
+        dHdt = -laddie%divQH( vi) + laddie%melt( vi) + laddie%entr( vi) + laddie%SGD( vi)
 
         ! First guess at H_n
         npx_new%H( vi) = npx_old%H( vi) + dHdt * dt
