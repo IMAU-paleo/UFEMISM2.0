@@ -18,9 +18,9 @@ MODULE LMB_model_types
 
     ! Glacial Index record
     REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: GI_series_time
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: GI_series 
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE     :: GI_series
     REAL(dp),                   ALLOCATABLE     :: GI_t0, GI_t1, GI_at_t0, GI_at_t1
-  
+
 
   END TYPE type_LMB_model_GlacialIndex
 
@@ -29,7 +29,6 @@ MODULE LMB_model_types
 
     ! Main data fields
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: LMB                         ! [m.i.e./yr] Lateral mass balance
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: LMB_inv                     ! [m.i.e./yr] Inverted lateral mass balance
 
     ! Metadata
     CHARACTER(LEN=256)                      :: restart_filename            ! Name for generated restart file

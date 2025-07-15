@@ -933,11 +933,6 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_LMB_config                                = 10._dp                           ! [yr] Time step for calculating LMB [not implemented yet]
 
-    ! Inversion
-    LOGICAL             :: do_LMB_inversion_config                      = .FALSE.                          ! Whether or not the LMB should be inverted to keep whatever geometry the calving front areas have at any given moment
-    REAL(dp)            :: LMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for LMB inversion based on computed thinning rates in frontal areas
-    REAL(dp)            :: LMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for LMB inversion based on computed thinning rates in frontal areas
-
     ! Choice of LMB model
     CHARACTER(LEN=256)  :: choice_LMB_model_NAM_config                  = 'uniform'
     CHARACTER(LEN=256)  :: choice_LMB_model_EAS_config                  = 'uniform'
@@ -957,11 +952,11 @@ MODULE model_configuration
     REAL(dp)            :: warm_LMB_EAS_config                          = -1.0_dp                         !
     REAL(dp)            :: warm_LMB_GRL_config                          = -1.0_dp                         !
     REAL(dp)            :: warm_LMB_ANT_config                          = -1.0_dp                         !
-    
+
     REAL(dp)            :: cold_LMB_NAM_config                          = 0.0_dp                          ! constant LMB value for a "cold" (GI=1.0) period
-    REAL(dp)            :: cold_LMB_EAS_config                          = 0.0_dp                          ! 
-    REAL(dp)            :: cold_LMB_GRL_config                          = 0.0_dp                          ! 
-    REAL(dp)            :: cold_LMB_ANT_config                          = 0.0_dp                          ! 
+    REAL(dp)            :: cold_LMB_EAS_config                          = 0.0_dp                          !
+    REAL(dp)            :: cold_LMB_GRL_config                          = 0.0_dp                          !
+    REAL(dp)            :: cold_LMB_ANT_config                          = 0.0_dp                          !
 
 
   ! == Glacial isostatic adjustment
@@ -2025,11 +2020,6 @@ MODULE model_configuration
     ! Time step
     REAL(dp)            :: dt_LMB
 
-    ! Inversion
-    LOGICAL             :: do_LMB_inversion
-    REAL(dp)            :: LMB_inversion_t_start
-    REAL(dp)            :: LMB_inversion_t_end
-
     ! Choice of LMB model
     CHARACTER(LEN=256)  :: choice_LMB_model_NAM
     CHARACTER(LEN=256)  :: choice_LMB_model_EAS
@@ -2049,12 +2039,11 @@ MODULE model_configuration
     REAL(dp)            :: warm_LMB_EAS
     REAL(dp)            :: warm_LMB_GRL
     REAL(dp)            :: warm_LMB_ANT
-    
+
     REAL(dp)            :: cold_LMB_NAM
     REAL(dp)            :: cold_LMB_EAS
     REAL(dp)            :: cold_LMB_GRL
     REAL(dp)            :: cold_LMB_ANT
-  
 
   ! == Glacial isostatic adjustment
   ! ===============================
@@ -2997,9 +2986,6 @@ CONTAINS
       choice_laddie_tides_config                                  , &
       uniform_laddie_tidal_velocity_config                        , &
       dt_LMB_config                                               , &
-      do_LMB_inversion_config                                     , &
-      LMB_inversion_t_start_config                                , &
-      LMB_inversion_t_end_config                                  , &
       choice_LMB_model_NAM_config                                 , &
       choice_LMB_model_EAS_config                                 , &
       choice_LMB_model_GRL_config                                 , &
@@ -4078,11 +4064,6 @@ CONTAINS
     ! Time step
     C%dt_LMB                                                 = dt_LMB_config
 
-    ! Inversion
-    C%do_LMB_inversion                                       = do_LMB_inversion_config
-    C%LMB_inversion_t_start                                  = LMB_inversion_t_start_config
-    C%LMB_inversion_t_end                                    = LMB_inversion_t_end_config
-
     ! Choice of LMB model
     C%choice_LMB_model_NAM                                   = choice_LMB_model_NAM_config
     C%choice_LMB_model_EAS                                   = choice_LMB_model_EAS_config
@@ -4102,7 +4083,7 @@ CONTAINS
     C%warm_LMB_EAS                                           = warm_LMB_EAS_config
     C%warm_LMB_GRL                                           = warm_LMB_GRL_config
     C%warm_LMB_ANT                                           = warm_LMB_ANT_config
-    
+
     C%cold_LMB_NAM                                           = cold_LMB_NAM_config
     C%cold_LMB_EAS                                           = cold_LMB_EAS_config
     C%cold_LMB_GRL                                           = cold_LMB_GRL_config
