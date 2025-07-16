@@ -12,7 +12,7 @@ module predictor_corrector_scheme
   use reallocate_mod, only: reallocate_bounds
   use netcdf_io_main
   use time_step_criteria, only: calc_critical_timestep_adv
-  use inversion_utilities, only: SMB_inversion, BMB_inversion, LMB_inversion
+  use inversion_utilities, only: BMB_inversion
   use conservation_of_mass_main, only: calc_dHi_dt
   use ice_thickness_safeties, only: alter_ice_thickness
   use ice_geometry_basics, only: ice_surface_elevation
@@ -41,7 +41,7 @@ contains
     character(len=1024), parameter                       :: routine_name = 'run_ice_dynamics_model_pc'
     real(dp)                                             :: dt_crit_adv
     integer                                              :: pc_it
-    real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: Hi_dummy, dHi_dt_dummy, LMB_dummy, AMB_dummy
+    real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: Hi_dummy
     integer                                              :: vi, n_guilty, n_tot
     integer                                              :: n_visc_its
     integer                                              :: n_Axb_its
@@ -103,18 +103,9 @@ contains
       ! Invert a basal mass balance field that keeps the ice shelves in equilibrium
       call BMB_inversion( region, region%ice%pc%dt_np1)
 
-      ! Invert a lateral mass balance field that keeps the calving fronts in equilibrium
-      call LMB_inversion( region, region%ice%pc%dt_np1)
-
-      ! Invert a surface mass balance field that keeps the ice sheet in check
-      call SMB_inversion( region, region%ice%pc%dt_np1)
-
       ! Calculate thinning rates for current geometry and velocity
       call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%AMB%AMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
-
-      ! ! if so desired, alter the computed dH/dt by adjusting dummy mass balance fluxes to get an equilibrium state
-      ! call MB_inversion( region%mesh, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%ice%pc%dHi_dt_Hi_n_u_n, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate predicted ice thickness (Robinson et al., 2020, Eq. 30)
       region%ice%pc%Hi_star_np1 = region%ice%Hi_prev + region%ice%pc%dt_np1 * ((1._dp + region%ice%pc%zeta_t / 2._dp) * &
@@ -190,18 +181,9 @@ contains
       ! Invert a basal mass balance field that keeps the ice shelves in equilibrium
       call BMB_inversion( region, region%ice%pc%dt_np1)
 
-      ! Invert a lateral mass balance field that keeps the calving fronts in equilibrium
-      call LMB_inversion( region, region%ice%pc%dt_np1)
-
-      ! Invert a surface mass balance field that keeps the ice sheet in check
-      call SMB_inversion( region, region%ice%pc%dt_np1)
-
       ! Calculate thinning rates for the current ice thickness and predicted velocity
       call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, region%BMB%BMB, region%LMB%LMB, region%AMB%AMB, region%ice%fraction_margin, &
                         region%ice%mask_noice, region%ice%pc%dt_np1, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
-
-      ! ! if so desired, alter the computed dH/dt by adjusting dummy mass balance fluxes to get an equilibrium state
-      ! call MB_inversion( region%mesh, region%ice, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%ice%pc%dHi_dt_Hi_star_np1_u_np1, Hi_dummy, region%ice%pc%dt_np1, region%time, region%name)
 
       ! Calculate corrected ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%pc%Hi_np1 = region%ice%Hi_prev + (region%ice%pc%dt_np1 / 2._dp) * (region%ice%pc%dHi_dt_Hi_n_u_n + region%ice%pc%dHi_dt_Hi_star_np1_u_np1)

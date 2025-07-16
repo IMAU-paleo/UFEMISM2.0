@@ -275,7 +275,7 @@ contains
     real(dp),        intent(in)    :: xmin, xmax, ymin, ymax
 
     ! Local variables:
-    character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_9'
+    character(len=1024), parameter :: routine_name = 'initialise_dummy_mesh_16'
     integer                        :: ti
 
     ! Add routine to path

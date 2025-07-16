@@ -344,9 +344,11 @@ UFEMISM_source = \
   ice_dynamics/conservation_of_momentum/hybrid_DIVA_BPA/hybrid_DIVA_BPA_main.f90 \
   ice_dynamics/conservation_of_mass/vertical_velocities.f90 \
   ice_dynamics/conservation_of_momentum/conservation_of_momentum_main.f90 \
+  ice_dynamics/conservation_of_mass/conservation_of_mass_utilities.f90 \
+  ice_dynamics/conservation_of_mass/conservation_of_mass_explicit.f90 \
+  ice_dynamics/conservation_of_mass/conservation_of_mass_semiimplicit.f90 \
   ice_dynamics/conservation_of_mass/conservation_of_mass_main.f90 \
   ice_dynamics/utilities/inversion_utilities.f90 \
-  ice_dynamics/time_stepping/direct_scheme.f90 \
   ice_dynamics/time_stepping/predictor_corrector_scheme.f90 \
   ice_dynamics/ice_dynamics_main.f90 \
   \
@@ -369,6 +371,8 @@ UFEMISM_source = \
   tracer_tracking/tracer_tracking_main.f90 \
   \
   main/UFEMISM_main_model.f90 \
+  \
+  laddie/laddie_dummy_domain.f90 \
   \
   validation/unit_tests/ut_basic.f90 \
   validation/unit_tests/ut_mpi.f90 \
@@ -400,6 +404,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_netcdf.f90 \
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/ut_ocean_extrapolation.f90 \
+  validation/unit_tests/ut_laddie.f90 \
   validation/unit_tests/unit_tests.f90 \
   \
   validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \

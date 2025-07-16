@@ -16,7 +16,10 @@ class Run(object):
         self.directory  = directory
         self.runname = os.path.basename(self.directory)
 
-        self.Nmeshes = int(sorted(glob.glob(f'{self.directory}/main_output_ANT_0*.nc'))[-1][-8:-3])
+        try:
+           self.Nmeshes = int(sorted(glob.glob(f'{self.directory}/main_output_ANT_0*.nc'))[-1][-8:-3])
+        except:
+           self.Nmeshes = 0
 
     def __repr__(self):
         return f"Run('{self.directory}')"
@@ -31,10 +34,17 @@ class Run(object):
         assert mesh_number <= self.Nmeshes, 'Mesh number too high, not available in output'
         assert mesh_number >= 1, 'Mesh number too low, should be at least 1'
 
-        mesh = Mesh(self.directory,mesh_number,file=file)
+        mesh = Mesh(self,mesh_number,file=file)
 
         return mesh
     
+    def get_laddie_mesh(self,mesh_number,file='laddie_output_fields_ANT'):
+        """ Gather info on a given mesh """
+
+        mesh = Mesh(self,mesh_number,file=file)
+
+        return mesh
+
     def plot_scalars(self):
         """ Make plot of main scalars """
 

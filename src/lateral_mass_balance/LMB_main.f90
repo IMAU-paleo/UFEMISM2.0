@@ -71,7 +71,7 @@ CONTAINS
             LMB%LMB( vi) = C%uniform_LMB
           END IF
         END DO
-      CASE ('GlacialIndex')  
+      CASE ('GlacialIndex')
         CALL run_LMB_model_GlacialIndex(mesh, ice, LMB, time)
       CASE ('inverted')
         ! Nothing to do here
@@ -122,10 +122,6 @@ CONTAINS
     ! Allocate memory for main variables
     ALLOCATE( LMB%LMB( mesh%vi1:mesh%vi2))
     LMB%LMB = 0._dp
-
-    ! Allocate inverted LMB
-    ALLOCATE( LMB%LMB_inv( mesh%vi1:mesh%vi2))
-    LMB%LMB_inv = 0._dp
 
     ! Set time of next calculation to start time
     LMB%t_next = C%start_time_of_run
@@ -186,9 +182,6 @@ CONTAINS
 
     ! Reallocate memory for main variables
     CALL reallocate_bounds( LMB%LMB, mesh_new%vi1, mesh_new%vi2)
-
-    ! Reallocate memory for inverted variables
-    CALL reallocate_bounds( LMB%LMB_inv, mesh_new%vi1, mesh_new%vi2)
 
     ! Determine which LMB model to initialise
     SELECT CASE (choice_LMB_model)
