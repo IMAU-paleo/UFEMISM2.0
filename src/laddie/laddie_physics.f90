@@ -172,7 +172,9 @@ CONTAINS
   END SUBROUTINE compute_entrainment
 
   SUBROUTINE compute_subglacial_discharge( mesh, laddie, npx)
-  ! Compute subglacial discharge: only if CONFIGVAR is .TRUE.
+  ! Compute subglacial discharge (SGD)
+  ! TODO clean up routine; avoid so many if statements
+  ! TODO allow option to read in SGD mask from file
 
     ! In- and output variables
 
@@ -188,18 +190,19 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Initialise total SGD area at zero
     total_area = 0._dp
-    ! Determine the number of cells where subgl_discharge is added
+
+    ! Determine total area over which SGD is distributed
     DO vi = mesh%vi1, mesh%vi2 
       IF (laddie%mask_a( vi)) THEN
-        ! Check if subglacial discharge is forced in this cell
         IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
           total_area = total_area + mesh%A( vi) 
         END IF
       END IF 
     END DO
 
-    ! Determine the SGD distribution among the cells
+    ! Distribute SGD flux [m^3/s] over total area to get the SGD in [m/s]
     DO vi = mesh%vi1, mesh%vi2 
       IF (laddie%mask_a( vi)) THEN
         IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
@@ -207,7 +210,6 @@ CONTAINS
         END IF
       END IF 
     END DO
-
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
