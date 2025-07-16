@@ -131,6 +131,7 @@ CONTAINS
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
         CALL run_BMB_model_inverted( mesh, ice, BMB%inv, time)
+        BMB%BMB = BMB%inv%BMB
       CASE ('laddie_py')
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .FALSE.)
       CASE ('laddie')

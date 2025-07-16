@@ -22,6 +22,7 @@ MODULE BMB_model_types
 
     real(dp), dimension(:), allocatable :: BMB                             !< [m.i.e./yr] Basal mass balance
     type(type_reference_geometry)       :: target_geometry                 !< The geometry that the BMB inversion should aim to reproduce
+    logical,  dimension(:), allocatable :: target_mask_shelf               !< Shelf mask of the target geometry
 
   end type type_BMB_model_inverted
 
