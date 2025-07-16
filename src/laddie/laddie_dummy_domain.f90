@@ -106,7 +106,6 @@ contains
 
     call allocate_mesh_primary( mesh, name, 16, 18, C%nC_mem)
     call initialise_dummy_mesh_16( mesh, xmin, xmax, ymin, ymax)
-    call broadcast_mesh( mesh)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
     call calc_all_matrix_operators_mesh( mesh)
 
