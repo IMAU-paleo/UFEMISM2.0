@@ -23,7 +23,7 @@ def get_cmap(varname):
 
     elif varname == 'BMB_v2':
         #Create BMB colormap
-        vmax = 100
+        vmax = 200
         vmin = -10
         linthresh = .3
         linscale = .25

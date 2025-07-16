@@ -46,7 +46,7 @@ CONTAINS
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
-    logical,                                intent(in)    :: is_initial 
+    logical,                                intent(in)    :: is_initial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model'
@@ -787,7 +787,7 @@ CONTAINS
 
   END SUBROUTINE apply_BMB_subgrid_scheme
 
-    SUBROUTINE apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+  SUBROUTINE apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
     ! Apply selected scheme for sub-grid shelf melt
     ! (see Leguy et al. 2021 for explanations of the three schemes)
 
