@@ -187,6 +187,9 @@ CONTAINS
       END DO
     END IF
 
+    ! Apply limits
+    BMB%BMB = max( -C%BMB_maximum_allowed_melt_rate, min( C%BMB_maximum_allowed_refreezing_rate, BMB%BMB ))
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

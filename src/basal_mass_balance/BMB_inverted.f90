@@ -34,24 +34,38 @@ contains
     real(dp)                       :: deltaH, dHdt, dBMBdt
     real(dp), parameter            :: c_H     = -0.001_dp
     real(dp), parameter            :: c_dHdt  = -0.01_dp
-    real(dp), parameter            :: BMB_min = -100._dp    ! Maximum melt rate (negative means melt!)
-    real(dp), parameter            :: BMB_max =    2._dp    ! Maximum refreezing rate (negative means melt!)
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    do vi = mesh%vi1, mesh%vi2
-      if (BMB_inv%target_mask_shelf( vi)) then
+    ! Only nudge during the user-defined time window
+    if (time >= C%BMB_inversion_t_start .and.  time <= C%BMB_inversion_t_end) then
 
-        deltaH = ice%Hi( vi) - BMB_inv%target_geometry%Hi( vi)
-        dHdt   = ice%dHi_dt( vi)
+      do vi = mesh%vi1, mesh%vi2
 
-        dBMBdt = c_H * deltaH + c_dHdt * dHdt
+        ! Only nudge vertices that are shelf in the reference geometry
 
-        BMB_inv%BMB( vi) = min( BMB_max, max( BMB_min, BMB_inv%BMB( vi) + C%dt_BMB * dBMBdt ))
+        ! (This means that, during the inversion (which happens in pseudo-time), it can happen
+        ! that we apply basal melt to grounded ice, if the grounding line temporarily advances,
+        ! or refreezing to shelf vertices when the grounding line temporarily retreats. However,
+        ! this happens in pseudo-time, and will stop once the geometry converges to the target)
 
-      end if
-    end do
+        if (BMB_inv%target_mask_shelf( vi)) then
+
+          deltaH = ice%Hi( vi) - BMB_inv%target_geometry%Hi( vi)
+          dHdt   = ice%dHi_dt( vi)
+
+          dBMBdt = c_H * deltaH + c_dHdt * dHdt
+
+          BMB_inv%BMB( vi) = BMB_inv%BMB( vi) + C%dt_BMB * dBMBdt
+
+        end if
+      end do
+
+      ! Apply limits
+      BMB_inv%BMB =  max( -C%BMB_maximum_allowed_melt_rate, min( C%BMB_maximum_allowed_refreezing_rate, BMB_inv%BMB ))
+
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)
