@@ -618,137 +618,126 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Only run this routine if we are outside the core inversion
-    ! which is performed within the ice dynamics model
-    IF (time >= C%BMB_inversion_t_start .AND. &
-        time <= C%BMB_inversion_t_end) THEN
+    ! ! Only run this routine if we are outside the core inversion
+    ! ! which is performed within the ice dynamics model
+    ! IF (time >= C%BMB_inversion_t_start .AND. &
+    !     time <= C%BMB_inversion_t_end) THEN
 
-      ! Save the current BMB field
-      BMB%BMB_ref = BMB%BMB
+    !   ! Save the current BMB field
+    !   BMB%BMB_ref = BMB%BMB
 
-      ! Save the current masks
-      BMB%mask_floating_ice = ice%mask_floating_ice
-      BMB%mask_gl_fl = ice%mask_gl_fl
-      BMB%mask_gl_gr = ice%mask_gl_gr
+    !   ! Save the current masks
+    !   BMB%mask_floating_ice = ice%mask_floating_ice
+    !   BMB%mask_gl_fl = ice%mask_gl_fl
+    !   BMB%mask_gl_gr = ice%mask_gl_gr
 
-      ! Finalise routine path
-      CALL finalise_routine( routine_name)
-      ! And exit
-      RETURN
+    !   ! Finalise routine path
+    !   CALL finalise_routine( routine_name)
+    !   ! And exit
+    !   RETURN
 
-    END IF
-
-    ! ! DENK DROM
-    ! IF (time == C%start_time_of_run) THEN
-    !   DO vi = mesh%vi1, mesh%vi2
-    !     IF(ice%mask_floating_ice( vi)) BMB%BMB_ref( vi) = -.05_dp
-    !     IF(ice%mask_gl_fl(        vi)) BMB%BMB_ref( vi) = -.2_dp
-    !   END DO
-    !   print*, ''
-    !   print*, ':)'
-    !   print*, ''
     ! END IF
 
-    ! Set extrapolatable fields to the reference (inverted) BMB field
-    BMB_floating_ice = BMB%BMB_ref
-    BMB_gl_fl = BMB%BMB_ref
-    BMB_gl_gr = BMB%BMB_ref
+    ! ! Set extrapolatable fields to the reference (inverted) BMB field
+    ! BMB_floating_ice = BMB%BMB_ref
+    ! BMB_gl_fl = BMB%BMB_ref
+    ! BMB_gl_gr = BMB%BMB_ref
 
-    ! Initialise extrapolation mask
-    mask_floating_ice = 0
-    mask_gl_fl = 0
-    mask_gl_gr = 0
+    ! ! Initialise extrapolation mask
+    ! mask_floating_ice = 0
+    ! mask_gl_fl = 0
+    ! mask_gl_gr = 0
 
-    ! Initialise maximum cavity size. The maximum size among
-    ! all valid BMB cavities will be used as the search radius
-    ! in the extrapolation later.
-    max_cavity_size = MINVAL(mesh%R)
+    ! ! Initialise maximum cavity size. The maximum size among
+    ! ! all valid BMB cavities will be used as the search radius
+    ! ! in the extrapolation later.
+    ! max_cavity_size = MINVAL(mesh%R)
 
-    ! Set extrapolation masks
-    DO vi = mesh%vi1, mesh%vi2
+    ! ! Set extrapolation masks
+    ! DO vi = mesh%vi1, mesh%vi2
 
-      ! Skip vertices where BMB will not operate. These stay with extrapolation masks set to 0
-      IF (.NOT. ice%mask_floating_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi) .AND. .NOT. ice%mask_icefree_ocean( vi)) THEN
-        CYCLE
-      END IF
+    !   ! Skip vertices where BMB will not operate. These stay with extrapolation masks set to 0
+    !   IF (.NOT. ice%mask_floating_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi) .AND. .NOT. ice%mask_icefree_ocean( vi)) THEN
+    !     CYCLE
+    !   END IF
 
-      ! Interior-shelf vertices. Values at floating grounding lines
-      ! will be overwritten later after the extrapolations.
-      IF (BMB%mask_floating_ice( vi)) THEN
-        ! Inverted cavity: use as seed
-        mask_floating_ice( vi) = 2
-      ELSE
-        ! New cavity: extrapolate here
-        mask_floating_ice( vi) = 1
-      END IF
+    !   ! Interior-shelf vertices. Values at floating grounding lines
+    !   ! will be overwritten later after the extrapolations.
+    !   IF (BMB%mask_floating_ice( vi)) THEN
+    !     ! Inverted cavity: use as seed
+    !     mask_floating_ice( vi) = 2
+    !   ELSE
+    !     ! New cavity: extrapolate here
+    !     mask_floating_ice( vi) = 1
+    !   END IF
 
-      ! Floating-side grounding line vertices
-      IF (BMB%mask_gl_fl( vi)) THEN
-        ! Inverted cavity: use as seed
-        mask_gl_fl( vi) = 2
-      ELSE
-        ! New cavity: extrapolate here
-        mask_gl_fl( vi) = 1
-      END IF
+    !   ! Floating-side grounding line vertices
+    !   IF (BMB%mask_gl_fl( vi)) THEN
+    !     ! Inverted cavity: use as seed
+    !     mask_gl_fl( vi) = 2
+    !   ELSE
+    !     ! New cavity: extrapolate here
+    !     mask_gl_fl( vi) = 1
+    !   END IF
 
-      ! Floating-side grounding line vertices
-      IF (BMB%mask_gl_gr( vi)) THEN
-        ! Inverted cavity: use as seed
-        mask_gl_gr( vi) = 2
-      ELSE
-        ! New cavity: extrapolate here
-        mask_gl_gr( vi) = 1
-      END IF
+    !   ! Floating-side grounding line vertices
+    !   IF (BMB%mask_gl_gr( vi)) THEN
+    !     ! Inverted cavity: use as seed
+    !     mask_gl_gr( vi) = 2
+    !   ELSE
+    !     ! New cavity: extrapolate here
+    !     mask_gl_gr( vi) = 1
+    !   END IF
 
-      ! Check if this cavity has a lower resolution
-      max_cavity_size = MAX( max_cavity_size, mesh%R( vi))
+    !   ! Check if this cavity has a lower resolution
+    !   max_cavity_size = MAX( max_cavity_size, mesh%R( vi))
 
-    END DO
+    ! END DO
 
-    max_cavity_size = max_cavity_size / 3._dp
+    ! max_cavity_size = max_cavity_size / 3._dp
 
-    ! == Extrapolate into new cavities
-    ! ================================
+    ! ! == Extrapolate into new cavities
+    ! ! ================================
 
-    ! Perform the extrapolations - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask_floating_ice, BMB_floating_ice, max_cavity_size)
-    CALL extrapolate_Gaussian( mesh, mask_gl_fl, BMB_gl_fl, max_cavity_size)
-    CALL extrapolate_Gaussian( mesh, mask_gl_gr, BMB_gl_gr, max_cavity_size)
+    ! ! Perform the extrapolations - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
+    ! CALL extrapolate_Gaussian( mesh, mask_floating_ice, BMB_floating_ice, max_cavity_size)
+    ! CALL extrapolate_Gaussian( mesh, mask_gl_fl, BMB_gl_fl, max_cavity_size)
+    ! CALL extrapolate_Gaussian( mesh, mask_gl_gr, BMB_gl_gr, max_cavity_size)
 
-    ! == Final BMB field
-    ! ==================
+    ! ! == Final BMB field
+    ! ! ==================
 
-    DO vi = mesh%vi1, mesh%vi2
+    ! DO vi = mesh%vi1, mesh%vi2
 
-      ! Floating-side grounding lines, or previously iced inverted ones
-      IF (ice%mask_gl_fl( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_gl_fl( vi))) THEN
-        BMB%BMB( vi) = BMB_gl_fl( vi)
+    !   ! Floating-side grounding lines, or previously iced inverted ones
+    !   IF (ice%mask_gl_fl( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_gl_fl( vi))) THEN
+    !     BMB%BMB( vi) = BMB_gl_fl( vi)
 
-      ! Interior shelves, or previously iced inverted ones
-      ELSEIF (ice%mask_floating_ice( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_floating_ice( vi))) THEN
-        BMB%BMB( vi) = BMB_floating_ice( vi)
+    !   ! Interior shelves, or previously iced inverted ones
+    !   ELSEIF (ice%mask_floating_ice( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_floating_ice( vi))) THEN
+    !     BMB%BMB( vi) = BMB_floating_ice( vi)
 
-      ! Grounded-side grounding lines, or previously iced inverted ones
-      ELSEIF (ice%mask_gl_gr( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_gl_gr( vi))) THEN
-        IF (BMB%mask_gl_gr( vi)) THEN
-          ! Original grounded-side grounding line: apply full value
-          BMB%BMB( vi) = BMB_gl_gr( vi)
-        ELSE
-          ! New grounded-side grounding line: scale value based on floating fraction
-          BMB%BMB( vi) = BMB_gl_gr( vi) * (1._dp - ice%fraction_gr( vi))
-        END IF
+    !   ! Grounded-side grounding lines, or previously iced inverted ones
+    !   ELSEIF (ice%mask_gl_gr( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_gl_gr( vi))) THEN
+    !     IF (BMB%mask_gl_gr( vi)) THEN
+    !       ! Original grounded-side grounding line: apply full value
+    !       BMB%BMB( vi) = BMB_gl_gr( vi)
+    !     ELSE
+    !       ! New grounded-side grounding line: scale value based on floating fraction
+    !       BMB%BMB( vi) = BMB_gl_gr( vi) * (1._dp - ice%fraction_gr( vi))
+    !     END IF
 
-      ! Original ice-free ocean
-      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-        ! Use inverted value directly
-        BMB%BMB( vi) = BMB%BMB_ref( vi)
+    !   ! Original ice-free ocean
+    !   ELSEIF (ice%mask_icefree_ocean( vi)) THEN
+    !     ! Use inverted value directly
+    !     BMB%BMB( vi) = BMB%BMB_ref( vi)
 
-      ! Not a place where we want BMB
-      ELSE
-        BMB%BMB( vi) = 0._dp
+    !   ! Not a place where we want BMB
+    !   ELSE
+    !     BMB%BMB( vi) = 0._dp
 
-      END IF
-    END DO
+    !   END IF
+    ! END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

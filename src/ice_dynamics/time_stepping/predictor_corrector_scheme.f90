@@ -12,7 +12,6 @@ module predictor_corrector_scheme
   use reallocate_mod, only: reallocate_bounds
   use netcdf_io_main
   use time_step_criteria, only: calc_critical_timestep_adv
-  use inversion_utilities, only: BMB_inversion
   use conservation_of_mass_main, only: calc_dHi_dt
   use ice_thickness_safeties, only: alter_ice_thickness
   use ice_geometry_basics, only: ice_surface_elevation
