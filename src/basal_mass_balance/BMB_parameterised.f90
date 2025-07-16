@@ -43,8 +43,8 @@ CONTAINS
     SELECT CASE (C%choice_BMB_model_parameterised)
       CASE ('Favier2019')
         CALL run_BMB_model_parameterised_Favier2019( mesh, ice, ocean, BMB)
-      CASE ('Favier2019slope')
-        CALL run_BMB_model_parameterised_Favier2019slope( mesh, ice, ocean, BMB)
+      CASE ('Holland_notaper')
+        CALL run_BMB_model_parameterised_Holland_notaper( mesh, ice, ocean, BMB)
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_parameterised "' // TRIM( C%choice_BMB_model_parameterised) // '"')
     END SELECT
@@ -106,9 +106,18 @@ CONTAINS
 
   end subroutine run_BMB_model_parameterised_Favier2019
 
-  SUBROUTINE run_BMB_model_parameterised_Favier2019slope( mesh, ice, ocean, BMB)
-    ! The basal melt parameterisation used in Favier et al. (2019)
-    ! Including the dependency on the slope of the ice shelf base
+  SUBROUTINE run_BMB_model_parameterised_Holland_notaper( mesh, ice, ocean, BMB)
+    ! Basal melt parameterisation using dT^3/2
+    ! Including the dependency on the slope of the ice shelf base.
+    ! Note that this is the "no tapering" case. This parameterisation was presented
+    ! both with tapering and no tapering of basal melt rates towards the grounding line
+    ! Initial tests showed that this parameterisation without tapering does a job 
+    ! comparable to Favier2019, but produces less melt over the Amundsen Sea grounding 
+    ! lines, at least when using Bedmap3. In other words, it seems like this is modulated 
+    ! by a relatively flatter ice shelf base at that location in Bedmap3. Including the 
+    ! tapering can easily be done as a separate parameterisation, or as an extension to 
+    ! this one (e.g., by adding a tapering distance factor). This is left for future work, 
+    ! as the parameterisation is already doing a good job based on initial tests.
 
     ! In/output variables
     TYPE(type_mesh),                     INTENT(IN)    :: mesh
@@ -117,11 +126,11 @@ CONTAINS
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model_parameterised_Favier2019slope'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model_parameterised_Holland_notaper'
     INTEGER                                            :: vi
     REAL(dp)                                           :: dT
     real(dp), dimension(:    ), allocatable            :: dHb_dx, dHb_dy
-    real(dp)                                           :: slope_angle
+    real(dp)                                           :: slope_angle, C_melt
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -141,10 +150,13 @@ CONTAINS
       ! ice shelf draft angle
       slope_angle = ATAN(SQRT(dHb_dx(vi)**2._dp + dHb_dy(vi)**2._dp))
 
-      ! Favier et al. (2019), Eq. 4
-      ! Altered to allow for negative basal melt (i.e. refreezing) when dT < 0
-      BMB%BMB_shelf( vi) =  -1._dp * sec_per_year * C%BMB_Favier2019_gamma * SIGN(dT,1._dp) * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
-      BMB%BMB_shelf( vi) = BMB%BMB_shelf( vi) * SIN(slope_angle)
+      ! Melt constant
+      C_melt = -1._dp * C%BMB_Holland_Cmelt
+
+      ! Melt constant if C_melt would be prescribed as an exchange velocity gamma
+      !C_melt = -1._dp * C%BMB_Holland_Cmelt /(sec_per_year * (seawater_density*cp_ocean)/(ice_density*L_fusion))
+      
+      BMB%BMB_shelf( vi) = C_melt * dT**(1.5_dp) * SIN(slope_angle)**(0.5_dp)
 
       ! Apply grounded fractions
       IF (ice%mask_gl_gr( vi) .AND. ice%Hib(vi) < ice%SL(vi)) THEN
@@ -162,7 +174,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE run_BMB_model_parameterised_Favier2019slope
+  END SUBROUTINE run_BMB_model_parameterised_Holland_notaper
 
   SUBROUTINE initialise_BMB_model_parameterised( mesh, BMB)
     ! Initialise the BMB model
@@ -187,7 +199,7 @@ CONTAINS
     SELECT CASE (C%choice_BMB_model_parameterised)
       CASE ('Favier2019')
         ! No need to do anything
-      CASE ('Favier2019slope')
+      CASE ('Holland_notaper')
         ! No need to do anything
       CASE DEFAULT
         CALL crash('unknown choice_BMB_model_parameterised "' // TRIM( C%choice_BMB_model_parameterised) // '"')
