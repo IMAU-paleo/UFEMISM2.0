@@ -203,7 +203,7 @@ CONTAINS
     call allocate_dist_shared( laddie%entr_dmin     , laddie%wentr_dmin     , mesh%pai_V%n_nih  )    ! [m s^-1]        Entrainment for D_min
     call allocate_dist_shared( laddie%detr          , laddie%wdetr          , mesh%pai_V%n_nih  )    ! [m s^-1]        Detrainment
     call allocate_dist_shared( laddie%entr_tot      , laddie%wentr_tot      , mesh%pai_V%n_nih  )    ! [m s^-1]        Total (net) entrainment
-    call allocate_dist_shared( laddie%SGD           , laddie%wSGD           , mesh%pai_V%n_nih  )    ! [m s^-1]        Total (net) entrainment
+    call allocate_dist_shared( laddie%SGD           , laddie%wSGD           , mesh%pai_V%n_nih  )    ! [m s^-1]        Subglacial discharge
     laddie%melt          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%melt
     laddie%entr          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%entr
     laddie%entr_dmin     ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%entr_dmin

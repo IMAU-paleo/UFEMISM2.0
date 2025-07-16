@@ -96,7 +96,7 @@ MODULE laddie_model_types
     logical,  dimension(:),   contiguous, pointer :: mask_grounded_ice  => null()  ! []                T: grounded ice  , F: otherwise
     logical,  dimension(:),   contiguous, pointer :: mask_floating_ice  => null()  ! []                T: floating ice  , F: otherwise
     logical,  dimension(:),   contiguous, pointer :: mask_gl_fl         => null()  ! []                T: gl_fl ice     , F: otherwise
-    logical,  dimension(:),   contiguous, pointer :: mask_SGD           => null()  ! [] T: where subglacial_discharge is applied    , F: otherwise
+    logical,  dimension(:),   contiguous, pointer :: mask_SGD           => null()  ! []                T: potential subglacial discharge areas, F: otherwise
     real(dp), dimension(:,:), contiguous, pointer :: Ti                 => null()  ! [K]               Englacial temperature
     real(dp), dimension(:,:), contiguous, pointer :: T_ocean            => null()  ! [degrees Celsius] 3-D ocean temperature
     real(dp), dimension(:,:), contiguous, pointer :: S_ocean            => null()  ! [PSU]             3-D ocean salinity
@@ -136,7 +136,7 @@ MODULE laddie_model_types
     real(dp), dimension(:), contiguous, pointer :: entr_dmin       => null()  ! [m s^-1]          Additional entrainment to retain D_min
     real(dp), dimension(:), contiguous, pointer :: detr            => null()  ! [m s^-1]          Detrainment rate into ambient water
     real(dp), dimension(:), contiguous, pointer :: entr_tot        => null()  ! [m s^-1]          Total (net) entrainment = entr+entr_dmin-detr
-    real(dp), dimension(:), contiguous, pointer :: SGD             => null()  ! [m s^-1]          Subglacial discharge
+    real(dp), dimension(:), contiguous, pointer :: SGD             => null()  ! [m s^-1]          Subglacial discharge rate
     type(MPI_WIN) :: wmelt, wentr, wentr_dmin, wdetr, wentr_tot, wSGD
 
     ! Horizontal fluxes
