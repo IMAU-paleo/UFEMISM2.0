@@ -236,6 +236,10 @@ MODULE model_configuration
     REAL(dp)            :: ROI_maximum_resolution_coastline_config      = 50e3_dp                          ! [m]          Maximum resolution for the coastline
     REAL(dp)            :: ROI_coastline_width_config                   = 50e3_dp                          ! [m]          Width of the band around the coastline that should get this resolution
 
+    ! Miscellaneous refinement options
+    logical             :: do_refine_TransAntMounts_glaciers_config     = .false.                          !              Whether or not to refine the mesh over the Transantarctic Mountains glaciers (resolving those really helps in getting a stable Ross ice shelf)
+    real(dp)            :: max_res_TransAntMounts_glaciers_config       = 5e3_dp                           ! [m]          Maximum resolution for the Transantarctic Mountains glaciers
+
     ! Mesh update settings
     LOGICAL             :: allow_mesh_updates_config                    = .TRUE.                           ! [-]          Whether or not mesh updates are allowed
     REAL(dp)            :: dt_mesh_update_min_config                    = 50._dp                           ! [yr]         Minimum amount of time between mesh updates
@@ -842,6 +846,7 @@ MODULE model_configuration
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma_config                  = 99.32E-5
+    REAL(dp)            :: BMB_Holland_Cmelt_config                     = 34.8_dp                          ! equivalent to 8.19e-5 if it was an exchange velocity gamma
 
     ! "laddie_py"
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system_config              = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
@@ -1316,6 +1321,10 @@ MODULE model_configuration
     REAL(dp)            :: ROI_ice_front_width
     REAL(dp)            :: ROI_maximum_resolution_coastline
     REAL(dp)            :: ROI_coastline_width
+
+    ! Miscellaneous refinement options
+    logical             :: do_refine_TransAntMounts_glaciers
+    real(dp)            :: max_res_TransAntMounts_glaciers
 
     ! Mesh update settings
     LOGICAL             :: allow_mesh_updates
@@ -1925,6 +1934,7 @@ MODULE model_configuration
 
     ! "parameterised"
     REAL(dp)            :: BMB_Favier2019_gamma
+    REAL(dp)            :: BMB_Holland_Cmelt
 
     ! "laddie"
     CHARACTER(LEN=256)  :: choice_BMB_laddie_system
@@ -2548,6 +2558,8 @@ CONTAINS
       ROI_ice_front_width_config                                  , &
       ROI_maximum_resolution_coastline_config                     , &
       ROI_coastline_width_config                                  , &
+      do_refine_TransAntMounts_glaciers_config                    , &
+      max_res_TransAntMounts_glaciers_config                      , &
       allow_mesh_updates_config                                   , &
       dt_mesh_update_min_config                                   , &
       minimum_mesh_fitness_coefficient_config                     , &
@@ -2929,6 +2941,7 @@ CONTAINS
       uniform_BMB_config                                          , &
       uniform_BMB_ROI_config                                      , &
       BMB_Favier2019_gamma_config                                 , &
+      BMB_Holland_Cmelt_config                                    , &
       choice_BMB_laddie_system_config                             , &
       filename_BMB_laddie_configname_config                       , &
       filename_BMB_laddie_initial_restart_config                  , &
@@ -3356,6 +3369,10 @@ CONTAINS
     C%ROI_ice_front_width                                    = ROI_ice_front_width_config
     C%ROI_maximum_resolution_coastline                       = ROI_maximum_resolution_coastline_config
     C%ROI_coastline_width                                    = ROI_coastline_width_config
+
+    ! Miscellaneous refinement options
+    C%do_refine_TransAntMounts_glaciers                      = do_refine_TransAntMounts_glaciers_config
+    C%max_res_TransAntMounts_glaciers                        = max_res_TransAntMounts_glaciers_config
 
     ! Mesh update settings
     C%allow_mesh_updates                                     = allow_mesh_updates_config
@@ -3963,6 +3980,7 @@ CONTAINS
 
     ! "parameterised"
     C%BMB_Favier2019_gamma                                   = BMB_Favier2019_gamma_config
+    C%BMB_Holland_Cmelt                                      = BMB_Holland_Cmelt_config
 
     ! "laddie"
     C%choice_BMB_laddie_system                               = choice_BMB_laddie_system_config
