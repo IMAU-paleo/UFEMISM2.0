@@ -8,6 +8,31 @@ module mesh_ROI_polygons
 
   implicit none
 
+  private
+
+  public :: calc_polygon_Pine_Island_Glacier
+  public :: calc_polygon_Thwaites_Glacier
+  public :: calc_polygon_Amery_ice_shelf
+  public :: calc_polygon_Riiser_Larsen_ice_shelf
+  public :: calc_polygon_Siple_Coast
+  public :: calc_polygon_Larsen_ice_shelf
+  public :: calc_polygon_Transantarctic_Mountains
+  public :: calc_polygon_DotsonCrosson_ice_shelf
+  public :: calc_polygon_Patagonia
+  public :: calc_polygon_Narsarsuaq
+  public :: calc_polygon_Nuuk
+  public :: calc_polygon_Jakobshavn
+  public :: calc_polygon_NGIS
+  public :: calc_polygon_Qaanaaq
+  public :: calc_polygon_Tijn_test_ISMIP_HOM_A
+  public :: calc_polygon_CalvMIP_quarter
+  public :: calc_polygon_Franka_WAIS
+  public :: calc_polygon_Dotson_channel
+  public :: calc_polygon_Mulock_glacier
+  public :: calc_polygon_Byrd_glacier
+  public :: calc_polygon_Nimrod_glacier
+  public :: calc_polygon_Beardmore_glacier
+
 contains
 
 subroutine calc_polygon_Pine_Island_Glacier( poly)
@@ -879,5 +904,158 @@ subroutine calc_polygon_Dotson_channel( poly)
 
 end subroutine calc_polygon_Dotson_channel
 
+subroutine calc_polygon_Mulock_glacier( poly)
+  ! Return a polygon enveloping Mulock glacier in the Transantarctic Mountains
+
+  ! In/output variables:
+  real(dp), dimension(:,:), allocatable, intent(out) :: poly
+
+  ! Local variables:
+  character(len=1024), parameter :: routine_name = 'calc_polygon_Mulock_glacier'
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  allocate( poly( 16,2))
+
+  poly( 1,:) = [3.90e5,  -1.105e6]
+  poly( 2,:) = [4.05e5,  -1.115e6]
+  poly( 3,:) = [4.20e5,  -1.120e6]
+  poly( 4,:) = [4.30e5,  -1.120e6]
+  poly( 5,:) = [4.40e5,  -1.115e6]
+  poly( 6,:) = [4.60e5,  -1.110e6]
+  poly( 7,:) = [4.80e5,  -1.105e6]
+  poly( 8,:) = [5.00e5,  -1.130e6]
+  poly( 9,:) = [4.80e5,  -1.155e6]
+  poly(10,:) = [4.60e5,  -1.150e6]
+  poly(11,:) = [4.40e5,  -1.150e6]
+  poly(12,:) = [4.30e5,  -1.140e6]
+  poly(13,:) = [4.20e5,  -1.135e6]
+  poly(14,:) = [4.05e5,  -1.130e6]
+  poly(15,:) = [3.90e5,  -1.130e6]
+  poly(16,:) = [3.70e5,  -1.115e6]
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine calc_polygon_Mulock_glacier
+
+subroutine calc_polygon_Byrd_glacier( poly)
+  ! Return a polygon enveloping Byrd glacier in the Transantarctic Mountains
+
+  ! In/output variables:
+  real(dp), dimension(:,:), allocatable, intent(out) :: poly
+
+  ! Local variables:
+  character(len=1024), parameter :: routine_name = 'calc_polygon_Byrd_glacier'
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  allocate( poly( 12,2))
+
+  poly( 1,:) = [3.45e5,  -9.90e5]
+  poly( 2,:) = [3.70e5,  -9.75e5]
+  poly( 3,:) = [3.90e5,  -9.50e5]
+  poly( 4,:) = [4.05e5,  -9.20e5]
+  poly( 5,:) = [4.10e5,  -9.00e5]
+  poly( 6,:) = [4.30e5,  -9.00e5]
+  poly( 7,:) = [4.30e5,  -9.20e5]
+  poly( 8,:) = [4.15e5,  -9.50e5]
+  poly( 9,:) = [3.92e5,  -9.80e5]
+  poly(10,:) = [3.67e5,  -10.1e5]
+  poly(11,:) = [3.50e5,  -10.35e5]
+  poly(12,:) = [3.25e5,  -10.2e5]
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine calc_polygon_Byrd_glacier
+
+subroutine calc_polygon_Nimrod_glacier( poly)
+  ! Return a polygon enveloping Nimrod glacier in the Transantarctic Mountains
+
+  ! In/output variables:
+  real(dp), dimension(:,:), allocatable, intent(out) :: poly
+
+  ! Local variables:
+  character(len=1024), parameter :: routine_name = 'calc_polygon_Nimrod_glacier'
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  allocate( poly( 24,2))
+
+  poly( 1,:) = [2.20e5,  -8.00e5]
+  poly( 2,:) = [2.60e5,  -7.72e5]
+  poly( 3,:) = [2.70e5,  -7.50e5]
+  poly( 4,:) = [2.78e5,  -7.30e5]
+  poly( 5,:) = [2.75e5,  -7.15e5]
+  poly( 6,:) = [2.45e5,  -6.50e5]
+  poly( 7,:) = [2.45e5,  -6.10e5]
+  poly( 8,:) = [2.67e5,  -6.20e5]
+  poly( 9,:) = [2.67e5,  -6.60e5]
+  poly(10,:) = [2.75e5,  -6.90e5]
+  poly(11,:) = [2.85e5,  -7.03e5]
+  poly(12,:) = [2.92e5,  -7.20e5]
+  poly(13,:) = [3.10e5,  -7.00e5]
+  poly(14,:) = [3.05e5,  -6.60e5]
+  poly(15,:) = [3.30e5,  -6.60e5]
+  poly(16,:) = [3.30e5,  -7.20e5]
+  poly(17,:) = [3.42e5,  -7.18e5]
+  poly(18,:) = [3.42e5,  -7.25e5]
+  poly(19,:) = [3.30e5,  -7.28e5]
+  poly(20,:) = [3.20e5,  -7.60e5]
+  poly(21,:) = [2.76e5,  -7.77e5]
+  poly(22,:) = [2.55e5,  -8.05e5]
+  poly(23,:) = [2.35e5,  -8.10e5]
+  poly(24,:) = [2.20e5,  -8.15e5]
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine calc_polygon_Nimrod_glacier
+
+subroutine calc_polygon_Beardmore_glacier( poly)
+  ! Return a polygon enveloping Beardmore glacier in the Transantarctic Mountains
+
+  ! In/output variables:
+  real(dp), dimension(:,:), allocatable, intent(out) :: poly
+
+  ! Local variables:
+  character(len=1024), parameter :: routine_name = 'calc_polygon_Beardmore_glacier'
+
+  ! Add routine to path
+  call init_routine( routine_name)
+
+  allocate( poly( 22,2))
+
+  poly( 1,:) = [0.80e5,  -6.85e5]
+  poly( 2,:) = [0.98e5,  -6.73e5]
+  poly( 3,:) = [0.98e5,  -6.65e5]
+  poly( 4,:) = [0.88e5,  -6.50e5]
+  poly( 5,:) = [0.88e5,  -6.35e5]
+  poly( 6,:) = [0.93e5,  -6.25e5]
+  poly( 7,:) = [0.85e5,  -6.10e5]
+  poly( 8,:) = [0.85e5,  -5.95e5]
+  poly( 9,:) = [1.25e5,  -5.15e5]
+  poly(10,:) = [1.38e5,  -5.02e5]
+  poly(11,:) = [1.40e5,  -4.60e5]
+  poly(12,:) = [1.70e5,  -4.60e5]
+  poly(13,:) = [1.70e5,  -4.97e5]
+  poly(14,:) = [1.50e5,  -5.15e5]
+  poly(15,:) = [1.40e5,  -5.40e5]
+  poly(16,:) = [1.35e5,  -5.75e5]
+  poly(17,:) = [1.15e5,  -5.95e5]
+  poly(18,:) = [1.10e5,  -6.05e5]
+  poly(19,:) = [1.10e5,  -6.50e5]
+  poly(20,:) = [1.15e5,  -6.65e5]
+  poly(21,:) = [1.10e5,  -6.90e5]
+  poly(22,:) = [0.90e5,  -7.00e5]
+
+  ! Finalise routine path
+  call finalise_routine( routine_name)
+
+end subroutine calc_polygon_Beardmore_glacier
 
 end module mesh_ROI_polygons
