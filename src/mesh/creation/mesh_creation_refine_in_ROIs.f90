@@ -44,12 +44,6 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! if no regions of interest are specified, do nothing
-    if (C%choice_regions_of_interest == '') then
-      call finalise_routine( routine_name)
-      return
-    end if
-
     all_names_ROI = C%choice_regions_of_interest
 
     do while (.true.)
@@ -233,18 +227,61 @@ contains
       call refine_mesh_line_ROI( mesh, p_line_calving_front , C%ROI_maximum_resolution_calving_front , C%ROI_calving_front_width , C%alpha_min, poly_ROI)
       call refine_mesh_line_ROI( mesh, p_line_ice_front     , C%ROI_maximum_resolution_ice_front     , C%ROI_ice_front_width     , C%alpha_min, poly_ROI)
       call refine_mesh_line_ROI( mesh, p_line_coastline     , C%ROI_maximum_resolution_coastline     , C%ROI_coastline_width     , C%alpha_min, poly_ROI)
-      
+
       ! Clean up after yourself
       deallocate( poly_ROI)
 
       ! if no names are left, we are finished
       if (all_names_ROI == '') exit
 
-    end do ! do while (.true.)
+    end do
+
+    if (C%do_refine_TransAntMounts_glaciers) then
+      call refine_mesh_over_TransAntarcticMountain_glaciers( mesh)
+    end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine refine_mesh_in_regions_of_interest
+
+  subroutine refine_mesh_over_TransAntarcticMountain_glaciers( mesh)
+    !< Refine the mesh over the four big glaciers running from the East Antarctic plateau,
+    !< through the Transantarctic Mountains, to the Ross ice shelf.
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'refine_mesh_over_TransAntarcticMountain_glaciers'
+    real(dp), dimension(:,:), allocatable :: poly_ROI
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Mulock glacier
+    call calc_polygon_Mulock_glacier( poly_ROI)
+    call refine_mesh_polygon( mesh, poly_ROI, C%max_res_TransAntMounts_glaciers, C%alpha_min)
+    deallocate( poly_ROI)
+
+    ! Byrd glacier
+    call calc_polygon_Byrd_glacier( poly_ROI)
+    call refine_mesh_polygon( mesh, poly_ROI, C%max_res_TransAntMounts_glaciers, C%alpha_min)
+    deallocate( poly_ROI)
+
+    ! Nimrod glacier
+    call calc_polygon_Nimrod_glacier( poly_ROI)
+    call refine_mesh_polygon( mesh, poly_ROI, C%max_res_TransAntMounts_glaciers, C%alpha_min)
+    deallocate( poly_ROI)
+
+    ! Beardmore glacier
+    call calc_polygon_Beardmore_glacier( poly_ROI)
+    call refine_mesh_polygon( mesh, poly_ROI, C%max_res_TransAntMounts_glaciers, C%alpha_min)
+    deallocate( poly_ROI)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine refine_mesh_over_TransAntarcticMountain_glaciers
 
 end module mesh_creation_refine_in_ROIs
