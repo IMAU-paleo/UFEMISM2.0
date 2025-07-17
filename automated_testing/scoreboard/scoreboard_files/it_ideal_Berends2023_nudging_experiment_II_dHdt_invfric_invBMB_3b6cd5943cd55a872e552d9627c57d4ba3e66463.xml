@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>experiment_II_dHdt_invfric_invBMB</name>
+    <category>integrated_tests/idealised/Berends2023_nudging</category>
+    <date_and_time>17-Jul-2025 19:09:19</date_and_time>
+    <git_hash_string>3b6cd5943cd55a872e552d9627c57d4ba3e66463</git_hash_string>
+    <cost_functions>
+        <name>r95_till_friction_angle</name>
+        <definition>95% of till friction is within this fraction of its target</definition>
+        <value>0.47488</value>
+    </cost_functions>
+    <cost_functions>
+        <name>p95_ice_thickness</name>
+        <definition>95% of ice thickness is within this range of its target [m]</definition>
+        <value>30.3223</value>
+    </cost_functions>
+    <cost_functions>
+        <name>r95_ice_velocity</name>
+        <definition>95% of ice velocity is within this fraction of its target</definition>
+        <value>0.1124</value>
+    </cost_functions>
+    <cost_functions>
+        <name>p95_melt_rate</name>
+        <definition>95% of melt rates are within this range of its target [m/yr]</definition>
+        <value>1.7731</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>15041</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>15041</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>1165746</value>
+    </cost_functions>
+</single_run>
