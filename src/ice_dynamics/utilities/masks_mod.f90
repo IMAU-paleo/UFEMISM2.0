@@ -495,6 +495,8 @@ contains
 
     do vi = mesh%vi1, mesh%vi2
       ! If the vertex is close to the channel, set mask true
+      ! NOTE: This approach allows for some vertices along the transect at a given y-coordinate to be marked as false.
+      !       Therefore, if the grounding line retreats to a position where no vertices are marked as true, no SGD will be applied. 
       if (mesh%V( vi,2) < y_coord_channel + 2500._dp .and. mesh%V( vi,2) > y_coord_channel - 2500._dp) then
         ice%mask_SGD( vi) = .true.
       else
