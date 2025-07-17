@@ -4,10 +4,10 @@ MODULE laddie_physics
 
 ! ===== Preamble =====
 ! ====================
-
+  use mpi_f08, only: MPI_COMM_WORLD, MPI_ALLREDUCE, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_SUM
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string
+  USE control_resources_and_error_messaging                  , ONLY: crash, init_routine, finalise_routine, colour_string, warning
   USE model_configuration                                    , ONLY: C
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
@@ -171,7 +171,7 @@ CONTAINS
 
   END SUBROUTINE compute_entrainment
 
-  SUBROUTINE compute_subglacial_discharge( mesh, laddie, npx)
+  SUBROUTINE compute_subglacial_discharge( mesh, laddie)
   ! Compute subglacial discharge (SGD)
   ! TODO clean up routine; avoid so many if statements
   ! TODO allow option to read in SGD mask from file
@@ -180,20 +180,22 @@ CONTAINS
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
-    TYPE(type_laddie_timestep),             INTENT(IN)    :: npx
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'compute_subglacial_discharge'
-    INTEGER                                               :: vi
-    REAL(dp) :: total_area 
+    INTEGER                                               :: vi, ierr
+    REAL(dp)                                              :: total_area 
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Initialise total SGD area at zero
+    ! Initialise total_area (the area over which the SGD will be distributed) at zero
     total_area = 0._dp
 
-    ! Determine total area over which SGD is distributed
+    ! Initialise SGD at zero
+    laddie%SGD = 0._dp
+
+    ! Determine total_area by looping over the vertices
     DO vi = mesh%vi1, mesh%vi2 
       IF (laddie%mask_a( vi)) THEN
         IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
@@ -202,14 +204,22 @@ CONTAINS
       END IF 
     END DO
 
-    ! Distribute SGD flux [m^3/s] over total area to get the SGD in [m/s]
-    DO vi = mesh%vi1, mesh%vi2 
-      IF (laddie%mask_a( vi)) THEN
-        IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
-          laddie%SGD( vi) = C%laddie_SGD_flux / total_area
-        END IF
-      END IF 
-    END DO
+    ! Make sure processes have total_area 
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_area,      1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    IF (total_area == 0._dp) THEN
+      ! No SGD is applied, issue a warning
+      IF (par%primary) CALL warning('No subglacial discharge (SGD) is applied because the total_area where SGD is applied is zero!')
+    ELSEIF (total_area > 0._dp) THEN
+      ! Distribute SGD flux [m^3/s] over the total area to get the SGD in [m/s]
+      DO vi = mesh%vi1, mesh%vi2 
+        IF (laddie%mask_a( vi)) THEN
+          IF (laddie%mask_gl_fl( vi) .and. laddie%mask_SGD( vi)) THEN
+            laddie%SGD( vi) = C%laddie_SGD_flux / total_area
+          END IF
+        END IF 
+      END DO  
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
