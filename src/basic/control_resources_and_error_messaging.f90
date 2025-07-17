@@ -371,6 +371,89 @@ CONTAINS
 
   END SUBROUTINE print_UFEMISM_end
 
+  subroutine print_LADDIE_start
+
+    ! Local variables:
+    character(len=1024) :: str1, str2
+    integer             :: i
+
+    str1 = ' '
+    if (par%n_nodes == 1) then
+      str1 = '===== Running LADDIE on {int_01} cores ====='
+      call insert_val_into_string_int( str1, '{int_01}', par%n)
+    else
+      str1 = '===== Running LADDIE on {int_01} cores ({int_02} nodes) ====='
+      call insert_val_into_string_int( str1, '{int_01}', par%n)
+      call insert_val_into_string_int( str1, '{int_02}', par%n_nodes)
+    end if
+
+    str2 = ' '
+    do i = 1, len_trim( str1)
+      str2( i:i) = '='
+    end do
+
+    if (par%primary) then
+      write(0,'(A)') ''
+      write(0,'(A)') trim( colour_string( trim( str2),'green'))
+      write(0,'(A)') trim( colour_string( trim( str1),'green'))
+      write(0,'(A)') trim( colour_string( trim( str2),'green'))
+    end if
+    call sync
+
+  end subroutine print_LADDIE_start
+
+  SUBROUTINE print_LADDIE_end( tcomp)
+    ! Print the LADDIE end message to the screen
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    ! REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE, OPTIONAL, INTENT(INOUT) :: i
+    REAL(dp)                                           , INTENT(IN)    :: tcomp
+
+    ! Local variables:
+    CHARACTER(LEN=128)                                                 :: str1, str2
+    INTEGER                                                            :: n,i
+    INTEGER                                                            :: nr, ns, nm, nh, nd
+
+    ! Calculate number of elapsed days, hours, minutes, and seconds since this run started
+    ns = CEILING(tcomp)
+
+    nr = MOD(ns, 60*60*24)
+    nd = (ns - nr) / (60*60*24)
+    ns = ns - (nd*60*60*24)
+
+    nr = MOD(ns, 60*60)
+    nh = (ns - nr) / (60*60)
+    ns = ns - (nh*60*60)
+
+    nr = MOD(ns, 60)
+    nm = (ns - nr) / (60)
+    ns = ns - (nm*60)
+
+    ! Print to screen
+    str1 = ' '
+    str1 = '===== Finished running LADDIE in {int_01} days, {int_02} hours, {int_03} minutes, and {int_04} seconds ====='
+    CALL insert_val_into_string_int( str1, '{int_01}', nd)
+    CALL insert_val_into_string_int( str1, '{int_02}', nh)
+    CALL insert_val_into_string_int( str1, '{int_03}', nm)
+    CALL insert_val_into_string_int( str1, '{int_04}', ns)
+
+    n = LEN_TRIM( str1)
+    str2 = ' '
+    DO i = 1, n
+      str2( i:i) = '='
+    END DO
+
+    IF (par%primary) WRITE(0,'(A)') ''
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str1,'green'))
+    IF (par%primary) WRITE(0,'(A)') TRIM( colour_string( str2,'green'))
+    IF (par%primary) WRITE(0,'(A)') ''
+    CALL sync
+
+  END SUBROUTINE print_LADDIE_end
+
   SUBROUTINE crash( err_msg, int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10, &
                               dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10)
     ! Crash the model, write the error message to the screen
