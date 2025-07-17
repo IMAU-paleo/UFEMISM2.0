@@ -32,8 +32,8 @@ contains
     character(len=1024), parameter :: routine_name = 'run_BMB_model_inverted'
     integer                        :: vi
     real(dp)                       :: deltaH, dHdt, dBMBdt
-    real(dp), parameter            :: c_H     = -0.001_dp
-    real(dp), parameter            :: c_dHdt  = -0.01_dp
+    real(dp), parameter            :: c_H     = -0.003_dp
+    real(dp), parameter            :: c_dHdt  = -0.03_dp
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -43,14 +43,14 @@ contains
 
       do vi = mesh%vi1, mesh%vi2
 
-        ! Only nudge vertices that are shelf in the reference geometry
+        ! Only nudge vertices that are shelf in the modelled or reference geometry
 
         ! (This means that, during the inversion (which happens in pseudo-time), it can happen
         ! that we apply basal melt to grounded ice, if the grounding line temporarily advances,
         ! or refreezing to shelf vertices when the grounding line temporarily retreats. However,
         ! this happens in pseudo-time, and will stop once the geometry converges to the target)
 
-        if (BMB_inv%target_mask_shelf( vi)) then
+        if (BMB_inv%target_mask_shelf( vi) .or. ice%mask_floating_ice( vi)) then
 
           deltaH = ice%Hi( vi) - BMB_inv%target_geometry%Hi( vi)
           dHdt   = ice%dHi_dt( vi)

@@ -788,8 +788,8 @@ MODULE model_configuration
     REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
 
     ! Hard limits on melt/refreezing rates
-    REAL(dp)            :: BMB_maximum_allowed_melt_rate_config         = 9.9e9_dp                         ! [m/yr] Maximum allowed melt       rate   (note: positive value means melt!)
-    REAL(dp)            :: BMB_maximum_allowed_refreezing_rate_config   = 9.9e9_dp                         ! [m/yr] Maximum allowed refreezing rate   (note: positive value means refreezing!)
+    REAL(dp)            :: BMB_maximum_allowed_melt_rate_config         = 100._dp                         ! [m/yr] Maximum allowed melt       rate   (note: positive value means melt!)
+    REAL(dp)            :: BMB_maximum_allowed_refreezing_rate_config   = 10._dp                         ! [m/yr] Maximum allowed refreezing rate   (note: positive value means refreezing!)
 
     ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
