@@ -39,7 +39,7 @@ CONTAINS
     TYPE(type_grid),                        INTENT(IN)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
-    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),              INTENT(IN)    :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
     TYPE(type_SMB_model), optional,         INTENT(IN)    :: SMB
@@ -117,7 +117,7 @@ CONTAINS
     type(type_grid),                        intent(in)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
-    TYPE(type_global_forcing),              INTENT(INOUT) :: forcing
+    TYPE(type_global_forcing),              INTENT(IN) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -161,18 +161,18 @@ CONTAINS
     climate%t_next = C%start_time_of_run
 
     ! Determine which climate model to initialise
-    IF     (choice_climate_model == 'none') THEN
+    select case (choice_climate_model)
       ! No need to do anything
-    ELSEIF (choice_climate_model == 'idealised') THEN
-      CALL initialise_climate_model_idealised( mesh, climate)
-    ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
-    ELSEIF (choice_climate_model == 'matrix') THEN
-      IF (par%primary)  WRITE(*,"(A)") '   Initialising climate matrix model...'
+    case ('idealised')
+      call initialise_climate_model_idealised( mesh, climate)
+    case ('realistic')
+      call initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
+    case ('matrix')
+      if (par%primary)  write(*,"(A)") '   Initialising climate matrix model...'
       call initialise_climate_matrix( mesh, grid, ice, climate, region_name, forcing)
-    ELSE
-      CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
-    END IF
+    case ('default')
+      call crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
+    end select
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -389,7 +389,7 @@ CONTAINS
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     type(type_grid), optional,                    intent(in)    :: grid
     type(type_ice_model), optional,               intent(in)    :: ice
-    type(type_global_forcing), optional,          intent(inout) :: forcing
+    type(type_global_forcing), optional,          intent(in) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_climate_model'

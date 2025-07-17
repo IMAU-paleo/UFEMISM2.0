@@ -311,6 +311,7 @@ UFEMISM_source = \
   artificial_mass_balance/AMB_main.f90 \
   \
   climate/climate_idealised.f90 \
+  climate/matrix/climate_matrix_utilities.f90 \
   climate/climate_realistic.f90 \
   climate/climate_matrix.f90 \
   climate/climate_main.f90 \

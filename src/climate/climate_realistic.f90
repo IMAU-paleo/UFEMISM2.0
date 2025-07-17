@@ -18,6 +18,7 @@ MODULE climate_realistic
   USE netcdf_io_main
   USE netcdf_basic
   use mpi_distributed_memory, only: distribute_from_primary
+  use climate_matrix_utilities, only: get_insolation_at_time
 
   IMPLICIT NONE
 
@@ -25,12 +26,7 @@ MODULE climate_realistic
 
   public :: run_climate_model_realistic
   public :: initialise_climate_model_realistic
-  public :: initialise_global_forcings
-  public :: get_insolation_at_time
-  public :: update_CO2_at_model_time
-  public :: update_sealevel_at_model_time
   public :: initialise_insolation_forcing
-  public :: initialise_CO2_record
 
 CONTAINS
 
@@ -319,73 +315,6 @@ CONTAINS
 
   END SUBROUTINE initialise_insolation_forcing
 
-  SUBROUTINE get_insolation_at_time( mesh, time, snapshot)
-    ! Get monthly insolation at time t on the regional grid
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_climate_model_snapshot),      INTENT(INOUT) :: snapshot
-    REAL(dp),                               INTENT(IN)    :: time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                    :: routine_name = 'get_insolation_at_time'
-    REAL(dp)                                         :: time_applied
-    INTEGER                                          :: vi,m 
-    REAL(dp)                                         :: wt0, wt1
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    time_applied = 0._dp
-
-    ! Safety
-    IF     (C%choice_insolation_forcing == 'none') THEN
-      CALL crash('insolation should not be used when choice_insolation_forcing = "none"!')
-    ELSEIF (C%choice_insolation_forcing == 'static') THEN
-      time_applied = C%static_insolation_time
-    ELSEIF (C%choice_insolation_forcing == 'realistic') THEN
-      time_applied = time
-    ELSE
-      CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
-    END IF
-
-    ! Check if the requested time is enveloped by the two timeframes;
-    ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time_applied < snapshot%ins_t0 .OR. time_applied > snapshot%ins_t1) THEN
-      IF (par%primary)  WRITE(0,*) '   Model time is out of the current insolation timeframes. Updating timeframes...'
-      CALL update_insolation_timeframes_from_file( snapshot, time_applied, mesh)
-    END IF
-
-    ! Calculate timeframe interpolation weights (plus safety checks for when the extend beyond the record)
-    if (snapshot%ins_t1 == snapshot%ins_t0) then
-      wt0 = 0._dp
-      wt1 = 1._dp
-    else
-      if (time_applied > snapshot%ins_t1) then
-        wt0 = 0._dp
-      elseif (time_applied < snapshot%ins_t0) then
-        wt0 = 1._dp
-      else
-        wt0 = (snapshot%ins_t1 - time_applied) / (snapshot%ins_t1 - snapshot%ins_t0)
-      end if
-      wt1 = 1._dp - wt0
-    end if
-
-    ! Interpolate the two timeframes
-    do vi = mesh%vi1, mesh%vi2
-      do m = 1, 12
-      !print *, "value of Q_TOA0 ", snapshot%ins_Q_TOA0(vi, m), "and Q_TOA1 ", snapshot%ins_Q_TOA1( vi, m)
-        snapshot%Q_TOA(vi, m) = wt0 * snapshot%ins_Q_TOA0(vi, m) + wt1 * snapshot%ins_Q_TOA1(vi, m)
-      end do
-    end do
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE get_insolation_at_time
-
   SUBROUTINE update_insolation_timeframes_from_file( snapshot, time, mesh)
     ! Read the NetCDF file containing the insolation forcing data. Only read the time frames enveloping the current
     ! coupling timestep to save on memory usage. Only done by master.
@@ -440,166 +369,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_insolation_timeframes_from_file
-  
-! == Prescribed CO2 record
-  SUBROUTINE update_CO2_at_model_time( time, forcing)
-    ! Interpolate the data in forcing%CO2 to find the value at the queried time.
-    ! If time lies outside the range of forcing%CO2_time, return the first/last value
-    !
-    ! NOTE: assumes time is listed in yr BP, so LGM would be -21000.0, and 0.0 corresponds to January 1st 1900.
-    !
-    ! NOTE: calculates average value over the preceding 30 years. For paleo this doesn't matter
-    !       in the least, but for the historical period this makes everything more smooth.
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    REAL(dp),                            INTENT(IN)    :: time
-    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
-    INTEGER                                            :: ti1, ti2, til, tiu
-    REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2, CO2_aux
-    REAL(dp), PARAMETER                                :: dt_smooth = 60._dp
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Safety
-    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
-      ! Observed CO2 is needed for these forcing methods.
-    ELSE
-      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
-    END IF
-
-    !IF (par%primary) THEN
-
-      IF     (time < MINVAL( forcing%CO2_time)) THEN
-        ! Model time before start of CO2 record; using constant extrapolation
-        forcing%CO2_obs = forcing%CO2_record( 1)
-      ELSEIF (time > MAXVAL( forcing%CO2_time)) THEN
-        ! Model time beyond end of CO2 record; using constant extrapolation
-        forcing%CO2_obs = forcing%CO2_record( C%CO2_record_length)
-      ELSE
-
-        ! Find range of raw time frames enveloping model time
-        ti1 = 1
-        DO WHILE (forcing%CO2_time( ti1) < time - dt_smooth .AND. ti1 < C%CO2_record_length)
-          ti1 = ti1 + 1
-        END DO
-        ti1 = MAX( 1, ti1 - 1)
-
-        ti2 = 2
-        DO WHILE (forcing%CO2_time( ti2) < time             .AND. ti2 < C%CO2_record_length)
-          ti2 = ti2 + 1
-        END DO
-
-        ! Calculate conservatively-remapped time-averaged CO2
-        intCO2 = 0._dp
-        DO til = ti1, ti2 - 1
-          tiu = til + 1
-
-          ! Linear interpolation between til and tiu: CO2( t) = a + b*t
-          b = (forcing%CO2_record( tiu) - forcing%CO2_record( til)) / (forcing%CO2_time( tiu) - forcing%CO2_time( til))
-          a = forcing%CO2_record( til) - b*forcing%CO2_time( til)
-
-          ! Window of overlap between [til,tiu] and [t - dt_smooth, t]
-          tl = MAX( forcing%CO2_time( til), time - dt_smooth)
-          tu = MIN( forcing%CO2_time( tiu), time            )
-          dintCO2 = (tu - tl) * (a + b * (tl + tu) / 2._dp)
-          intCO2 = intCO2 + dintCO2
-        END DO
-        forcing%CO2_obs = intCO2 / dt_smooth
-
-      END IF
-      !CO2_aux = forcing%CO2_obs
-      !call MPI_BCAST(forcing%CO2_obs, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    !END IF
-    !call distribute_from_primary_dp_1D(forcing%CO2_obs)
-    !print *, "print value of forcing%CO2_obs in climate realistic...", forcing%CO2_obs
-    CALL sync
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE update_CO2_at_model_time
-  SUBROUTINE initialise_CO2_record( forcing)
-    ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is a file with time in yr and CO2 in ppmv
-    ! and the number of rows being equal to C%CO2_record_length
-
-    ! NOTE: assumes time is listed in yr BP (so LGM would be -21000)
-    IMPLICIT NONE
-    
-    ! In/output variables:
-!    REAL(dp),                            INTENT(IN)    :: time
-    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_CO2_record'
-    INTEGER                                            :: i,ios
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Safety
-    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
-      ! Observed CO2 is needed for these forcing methods.
-    ELSE
-      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
-    END IF
-    
-      IF (par%primary)  WRITE(*,"(A)") ' Initialising CO2 record '
-
-    ! Allocate shared memory to take the data
-    allocate( forcing%CO2_time(   C%CO2_record_length))
-    allocate( forcing%CO2_record( C%CO2_record_length))
-
-    ! Read CO2 record (time and values) from specified text file
-    IF (par%primary)  WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
-!    IF (par%primary) THEN
-
-!      WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
-!    END IF
-! check this?!
-! I added field_name_options_CO2 in netcdf field list
-! from the funciton 3rd and 4th are outputs
-
-!! HERE IDK IF IS NEEDED TO CALL THEM INSIDE PRIMARY OR NOT.. CHECK
-      call read_field_from_series_file( C%filename_CO2_record, field_name_options_CO2, forcing%CO2_record, forcing%CO2_time)
-
-!      OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
-
-!      DO i = 1, C%CO2_record_length
-!        READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time( i), forcing%CO2_record( i)
-!        IF (ios /= 0) THEN
-!          CALL crash('length of text file "' // TRIM(C%filename_CO2_record) // '" does not match C%CO2_record_length!')
-!        END IF
-!      END DO
-
-!      CLOSE( UNIT  = 1337)
-!    IF (par%primary) THEN
-
-      IF (C%start_time_of_run < forcing%CO2_time(1)) THEN
-      print *, "print value of forcing%CO2_time(first), ", forcing%CO2_time(1)
-         CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
-      END IF
-      IF (C%end_time_of_run > forcing%CO2_time(C%CO2_record_length)) THEN
-      print *, "value of forcing%CO2_time(last), ", forcing%CO2_time(C%CO2_record_length)
-         CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
-      END IF
-
-
-!    END IF ! IF (par%primary)
-    
-    IF (par%primary)  WRITE(*,"(A)") '   Updating CO2 at model time...'
-    ! Set the value for the current (starting) model time
-    CALL update_CO2_at_model_time( C%start_time_of_run, forcing)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_CO2_record
-
 
 END MODULE climate_realistic
