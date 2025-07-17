@@ -61,14 +61,6 @@ CONTAINS
     ! Compute melt rate
     CALL compute_melt_rate( mesh, laddie, npx_ref, npx_ref%H, time)
 
-    ! Compute subglacial discharge (SGD)
-    IF (C%choice_laddie_SGD == 'none') THEN
-      ! do nothing
-    ELSEIF (C%choice_laddie_SGD == 'idealised') THEN
-      ! compute SGD
-      CALL compute_subglacial_discharge( mesh, laddie, npx_ref)
-    END IF 
-
     ! Compute entrainment
     CALL compute_entrainment( mesh, laddie, npx_ref, npx_ref%H)
 

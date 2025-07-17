@@ -22,6 +22,7 @@ MODULE laddie_main
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
   use laddie_operators                                       , only: update_laddie_operators
   use laddie_velocity                                        , only: map_UV_b_c
+  use laddie_physics                                         , only: compute_subglacial_discharge
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   use mesh_disc_apply_operators                              , only: map_b_a_2D
   use mesh_integrate_over_domain                             , only: integrate_over_domain, calc_and_print_min_mean_max
@@ -62,6 +63,17 @@ CONTAINS
     call init_routine( routine_name)
 
     call update_laddie_forcing( mesh, ice, ocean, laddie)
+
+    ! Only in first time step
+    SELECT CASE (C%choice_laddie_SGD)
+    CASE DEFAULT
+      CALL crash('unknown choice_laddie_SGD "' // trim( C%choice_laddie_SGD) // '"!')
+    CASE ('none')
+      ! Do nothing
+    CASE ('idealised')
+      ! Compute SGD
+      CALL compute_subglacial_discharge( mesh, laddie)
+    END SELECT
 
     if (C%do_repartition_laddie) then
       ! Repartition the mesh so each process has (approximately)
@@ -1059,7 +1071,7 @@ CONTAINS
     call repartition( mesh_old, mesh_new, laddie%entr_dmin     , laddie%wentr_dmin     )    ! [m s^-1]        Entrainment for D_min
     call repartition( mesh_old, mesh_new, laddie%detr          , laddie%wdetr          )    ! [m s^-1]        Detrainment
     call repartition( mesh_old, mesh_new, laddie%entr_tot      , laddie%wentr_tot      )    ! [m s^-1]        Total (net) entrainment
-    call repartition( mesh_old, mesh_new, laddie%SGD           , laddie%wSGD           )    ! [m s^-1]        Entrainment
+    call repartition( mesh_old, mesh_new, laddie%SGD           , laddie%wSGD           )    ! [m s^-1]        Subglacial discharge
 
     laddie%melt          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%melt
     laddie%entr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr
