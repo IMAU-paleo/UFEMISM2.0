@@ -146,7 +146,7 @@ module climate_matrix_utilities
     DO m = 1, 12
     DO vi = mesh%vi1, mesh%vi2
       T_inv_ref( vi,m) = 88.9_dp + 0.67_dp *  T_ref_GCM( vi,m)
-      T_inv(     vi,m) = 88.9_dp + 0.67_dp * (T_ref_GCM( vi,m) - C%constant_lapserate * (Hs( vi) - Hs_GCM( vi)))
+      T_inv(     vi,m) = 88.9_dp + 0.67_dp * (T_ref_GCM( vi,m) - C%climate_matrix_constant_lapserate * (Hs( vi) - Hs_GCM( vi)))
     END DO
     END DO
     CALL sync

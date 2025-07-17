@@ -101,7 +101,7 @@ contains
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    type(type_global_forcing), intent(in) :: forcing
+    type(type_global_forcing),           intent(in)    :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_temperature'
@@ -145,8 +145,8 @@ contains
     
     ! If CO2 ~= warm snap -> weight is 1. If ~= cold snap -> weight is 0.
     ! Otherwise interpolate. Berends et al., 2018 - Eq. 1
-    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / &
-                               (C%matrix_high_CO2_level - C%matrix_low_CO2_level) ))
+    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%climate_matrix_low_CO2_level) / &
+                               (C%climate_matrix_high_CO2_level - C%climate_matrix_low_CO2_level) ))
 
     ! Find the interpolation weights based on absorbed insolation
     ! ===========================================================
@@ -270,7 +270,7 @@ contains
     END IF
 
     ! If a glacial index is used, weight will depend only on CO2
-    !IF (C%switch_glacial_index) THEN
+    !IF (C%climate_matrix_switch_glacial_index) THEN
     !  w_tot = w_CO2
     !END IF
 
@@ -416,8 +416,9 @@ contains
 
     end select
 
-    IF (C%switch_glacial_index_precip) THEN ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
-      w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) )) )
+    IF (C%climate_matrix_switch_glacial_index_precip) THEN ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
+      w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%climate_matrix_low_CO2_level) & 
+              / (C%climate_matrix_high_CO2_level - C%climate_matrix_low_CO2_level) )) )
       w_cold( mesh%vi1:mesh%vi2) = w_tot
       w_warm( mesh%vi1:mesh%vi2) = 1._dp - w_cold( mesh%vi1:mesh%vi2)
     END IF
@@ -455,15 +456,15 @@ contains
     CALL allocate_climate_snapshot( mesh, climate%matrix%GCM_warm, name = 'GCM_warm')
     CALL allocate_climate_snapshot( mesh, climate%matrix%GCM_cold, name = 'GCM_cold')
 
-    call read_climate_snapshot( C%filename_PD_obs_climate       , mesh, climate%matrix%PD_obs  )
-    call read_climate_snapshot( C%filename_climate_snapshot_PI  , mesh, climate%matrix%GCM_PI  )
-    call read_climate_snapshot( C%filename_climate_snapshot_warm, mesh, climate%matrix%GCM_warm)
-    call read_climate_snapshot( C%filename_climate_snapshot_cold, mesh, climate%matrix%GCM_cold)
+    call read_climate_snapshot( C%climate_matrix_filename_PD_obs_climate       , mesh, climate%matrix%PD_obs  )
+    call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_PI  , mesh, climate%matrix%GCM_PI  )
+    call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_warm, mesh, climate%matrix%GCM_warm)
+    call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_cold, mesh, climate%matrix%GCM_cold)
     
     ! Get the orbit time
     climate%matrix%GCM_PI%orbit_time   = 0._dp
-    climate%matrix%GCM_warm%orbit_time = C%matrix_warm_orbit_time
-    climate%matrix%GCM_cold%orbit_time = C%matrix_cold_orbit_time
+    climate%matrix%GCM_warm%orbit_time = C%climate_matrix_warm_orbit_time
+    climate%matrix%GCM_cold%orbit_time = C%climate_matrix_cold_orbit_time
 
 ! here appear some checks if wind is included or not in the data
 ! after that cames the snapshot ocean and ice mask in dev branch, not in UFE1.x
@@ -472,12 +473,12 @@ contains
     ! Calculate spatially variable lapse rate
 
     ! Use a uniform value for the warm snapshot [this assumes "warm" is actually identical to PI!]
-    climate%matrix%GCM_warm%lambda( mesh%vi1:mesh%vi2) = C%constant_lapserate
+    climate%matrix%GCM_warm%lambda( mesh%vi1:mesh%vi2) = C%climate_matrix_constant_lapserate
 
     IF     (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       CALL initialise_matrix_calc_spatially_variable_lapserate( mesh, grid, climate%matrix%GCM_PI, climate%matrix%GCM_cold)
     ELSEIF (region_name == 'GLR' .OR. region_name == 'ANT') THEN
-      climate%matrix%GCM_cold%lambda( mesh%vi1:mesh%vi2) = C%constant_lapserate
+      climate%matrix%GCM_cold%lambda( mesh%vi1:mesh%vi2) = C%climate_matrix_constant_lapserate
       CALL sync
     END IF
 
@@ -543,8 +544,8 @@ contains
     DO m = 1, 12
 
       ! Scale modelled and observed temperature to sea level using a constant lapse rate
-      T2m_SL_GCM = GCM_PI%T2m( vi,m) + GCM_PI%Hs( vi) * C%constant_lapserate
-      T2m_SL_obs = PD_obs%T2m( vi,m) + PD_obs%Hs( vi) * C%constant_lapserate
+      T2m_SL_GCM = GCM_PI%T2m( vi,m) + GCM_PI%Hs( vi) * C%climate_matrix_constant_lapserate
+      T2m_SL_obs = PD_obs%T2m( vi,m) + PD_obs%Hs( vi) * C%climate_matrix_constant_lapserate
 
       ! Calculate bias
       GCM_bias_T2m(    vi,m) = T2m_SL_GCM           - T2m_SL_obs
@@ -640,7 +641,7 @@ contains
     CALL smooth_Gaussian( mesh, grid_smooth, snapshot%lambda, 160000._dp)
 
     ! Normalise the entire region to a mean lapse rate of 8 K /km
-    snapshot%lambda( mesh%vi1:mesh%vi2) = snapshot%lambda( mesh%vi1:mesh%vi2) * (C%constant_lapserate / lambda_mean_ice)
+    snapshot%lambda( mesh%vi1:mesh%vi2) = snapshot%lambda( mesh%vi1:mesh%vi2) * (C%climate_matrix_constant_lapserate / lambda_mean_ice)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -885,18 +886,18 @@ contains
   call reallocate_bounds(climate%matrix%GCM_bias_Precip, mesh_new%vi1, mesh_new%vi2, 12)
   
   ! read the snapshots for the new mesh
-    call read_climate_snapshot( C%filename_PD_obs_climate       , mesh_new, climate%matrix%PD_obs  )
-    call read_climate_snapshot( C%filename_climate_snapshot_PI  , mesh_new, climate%matrix%GCM_PI  )
-    call read_climate_snapshot( C%filename_climate_snapshot_warm, mesh_new, climate%matrix%GCM_warm)
-    call read_climate_snapshot( C%filename_climate_snapshot_cold, mesh_new, climate%matrix%GCM_cold)
+    call read_climate_snapshot( C%climate_matrix_filename_PD_obs_climate       , mesh_new, climate%matrix%PD_obs  )
+    call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_PI  , mesh_new, climate%matrix%GCM_PI  )
+    call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_warm, mesh_new, climate%matrix%GCM_warm)
+    call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_cold, mesh_new, climate%matrix%GCM_cold)
 
     ! Use a uniform value for the warm snapshot [this assumes "warm" is actually identical to PI!]
-    climate%matrix%GCM_warm%lambda = C%constant_lapserate
+    climate%matrix%GCM_warm%lambda = C%climate_matrix_constant_lapserate
 
     IF     (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       CALL initialise_matrix_calc_spatially_variable_lapserate( mesh_new, grid, climate%matrix%GCM_PI, climate%matrix%GCM_cold)
     ELSEIF (region_name == 'GLR' .OR. region_name == 'ANT') THEN
-      climate%matrix%GCM_cold%lambda = C%constant_lapserate
+      climate%matrix%GCM_cold%lambda = C%climate_matrix_constant_lapserate
       CALL sync
     END IF
 
