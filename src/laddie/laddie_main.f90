@@ -66,13 +66,13 @@ CONTAINS
 
     ! Only in first time step
     SELECT CASE (C%choice_laddie_SGD)
-    CASE DEFAULT
-      CALL crash('unknown choice_laddie_SGD "' // trim( C%choice_laddie_SGD) // '"!')
-    CASE ('none')
-      ! Do nothing
-    CASE ('idealised')
-      ! Compute SGD
-      CALL compute_subglacial_discharge( mesh, laddie)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_SGD "' // trim( C%choice_laddie_SGD) // '"!')
+      CASE ('none')
+        ! Do nothing
+      CASE ('idealised')
+        ! Compute SGD
+        CALL compute_subglacial_discharge( mesh, laddie)
     END SELECT
 
     if (C%do_repartition_laddie) then

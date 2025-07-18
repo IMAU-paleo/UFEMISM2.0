@@ -219,6 +219,8 @@ CONTAINS
           END IF
         END IF 
       END DO  
+    ELSE
+      CALL crash('The total_area where SGD is applied is a negative value')
     END IF
 
     ! Finalise routine path
