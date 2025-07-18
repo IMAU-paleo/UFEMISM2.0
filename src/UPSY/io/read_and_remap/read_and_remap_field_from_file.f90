@@ -157,7 +157,7 @@ contains
   end subroutine read_field_from_file_2D
 
   subroutine read_field_from_file_2D_b( filename, field_name_options, &
-    mesh, d_partial, time_to_read)
+    mesh, output_dir, d_partial, time_to_read)
     !< Read a data field from a NetCDF file, and map it to the model mesh triangles.
 
     ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
@@ -169,6 +169,7 @@ contains
     character(len=*),       intent(in   ) :: filename
     character(len=*),       intent(in   ) :: field_name_options
     type(type_mesh),        intent(in   ) :: mesh
+    character(len=*),       intent(in   ) :: output_dir
     real(dp), dimension(:), intent(  out) :: d_partial
     real(dp), optional,     intent(in   ) :: time_to_read
 
@@ -218,7 +219,7 @@ contains
       call read_field_from_xy_file_dp_2D( filename, field_name_options, d_grid_vec_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
-      call map_from_xy_grid_to_mesh_triangles_2D( grid_from_file, mesh, d_grid_vec_partial_from_file, d_partial)
+      call map_from_xy_grid_to_mesh_triangles_2D( grid_from_file, mesh, output_dir, d_grid_vec_partial_from_file, d_partial)
 
       ! Clean up after yourself
       call deallocate_grid( grid_from_file)

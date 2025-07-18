@@ -146,12 +146,13 @@ contains
   end subroutine map_from_xy_grid_to_mesh_3D
 
   ! From an x/y-grid to a mesh triangles
-  subroutine map_from_xy_grid_to_mesh_triangles_2D(     grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+  subroutine map_from_xy_grid_to_mesh_triangles_2D(     grid, mesh, output_dir, d_grid_vec_partial, d_mesh_partial, method)
     ! Map a 2-D data field from an x/y-grid to a mesh triangles.
 
     ! In/output variables
     type(type_grid),                     intent(in)    :: grid
     type(type_mesh),                     intent(in)    :: mesh
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:    ),          intent(in)    :: d_grid_vec_partial
     real(dp), dimension(:    ),          intent(out)   :: d_mesh_partial
     character(len=*), optional,          intent(in)    :: method
@@ -184,7 +185,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh_triangles( grid, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_triangles( grid, mesh, output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -201,12 +202,13 @@ contains
 
   end subroutine map_from_xy_grid_to_mesh_triangles_2D
 
-  subroutine map_from_xy_grid_to_mesh_triangles_3D(     grid, mesh, d_grid_vec_partial, d_mesh_partial, method)
+  subroutine map_from_xy_grid_to_mesh_triangles_3D(     grid, mesh, output_dir, d_grid_vec_partial, d_mesh_partial, method)
     ! Map a 3-D data field from an x/y-grid to a mesh triangles.
 
     ! In/output variables
     type(type_grid),                     intent(in)    :: grid
     type(type_mesh),                     intent(in)    :: mesh
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:,:  ),          intent(in)    :: d_grid_vec_partial
     real(dp), dimension(:,:  ),          intent(out)   :: d_mesh_partial
     character(len=*), optional,          intent(in)    :: method
@@ -239,7 +241,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh_triangles( grid, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_triangles( grid, mesh, output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if
