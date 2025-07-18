@@ -181,10 +181,6 @@ UFEMISM_source = \
   UPSY/mesh/mesh_parallelisation.f90 \
   UPSY/mesh/mesh_secondary.f90 \
   UPSY/mesh/mesh_halo_exchange.f90 \
-  UPSY/mesh/creation/reduce_ice_geometry.f90 \
-  UPSY/mesh/creation/mesh_creation_refine_in_ROIs.f90 \
-  UPSY/mesh/creation/mesh_creation_from_reduced_geometry.f90 \
-  UPSY/mesh/creation/mesh_creation_main.f90 \
   UPSY/mesh/mesh_repartitioning.f90 \
   \
   UPSY/io/netcdf_basic/netcdf_basic_wrappers.f90 \
@@ -302,6 +298,11 @@ UFEMISM_source = \
   types/tracer_tracking_model_types.f90 \
   types/transect_types.f90 \
   types/region_types.f90 \
+	\
+  mesh_creation/reduce_ice_geometry.f90 \
+  mesh_creation/mesh_creation_refine_in_ROIs.f90 \
+  mesh_creation/mesh_creation_from_reduced_geometry.f90 \
+  mesh_creation/mesh_creation_main.f90 \
   \
   transects/netcdf_write_field_transect.f90 \
   transects/apply_maps_transects.f90 \
