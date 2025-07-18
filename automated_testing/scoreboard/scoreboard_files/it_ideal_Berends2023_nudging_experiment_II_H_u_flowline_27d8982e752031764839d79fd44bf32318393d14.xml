@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>experiment_II_H_u_flowline</name>
+    <category>integrated_tests/idealised/Berends2023_nudging</category>
+    <date_and_time>18-Jul-2025 09:02:25</date_and_time>
+    <git_hash_string>27d8982e752031764839d79fd44bf32318393d14</git_hash_string>
+    <cost_functions>
+        <name>r95_till_friction_angle</name>
+        <definition>95% of till friction is within this fraction of its target</definition>
+        <value>0.46164</value>
+    </cost_functions>
+    <cost_functions>
+        <name>p95_ice_thickness</name>
+        <definition>95% of ice thickness is within this range of its target</definition>
+        <value>18.5146</value>
+    </cost_functions>
+    <cost_functions>
+        <name>r95_ice_velocity</name>
+        <definition>95% of ice velocity is within this fraction of its target</definition>
+        <value>0.08951</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>21329</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>21329</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>1360630</value>
+    </cost_functions>
+</single_run>
