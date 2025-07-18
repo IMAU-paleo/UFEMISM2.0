@@ -22,6 +22,7 @@ MODULE laddie_main
                                                                      allocate_laddie_timestep, map_H_a_b, map_H_a_c
   use laddie_operators                                       , only: update_laddie_operators
   use laddie_velocity                                        , only: map_UV_b_c
+  use laddie_physics                                         , only: compute_subglacial_discharge
   USE mesh_utilities                                         , ONLY: extrapolate_Gaussian
   use mesh_disc_apply_operators                              , only: map_b_a_2D
   use mesh_integrate_over_domain                             , only: integrate_over_domain, calc_and_print_min_mean_max
@@ -62,6 +63,17 @@ CONTAINS
     call init_routine( routine_name)
 
     call update_laddie_forcing( mesh, ice, ocean, laddie)
+
+    ! Only in first time step
+    SELECT CASE (C%choice_laddie_SGD)
+      CASE DEFAULT
+        CALL crash('unknown choice_laddie_SGD "' // trim( C%choice_laddie_SGD) // '"!')
+      CASE ('none')
+        ! Do nothing
+      CASE ('idealised')
+        ! Compute SGD
+        CALL compute_subglacial_discharge( mesh, laddie)
+    END SELECT
 
     if (C%do_repartition_laddie) then
       ! Repartition the mesh so each process has (approximately)
@@ -600,6 +612,8 @@ CONTAINS
     call reallocate_dist_shared( laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean, mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%mask_grounded_ice , laddie%wmask_grounded_ice , mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%mask_floating_ice , laddie%wmask_floating_ice , mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_gl_fl        , laddie%wmask_gl_fl        , mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%mask_SGD          , laddie%wmask_SGD          , mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%Ti                , laddie%wTi                , mesh_new%pai_V%n_nih, mesh_new%nz)
     call reallocate_dist_shared( laddie%T_ocean           , laddie%wT_ocean           , mesh_new%pai_V%n_nih, C%nz_ocean)
     call reallocate_dist_shared( laddie%S_ocean           , laddie%wS_ocean           , mesh_new%pai_V%n_nih, C%nz_ocean)
@@ -611,6 +625,8 @@ CONTAINS
     laddie%mask_icefree_ocean( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_ocean
     laddie%mask_grounded_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_grounded_ice
     laddie%mask_floating_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_floating_ice
+    laddie%mask_gl_fl        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_gl_fl
+    laddie%mask_SGD          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_SGD
     laddie%Ti                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:mesh_new%nz) => laddie%Ti
     laddie%T_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%T_ocean
     laddie%S_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%S_ocean
@@ -663,11 +679,14 @@ CONTAINS
     call reallocate_dist_shared( laddie%entr_dmin,      laddie%wentr_dmin,      mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%detr,           laddie%wdetr,           mesh_new%pai_V%n_nih)
     call reallocate_dist_shared( laddie%entr_tot,       laddie%wentr_tot,       mesh_new%pai_V%n_nih)
+    call reallocate_dist_shared( laddie%SGD,            laddie%wSGD,            mesh_new%pai_V%n_nih)
+
     laddie%melt          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%melt
     laddie%entr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr
     laddie%entr_dmin     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_dmin
     laddie%detr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%detr
     laddie%entr_tot      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_tot
+    laddie%SGD           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%SGD
 
     ! Horizontal fluxes
     call reallocate_dist_shared( laddie%divQH,          laddie%wdivQH,          mesh_new%pai_V%n_nih)
@@ -892,6 +911,10 @@ CONTAINS
     laddie%mask_icefree_ocean( mesh%vi1:mesh%vi2  ) = ice%mask_icefree_ocean( mesh%vi1:mesh%vi2  )
     laddie%mask_grounded_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_grounded_ice ( mesh%vi1:mesh%vi2  )
     laddie%mask_floating_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_floating_ice ( mesh%vi1:mesh%vi2  )
+
+    laddie%mask_gl_fl        ( mesh%vi1:mesh%vi2  ) = ice%mask_gl_fl        ( mesh%vi1:mesh%vi2  )
+    laddie%mask_SGD          ( mesh%vi1:mesh%vi2  ) = ice%mask_SGD          ( mesh%vi1:mesh%vi2  )
+    
     laddie%Ti                ( mesh%vi1:mesh%vi2,:) = ice%Ti                ( mesh%vi1:mesh%vi2,:) - 273.15 ! [degC]
     laddie%T_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%T               ( mesh%vi1:mesh%vi2,:)
     laddie%S_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%S               ( mesh%vi1:mesh%vi2,:)
@@ -904,6 +927,8 @@ CONTAINS
     call checksum( laddie%mask_icefree_ocean, 'laddie%mask_icefree_ocean', mesh%pai_V)
     call checksum( laddie%mask_grounded_ice , 'laddie%mask_grounded_ice' , mesh%pai_V)
     call checksum( laddie%mask_floating_ice , 'laddie%mask_floating_ice' , mesh%pai_V)
+    call checksum( laddie%mask_gl_fl        , 'laddie%mask_gl_fl'        , mesh%pai_V)
+    call checksum( laddie%mask_SGD          , 'laddie%mask_SGD'          , mesh%pai_V)
     call checksum( laddie%Ti                , 'laddie%Ti'                , mesh%pai_V)
     call checksum( laddie%T_ocean           , 'laddie%T_ocean'           , mesh%pai_V)
     call checksum( laddie%S_ocean           , 'laddie%S_ocean'           , mesh%pai_V)
@@ -938,6 +963,8 @@ CONTAINS
     call repartition( mesh_old, mesh_new, laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean)
     call repartition( mesh_old, mesh_new, laddie%mask_grounded_ice , laddie%wmask_grounded_ice )
     call repartition( mesh_old, mesh_new, laddie%mask_floating_ice , laddie%wmask_floating_ice )
+    call repartition( mesh_old, mesh_new, laddie%mask_gl_fl        , laddie%wmask_gl_fl        )
+    call repartition( mesh_old, mesh_new, laddie%mask_SGD          , laddie%wmask_SGD          )
     call repartition( mesh_old, mesh_new, laddie%Ti                , laddie%wTi                )
     call repartition( mesh_old, mesh_new, laddie%T_ocean           , laddie%wT_ocean           )
     call repartition( mesh_old, mesh_new, laddie%S_ocean           , laddie%wS_ocean           )
@@ -950,6 +977,8 @@ CONTAINS
     laddie%mask_icefree_ocean( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_ocean
     laddie%mask_grounded_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_grounded_ice
     laddie%mask_floating_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_floating_ice
+    laddie%mask_gl_fl        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_gl_fl
+    laddie%mask_SGD          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_SGD
     laddie%Ti                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:mesh_new%nz) => laddie%Ti
     laddie%T_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%T_ocean
     laddie%S_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%S_ocean
@@ -962,6 +991,8 @@ CONTAINS
     call checksum( laddie%mask_icefree_ocean, 'laddie%mask_icefree_ocean', mesh_new%pai_V)
     call checksum( laddie%mask_grounded_ice , 'laddie%mask_grounded_ice' , mesh_new%pai_V)
     call checksum( laddie%mask_floating_ice , 'laddie%mask_floating_ice' , mesh_new%pai_V)
+    call checksum( laddie%mask_gl_fl        , 'laddie%mask_gl_fl'        , mesh_new%pai_V)
+    call checksum( laddie%mask_SGD          , 'laddie%mask_SGD'          , mesh_new%pai_V)
     call checksum( laddie%Ti                , 'laddie%Ti'                , mesh_new%pai_V)
     call checksum( laddie%T_ocean           , 'laddie%T_ocean'           , mesh_new%pai_V)
     call checksum( laddie%S_ocean           , 'laddie%S_ocean'           , mesh_new%pai_V)
@@ -1040,18 +1071,21 @@ CONTAINS
     call repartition( mesh_old, mesh_new, laddie%entr_dmin     , laddie%wentr_dmin     )    ! [m s^-1]        Entrainment for D_min
     call repartition( mesh_old, mesh_new, laddie%detr          , laddie%wdetr          )    ! [m s^-1]        Detrainment
     call repartition( mesh_old, mesh_new, laddie%entr_tot      , laddie%wentr_tot      )    ! [m s^-1]        Total (net) entrainment
+    call repartition( mesh_old, mesh_new, laddie%SGD           , laddie%wSGD           )    ! [m s^-1]        Subglacial discharge
 
     laddie%melt          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%melt
     laddie%entr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr
     laddie%entr_dmin     ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_dmin
     laddie%detr          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%detr
     laddie%entr_tot      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%entr_tot
+    laddie%SGD           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%SGD
 
     call checksum( laddie%melt     , 'laddie%melt     ', mesh_new%pai_V)
     call checksum( laddie%entr     , 'laddie%entr     ', mesh_new%pai_V)
     call checksum( laddie%entr_dmin, 'laddie%entr_dmin', mesh_new%pai_V)
     call checksum( laddie%detr     , 'laddie%detr     ', mesh_new%pai_V)
     call checksum( laddie%entr_tot , 'laddie%entr_tot ', mesh_new%pai_V)
+    call checksum( laddie%SGD      , 'laddie%SGD      ', mesh_new%pai_V)
 
     ! Horizontal fluxes
     call repartition( mesh_old, mesh_new, laddie%divQH         , laddie%wdivQH         )    ! [m^3 s^-1]      Divergence of layer thickness
