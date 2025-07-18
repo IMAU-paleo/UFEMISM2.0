@@ -149,39 +149,39 @@ UFEMISM_source = \
   UPSY/basic/grid/smooth_gridded_data.f90 \
   UPSY/basic/grid_lonlat_basic.f90 \
   \
-  mesh/mesh_memory.f90 \
-  mesh/mesh_utilities.f90 \
-  mesh/mesh_integrate_over_domain.f90 \
-  mesh/mesh_contour.f90 \
-  mesh/mesh_dummy_meshes.f90 \
-  mesh/mesh_ROI_polygons.f90 \
-  mesh/Delaunay/check_Delaunay_criterion.f90 \
-  mesh/Delaunay/flip_triangles.f90 \
-  mesh/Delaunay/move_vertices.f90 \
-  mesh/Delaunay/split_border_edges.f90 \
-  mesh/Delaunay/split_edges.f90 \
-  mesh/Delaunay/split_triangles.f90 \
-  mesh/edges/mesh_edges.f90 \
-  mesh/Voronoi_mesh/mesh_Voronoi.f90 \
-  mesh/mesh_refinement_basic.f90 \
-  mesh/mesh_refinement_basic_ROI.f90 \
-  mesh/mesh_refinement_fun.f90 \
-  mesh/mesh_contiguous_domains.f90 \
-  mesh/mesh_Lloyds_algorithm.f90 \
-  mesh/mesh_parallel_creation.f90 \
-  mesh/mesh_zeta.f90 \
-  mesh/discretisation/mesh_translation_tables.f90 \
-  mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
-  mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
-  mesh/discretisation/mesh_disc_apply_operators.f90 \
-  mesh/mesh_parallelisation.f90 \
-  mesh/mesh_secondary.f90 \
-  mesh/mesh_halo_exchange.f90 \
-  mesh/creation/reduce_ice_geometry.f90 \
-  mesh/creation/mesh_creation_refine_in_ROIs.f90 \
-  mesh/creation/mesh_creation_from_reduced_geometry.f90 \
-  mesh/creation/mesh_creation_main.f90 \
-  mesh/mesh_repartitioning.f90 \
+  UPSY/mesh/mesh_memory.f90 \
+  UPSY/mesh/mesh_utilities.f90 \
+  UPSY/mesh/mesh_integrate_over_domain.f90 \
+  UPSY/mesh/mesh_contour.f90 \
+  UPSY/mesh/mesh_dummy_meshes.f90 \
+  UPSY/mesh/mesh_ROI_polygons.f90 \
+  UPSY/mesh/Delaunay/check_Delaunay_criterion.f90 \
+  UPSY/mesh/Delaunay/flip_triangles.f90 \
+  UPSY/mesh/Delaunay/move_vertices.f90 \
+  UPSY/mesh/Delaunay/split_border_edges.f90 \
+  UPSY/mesh/Delaunay/split_edges.f90 \
+  UPSY/mesh/Delaunay/split_triangles.f90 \
+  UPSY/mesh/edges/mesh_edges.f90 \
+  UPSY/mesh/Voronoi_mesh/mesh_Voronoi.f90 \
+  UPSY/mesh/mesh_refinement_basic.f90 \
+  UPSY/mesh/mesh_refinement_basic_ROI.f90 \
+  UPSY/mesh/mesh_refinement_fun.f90 \
+  UPSY/mesh/mesh_contiguous_domains.f90 \
+  UPSY/mesh/mesh_Lloyds_algorithm.f90 \
+  UPSY/mesh/mesh_parallel_creation.f90 \
+  UPSY/mesh/mesh_zeta.f90 \
+  UPSY/mesh/discretisation/mesh_translation_tables.f90 \
+  UPSY/mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
+  UPSY/mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
+  UPSY/mesh/discretisation/mesh_disc_apply_operators.f90 \
+  UPSY/mesh/mesh_parallelisation.f90 \
+  UPSY/mesh/mesh_secondary.f90 \
+  UPSY/mesh/mesh_halo_exchange.f90 \
+  UPSY/mesh/creation/reduce_ice_geometry.f90 \
+  UPSY/mesh/creation/mesh_creation_refine_in_ROIs.f90 \
+  UPSY/mesh/creation/mesh_creation_from_reduced_geometry.f90 \
+  UPSY/mesh/creation/mesh_creation_main.f90 \
+  UPSY/mesh/mesh_repartitioning.f90 \
   \
   UPSY/io/netcdf_basic/netcdf_basic_wrappers.f90 \
   UPSY/io/netcdf_basic/netcdf_field_name_options.f90 \
@@ -214,22 +214,22 @@ UFEMISM_source = \
   UPSY/io/netcdf_output/netcdf_resource_tracking.f90 \
   UPSY/io/netcdf_output/netcdf_output.f90 \
   \
-  mesh/remapping/line_tracing_basic.f90 \
-  mesh/remapping/line_tracing_grid.f90 \
-  mesh/remapping/line_tracing_triangles.f90 \
-  mesh/remapping/line_tracing_Voronoi.f90 \
-  mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
-  mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
-  mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
-  mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
-  mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
-  mesh/remapping/remapping_mesh_to_mesh.f90 \
-  mesh/remapping/apply_maps.f90 \
-  mesh/remapping/remapping_main.f90 \
-  mesh/mesh_data_smoothing.f90 \
+  UPSY/mesh/remapping/line_tracing_basic.f90 \
+  UPSY/mesh/remapping/line_tracing_grid.f90 \
+  UPSY/mesh/remapping/line_tracing_triangles.f90 \
+  UPSY/mesh/remapping/line_tracing_Voronoi.f90 \
+  UPSY/mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
+  UPSY/mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
+  UPSY/mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
+  UPSY/mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
+  UPSY/mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
+  UPSY/mesh/remapping/remapping_mesh_to_mesh.f90 \
+  UPSY/mesh/remapping/apply_maps.f90 \
+  UPSY/mesh/remapping/remapping_main.f90 \
+  UPSY/mesh/mesh_data_smoothing.f90 \
   \
-  io/read_and_remap/read_and_remap_field_from_file.f90 \
-  io/netcdf_io_main.f90 \
+  UPSY/io/read_and_remap/read_and_remap_field_from_file.f90 \
+  UPSY/io/netcdf_io_main.f90 \
 	\
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
