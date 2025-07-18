@@ -86,13 +86,18 @@ $(OBJ_PATH)/%.o : */*/*/*/*/*/%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
 
 UFEMISM_source = \
   \
-  basic/precisions.f90 \
+  UPSY/basic/precisions.f90 \
   \
-  types/parallel_array_info_type.f90 \
-  types/CSR_sparse_matrix_type.f90 \
-  types/grid_types.f90 \
-  types/mesh_types.f90 \
-  types/remapping_types.f90 \
+  UPSY/types/parallel_array_info_type.f90 \
+  UPSY/types/CSR_sparse_matrix_type.f90 \
+  UPSY/types/grid_types.f90 \
+  UPSY/types/mesh_types.f90 \
+  UPSY/types/remapping_types.f90 \
+  \
+  UPSY/basic/parameters.f90 \
+  \
+  UPSY/basic/mpi_parallelisation/mpi_basic.f90 \
+	\
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
   types/global_forcing_types.f90 \
@@ -110,64 +115,56 @@ UFEMISM_source = \
   types/transect_types.f90 \
   types/region_types.f90 \
   \
-  basic/parameters.f90 \
-  \
-  basic/mpi_parallelisation/mpi_basic.f90 \
-  \
-  basic/reallocate_mod.f90 \
-  basic/string_module.f90 \
-  basic/control_resources_and_error_messaging.f90 \
+  UPSY/basic/reallocate_mod.f90 \
+  UPSY/basic/string_module.f90 \
+  UPSY/basic/control_resources_and_error_messaging.f90 \
   basic/model_configuration.f90 \
   \
-  validation/basic_tests/tests_logical.f90 \
-  validation/basic_tests/tests_int.f90 \
-  validation/basic_tests/tests_dp.f90 \
-  validation/basic_tests/tests_CSR.f90 \
-  validation/basic_tests/tests_grid.f90 \
-  validation/basic_tests/tests_grid_lonlat.f90 \
-  validation/basic_tests/tests_mesh.f90 \
-  validation/basic_tests/tests_main.f90 \
-  validation/basic_tests/assertions_basic.f90 \
+  UPSY/validation/basic_tests/tests_logical.f90 \
+  UPSY/validation/basic_tests/tests_int.f90 \
+  UPSY/validation/basic_tests/tests_dp.f90 \
+  UPSY/validation/basic_tests/tests_CSR.f90 \
+  UPSY/validation/basic_tests/tests_grid.f90 \
+  UPSY/validation/basic_tests/tests_grid_lonlat.f90 \
+  UPSY/validation/basic_tests/tests_mesh.f90 \
+  UPSY/validation/basic_tests/tests_main.f90 \
+  UPSY/validation/basic_tests/assertions_basic.f90 \
   \
-  basic/mpi_parallelisation/mpi_distributed_memory.f90 \
-  basic/mpi_parallelisation/allocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/reallocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
-  basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
-  basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
-  basic/mpi_parallelisation/dist_to_hybrid_mod.f90 \
-  basic/mpi_parallelisation/halo_exchange_mod.f90 \
-  basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
-  basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
+  UPSY/basic/mpi_parallelisation/mpi_distributed_memory.f90 \
+  UPSY/basic/mpi_parallelisation/allocate_dist_shared_mod.f90 \
+  UPSY/basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
+  UPSY/basic/mpi_parallelisation/reallocate_dist_shared_mod.f90 \
+  UPSY/basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
+  UPSY/basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
+  UPSY/basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
+  UPSY/basic/mpi_parallelisation/dist_to_hybrid_mod.f90 \
+  UPSY/basic/mpi_parallelisation/halo_exchange_mod.f90 \
+  UPSY/basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
+  UPSY/basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
 	\
-	basic/checksum_mod.f90 \
+	UPSY/basic/checksum_mod.f90 \
   \
-  basic/math_utilities/flip_mod.f90 \
-  basic/math_utilities/permute_mod.f90 \
-  basic/math_utilities/projections.f90 \
-  basic/math_utilities/matrix_algebra.f90 \
-  basic/math_utilities/plane_geometry.f90 \
-  basic/math_utilities/ice_geometry_basics.f90 \
-  basic/math_utilities/line_integrals.f90 \
-  basic/math_utilities/sorting.f90 \
-  basic/math_utilities/erf_mod.f90 \
-  basic/math_utilities/interpolation.f90 \
-  basic/math_utilities/tridiagonal_solver.f90 \
-  basic/math_utilities/shape_functions.f90 \
+  UPSY/basic/math_utilities/flip_mod.f90 \
+  UPSY/basic/math_utilities/permute_mod.f90 \
+  UPSY/basic/math_utilities/projections.f90 \
+  UPSY/basic/math_utilities/matrix_algebra.f90 \
+  UPSY/basic/math_utilities/plane_geometry.f90 \
+  UPSY/basic/math_utilities/ice_geometry_basics.f90 \
+  UPSY/basic/math_utilities/line_integrals.f90 \
+  UPSY/basic/math_utilities/sorting.f90 \
+  UPSY/basic/math_utilities/erf_mod.f90 \
+  UPSY/basic/math_utilities/interpolation.f90 \
+  UPSY/basic/math_utilities/tridiagonal_solver.f90 \
+  UPSY/basic/math_utilities/shape_functions.f90 \
   \
-  basic/analytical_solutions/Halfar_SIA_solution.f90 \
-  basic/analytical_solutions/Bueler_SIA_solution.f90 \
-  basic/analytical_solutions/Schoof_SSA_solution.f90 \
+  UPSY/basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
+  UPSY/basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
+  UPSY/basic/CSR_matrix_algebra/CSR_matrix_solving.f90 \
+  UPSY/basic/petsc_basic.f90 \
   \
-  basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
-  basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
-  basic/CSR_matrix_algebra/CSR_matrix_solving.f90 \
-  basic/petsc_basic.f90 \
-  \
-  basic/grid/grid_basic.f90 \
-  basic/grid/smooth_gridded_data.f90 \
-  basic/grid_lonlat_basic.f90 \
+  UPSY/basic/grid/grid_basic.f90 \
+  UPSY/basic/grid/smooth_gridded_data.f90 \
+  UPSY/basic/grid_lonlat_basic.f90 \
   \
   mesh/mesh_memory.f90 \
   mesh/mesh_utilities.f90 \
@@ -203,38 +200,38 @@ UFEMISM_source = \
   mesh/creation/mesh_creation_main.f90 \
   mesh/mesh_repartitioning.f90 \
   \
-  io/netcdf_basic/netcdf_basic_wrappers.f90 \
-  io/netcdf_basic/netcdf_field_name_options.f90 \
-  io/netcdf_basic/netcdf_inquire_dimensions.f90 \
-  io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
-  io/netcdf_basic/netcdf_read_var_primary.f90 \
-  io/netcdf_basic/netcdf_check_dimensions.f90 \
-  io/netcdf_basic/netcdf_write_var_primary.f90 \
-  io/netcdf_basic/netcdf_check_fields.f90 \
-  io/netcdf_basic/netcdf_find_timeframe.f90 \
-  io/netcdf_basic/netcdf_save_single_variables.f90 \
-  io/netcdf_basic/netcdf_basic.f90 \
+  UPSY/io/netcdf_basic/netcdf_basic_wrappers.f90 \
+  UPSY/io/netcdf_basic/netcdf_field_name_options.f90 \
+  UPSY/io/netcdf_basic/netcdf_inquire_dimensions.f90 \
+  UPSY/io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
+  UPSY/io/netcdf_basic/netcdf_read_var_primary.f90 \
+  UPSY/io/netcdf_basic/netcdf_check_dimensions.f90 \
+  UPSY/io/netcdf_basic/netcdf_write_var_primary.f90 \
+  UPSY/io/netcdf_basic/netcdf_check_fields.f90 \
+  UPSY/io/netcdf_basic/netcdf_find_timeframe.f90 \
+  UPSY/io/netcdf_basic/netcdf_save_single_variables.f90 \
+  UPSY/io/netcdf_basic/netcdf_basic.f90 \
   \
-  io/netcdf_input/netcdf_determine_indexing.f90 \
-  io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_series_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
-  io/netcdf_input/netcdf_input.f90 \
+  UPSY/io/netcdf_input/netcdf_determine_indexing.f90 \
+  UPSY/io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_series_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
+  UPSY/io/netcdf_input/netcdf_input.f90 \
   \
-  io/netcdf_output/netcdf_generate_numbered_filename.f90 \
-  io/netcdf_output/netcdf_add_write_scalar_variables.f90 \
-  io/netcdf_output/netcdf_add_basic_dimensions.f90 \
-  io/netcdf_output/netcdf_bedrock_CDF.f90 \
-  io/netcdf_output/netcdf_add_field_grid.f90 \
-  io/netcdf_output/netcdf_add_field_mesh.f90 \
-  io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
-  io/netcdf_output/netcdf_write_field_grid.f90 \
-  io/netcdf_output/netcdf_write_field_mesh.f90 \
-  io/netcdf_output/netcdf_write_field_transect.f90 \
-  io/netcdf_output/netcdf_resource_tracking.f90 \
-  io/netcdf_output/netcdf_output.f90 \
+  UPSY/io/netcdf_output/netcdf_generate_numbered_filename.f90 \
+  UPSY/io/netcdf_output/netcdf_add_write_scalar_variables.f90 \
+  UPSY/io/netcdf_output/netcdf_add_basic_dimensions.f90 \
+  UPSY/io/netcdf_output/netcdf_bedrock_CDF.f90 \
+  UPSY/io/netcdf_output/netcdf_add_field_grid.f90 \
+  UPSY/io/netcdf_output/netcdf_add_field_mesh.f90 \
+  UPSY/io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
+  UPSY/io/netcdf_output/netcdf_write_field_grid.f90 \
+  UPSY/io/netcdf_output/netcdf_write_field_mesh.f90 \
+  UPSY/io/netcdf_output/netcdf_write_field_transect.f90 \
+  UPSY/io/netcdf_output/netcdf_resource_tracking.f90 \
+  UPSY/io/netcdf_output/netcdf_output.f90 \
   \
   mesh/remapping/line_tracing_basic.f90 \
   mesh/remapping/line_tracing_grid.f90 \
@@ -259,6 +256,10 @@ UFEMISM_source = \
   io/main_regional_output/scalar_output_files.f90 \
   io/main_regional_output/grid_output_files.f90 \
   io/main_regional_output/mesh_output_files.f90 \
+  \
+  basic/analytical_solutions/Halfar_SIA_solution.f90 \
+  basic/analytical_solutions/Bueler_SIA_solution.f90 \
+  basic/analytical_solutions/Schoof_SSA_solution.f90 \
   \
   reference_geometries/idealised_geometries.f90 \
   reference_geometries/preprocess_geometry.f90 \
