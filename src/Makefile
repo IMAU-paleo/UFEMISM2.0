@@ -303,6 +303,7 @@ UFEMISM_source = \
   basal_mass_balance/BMB_prescribed.f90 \
   basal_mass_balance/BMB_parameterised.f90 \
   basal_mass_balance/BMB_laddie.f90 \
+  basal_mass_balance/BMB_inverted.f90 \
   basal_mass_balance/BMB_main.f90 \
   \
   lateral_mass_balance/LMB_GlacialIndex.f90 \

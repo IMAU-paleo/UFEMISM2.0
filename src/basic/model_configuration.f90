@@ -236,6 +236,10 @@ MODULE model_configuration
     REAL(dp)            :: ROI_maximum_resolution_coastline_config      = 50e3_dp                          ! [m]          Maximum resolution for the coastline
     REAL(dp)            :: ROI_coastline_width_config                   = 50e3_dp                          ! [m]          Width of the band around the coastline that should get this resolution
 
+    ! Miscellaneous refinement options
+    logical             :: do_refine_TransAntMounts_glaciers_config     = .false.                          !              Whether or not to refine the mesh over the Transantarctic Mountains glaciers (resolving those really helps in getting a stable Ross ice shelf)
+    real(dp)            :: max_res_TransAntMounts_glaciers_config       = 5e3_dp                           ! [m]          Maximum resolution for the Transantarctic Mountains glaciers
+
     ! Mesh update settings
     LOGICAL             :: allow_mesh_updates_config                    = .TRUE.                           ! [-]          Whether or not mesh updates are allowed
     REAL(dp)            :: dt_mesh_update_min_config                    = 50._dp                           ! [yr]         Minimum amount of time between mesh updates
@@ -787,10 +791,9 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB_config                   = .TRUE.                           ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
 
-    ! Inversion
-    LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
-    REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
-    REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
+    ! Hard limits on melt/refreezing rates
+    REAL(dp)            :: BMB_maximum_allowed_melt_rate_config         = 100._dp                         ! [m/yr] Maximum allowed melt       rate   (note: positive value means melt!)
+    REAL(dp)            :: BMB_maximum_allowed_refreezing_rate_config   = 10._dp                         ! [m/yr] Maximum allowed refreezing rate   (note: positive value means refreezing!)
 
     ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
@@ -812,7 +815,6 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
-
 
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM_config             = ''
@@ -853,6 +855,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
     CHARACTER(LEN=256)  :: conda_activate_prompt_config                 = 'conda activate laddie'          ! Prompt to activate conda environment used for running laddie
+
+    ! "inverted"
+    REAL(dp)            :: BMB_inversion_t_start_config                 = -9.9E9                           ! [yr] Only nudge melt rates when the model time lies between t_start and t_end
+    REAL(dp)            :: BMB_inversion_t_end_config                   =  9.9E9                           ! [yr]
 
   ! == LADDIE model
   ! ===============
@@ -1322,6 +1328,10 @@ MODULE model_configuration
     REAL(dp)            :: ROI_ice_front_width
     REAL(dp)            :: ROI_maximum_resolution_coastline
     REAL(dp)            :: ROI_coastline_width
+
+    ! Miscellaneous refinement options
+    logical             :: do_refine_TransAntMounts_glaciers
+    real(dp)            :: max_res_TransAntMounts_glaciers
 
     ! Mesh update settings
     LOGICAL             :: allow_mesh_updates
@@ -1875,10 +1885,9 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB
     REAL(dp)            :: dt_BMB
 
-    ! Inversion
-    LOGICAL             :: do_BMB_inversion
-    REAL(dp)            :: BMB_inversion_t_start
-    REAL(dp)            :: BMB_inversion_t_end
+    ! Hard limits on melt/refreezing rates
+    REAL(dp)            :: BMB_maximum_allowed_melt_rate
+    REAL(dp)            :: BMB_maximum_allowed_refreezing_rate
 
     ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase
@@ -1941,6 +1950,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model
     CHARACTER(LEN=256)  :: conda_activate_prompt
+
+    ! "inverted"
+    REAL(dp)            :: BMB_inversion_t_start
+    REAL(dp)            :: BMB_inversion_t_end
 
   ! == LADDIE model
   ! ===============
@@ -2557,6 +2570,8 @@ CONTAINS
       ROI_ice_front_width_config                                  , &
       ROI_maximum_resolution_coastline_config                     , &
       ROI_coastline_width_config                                  , &
+      do_refine_TransAntMounts_glaciers_config                    , &
+      max_res_TransAntMounts_glaciers_config                      , &
       allow_mesh_updates_config                                   , &
       dt_mesh_update_min_config                                   , &
       minimum_mesh_fitness_coefficient_config                     , &
@@ -2906,9 +2921,8 @@ CONTAINS
       SMB_IMAUITM_albedo_snow_config                              , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
-      do_BMB_inversion_config                                     , &
-      BMB_inversion_t_start_config                                , &
-      BMB_inversion_t_end_config                                  , &
+      BMB_maximum_allowed_melt_rate_config                        , &
+      BMB_maximum_allowed_refreezing_rate_config                  , &
       do_BMB_transition_phase_config                              , &
       BMB_transition_phase_t_start_config                         , &
       BMB_transition_phase_t_end_config                           , &
@@ -2946,6 +2960,8 @@ CONTAINS
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
       conda_activate_prompt_config                                , &
+      BMB_inversion_t_start_config                                , &
+      BMB_inversion_t_end_config                                  , &
       do_repartition_laddie_config                                , &
       do_write_laddie_output_fields_config                        , &
       do_write_laddie_output_scalar_config                        , &
@@ -3368,6 +3384,10 @@ CONTAINS
     C%ROI_ice_front_width                                    = ROI_ice_front_width_config
     C%ROI_maximum_resolution_coastline                       = ROI_maximum_resolution_coastline_config
     C%ROI_coastline_width                                    = ROI_coastline_width_config
+
+    ! Miscellaneous refinement options
+    C%do_refine_TransAntMounts_glaciers                      = do_refine_TransAntMounts_glaciers_config
+    C%max_res_TransAntMounts_glaciers                        = max_res_TransAntMounts_glaciers_config
 
     ! Mesh update settings
     C%allow_mesh_updates                                     = allow_mesh_updates_config
@@ -3919,10 +3939,9 @@ CONTAINS
     C%do_asynchronous_BMB                                    = do_asynchronous_BMB_config
     C%dt_BMB                                                 = dt_BMB_config
 
-    ! Inversion
-    C%do_BMB_inversion                                       = do_BMB_inversion_config
-    C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
-    C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
+    ! Hard limits on melt/refreezing rates
+    C%BMB_maximum_allowed_melt_rate                          = BMB_maximum_allowed_melt_rate_config
+    C%BMB_maximum_allowed_refreezing_rate                    = BMB_maximum_allowed_refreezing_rate_config
 
     ! BMB transition phase
     C%do_BMB_transition_phase                                = do_BMB_transition_phase_config
@@ -3985,6 +4004,10 @@ CONTAINS
     C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
     C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
     C%conda_activate_prompt                                  = conda_activate_prompt_config
+
+    ! "inverted|
+    C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
+    C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
 
   ! == LADDIE model
   ! ===============
