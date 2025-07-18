@@ -190,49 +190,49 @@ CONTAINS
     
     ! In/output variables:
 !    REAL(dp),                            INTENT(IN)    :: time
-    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
+    type(type_global_forcing),         intent(inout)   :: forcing
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_CO2_record'
-    INTEGER                                            :: i,ios
+    character(LEN=256), parameter                      :: routine_name = 'initialise_CO2_record'
+    integer                                            :: i,ios
     integer                                            :: CO2_record_length
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     ! Safety
-    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
+    if     (C%choice_matrix_forcing == 'CO2_direct') THEN
       ! Observed CO2 is needed for these forcing methods.
-    ELSE
-      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
-    END IF
+    else
+      call crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
+    end if
     
-    IF (par%primary)  WRITE(*,"(A)") ' Initialising CO2 record '
+    if (par%primary)  write(*,"(A)") ' Initialising CO2 record '
 
     ! Read CO2 record (time and values) from specified text file
-    IF (par%primary)  WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+    if (par%primary)  write(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
 
     call read_field_from_series_file( C%filename_CO2_record, field_name_options_CO2, forcing%CO2_record, forcing%CO2_time)
 
     CO2_record_length = size(forcing%CO2_record)
-      IF (C%start_time_of_run < forcing%CO2_time(1)) THEN
-      print *, "print value of forcing%CO2_time(first), ", forcing%CO2_time(1)
-         CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
-      END IF
-      IF (C%end_time_of_run > forcing%CO2_time(CO2_record_length)) THEN
-      print *, "value of forcing%CO2_time(last), ", forcing%CO2_time(CO2_record_length)
-         CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
-      END IF
+      if (C%start_time_of_run < forcing%CO2_time(1)) THEN
+      !print *, "print value of forcing%CO2_time(first), ", forcing%CO2_time(1)
+         call warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
+      end if
+      if (C%end_time_of_run > forcing%CO2_time(CO2_record_length)) THEN
+      !print *, "value of forcing%CO2_time(last), ", forcing%CO2_time(CO2_record_length)
+         call warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
+      end if
     
      !Set the value for the current (starting) model time
-    CALL update_CO2_at_model_time( forcing, C%start_time_of_run)
+    call update_CO2_at_model_time( forcing, C%start_time_of_run)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
   end subroutine initialise_CO2_record
 
-  SUBROUTINE update_CO2_at_model_time( forcing, time)
+  subroutine update_CO2_at_model_time( forcing, time)
     ! Interpolate the data in forcing%CO2 to find the value at the queried time.
     ! If time lies outside the range of forcing%CO2_time, return the first/last value
     !
@@ -241,56 +241,54 @@ CONTAINS
     ! NOTE: calculates average value over the preceding 30 years. For paleo this doesn't matter
     !       in the least, but for the historical period this makes everything more smooth.
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    REAL(dp),                            INTENT(IN)    :: time
-    TYPE(type_global_forcing),         INTENT(INOUT)   :: forcing
+    real(dp),                            intent(in)    :: time
+    type(type_global_forcing),           intent(out)   :: forcing
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
-    INTEGER                                            :: ti1, ti2, til, tiu
-    REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2, CO2_aux
-    REAL(dp), PARAMETER                                :: dt_smooth = 60._dp
+    character(LEN=256), parameter                      :: routine_name = 'update_CO2_at_model_time'
+    integer                                            :: ti1, ti2, til, tiu
+    real(dp)                                           :: a, b, tl, tu, intCO2, dintCO2, CO2_aux
+    real(dp), parameter                                :: dt_smooth = 60._dp
     integer                                            :: CO2_record_length
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
     !IF (par%primary)  WRITE(*,"(A)") '   Updating CO2 at model time...'
 
     ! Safety
-    IF     (C%choice_matrix_forcing == 'CO2_direct') THEN
+    if     (C%choice_matrix_forcing == 'CO2_direct') then
       ! Observed CO2 is needed for these forcing methods.
-    ELSE
-      CALL crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
-    END IF
+    else
+      call crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
+    end if
 
     CO2_record_length = size(forcing%CO2_record)
 
-    IF     (time < MINVAL( forcing%CO2_time)) THEN
+    if     (time < MINVAL( forcing%CO2_time)) then
       ! Model time before start of CO2 record; using constant extrapolation
       forcing%CO2_obs = forcing%CO2_record( 1)
-    ELSEIF (time > MAXVAL( forcing%CO2_time)) THEN
+    elseif (time > MAXVAL( forcing%CO2_time)) then
       ! Model time beyond end of CO2 record; using constant extrapolation
       forcing%CO2_obs = forcing%CO2_record( CO2_record_length)
-    ELSE
+    else
 
       ! Find range of raw time frames enveloping model time
       ti1 = 1
-      DO WHILE (forcing%CO2_time( ti1) < time - dt_smooth .AND. ti1 < CO2_record_length)
+      do while (forcing%CO2_time( ti1) < time - dt_smooth .AND. ti1 < CO2_record_length)
         ti1 = ti1 + 1
-      END DO
+      end do
       ti1 = MAX( 1, ti1 - 1)
 
       ti2 = 2
-      DO WHILE (forcing%CO2_time( ti2) < time             .AND. ti2 < CO2_record_length)
+      do while (forcing%CO2_time( ti2) < time             .AND. ti2 < CO2_record_length)
         ti2 = ti2 + 1
-      END DO
+      end do
 
       ! Calculate conservatively-remapped time-averaged CO2
       intCO2 = 0._dp
-      DO til = ti1, ti2 - 1
+      do til = ti1, ti2 - 1
         tiu = til + 1
 
         ! Linear interpolation between til and tiu: CO2( t) = a + b*t
@@ -302,15 +300,15 @@ CONTAINS
         tu = MIN( forcing%CO2_time( tiu), time            )
         dintCO2 = (tu - tl) * (a + b * (tl + tu) / 2._dp)
         intCO2 = intCO2 + dintCO2
-      END DO
+      end do
       forcing%CO2_obs = intCO2 / dt_smooth
 
-    END IF
-    CALL sync
+    end if
+    call sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE update_CO2_at_model_time
+  end subroutine update_CO2_at_model_time
 
 END MODULE global_forcings_main
