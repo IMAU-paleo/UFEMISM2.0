@@ -70,7 +70,7 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
   ymin = -50e3_dp
   ymax =  50e3_dp
 
-  call allocate_mesh_primary( mesh, name, 5, 4, C%nC_mem)
+  call allocate_mesh_primary( mesh, name, 5, 4)
   call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
   call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
   call calc_field_to_vector_form_translation_tables( mesh)
@@ -179,10 +179,10 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
   do vi = mesh%vi1, mesh%vi2
     if (vi == 5) then
 
-      ! Ice shelf should still be NaN 
+      ! Ice shelf should still be NaN
       if (.not. isnan(ocean%T( vi, 1))) test_result = .false.
 
-      ! Bedrock below cavity should still be NaN 
+      ! Bedrock below cavity should still be NaN
       if (.not. isnan(ocean%T( vi, C%nz_ocean))) test_result = .false.
 
       ! Shallow cavity should be in between offshore values
@@ -212,10 +212,10 @@ subroutine unit_tests_ocean_extrapolation_main( test_name_parent)
       if (isnan( ocean%T( vi, C%nz_ocean))) test_result = .false.
     elseif (vi == 5) then
 
-      ! Ice shelf should be equal to first non-NaN 
+      ! Ice shelf should be equal to first non-NaN
       if (.not. (ocean%T( vi, 1) == ocean%T( vi, 4))) test_result = .false.
 
-      ! Bedrock should be equal to cold water 
+      ! Bedrock should be equal to cold water
       if (.not. (ocean%T( vi, C%nz_ocean) == 0._dp)) test_result = .false.
     else
       ! All other values should still be NaN

@@ -140,7 +140,7 @@ contains
     alpha_min = 25._dp * pi / 180._dp
     res_max = pi / 20._dp
 
-    call allocate_mesh_primary( mesh, name, 100, 200, C%nC_mem)
+    call allocate_mesh_primary( mesh, name, 100, 200)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
     call refine_mesh_uniform( mesh, res_max, alpha_min)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
@@ -186,7 +186,7 @@ contains
     alpha_min = 25._dp * pi / 180._dp
     res_max = pi / 20._dp
 
-    call allocate_mesh_primary( mesh, name, 100, 200, C%nC_mem)
+    call allocate_mesh_primary( mesh, name, 100, 200)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
     call refine_mesh_uniform( mesh, res_max, alpha_min)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)

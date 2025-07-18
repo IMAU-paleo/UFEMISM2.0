@@ -87,10 +87,10 @@ contains
     ! Add test name to list
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
-    call allocate_mesh_primary( mesh_nV5    , 'mesh_nV5'    , 100, 200, C%nC_mem)
-    call allocate_mesh_primary( mesh_nV9    , 'mesh_nV9'    , 100, 200, C%nC_mem)
-    call allocate_mesh_primary( mesh_nV16   , 'mesh_nV16'   , 100, 200, C%nC_mem)
-    call allocate_mesh_primary( mesh_refined, 'mesh_refined', 100, 200, C%nC_mem)
+    call allocate_mesh_primary( mesh_nV5    , 'mesh_nV5'    , 100, 200)
+    call allocate_mesh_primary( mesh_nV9    , 'mesh_nV9'    , 100, 200)
+    call allocate_mesh_primary( mesh_nV16   , 'mesh_nV16'   , 100, 200)
+    call allocate_mesh_primary( mesh_refined, 'mesh_refined', 100, 200)
 
     call initialise_dummy_mesh_5 ( mesh_nV5    , xmin, xmax, ymin, ymax)
     call initialise_dummy_mesh_9 ( mesh_nV9    , xmin, xmax, ymin, ymax)

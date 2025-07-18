@@ -51,7 +51,7 @@ contains
     call init_routine( routine_name)
 
     ! Choose single-core or parallelised version
-    if (C%do_singlecore_mesh_creation) then
+    if (mesh%do_singlecore_mesh_creation) then
       call create_mesh_from_reduced_geometry_singlecore( region_name, name, poly_mult_sheet, poly_mult_shelf, &
         p_line_grounding_line, p_line_calving_front, p_line_ice_front, p_line_coastline, &
         xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, mesh)
@@ -99,7 +99,7 @@ contains
     if (par%primary) then
 
       ! allocate mesh memory
-      call allocate_mesh_primary( mesh, name, 1000, 2000, C%nC_mem)
+      call allocate_mesh_primary( mesh, name, 1000, 2000)
 
       ! Initialise the dummy mesh
       call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)

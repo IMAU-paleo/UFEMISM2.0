@@ -39,7 +39,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'broadcast_mesh'
-    INTEGER                                       :: nV_mem, nTri_mem, nC_mem, ierr
+    INTEGER                                       :: nV_mem, nTri_mem, ierr
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -55,17 +55,15 @@ CONTAINS
     IF (par%primary) THEN
       nV_mem    = mesh%nV_mem
       nTri_mem  = mesh%nTri_mem
-      nC_mem    = mesh%nC_mem
     END IF
 
     CALL MPI_BCAST( nV_mem          , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( nTri_mem        , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( nC_mem          , 1                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( mesh%name       , 256              , MPI_CHAR            , 0, MPI_COMM_WORLD, ierr)
 
     ! Allocate memory on non-primary processes
     IF (.NOT. par%primary) THEN
-      CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem, nC_mem)
+      CALL allocate_mesh_primary( mesh, mesh%name, nV_mem, nTri_mem)
     END IF
 
     ! Broadcast mesh data
@@ -84,12 +82,12 @@ CONTAINS
     CALL MPI_BCAST( mesh%beta_stereo, 1                , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
 
     ! Vertex data
-    CALL MPI_BCAST( mesh%V(:,:)          , nV_mem   * 2     , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%nC(:)         , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%C(:,:)          , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%niTri(:)      , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%iTri(:,:)       , nV_mem   * nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
-    CALL MPI_BCAST( mesh%VBI(:)        , nV_mem           , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%V(:,:)          , nV_mem   * 2          , MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%nC(:  )         , nV_mem                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%C(:,:)          , nV_mem   * mesh%nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%niTri(:  )      , nV_mem                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%iTri(:,:)       , nV_mem   * mesh%nC_mem, MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( mesh%VBI(:  )        , nV_mem                , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
 
     ! Triangle data
     CALL MPI_BCAST( mesh%Tri(:,:)        , nTri_mem * 3     , MPI_INTEGER         , 0, MPI_COMM_WORLD, ierr)
@@ -208,7 +206,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'receive_submesh'
     integer                                       :: ierr
     type(MPI_STATUS)                              :: recv_status
-    INTEGER                                       :: nV_mem, nTri_mem, nC_mem, nV, nTri
+    INTEGER                                       :: nV_mem, nTri_mem, nV, nTri
     CHARACTER(LEN=256)                            :: mesh_name
 
     ! Add routine to path
@@ -217,14 +215,13 @@ CONTAINS
     ! Receive mesh size
     CALL MPI_RECV( nV_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( nTri_mem     , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
-    CALL MPI_RECV( nC_mem       , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( nV           , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
     CALL MPI_RECV( nTri         , 1                          , MPI_INTEGER         , p_from, MPI_ANY_TAG, MPI_COMM_WORLD, recv_status, ierr)
 
 
     ! Allocate memory for mesh
     mesh_name = 'mesh_recv'
-    CALL allocate_mesh_primary( mesh, mesh_name, nV_mem, nTri_mem, nC_mem)
+    CALL allocate_mesh_primary( mesh, mesh_name, nV_mem, nTri_mem)
 
     mesh%nV   = nV
     mesh%nTri = nTri

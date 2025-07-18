@@ -53,7 +53,7 @@ contains
     alpha_min = 25._dp * pi / 180._dp
     res_max = 50e3_dp
 
-    call allocate_mesh_primary( mesh, name, 100, 200, C%nC_mem)
+    call allocate_mesh_primary( mesh, name, 100, 200)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
     C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_uniform( mesh, res_max, alpha_min)

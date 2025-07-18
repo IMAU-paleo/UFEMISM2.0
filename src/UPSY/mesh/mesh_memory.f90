@@ -21,7 +21,7 @@ CONTAINS
 ! ===== Subroutines =====
 ! =======================
 
-  SUBROUTINE allocate_mesh_primary( mesh, name, nV_mem, nTri_mem, nC_mem)
+  SUBROUTINE allocate_mesh_primary( mesh, name, nV_mem, nTri_mem)
     ! Allocate memory for primary mesh data (everything thats's needed for mesh creation & refinement)
 
     IMPLICIT NONE
@@ -29,7 +29,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
     CHARACTER(LEN=*),                INTENT(IN)        :: name
-    INTEGER,                         INTENT(IN)        :: nV_mem, nTri_mem, nC_mem
+    INTEGER,                         INTENT(IN)        :: nV_mem, nTri_mem
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_mesh_primary'
@@ -40,7 +40,6 @@ CONTAINS
     mesh%name     = trim(name)
     mesh%nV_mem   = nV_mem
     mesh%nTri_mem = nTri_mem
-    mesh%nC_mem   = nC_mem
 
     ! Safety: check to make sure that no memory is allocated for this mesh yet
     IF (ALLOCATED( mesh%V               ) .OR. &
@@ -63,12 +62,12 @@ CONTAINS
     ! ===============
 
     ! Vertex data
-    ALLOCATE( mesh%V                (nV_mem,   2     ), source = 0._dp)
-    ALLOCATE( mesh%nC               (nV_mem          ), source = 0    )
-    ALLOCATE( mesh%C                (nV_mem,   nC_mem), source = 0    )
-    ALLOCATE( mesh%niTri            (nV_mem          ), source = 0    )
-    ALLOCATE( mesh%iTri             (nV_mem,   nC_mem), source = 0    )
-    ALLOCATE( mesh%VBI              (nV_mem          ), source = 0    )
+    ALLOCATE( mesh%V                (nV_mem,   2          ), source = 0._dp)
+    ALLOCATE( mesh%nC               (nV_mem               ), source = 0    )
+    ALLOCATE( mesh%C                (nV_mem,   mesh%nC_mem), source = 0    )
+    ALLOCATE( mesh%niTri            (nV_mem               ), source = 0    )
+    ALLOCATE( mesh%iTri             (nV_mem,   mesh%nC_mem), source = 0    )
+    ALLOCATE( mesh%VBI              (nV_mem               ), source = 0    )
 
     ! Triangle data
     ALLOCATE( mesh%Tri              (nTri_mem, 3     ), source = 0    )

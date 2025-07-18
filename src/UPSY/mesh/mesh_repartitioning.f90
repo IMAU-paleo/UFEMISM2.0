@@ -61,8 +61,7 @@ contains
 
     ! Copy primary mesh data
 
-    call allocate_mesh_primary( mesh_new, trim(mesh%name) // '_repartitioned', &
-      mesh%nV, mesh%nTri, mesh%nC_mem)
+    call allocate_mesh_primary( mesh_new, trim(mesh%name) // '_repartitioned', mesh%nV, mesh%nTri)
 
     mesh_new%V(                1:mesh%nV  ,:) = mesh%V(                1:mesh%nV  ,:)
     mesh_new%nC(               1:mesh%nV    ) = mesh%nC(               1:mesh%nV    )

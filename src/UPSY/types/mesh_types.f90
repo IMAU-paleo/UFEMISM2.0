@@ -16,6 +16,12 @@ module mesh_types
   type type_mesh
     ! The unstructured triangular mesh.
 
+  ! Mesh creation config parameters
+  ! ===============================
+
+    logical                                 :: do_singlecore_mesh_creation = .true.   ! Whether or not to let each process create the entire mesh themselves (as opposed to letting each process create a partial mesh and then merging them together - which is not yet supported...)
+
+
   ! Basic meta properties
   ! =====================
 
@@ -30,7 +36,7 @@ module mesh_types
     real(dp)                                :: tol_dist                      ! [m]       Horizontal distance tolerance; points closer together than this are assumed to be identical (typically set to a billionth of linear domain size)
     integer                                 :: nV_mem                        !           Size of allocated memory for vertices
     integer                                 :: nTri_mem                      !           Size of allocated memory for triangles
-    integer                                 :: nC_mem                        !           Maximum allowed number of connections per vertex
+    integer                                 :: nC_mem = 32                   !           Maximum allowed number of connections per vertex
     integer                                 :: nV                            !           Number of vertices
     integer                                 :: nTri                          !           Number of triangles
     integer                                 :: nz                            !           Number of vertical layers
