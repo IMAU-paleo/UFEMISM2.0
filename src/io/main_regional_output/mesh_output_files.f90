@@ -9,6 +9,7 @@ module mesh_output_files
   use mesh_types, only: type_mesh
   use ice_model_types, only: type_ice_model
   use netcdf_io_main
+  use netcdf_bedrock_CDF
   use netcdf, only: NF90_DOUBLE
   use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_signaling_nan
   use mesh_contour, only: calc_mesh_contour

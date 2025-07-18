@@ -14,7 +14,8 @@ module transects_main
   use string_module, only: separate_strings_by_double_vertical_bars
   use netcdf_io_main
   use netcdf, only: NF90_UNLIMITED
-  use remapping_main, only: map_from_mesh_vertices_to_transect_2D, map_from_mesh_vertices_to_transect_3D, &
+  use netcdf_write_field_transect
+  use remapping_transects, only: map_from_mesh_vertices_to_transect_2D, map_from_mesh_vertices_to_transect_3D, &
     map_from_mesh_triangles_to_transect_2D, map_from_mesh_triangles_to_transect_3D
   use parameters, only: ice_density
   use mesh_zeta, only: vertical_average

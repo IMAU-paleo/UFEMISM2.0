@@ -97,23 +97,6 @@ UFEMISM_source = \
   UPSY/basic/parameters.f90 \
   \
   UPSY/basic/mpi_parallelisation/mpi_basic.f90 \
-	\
-  types/reference_geometry_types.f90 \
-  types/scalar_types.f90 \
-  types/global_forcing_types.f90 \
-  types/bed_roughness_model_types.f90 \
-  types/ice_model_types.f90 \
-  types/climate_model_types.f90 \
-  types/ocean_model_types.f90 \
-  types/SMB_model_types.f90 \
-  types/laddie_model_types.f90 \
-  types/BMB_model_types.f90 \
-  types/LMB_model_types.f90 \
-  types/AMB_model_types.f90 \
-  types/GIA_model_types.f90 \
-  types/tracer_tracking_model_types.f90 \
-  types/transect_types.f90 \
-  types/region_types.f90 \
   \
   UPSY/basic/reallocate_mod.f90 \
   UPSY/basic/string_module.f90 \
@@ -223,13 +206,11 @@ UFEMISM_source = \
   UPSY/io/netcdf_output/netcdf_generate_numbered_filename.f90 \
   UPSY/io/netcdf_output/netcdf_add_write_scalar_variables.f90 \
   UPSY/io/netcdf_output/netcdf_add_basic_dimensions.f90 \
-  UPSY/io/netcdf_output/netcdf_bedrock_CDF.f90 \
   UPSY/io/netcdf_output/netcdf_add_field_grid.f90 \
   UPSY/io/netcdf_output/netcdf_add_field_mesh.f90 \
   UPSY/io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
   UPSY/io/netcdf_output/netcdf_write_field_grid.f90 \
   UPSY/io/netcdf_output/netcdf_write_field_mesh.f90 \
-  UPSY/io/netcdf_output/netcdf_write_field_transect.f90 \
   UPSY/io/netcdf_output/netcdf_resource_tracking.f90 \
   UPSY/io/netcdf_output/netcdf_output.f90 \
   \
@@ -243,15 +224,36 @@ UFEMISM_source = \
   mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
   mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
   mesh/remapping/remapping_mesh_to_mesh.f90 \
-  mesh/remapping/remapping_transects.f90 \
   mesh/remapping/apply_maps.f90 \
   mesh/remapping/remapping_main.f90 \
   mesh/mesh_data_smoothing.f90 \
   \
   io/read_and_remap/read_and_remap_field_from_file.f90 \
   io/netcdf_io_main.f90 \
+	\
+  types/reference_geometry_types.f90 \
+  types/scalar_types.f90 \
+  types/global_forcing_types.f90 \
+  types/bed_roughness_model_types.f90 \
+  types/ice_model_types.f90 \
+  types/climate_model_types.f90 \
+  types/ocean_model_types.f90 \
+  types/SMB_model_types.f90 \
+  types/laddie_model_types.f90 \
+  types/BMB_model_types.f90 \
+  types/LMB_model_types.f90 \
+  types/AMB_model_types.f90 \
+  types/GIA_model_types.f90 \
+  types/tracer_tracking_model_types.f90 \
+  types/transect_types.f90 \
+  types/region_types.f90 \
   \
-  io/transects/transects_main.f90 \
+  transects/netcdf_write_field_transect.f90 \
+  transects/apply_maps_transects.f90 \
+  transects/remapping_transects.f90 \
+  transects/transects_main.f90 \
+	\
+  io/netcdf_output/netcdf_bedrock_CDF.f90 \
   \
   io/main_regional_output/scalar_output_files.f90 \
   io/main_regional_output/grid_output_files.f90 \
