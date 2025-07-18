@@ -646,7 +646,6 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_matrix_forcing_config                 = 'none'                           ! 'none', 'CO2_direct' or 'd18O_inverse_CO2'
     ! CO2 record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)  :: filename_CO2_record_config                   = ''
-    INTEGER             :: CO2_record_length_config                     = 8001    
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)  :: filename_d18O_record_config                  = ''
     INTEGER             :: d18O_record_length_config                    = 2051
@@ -1771,7 +1770,6 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_matrix_forcing
     ! CO2 record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)  :: filename_CO2_record
-    INTEGER             :: CO2_record_length    
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)  :: filename_d18O_record
     INTEGER             :: d18O_record_length
@@ -2898,7 +2896,6 @@ CONTAINS
       static_insolation_time_config                               , &
       choice_matrix_forcing_config                                , &
       filename_CO2_record_config                                  , &
-      CO2_record_length_config                                    , &
       filename_d18O_record_config                                 , &
       d18O_record_length_config                                   , &
       climate_matrix_filename_PD_obs_climate_config               , &
@@ -3879,7 +3876,6 @@ CONTAINS
     ! Climate matrix forcing
     C%choice_matrix_forcing                                  = choice_matrix_forcing_config
     C%filename_CO2_record                                    = filename_CO2_record_config
-    C%CO2_record_length                                        = CO2_record_length_config   
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     C%filename_d18O_record                                     = filename_d18O_record_config
     C%d18O_record_length                                       = d18O_record_length_config
