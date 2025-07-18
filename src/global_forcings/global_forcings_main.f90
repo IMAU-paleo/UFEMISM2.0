@@ -243,7 +243,7 @@ CONTAINS
 
     ! In/output variables:
     real(dp),                            intent(in)    :: time
-    type(type_global_forcing),           intent(out)   :: forcing
+    type(type_global_forcing),           intent(inout) :: forcing
 
     ! Local variables:
     character(LEN=256), parameter                      :: routine_name = 'update_CO2_at_model_time'

@@ -622,6 +622,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL_config         = ''
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT_config         = ''
 
+    ! Climate - global forcings
+    CHARACTER(LEN=256)  :: filename_CO2_record_config                   = ''                            ! CO2 record (netCDF file)
+    CHARACTER(LEN=256)  :: filename_d18O_record_config                  = ''                            ! d18O record (netCDF file)
+
     ! == Climate - fixed regional lapse rates
     LOGICAL             :: do_lapse_rate_corrections_NAM_config         = .FALSE.                          ! whether or not to apply the lapse rates below - they seem to produce much higher SMB at the ice sheet fringes
     LOGICAL             :: do_lapse_rate_corrections_EAS_config         = .FALSE.
@@ -642,14 +646,8 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_insolation_config                   = ''                               ! File with the insolation solution (Laskar 2004)
     REAL(dp)            :: static_insolation_time_config                = 0._dp                            ! [ka?] time to use for a static insolation
 
-    ! Climate matrix forcing
+    ! == Climate matrix
     CHARACTER(LEN=256)  :: choice_matrix_forcing_config                 = 'none'                           ! 'none', 'CO2_direct' or 'd18O_inverse_CO2'
-    ! CO2 record (ASCII text file, so the number of rows needs to be specified)
-    CHARACTER(LEN=256)  :: filename_CO2_record_config                   = ''
-    ! d18O record (ASCII text file, so the number of rows needs to be specified)
-    CHARACTER(LEN=256)  :: filename_d18O_record_config                  = ''
-    INTEGER             :: d18O_record_length_config                    = 2051
-
     ! NetCDF file containing the present-day observed climate (e.g. ERA40)
     CHARACTER(LEN=256)  :: climate_matrix_filename_PD_obs_climate_config        = ''
 
@@ -1747,6 +1745,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_climate_snapshot_GRL
     CHARACTER(LEN=256)  :: filename_climate_snapshot_ANT
 
+    ! Climate - global forcings
+    CHARACTER(LEN=256)  :: filename_CO2_record
+    CHARACTER(LEN=256)  :: filename_d18O_record
+
     ! == Climate - fixed regional lapse rates
     LOGICAL             :: do_lapse_rate_corrections_NAM
     LOGICAL             :: do_lapse_rate_corrections_EAS
@@ -1766,14 +1768,8 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_insolation
     REAL(dp)            :: static_insolation_time
 
-    ! Climate matrix forcing
+    ! == Climate matrix
     CHARACTER(LEN=256)  :: choice_matrix_forcing
-    ! CO2 record (ASCII text file, so the number of rows needs to be specified)
-    CHARACTER(LEN=256)  :: filename_CO2_record
-    ! d18O record (ASCII text file, so the number of rows needs to be specified)
-    CHARACTER(LEN=256)  :: filename_d18O_record
-    INTEGER             :: d18O_record_length
-
     ! NetCDF file containing the present-day observed climate (e.g. ERA40)
     CHARACTER(LEN=256)  :: climate_matrix_filename_PD_obs_climate
 
@@ -2879,6 +2875,8 @@ CONTAINS
       filename_climate_snapshot_EAS_config                        , &
       filename_climate_snapshot_GRL_config                        , &
       filename_climate_snapshot_ANT_config                        , &
+      filename_CO2_record_config                                  , &
+      filename_d18O_record_config                                 , &
       do_lapse_rate_corrections_NAM_config                        , &
       do_lapse_rate_corrections_EAS_config                        , &
       do_lapse_rate_corrections_GRL_config                        , &
@@ -2895,9 +2893,6 @@ CONTAINS
       filename_insolation_config                                  , &
       static_insolation_time_config                               , &
       choice_matrix_forcing_config                                , &
-      filename_CO2_record_config                                  , &
-      filename_d18O_record_config                                 , &
-      d18O_record_length_config                                   , &
       climate_matrix_filename_PD_obs_climate_config               , &
       climate_matrix_filename_climate_snapshot_PI_config          , &
       climate_matrix_filename_climate_snapshot_warm_config        , &
@@ -3855,6 +3850,10 @@ CONTAINS
     C%filename_climate_snapshot_GRL                          = filename_climate_snapshot_GRL_config
     C%filename_climate_snapshot_ANT                          = filename_climate_snapshot_ANT_config
 
+    ! Climate - global forcings
+    C%filename_CO2_record                                    = filename_CO2_record_config
+    C%filename_d18O_record                                   = filename_d18O_record_config
+
     ! Lapse rates
     C%do_lapse_rate_corrections_NAM                          = do_lapse_rate_corrections_NAM_config
     C%do_lapse_rate_corrections_EAS                          = do_lapse_rate_corrections_EAS_config
@@ -3873,13 +3872,8 @@ CONTAINS
     C%filename_insolation                                    = filename_insolation_config
     C%static_insolation_time                                 = static_insolation_time_config
     
-    ! Climate matrix forcing
+    ! Climate matrix
     C%choice_matrix_forcing                                  = choice_matrix_forcing_config
-    C%filename_CO2_record                                    = filename_CO2_record_config
-    ! d18O record (ASCII text file, so the number of rows needs to be specified)
-    C%filename_d18O_record                                     = filename_d18O_record_config
-    C%d18O_record_length                                       = d18O_record_length_config
-
     ! NetCDF file containing the present-day observed climate (e.g. ERA40)
     C%climate_matrix_filename_PD_obs_climate                   = climate_matrix_filename_PD_obs_climate_config
 
