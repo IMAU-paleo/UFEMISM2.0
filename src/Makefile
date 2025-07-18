@@ -230,6 +230,47 @@ UFEMISM_source = \
   \
   UPSY/io/read_and_remap/read_and_remap_field_from_file.f90 \
   UPSY/io/netcdf_io_main.f90 \
+  \
+  UPSY/validation/unit_tests/ut_basic.f90 \
+  UPSY/validation/unit_tests/ut_mpi.f90 \
+  UPSY/validation/unit_tests/ut_petsc.f90 \
+  UPSY/validation/unit_tests/ut_math_utilities.f90 \
+  UPSY/validation/unit_tests/ut_mesh_Delaunay.f90 \
+  UPSY/validation/unit_tests/ut_mesh_refinement.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_start.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_a.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_b.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_cx.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_cy.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_start.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_ti.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_vi.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_ei.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_start.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_vi.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ti.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ei.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_mesh_to_mesh.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping.f90 \
+  UPSY/validation/unit_tests/ut_mesh.f90 \
+  UPSY/validation/unit_tests/ut_netcdf_xy_grid.f90 \
+  UPSY/validation/unit_tests/ut_netcdf_mesh.f90 \
+  UPSY/validation/unit_tests/ut_netcdf.f90 \
+  \
+  UPSY/validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \
+  UPSY/validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
+  UPSY/validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
+  UPSY/validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
+  UPSY/validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
+  UPSY/validation/unit_tests/ut_halo_exchange.f90 \
+  UPSY/validation/unit_tests/ut_halo_exchange_mesh.f90 \
+  UPSY/validation/unit_tests/ut_mpi_CSR_matrix_vector_multiplication.f90 \
+  UPSY/validation/unit_tests/ut_mpi_CSR_matrix_solving.f90 \
+  UPSY/validation/unit_tests/ut_mpi_CSR_matrix_algebra.f90 \
+  UPSY/validation/unit_tests/unit_tests_multinode.f90 \
 	\
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
@@ -377,51 +418,11 @@ UFEMISM_source = \
   main/UFEMISM_main_model.f90 \
   \
   laddie/laddie_dummy_domain.f90 \
-  \
-  validation/unit_tests/ut_basic.f90 \
-  validation/unit_tests/ut_mpi.f90 \
-  validation/unit_tests/ut_petsc.f90 \
-  validation/unit_tests/ut_math_utilities.f90 \
-  validation/unit_tests/ut_mesh_Delaunay.f90 \
-  validation/unit_tests/ut_mesh_refinement.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_start.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_a.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_b.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_cx.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_cy.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_start.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_ti.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_vi.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_ei.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_start.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_vi.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ti.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ei.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor.f90 \
-  validation/unit_tests/ut_mesh_remapping_mesh_to_mesh.f90 \
-  validation/unit_tests/ut_mesh_remapping.f90 \
-  validation/unit_tests/ut_mesh.f90 \
-  validation/unit_tests/ut_netcdf_xy_grid.f90 \
-  validation/unit_tests/ut_netcdf_mesh.f90 \
-  validation/unit_tests/ut_netcdf.f90 \
+	\
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/ut_ocean_extrapolation.f90 \
   validation/unit_tests/ut_laddie.f90 \
   validation/unit_tests/unit_tests.f90 \
-  \
-  validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \
-  validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
-  validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
-  validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
-  validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
-  validation/unit_tests/ut_halo_exchange.f90 \
-  validation/unit_tests/ut_halo_exchange_mesh.f90 \
-  validation/unit_tests/ut_mpi_CSR_matrix_vector_multiplication.f90 \
-  validation/unit_tests/ut_mpi_CSR_matrix_solving.f90 \
-  validation/unit_tests/ut_mpi_CSR_matrix_algebra.f90 \
-  validation/unit_tests/unit_tests_multinode.f90 \
   \
   validation/component_tests/ct_create_test_meshes.f90 \
   validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
