@@ -766,7 +766,7 @@ contains
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%BMB%laddie%entr_dmin, d_grid_vec_partial_2D, d_mesh_is_hybrid = .true.)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'entr_dmin', d_grid_vec_partial_2D)
       case ('SGD')
-        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, region%BMB%laddie%SGD, d_grid_vec_partial_2D, d_mesh_is_hybrid = .true.)
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%BMB%laddie%SGD, d_grid_vec_partial_2D, d_mesh_is_hybrid = .true.)
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'SGD', d_grid_vec_partial_2D)
       case ('melt')
         call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%BMB%laddie%melt, d_grid_vec_partial_2D, d_mesh_is_hybrid = .true.)
