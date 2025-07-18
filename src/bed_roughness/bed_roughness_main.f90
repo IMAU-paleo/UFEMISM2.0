@@ -332,58 +332,58 @@ contains
       ! Weertman sliding law; bed roughness is described by beta_sq
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, bed_roughness%beta_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, C%output_dir, bed_roughness%beta_sq)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, bed_roughness%beta_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq', mesh, C%output_dir, bed_roughness%beta_sq, timeframe_bed_roughness)
       end if
 
     case ('Coulomb')
       ! Coulomb sliding law; bed roughness is described by till_friction_angle
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, C%output_dir, bed_roughness%till_friction_angle)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, C%output_dir, bed_roughness%till_friction_angle, timeframe_bed_roughness)
       end if
 
     case ('Budd')
       ! Budd-type sliding law; bed roughness is described by till_friction_angle
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, C%output_dir, bed_roughness%till_friction_angle)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, C%output_dir, bed_roughness%till_friction_angle, timeframe_bed_roughness)
       end if
 
     case ('Tsai2015')
       ! Tsai2015 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq)
-        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, C%output_dir, bed_roughness%alpha_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, C%output_dir, bed_roughness%beta_sq)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq, timeframe_bed_roughness)
-        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, C%output_dir, bed_roughness%alpha_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, C%output_dir, bed_roughness%beta_sq, timeframe_bed_roughness)
       end if
 
     case ('Schoof2005')
       ! Schoof2005 sliding law; bed roughness is described by alpha_sq for the Coulomb part, and beta_sq for the Weertman part
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq)
-        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, C%output_dir, bed_roughness%alpha_sq)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, C%output_dir, bed_roughness%beta_sq)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, bed_roughness%alpha_sq, timeframe_bed_roughness)
-        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, bed_roughness%beta_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'alpha_sq', mesh, C%output_dir, bed_roughness%alpha_sq, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'beta_sq' , mesh, C%output_dir, bed_roughness%beta_sq, timeframe_bed_roughness)
       end if
 
     case ('Zoet-Iverson')
       ! Zoet-Iverson sliding law; bed roughness is described by till_friction_angle
 
       if (timeframe_bed_roughness == 1E9_dp) then
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, C%output_dir, bed_roughness%till_friction_angle)
       else
-        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, bed_roughness%till_friction_angle, timeframe_bed_roughness)
+        call read_field_from_file_2D( filename_bed_roughness, 'till_friction_angle||phi_fric', mesh, C%output_dir, bed_roughness%till_friction_angle, timeframe_bed_roughness)
       end if
 
     end select

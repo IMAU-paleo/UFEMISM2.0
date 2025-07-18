@@ -216,7 +216,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_xy_grid_to_mesh_vertices( refgeo%grid_raw, mesh, Atlas( mi))
+          call create_map_from_xy_grid_to_mesh_vertices( refgeo%grid_raw, mesh, C%output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if

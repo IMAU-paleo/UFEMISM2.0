@@ -144,7 +144,7 @@ contains
     allocate( d_mesh( mesh%vi1:mesh%vi2))
     allocate( d_tri(  mesh%ti1:mesh%ti2))
 
-    call map_from_xy_grid_to_mesh_2D(           grid, mesh, d_grid_ex, d_mesh)
+    call map_from_xy_grid_to_mesh_2D(           grid, mesh, foldername_grid_to_mesh, d_grid_ex, d_mesh)
     call map_from_xy_grid_to_mesh_triangles_2D( grid, mesh, foldername_grid_to_mesh, d_grid_ex, d_tri )
 
     ! Write results to NetCDF

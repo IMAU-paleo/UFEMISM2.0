@@ -149,7 +149,7 @@ contains
     call distribute_gridded_data_from_primary( grid, ELRA%dHb_dt_grid, ELRA%dHb_dt_grid_partial)
 
     ! remap from partial grid vec data to mesh model
-    call map_from_xy_grid_to_mesh_2D( grid, mesh, ELRA%dHb_dt_grid_partial, ELRA%dHb_dt_mesh)
+    call map_from_xy_grid_to_mesh_2D( grid, mesh, C%output_dir, ELRA%dHb_dt_grid_partial, ELRA%dHb_dt_mesh)
 
     ! multiply the GIA time-step to calculate the bedrock deformation
     GIA%dHb_next = GIA%dHb_prev + ELRA%dHb_dt_mesh * C%dt_GIA

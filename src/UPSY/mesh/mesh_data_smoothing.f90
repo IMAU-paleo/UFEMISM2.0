@@ -27,11 +27,12 @@ module mesh_data_smoothing
 
 contains
 
-  subroutine smooth_Gaussian_2D( mesh, grid, d_mesh_partial, r)
+  subroutine smooth_Gaussian_2D( mesh, grid, output_dir, d_mesh_partial, r)
 
     ! In/output variables:
     type(type_mesh),        intent(in)    :: mesh
     type(type_grid),        intent(in)    :: grid
+    character(len=*),       intent(in   ) :: output_dir
     real(dp), dimension(:), intent(inout) :: d_mesh_partial
     real(dp),               intent(in)    :: r
 
@@ -52,7 +53,7 @@ contains
     call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
 
     ! Map data back to the mesh
-    call map_from_xy_grid_to_mesh_2D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
+    call map_from_xy_grid_to_mesh_2D( grid, mesh, output_dir, d_grid_vec_partial, d_mesh_partial)
 
     ! Clean up after yourself
     deallocate( d_grid_vec_partial)
@@ -62,11 +63,12 @@ contains
 
   end subroutine smooth_Gaussian_2D
 
-  subroutine smooth_Gaussian_3D( mesh, grid, d_mesh_partial, r)
+  subroutine smooth_Gaussian_3D( mesh, grid, output_dir, d_mesh_partial, r)
 
     ! In/output variables:
     type(type_mesh),          intent(in)    :: mesh
     type(type_grid),          intent(in)    :: grid
+    character(len=*),         intent(in   ) :: output_dir
     real(dp), dimension(:,:), intent(inout) :: d_mesh_partial
     real(dp),                 intent(in)    :: r
 
@@ -87,7 +89,7 @@ contains
     call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
 
     ! Map data back to the mesh
-    call map_from_xy_grid_to_mesh_3D( grid, mesh, d_grid_vec_partial, d_mesh_partial)
+    call map_from_xy_grid_to_mesh_3D( grid, mesh, output_dir, d_grid_vec_partial, d_mesh_partial)
 
     ! Clean up after yourself
     deallocate( d_grid_vec_partial)

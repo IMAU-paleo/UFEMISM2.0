@@ -29,7 +29,7 @@ module remapping_grid_to_mesh_vertices
 
 contains
 
-  subroutine create_map_from_xy_grid_to_mesh_vertices( grid, mesh, map)
+  subroutine create_map_from_xy_grid_to_mesh_vertices( grid, mesh, output_dir, map)
     !< Create a new mapping object from an x/y-grid to the vertices of a mesh.
 
     ! By default uses 2nd-order conservative remapping.
@@ -42,9 +42,10 @@ contains
     !       seems like a reasonable compromise.
 
     ! In/output variables
-    type(type_grid), intent(in   ) :: grid
-    type(type_mesh), intent(in   ) :: mesh
-    type(type_map),  intent(inout) :: map
+    type(type_grid),  intent(in   ) :: grid
+    type(type_mesh),  intent(in   ) :: mesh
+    character(len=*), intent(in   ) :: output_dir
+    type(type_map),   intent(inout) :: map
 
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'create_map_from_xy_grid_to_mesh_vertices'
@@ -58,7 +59,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call dump_grid_and_mesh_to_netcdf( grid, mesh, filename_grid, filename_mesh)
+    call dump_grid_and_mesh_to_netcdf( grid, mesh, output_dir, filename_grid, filename_mesh)
 
     ! Initialise map metadata
     if (map%is_in_use) call crash('this map is already in use!')
@@ -541,7 +542,7 @@ contains
 
   end subroutine calc_remapping_matrix
 
-  subroutine dump_grid_and_mesh_to_netcdf( grid, mesh, filename_grid, filename_mesh)
+  subroutine dump_grid_and_mesh_to_netcdf( grid, mesh, output_dir, filename_grid, filename_mesh)
     !< Dump grid and mesh to NetCDF files that will be deleted after the remapping
     !< operator has been successfully calculated. If the remapping crashes, the NetCDF
     !< files will still be there, so that Tijn can use them to figure out the bug.
@@ -549,6 +550,7 @@ contains
     ! In/output variables
     type(type_grid),  intent(in   ) :: grid
     type(type_mesh),  intent(in   ) :: mesh
+    character(len=*), intent(in   ) :: output_dir
     character(len=*), intent(  out) :: filename_grid, filename_mesh
 
     ! Local variables:
@@ -557,8 +559,8 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    filename_grid = trim(C%output_dir) // '/grid2mesh_grid_dump.nc'
-    filename_mesh = trim(C%output_dir) // '/grid2mesh_mesh_dump.nc'
+    filename_grid = trim(output_dir) // '/grid2mesh_grid_dump.nc'
+    filename_mesh = trim(output_dir) // '/grid2mesh_mesh_dump.nc'
 
     call save_xy_grid_as_netcdf( filename_grid, grid)
     call save_mesh_as_netcdf(    filename_mesh, mesh)

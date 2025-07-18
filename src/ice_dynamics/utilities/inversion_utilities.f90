@@ -77,10 +77,10 @@ contains
     ! Read dHi_dt from file
     if (timeframe_dHi_dt_target == 1E9_dp) then
       ! Assume the file has no time dimension
-      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target)
+      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, C%output_dir, ice%dHi_dt_target)
     else
       ! Assume the file has a time dimension, and read the specified timeframe
-      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_target)
+      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, C%output_dir, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_target)
     end if
 
     ! Finalise routine path
