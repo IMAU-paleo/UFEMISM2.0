@@ -22,15 +22,16 @@ module remapping_mesh_triangles_to_grid
 
 contains
 
-  subroutine create_map_from_mesh_triangles_to_xy_grid( mesh, grid, map)
+  subroutine create_map_from_mesh_triangles_to_xy_grid( mesh, grid, output_dir, map)
     !< Create a new mapping object from a mesh to an x/y-grid.
 
     ! By default uses 1st-order conservative remapping.
 
     ! In/output variables
-    type(type_mesh), intent(in   ) :: mesh
-    type(type_grid), intent(in   ) :: grid
-    type(type_map),  intent(inout) :: map
+    type(type_mesh),  intent(in   ) :: mesh
+    type(type_grid),  intent(in   ) :: grid
+    character(len=*), intent(in   ) :: output_dir
+    type(type_map),   intent(inout) :: map
 
     ! Local variables:
     character(len=1024), parameter         :: routine_name = 'create_map_from_mesh_triangles_to_xy_grid'
@@ -42,7 +43,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    call dump_grid_and_mesh_to_netcdf( grid, mesh, filename_grid, filename_mesh)
+    call dump_grid_and_mesh_to_netcdf( grid, mesh, output_dir, filename_grid, filename_mesh)
 
     ! Initialise map metadata
     if (map%is_in_use) call crash('this map is already in use!')

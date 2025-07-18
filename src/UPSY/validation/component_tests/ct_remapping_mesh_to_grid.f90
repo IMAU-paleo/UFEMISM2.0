@@ -155,7 +155,7 @@ contains
 
     ! Map gridded data to the mesh
     allocate( d_grid( grid%n_loc))
-    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, d_mesh_ex, d_grid)
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, foldername_mesh_to_grid, d_mesh_ex, d_grid)
 
     ! Write results to NetCDF
     call create_new_netcdf_file_for_writing( filename, ncid)
@@ -223,7 +223,7 @@ contains
 
     ! Map gridded data to the mesh
     allocate( d_grid( grid%n_loc))
-    call map_from_mesh_triangles_to_xy_grid_2D( mesh, grid, d_mesh_ex, d_grid)
+    call map_from_mesh_triangles_to_xy_grid_2D( mesh, grid, foldername_mesh_to_grid, d_mesh_ex, d_grid)
 
     ! Write results to NetCDF
     call create_new_netcdf_file_for_writing( filename, ncid)

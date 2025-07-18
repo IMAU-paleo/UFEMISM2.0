@@ -101,7 +101,7 @@ contains
     END DO
 
     ! Map relative surface load to the GIA grid
-    CALL map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
+    CALL map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, C%output_dir, GIA%relative_surface_load_mesh, GIA%relative_surface_load_grid)
 
     !! Gather data to primary
     call gather_gridded_data_to_primary( grid, GIA%relative_surface_load_grid, ELRA%relative_surface_load_grid_tot)
@@ -128,7 +128,7 @@ contains
     end if
 
     ! Map the actual bedrock deformation from the mesh to the grid
-    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, ice%dHb, ELRA%dHb_grid_partial)
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, C%output_dir, ice%dHb, ELRA%dHb_grid_partial)
 
     ! gather data from all processors to primary, from partial grid vec to total 2D grid
     call gather_gridded_data_to_primary( grid, ELRA%dHb_grid_partial, ELRA%dHb_grid_tot)

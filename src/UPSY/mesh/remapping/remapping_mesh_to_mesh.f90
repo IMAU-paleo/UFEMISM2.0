@@ -5,7 +5,6 @@ module remapping_mesh_to_mesh
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use remapping_types, only: type_map, type_single_row_mapping_matrices
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp

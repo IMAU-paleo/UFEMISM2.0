@@ -372,13 +372,14 @@ contains
   end subroutine map_from_lonlat_grid_to_mesh_3D
 
   ! From a mesh to an x/y-grid
-  subroutine map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+  subroutine map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, output_dir, d_mesh_partial, d_grid_vec_partial, &
     method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 2-D data field from the vertices of a mesh to an x/y-grid
 
     ! In/output variables
     type(type_mesh),            intent(in   ) :: mesh
     type(type_grid),            intent(in   ) :: grid
+    character(len=*),           intent(in   ) :: output_dir
     real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
     real(dp), dimension(:    ), intent(  out) :: d_grid_vec_partial
     character(len=*), optional, intent(in   ) :: method
@@ -412,7 +413,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid, output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -430,13 +431,14 @@ contains
 
   end subroutine map_from_mesh_vertices_to_xy_grid_2D
 
-  subroutine map_from_mesh_vertices_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+  subroutine map_from_mesh_vertices_to_xy_grid_3D( mesh, grid, output_dir, d_mesh_partial, d_grid_vec_partial, &
     method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 3-D data field from the vertices of a mesh to an x/y-grid
 
     ! In/output variables
     type(type_mesh),            intent(in   ) :: mesh
     type(type_grid),            intent(in   ) :: grid
+    character(len=*),           intent(in   ) :: output_dir
     real(dp), dimension(:,:  ), intent(in   ) :: d_mesh_partial
     real(dp), dimension(:,:  ), intent(  out) :: d_grid_vec_partial
     character(len=*), optional, intent(in   ) :: method
@@ -470,7 +472,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid, output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -488,7 +490,7 @@ contains
 
   end subroutine map_from_mesh_vertices_to_xy_grid_3D
 
-  subroutine map_from_mesh_vertices_to_xy_grid_2D_minval( mesh, grid, d_mesh_partial, d_grid_vec_partial, method)
+  subroutine map_from_mesh_vertices_to_xy_grid_2D_minval( mesh, grid, output_dir, d_mesh_partial, d_grid_vec_partial, method)
     !< Map a 2-D data field from the vertices of a mesh to an x/y-grid
 
     ! For each grid cell, get the minimum value of all overlapping mesh vertices
@@ -496,6 +498,7 @@ contains
     ! In/output variables
     type(type_mesh),            intent(in   ) :: mesh
     type(type_grid),            intent(in   ) :: grid
+    character(len=*),           intent(in   ) :: output_dir
     real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
     real(dp), dimension(:    ), intent(  out) :: d_grid_vec_partial
     character(len=*), optional, intent(in   ) :: method
@@ -528,7 +531,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_vertices_to_xy_grid( mesh, grid, output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -545,13 +548,14 @@ contains
 
   end subroutine map_from_mesh_vertices_to_xy_grid_2D_minval
 
-  subroutine map_from_mesh_triangles_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+  subroutine map_from_mesh_triangles_to_xy_grid_2D( mesh, grid, output_dir, d_mesh_partial, d_grid_vec_partial, &
     method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 2-D data field from the triangles of a mesh to an x/y-grid
 
     ! In/output variables
     type(type_mesh),            intent(in   ) :: mesh
     type(type_grid),            intent(in   ) :: grid
+    character(len=*),           intent(in   ) :: output_dir
     real(dp), dimension(:    ), intent(in   ) :: d_mesh_partial
     real(dp), dimension(:    ), intent(  out) :: d_grid_vec_partial
     character(len=*), optional, intent(in   ) :: method
@@ -585,7 +589,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid, output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if
@@ -603,13 +607,14 @@ contains
 
   end subroutine map_from_mesh_triangles_to_xy_grid_2D
 
-  subroutine map_from_mesh_triangles_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial, &
+  subroutine map_from_mesh_triangles_to_xy_grid_3D( mesh, grid, output_dir, d_mesh_partial, d_grid_vec_partial, &
     method, d_mesh_is_hybrid, d_grid_is_hybrid)
     !< Map a 3-D data field from the triangles of a mesh to an x/y-grid
 
     ! In/output variables
     type(type_mesh),            intent(in   ) :: mesh
     type(type_grid),            intent(in   ) :: grid
+    character(len=*),           intent(in   ) :: output_dir
     real(dp), dimension(:,:  ), intent(in   ) :: d_mesh_partial
     real(dp), dimension(:,:  ), intent(  out) :: d_grid_vec_partial
     character(len=*), optional, intent(in   ) :: method
@@ -643,7 +648,7 @@ contains
       do mi = 1, size( Atlas,1)
         if (.not. Atlas( mi)%is_in_use) then
           found_empty_page = .true.
-          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid,Atlas( mi))
+          call create_map_from_mesh_triangles_to_xy_grid( mesh, grid, output_dir, Atlas( mi))
           mi_valid = mi
           exit
         end if

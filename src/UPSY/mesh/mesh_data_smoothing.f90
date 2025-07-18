@@ -47,7 +47,7 @@ contains
     allocate( d_grid_vec_partial( grid%n_loc))
 
     ! Map data to the grid
-    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, grid, output_dir, d_mesh_partial, d_grid_vec_partial)
 
     ! Apply smoothing on the gridded data
     call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
@@ -83,7 +83,7 @@ contains
     allocate( d_grid_vec_partial( grid%n_loc, size( d_mesh_partial,2)))
 
     ! Map data to the grid
-    call map_from_mesh_vertices_to_xy_grid_3D( mesh, grid, d_mesh_partial, d_grid_vec_partial)
+    call map_from_mesh_vertices_to_xy_grid_3D( mesh, grid, output_dir, d_mesh_partial, d_grid_vec_partial)
 
     ! Apply smoothing on the gridded data
     call smooth_Gaussian_grid( grid, d_grid_vec_partial, r)
