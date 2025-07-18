@@ -466,10 +466,6 @@ contains
     climate%matrix%GCM_warm%orbit_time = C%climate_matrix_warm_orbit_time
     climate%matrix%GCM_cold%orbit_time = C%climate_matrix_cold_orbit_time
 
-! here appear some checks if wind is included or not in the data
-! after that cames the snapshot ocean and ice mask in dev branch, not in UFE1.x
-! need to check what it is? maybe is good to implement it. LINE 1215
-
     ! Calculate spatially variable lapse rate
 
     ! Use a uniform value for the warm snapshot [this assumes "warm" is actually identical to PI!]
@@ -496,12 +492,8 @@ contains
     call initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_warm, region_name, forcing, ice)
     call initialise_matrix_calc_absorbed_insolation( mesh, climate%matrix%GCM_cold, region_name, forcing, ice)
 
-   ! CHANGE HERE TO INITIALISE global forcings!
-   ! initialise the insolation forcing
-   call initialise_insolation_forcing( climate%snapshot, mesh) ! this will initialise climate%snapshot%Q_TOA
-
-   ! initialise CO2 forcing
-   !call initialise_CO2_record( forcing)
+    ! initialise the insolation forcing
+    call initialise_insolation_forcing( climate%snapshot, mesh) ! this will initialise climate%snapshot%Q_TOA
 
     ! Initialise applied climate with present-day observations
 
@@ -532,9 +524,9 @@ contains
     real(dp), dimension(mesh%vi1:mesh%vi2, 12), intent(out)   :: GCM_bias_Precip
 
     ! Local variables:
-    character(LEN=256), parameter                      :: routine_name = 'initialise_matrix_calc_GCM_bias'
-    integer                                            :: vi,m
-    real(dp)                                           :: T2m_SL_GCM, T2m_SL_obs
+    character(LEN=256), parameter                             :: routine_name = 'initialise_matrix_calc_GCM_bias'
+    integer                                                   :: vi,m
+    real(dp)                                                  :: T2m_SL_GCM, T2m_SL_obs
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -662,6 +654,9 @@ contains
     integer                                              :: n_nonice
     integer                                              :: ierr
 
+    ! Add routine to path
+    call init_routine( routine_name)
+
     ! Calculate the regional average temperature change outside of the ice sheet
     dT_mean_nonice = 0._dp
     n_nonice       = 0
@@ -699,6 +694,9 @@ contains
     integer                                              :: ierr
     real(dp), parameter                                  :: lambda_min = 0.002_dp
     real(dp), parameter                                  :: lambda_max = 0.05_dp
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! Calculate the lapse rate over the ice itself
 
@@ -770,9 +768,6 @@ contains
     allocate( climate_dummy%T2m(    mesh%vi1:mesh%vi2, 12))
     allocate( climate_dummy%Precip( mesh%vi1:mesh%vi2, 12))
     allocate( climate_dummy%snapshot%Q_TOA(  mesh%vi1:mesh%vi2, 12))
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%T2m,    climate_dummy%wT2m)
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Precip, climate_dummy%wPrecip)
-    !CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_dummy%Q_TOA,  climate_dummy%wQ_TOA)
 
     ! Copy climate fields
     climate_dummy%T2m(    mesh%vi1:mesh%vi2,:) = snapshot%T2m(    mesh%vi1:mesh%vi2,:)
@@ -857,7 +852,7 @@ contains
 
   subroutine remap_climate_matrix_model( mesh_new, climate, region_name, grid, ice, forcing)
 
-  ! In- and output variables
+    ! In- and output variables
     !TYPE(type_mesh),                        INTENT(IN)    :: mesh_old
     type(type_mesh),                        intent(in)    :: mesh_new
     type(type_climate_model),               intent(inout) :: climate
@@ -868,24 +863,27 @@ contains
     ! Local variables:
     character(LEN=256), parameter                         :: routine_name = 'remap_climate_matrix_model'
 
-  if (par%primary)  WRITE(*,"(A)") '      Remapping climate matrix model data to the new mesh...'
-  
-  ! reallocate main variables of GCM snapshots
-  call remap_climate_matrix_snapshot( mesh_new, climate%matrix%PD_obs)
-  call remap_climate_matrix_snapshot( mesh_new, climate%matrix%GCM_PI)
-  call remap_climate_matrix_snapshot( mesh_new, climate%matrix%GCM_warm)
-  call remap_climate_matrix_snapshot( mesh_new, climate%matrix%GCM_cold)
+    ! Add routine to path
+    call init_routine( routine_name)
 
-  ! reallocate main variables of climate%snapshot for insolation
-  call reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
-  call reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
-  call reallocate_bounds( climate%snapshot%Q_TOA, mesh_new%vi1, mesh_new%vi2,12)
+    if (par%primary)  WRITE(*,"(A)") '      Remapping climate matrix model data to the new mesh...'
   
-  call reallocate_bounds(climate%matrix%I_abs, mesh_new%vi1, mesh_new%vi2)
-  call reallocate_bounds(climate%matrix%GCM_bias_T2m, mesh_new%vi1, mesh_new%vi2, 12)
-  call reallocate_bounds(climate%matrix%GCM_bias_Precip, mesh_new%vi1, mesh_new%vi2, 12)
+    ! reallocate main variables of GCM snapshots
+    call remap_climate_matrix_snapshot( mesh_new, climate%matrix%PD_obs)
+    call remap_climate_matrix_snapshot( mesh_new, climate%matrix%GCM_PI)
+    call remap_climate_matrix_snapshot( mesh_new, climate%matrix%GCM_warm)
+    call remap_climate_matrix_snapshot( mesh_new, climate%matrix%GCM_cold)
+
+    ! reallocate main variables of climate%snapshot for insolation
+    call reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+    call reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+    call reallocate_bounds( climate%snapshot%Q_TOA, mesh_new%vi1, mesh_new%vi2,12)
   
-  ! read the snapshots for the new mesh
+    call reallocate_bounds(climate%matrix%I_abs, mesh_new%vi1, mesh_new%vi2)
+    call reallocate_bounds(climate%matrix%GCM_bias_T2m, mesh_new%vi1, mesh_new%vi2, 12)
+    call reallocate_bounds(climate%matrix%GCM_bias_Precip, mesh_new%vi1, mesh_new%vi2, 12)
+  
+    ! read the snapshots for the new mesh
     call read_climate_snapshot( C%climate_matrix_filename_PD_obs_climate       , mesh_new, climate%matrix%PD_obs  )
     call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_PI  , mesh_new, climate%matrix%GCM_PI  )
     call read_climate_snapshot( C%climate_matrix_filename_climate_snapshot_warm, mesh_new, climate%matrix%GCM_warm)
@@ -942,6 +940,9 @@ contains
     call initialise_matrix_calc_absorbed_insolation( mesh_new, climate%matrix%GCM_warm, region_name, forcing, ice)
     call initialise_matrix_calc_absorbed_insolation( mesh_new, climate%matrix%GCM_cold, region_name, forcing, ice)
 
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
   end subroutine remap_climate_matrix_model
 
   subroutine remap_climate_matrix_snapshot (mesh_new, snapshot)
@@ -951,6 +952,9 @@ contains
 
     ! local variables
     character(LEN=256), parameter                         :: routine_name = 'remap_climate_matrix_snapshot'
+
+    ! Add routine to path
+    call init_routine( routine_name)
   
     call reallocate_bounds(snapshot%Precip, mesh_new%vi1, mesh_new%vi2, 12)
     call reallocate_bounds(snapshot%T2m, mesh_new%vi1, mesh_new%vi2, 12)
@@ -960,6 +964,9 @@ contains
     call reallocate_bounds(snapshot%Wind_DU, mesh_new%vi1, mesh_new%vi2, 12)
     call reallocate_bounds(snapshot%Hs, mesh_new%vi1, mesh_new%vi2)
     call reallocate_bounds(snapshot%lambda, mesh_new%vi1, mesh_new%vi2)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
 
   end subroutine
 
