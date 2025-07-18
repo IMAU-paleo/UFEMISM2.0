@@ -177,7 +177,10 @@ contains
     call calc_zeta_gradients( mesh, ice)
 
     ! Calculate 3-D matrix operators for the current ice geometry
-    call calc_3D_matrix_operators_mesh( mesh, ice)
+    call calc_3D_matrix_operators_mesh( mesh, &
+      ice%dzeta_dx_ak, ice%dzeta_dy_ak, ice%dzeta_dx_bk, ice%dzeta_dy_bk, &
+      ice%dzeta_dz_bk, ice%dzeta_dz_bks, &
+      ice%d2zeta_dx2_bk, ice%d2zeta_dxdy_bk, ice%d2zeta_dy2_bk)
 
     ! Calculate the driving stress
     call calc_driving_stress_DIVA( mesh, ice, hybrid%DIVA%tau_dx_b, hybrid%DIVA%tau_dy_b)

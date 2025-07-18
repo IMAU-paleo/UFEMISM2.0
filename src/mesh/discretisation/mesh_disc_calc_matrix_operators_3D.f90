@@ -5,7 +5,6 @@ module mesh_disc_calc_matrix_operators_3D
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use mesh_types, only: type_mesh
-  use ice_model_types, only: type_ice_model
   use CSR_matrix_basics, only: deallocate_matrix_CSR_dist, allocate_matrix_CSR_dist, &
     read_single_row_CSR_dist, add_entry_CSR_dist, finalise_matrix_CSR_dist
 
@@ -13,12 +12,21 @@ module mesh_disc_calc_matrix_operators_3D
 
 contains
 
-subroutine calc_3D_matrix_operators_mesh( mesh, ice)
+subroutine calc_3D_matrix_operators_mesh( mesh, &
+  dzeta_dx_ak, dzeta_dy_ak, dzeta_dx_bk, dzeta_dy_bk, &
+  dzeta_dz_bk, dzeta_dz_bks, &
+  d2zeta_dx2_bk, d2zeta_dxdy_bk, d2zeta_dy2_bk)
   ! Calculate all 3-D gradient operators in Cartesian coordinates
 
   ! In/output variables:
-  type(type_mesh),      intent(inout) :: mesh
-  type(type_ice_model), intent(in   ) :: ice
+  type(type_mesh),                                    intent(inout) :: mesh
+  real(dp), dimension(mesh%vi1:mesh%vi2,1:mesh%nz  ), intent(in   ) :: dzeta_dx_ak, dzeta_dy_ak
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz  ), intent(in   ) :: dzeta_dx_bk, dzeta_dy_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz  ), intent(in   ) :: dzeta_dz_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz-1), intent(in   ) :: dzeta_dz_bks
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz  ), intent(in   ) :: d2zeta_dx2_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz  ), intent(in   ) :: d2zeta_dxdy_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz  ), intent(in   ) :: d2zeta_dy2_bk
 
   ! Local variables:
   character(len=256), parameter :: routine_name = 'calc_3D_matrix_operators_mesh'
@@ -27,30 +35,30 @@ subroutine calc_3D_matrix_operators_mesh( mesh, ice)
   call init_routine( routine_name)
 
   ! bk to ak (for calculating the horizontal stretch/shear strain rates in the BPA)
-  call calc_3D_matrix_operators_mesh_bk_ak( mesh, ice)
+  call calc_3D_matrix_operators_mesh_bk_ak( mesh, dzeta_dx_ak, dzeta_dy_ak)
 
   ! ak to bk (for calculating the horizontal gradients of the effective viscosity in the BPA)
-  call calc_3D_matrix_operators_mesh_ak_bk( mesh, ice)
+  call calc_3D_matrix_operators_mesh_ak_bk( mesh, dzeta_dx_bk, dzeta_dy_bk)
 
   ! bk to bks (for calculating the vertical shear strain rates in the BPA)
-  call calc_3D_matrix_operators_mesh_bk_bks( mesh, ice)
+  call calc_3D_matrix_operators_mesh_bk_bks( mesh, dzeta_dz_bks)
 
   ! bks to bk (for calculating the vertical gradient of the effective viscosity in the BPA)
-  call calc_3D_matrix_operators_mesh_bks_bk( mesh, ice)
+  call calc_3D_matrix_operators_mesh_bks_bk( mesh, dzeta_dz_bk)
 
   ! Map between the bks-grid and the ak-grid (for calculating strain rates in the BPA)
   call calc_3D_mapping_operator_mesh_bks_ak( mesh)
   call calc_3D_mapping_operator_mesh_ak_bks( mesh)
 
   ! bk to bk (for constructing the BPA stiffness matrix)
-  call calc_3D_matrix_operators_mesh_bk_bk( mesh, ice)
+  call calc_3D_matrix_operators_mesh_bk_bk( mesh, dzeta_dx_bk, dzeta_dy_bk, dzeta_dz_bk, d2zeta_dx2_bk, d2zeta_dxdy_bk, d2zeta_dy2_bk)
 
   ! Finalise routine path
   call finalise_routine( routine_name)
 
 end subroutine calc_3D_matrix_operators_mesh
 
-subroutine calc_3D_matrix_operators_mesh_bk_ak( mesh, ice)
+subroutine calc_3D_matrix_operators_mesh_bk_ak( mesh, dzeta_dx_ak, dzeta_dy_ak)
   ! Calculate all 3-D gradient operators in Cartesian coordinates
   !
   ! The basic operators are defined in transformed coordinates [xh, yh, zeta], which
@@ -75,8 +83,8 @@ subroutine calc_3D_matrix_operators_mesh_bk_ak( mesh, ice)
   ! their coefficients directly, which is done here.
 
   ! In/output variables:
-  type(type_mesh),      intent(inout) :: mesh
-  type(type_ice_model), intent(in   ) :: ice
+  type(type_mesh),                                  intent(inout) :: mesh
+  real(dp), dimension(mesh%vi1:mesh%vi2,1:mesh%nz), intent(in   ) :: dzeta_dx_ak, dzeta_dy_ak
 
   ! Local variables:
   character(len=256), parameter           :: routine_name = 'calc_3D_matrix_operators_mesh_bk_ak'
@@ -147,8 +155,8 @@ subroutine calc_3D_matrix_operators_mesh_bk_ak( mesh, ice)
       call read_single_row_CSR_dist( mesh%M_ddzeta_k_k_1D, k, single_row_k_ind, single_row_ddzeta_val, single_row_k_nnz)
 
       ! Gradients of zeta at vertex vi, layer k
-      dzeta_dx = ice%dzeta_dx_ak( vi,k)
-      dzeta_dy = ice%dzeta_dy_ak( vi,k)
+      dzeta_dx = dzeta_dx_ak( vi,k)
+      dzeta_dy = dzeta_dy_ak( vi,k)
 
       ! Loop over the entire 3-D local neighbourhood, calculate
       ! coefficients for all 3-D matrix operators
@@ -206,7 +214,7 @@ subroutine calc_3D_matrix_operators_mesh_bk_ak( mesh, ice)
 
 end subroutine calc_3D_matrix_operators_mesh_bk_ak
 
-subroutine calc_3D_matrix_operators_mesh_ak_bk( mesh, ice)
+subroutine calc_3D_matrix_operators_mesh_ak_bk( mesh, dzeta_dx_bk, dzeta_dy_bk)
   ! Calculate all 3-D gradient operators in Cartesian coordinates
   !
   ! The basic operators are defined in transformed coordinates [xh, yh, zeta], which
@@ -231,8 +239,8 @@ subroutine calc_3D_matrix_operators_mesh_ak_bk( mesh, ice)
   ! their coefficients directly, which is done here.
 
   ! In/output variables:
-  type(type_mesh),      intent(inout) :: mesh
-  type(type_ice_model), intent(in   ) :: ice
+  type(type_mesh),                                  intent(inout) :: mesh
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: dzeta_dx_bk, dzeta_dy_bk
 
   ! Local variables:
   character(len=256), parameter           :: routine_name = 'calc_3D_matrix_operators_mesh_ak_bk'
@@ -303,8 +311,8 @@ subroutine calc_3D_matrix_operators_mesh_ak_bk( mesh, ice)
       call read_single_row_CSR_dist( mesh%M_ddzeta_k_k_1D, k, single_row_k_ind, single_row_ddzeta_val, single_row_k_nnz)
 
       ! Gradients of zeta at triangle ti, layer k
-      dzeta_dx = ice%dzeta_dx_bk( ti,k)
-      dzeta_dy = ice%dzeta_dy_bk( ti,k)
+      dzeta_dx = dzeta_dx_bk( ti,k)
+      dzeta_dy = dzeta_dy_bk( ti,k)
 
       ! Loop over the entire 3-D local neighbourhood, calculate
       ! coefficients for all 3-D matrix operators
@@ -362,7 +370,7 @@ subroutine calc_3D_matrix_operators_mesh_ak_bk( mesh, ice)
 
 end subroutine calc_3D_matrix_operators_mesh_ak_bk
 
-subroutine calc_3D_matrix_operators_mesh_bk_bks( mesh, ice)
+subroutine calc_3D_matrix_operators_mesh_bk_bks( mesh, dzeta_dz_bks)
   ! Calculate all 3-D gradient operators in Cartesian coordinates
   !
   ! The basic operators are defined in transformed coordinates [xh, yh, zeta], which
@@ -387,8 +395,8 @@ subroutine calc_3D_matrix_operators_mesh_bk_bks( mesh, ice)
   ! their coefficients directly, which is done here.
 
   ! In/output variables:
-  type(type_mesh),      intent(inout) :: mesh
-  type(type_ice_model), intent(in   ) :: ice
+  type(type_mesh),                                    intent(inout) :: mesh
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz-1), intent(in   ) :: dzeta_dz_bks
 
   ! Local variables:
   character(len=256), parameter           :: routine_name = 'calc_3D_matrix_operators_mesh_bk_bks'
@@ -443,7 +451,7 @@ subroutine calc_3D_matrix_operators_mesh_bk_bks( mesh, ice)
       call read_single_row_CSR_dist( mesh%M_ddzeta_k_ks_1D, ks, single_row_ks_ind, single_row_ddzeta_val, single_row_ks_nnz)
 
       ! Gradients of zeta at triangle ti, staggered layer ks
-      dzeta_dz = ice%dzeta_dz_bks( ti,ks)
+      dzeta_dz = dzeta_dz_bks( ti,ks)
 
       ! Loop over the vertical local neighbourhood, calculate
       ! coefficients for all 3-D matrix operators
@@ -481,7 +489,7 @@ subroutine calc_3D_matrix_operators_mesh_bk_bks( mesh, ice)
 
 end subroutine calc_3D_matrix_operators_mesh_bk_bks
 
-subroutine calc_3D_matrix_operators_mesh_bks_bk( mesh, ice)
+subroutine calc_3D_matrix_operators_mesh_bks_bk( mesh, dzeta_dz_bk)
   ! Calculate all 3-D gradient operators in Cartesian coordinates
   !
   ! The basic operators are defined in transformed coordinates [xh, yh, zeta], which
@@ -506,8 +514,8 @@ subroutine calc_3D_matrix_operators_mesh_bks_bk( mesh, ice)
   ! their coefficients directly, which is done here.
 
   ! In/output variables:
-  type(type_mesh),      intent(inout) :: mesh
-  type(type_ice_model), intent(in   ) :: ice
+  type(type_mesh),                                  intent(inout) :: mesh
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: dzeta_dz_bk
 
   ! Local variables:
   character(len=256), parameter           :: routine_name = 'calc_3D_matrix_operators_mesh_bks_bk'
@@ -567,7 +575,7 @@ subroutine calc_3D_matrix_operators_mesh_bks_bk( mesh, ice)
       call read_single_row_CSR_dist( mesh%M_ddzeta_ks_k_1D, k, single_row_k_ind, single_row_ddzeta_val, single_row_k_nnz)
 
       ! Gradients of zeta at triangle ti, layer k
-      dzeta_dz = ice%dzeta_dz_bk( ti,k)
+      dzeta_dz = dzeta_dz_bk( ti,k)
 
       ! Loop over the vertical local neighbourhood, calculate
       ! coefficients for all 3-D matrix operators
@@ -821,7 +829,8 @@ subroutine calc_3D_mapping_operator_mesh_ak_bks( mesh)
 
 end subroutine calc_3D_mapping_operator_mesh_ak_bks
 
-subroutine calc_3D_matrix_operators_mesh_bk_bk( mesh, ice)
+subroutine calc_3D_matrix_operators_mesh_bk_bk( mesh, &
+  dzeta_dx_bk, dzeta_dy_bk, dzeta_dz_bk, d2zeta_dx2_bk, d2zeta_dxdy_bk, d2zeta_dy2_bk)
   ! Calculate all 3-D gradient operators in Cartesian coordinates
   !
   ! The basic operators are defined in transformed coordinates [xh, yh, zeta], which
@@ -859,8 +868,13 @@ subroutine calc_3D_matrix_operators_mesh_bk_bk( mesh, ice)
   ! their coefficients directly, which is done here.
 
   ! In/output variables:
-  type(type_mesh),      intent(inout) :: mesh
-  type(type_ice_model), intent(in   ) :: ice
+  type(type_mesh),                                  intent(inout) :: mesh
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: dzeta_dx_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: dzeta_dy_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: dzeta_dz_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: d2zeta_dx2_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: d2zeta_dxdy_bk
+  real(dp), dimension(mesh%ti1:mesh%ti2,1:mesh%nz), intent(in   ) :: d2zeta_dy2_bk
 
   ! Local variables:
   character(len=256), parameter           :: routine_name = 'calc_3D_matrix_operators_mesh_bk_bk'
@@ -950,12 +964,12 @@ subroutine calc_3D_matrix_operators_mesh_bk_bk( mesh, ice)
       call read_single_row_CSR_dist( mesh%M_d2dzeta2_k_k_1D, k, single_row_k_ind, single_row_d2dzeta2_val, single_row_k_nnz)
 
       ! Gradients of zeta at triangle ti, layer k
-      dzeta_dx    = ice%dzeta_dx_bk(    ti,k)
-      dzeta_dy    = ice%dzeta_dy_bk(    ti,k)
-      dzeta_dz    = ice%dzeta_dz_bk(    ti,k)
-      d2zeta_dx2  = ice%d2zeta_dx2_bk(  ti,k)
-      d2zeta_dxdy = ice%d2zeta_dxdy_bk( ti,k)
-      d2zeta_dy2  = ice%d2zeta_dy2_bk(  ti,k)
+      dzeta_dx    = dzeta_dx_bk(    ti,k)
+      dzeta_dy    = dzeta_dy_bk(    ti,k)
+      dzeta_dz    = dzeta_dz_bk(    ti,k)
+      d2zeta_dx2  = d2zeta_dx2_bk(  ti,k)
+      d2zeta_dxdy = d2zeta_dxdy_bk( ti,k)
+      d2zeta_dy2  = d2zeta_dy2_bk(  ti,k)
 
       ! Loop over the entire 3-D local neighbourhood, calculate
       ! coefficients for all 3-D matrix operators
