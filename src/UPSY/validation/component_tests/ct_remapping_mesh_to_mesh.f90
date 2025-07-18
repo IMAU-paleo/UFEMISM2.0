@@ -153,10 +153,10 @@ contains
     allocate( d_mesh2_cons  ( mesh2%nV_loc))
     allocate( d_mesh2_b_cons( mesh2%nTri_loc))
 
-    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, d_mesh1_ex  , d_mesh2_nn    , 'nearest_neighbour')
-    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, d_mesh1_ex  , d_mesh2_trilin, 'trilin')
-    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, d_mesh1_ex  , d_mesh2_cons  , '2nd_order_conservative')
-    call map_from_mesh_tri_to_mesh_tri_2D( mesh1, mesh2, d_mesh1_b_ex, d_mesh2_b_cons, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, foldername_mesh_to_mesh, d_mesh1_ex  , d_mesh2_nn    , 'nearest_neighbour')
+    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, foldername_mesh_to_mesh, d_mesh1_ex  , d_mesh2_trilin, 'trilin')
+    call map_from_mesh_to_mesh_2D        ( mesh1, mesh2, foldername_mesh_to_mesh, d_mesh1_ex  , d_mesh2_cons  , '2nd_order_conservative')
+    call map_from_mesh_tri_to_mesh_tri_2D( mesh1, mesh2, foldername_mesh_to_mesh, d_mesh1_b_ex, d_mesh2_b_cons, '2nd_order_conservative')
 
     ! Write results to NetCDF
     ! (NOTE: deviates slightly from the style of the other tests, as there is no easy support

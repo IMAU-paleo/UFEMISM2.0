@@ -662,12 +662,13 @@ contains
   end subroutine map_from_mesh_triangles_to_xy_grid_3D
 
   ! From a mesh to a mesh
-  subroutine map_from_mesh_to_mesh_with_reallocation_2D( mesh_src, mesh_dst, d_partial, method)
+  subroutine map_from_mesh_to_mesh_with_reallocation_2D( mesh_src, mesh_dst, output_dir, d_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
 
     ! In/output variables
     type(type_mesh),                     intent(in)    :: mesh_src
     type(type_mesh),                     intent(in)    :: mesh_dst
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:    ), allocatable, intent(inout) :: d_partial
     character(len=*), optional,          intent(in)    :: method
 
@@ -682,7 +683,7 @@ contains
     allocate( d_partial_new( mesh_dst%vi1: mesh_dst%vi2))
 
     ! Remap the data
-    call map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, d_partial, d_partial_new, method)
+    call map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, output_dir, d_partial, d_partial_new, method)
 
     ! Move allocation (and automatically also deallocate old memory, nice little bonus!)
     call MOVE_ALLOC( d_partial_new, d_partial)
@@ -692,12 +693,13 @@ contains
 
   end subroutine map_from_mesh_to_mesh_with_reallocation_2D
 
-  subroutine map_from_mesh_to_mesh_with_reallocation_3D( mesh_src, mesh_dst, d_partial, method)
+  subroutine map_from_mesh_to_mesh_with_reallocation_3D( mesh_src, mesh_dst, output_dir, d_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
 
     ! In/output variables
     type(type_mesh),                     intent(in)    :: mesh_src
     type(type_mesh),                     intent(in)    :: mesh_dst
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:,:  ), allocatable, intent(inout) :: d_partial
     character(len=*), optional,          intent(in)    :: method
 
@@ -712,7 +714,7 @@ contains
     allocate( d_partial_new( mesh_dst%vi1: mesh_dst%vi2, size( d_partial,2)))
 
     ! Remap the data
-    call map_from_mesh_to_mesh_3D( mesh_src, mesh_dst, d_partial, d_partial_new, method)
+    call map_from_mesh_to_mesh_3D( mesh_src, mesh_dst, output_dir, d_partial, d_partial_new, method)
 
     ! Move allocation (and automatically also deallocate old memory, nice little bonus!)
     call MOVE_ALLOC( d_partial_new, d_partial)
@@ -722,12 +724,13 @@ contains
 
   end subroutine map_from_mesh_to_mesh_with_reallocation_3D
 
-  subroutine map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+  subroutine map_from_mesh_to_mesh_2D( mesh_src, mesh_dst, output_dir, d_src_partial, d_dst_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
 
     ! In/output variables
     type(type_mesh),                     intent(in)    :: mesh_src
     type(type_mesh),                     intent(in)    :: mesh_dst
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:    ),          intent(in)    :: d_src_partial
     real(dp), dimension(:    ),          intent(out)   :: d_dst_partial
     character(len=*), optional,          intent(in)    :: method
@@ -772,16 +775,16 @@ contains
           if (present( method)) then
             SELECT CASE (method)
               CASE ('nearest_neighbour')
-                call create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
+                call create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE('trilin')
-                call create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
+                call create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE('2nd_order_conservative')
-                call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+                call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE DEFAULT
                 call crash('unknown remapping method "' // trim( method) // '"')
             end SELECT
           else
-              call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+              call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, output_dir, Atlas( mi))
           end if
           mi_valid = mi
           exit
@@ -799,12 +802,13 @@ contains
 
   end subroutine map_from_mesh_to_mesh_2D
 
-  subroutine map_from_mesh_to_mesh_3D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+  subroutine map_from_mesh_to_mesh_3D( mesh_src, mesh_dst, output_dir, d_src_partial, d_dst_partial, method)
     ! Map a 3-D data field from a mesh to a mesh.
 
     ! In/output variables
     type(type_mesh),                     intent(in)    :: mesh_src
     type(type_mesh),                     intent(in)    :: mesh_dst
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:,:  ),          intent(in)    :: d_src_partial
     real(dp), dimension(:,:  ),          intent(out)   :: d_dst_partial
     character(len=*), optional,          intent(in)    :: method
@@ -849,16 +853,16 @@ contains
           if (present( method)) then
             SELECT CASE (method)
               CASE ('nearest_neighbour')
-                call create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, Atlas( mi))
+                call create_map_from_mesh_to_mesh_nearest_neighbour(      mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE ('trilin')
-                call create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, Atlas( mi))
+                call create_map_from_mesh_to_mesh_trilin(                 mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE ('2nd_order_conservative')
-                call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+                call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE DEFAULT
                 call crash('unknown remapping method "' // trim( method) // '"')
             end SELECT
           else
-              call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, Atlas( mi))
+              call create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, output_dir, Atlas( mi))
           end if
           mi_valid = mi
           exit
@@ -877,12 +881,13 @@ contains
   end subroutine map_from_mesh_to_mesh_3D
 
   ! From a mesh to a mesh
-  subroutine map_from_mesh_tri_to_mesh_tri_with_reallocation_2D( mesh_src, mesh_dst, d_partial, method)
+  subroutine map_from_mesh_tri_to_mesh_tri_with_reallocation_2D( mesh_src, mesh_dst, output_dir, d_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
 
     ! In/output variables
     type(type_mesh),                     intent(in)    :: mesh_src
     type(type_mesh),                     intent(in)    :: mesh_dst
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:    ), allocatable, intent(inout) :: d_partial
     character(len=*), optional,          intent(in)    :: method
 
@@ -897,7 +902,7 @@ contains
     allocate( d_partial_new( mesh_dst%ti1: mesh_dst%ti2))
 
     ! Remap the data
-    call map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, d_partial, d_partial_new, method)
+    call map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, output_dir, d_partial, d_partial_new, method)
 
     ! Move allocation (and automatically also deallocate old memory, nice little bonus!)
     call MOVE_ALLOC( d_partial_new, d_partial)
@@ -907,12 +912,13 @@ contains
 
   end subroutine map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
 
-  subroutine map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+  subroutine map_from_mesh_tri_to_mesh_tri_2D( mesh_src, mesh_dst, output_dir, d_src_partial, d_dst_partial, method)
     ! Map a 2-D data field from a mesh to a mesh.
 
     ! In/output variables
     type(type_mesh),                     intent(in)    :: mesh_src
     type(type_mesh),                     intent(in)    :: mesh_dst
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:    ),          intent(in)    :: d_src_partial
     real(dp), dimension(:    ),          intent(out)   :: d_dst_partial
     character(len=*), optional,          intent(in)    :: method
@@ -959,13 +965,13 @@ contains
             SELECT CASE (method)
               CASE('2nd_order_conservative')
                 call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
-                  mesh_src, mesh_dst, Atlas( mi))
+                  mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE DEFAULT
                 call crash('unknown remapping method "' // trim( method) // '"')
             end SELECT
           else
               call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
-                mesh_src, mesh_dst, Atlas( mi))
+                mesh_src, mesh_dst, output_dir, Atlas( mi))
           end if
           mi_valid = mi
           exit
@@ -983,12 +989,13 @@ contains
 
   end subroutine map_from_mesh_tri_to_mesh_tri_2D
 
-  subroutine map_from_mesh_tri_to_mesh_tri_3D( mesh_src, mesh_dst, d_src_partial, d_dst_partial, method)
+  subroutine map_from_mesh_tri_to_mesh_tri_3D( mesh_src, mesh_dst, output_dir, d_src_partial, d_dst_partial, method)
     ! Map a 3-D data field from a mesh to a mesh.
 
     ! In/output variables
     type(type_mesh),                     intent(in)    :: mesh_src
     type(type_mesh),                     intent(in)    :: mesh_dst
+    character(len=*),                    intent(in   ) :: output_dir
     real(dp), dimension(:,:  ),          intent(in)    :: d_src_partial
     real(dp), dimension(:,:  ),          intent(out)   :: d_dst_partial
     character(len=*), optional,          intent(in)    :: method
@@ -1035,13 +1042,13 @@ contains
             SELECT CASE (method)
               CASE('2nd_order_conservative')
                 call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
-                  mesh_src, mesh_dst, Atlas( mi))
+                  mesh_src, mesh_dst, output_dir, Atlas( mi))
               CASE DEFAULT
                 call crash('unknown remapping method "' // trim( method) // '"')
             end SELECT
           else
               call create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( &
-                mesh_src, mesh_dst, Atlas( mi))
+                mesh_src, mesh_dst, output_dir, Atlas( mi))
           end if
           mi_valid = mi
           exit

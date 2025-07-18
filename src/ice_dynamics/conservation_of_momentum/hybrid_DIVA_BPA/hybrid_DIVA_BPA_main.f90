@@ -357,10 +357,10 @@ contains
     call map_b_a_3D( mesh_old, hybrid%v_bk   , v_ak   )
 
     ! Remap data from the vertices of the old mesh to the vertices of the new mesh
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_vav_a, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_vav_a, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_ak   , '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_ak   , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, u_vav_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, v_vav_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, u_ak   , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, v_ak   , '2nd_order_conservative')
 
     ! reallocate memory for the data on the triangles
     call reallocate_bounds( hybrid%u_vav_b, mesh_new%ti1, mesh_new%ti2             )

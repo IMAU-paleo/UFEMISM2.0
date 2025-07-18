@@ -29,12 +29,13 @@ module remapping_mesh_to_mesh
 contains
 
   !> Create a new mapping object from a mesh to a mesh using nearest-neighbour interpolation.
-  subroutine create_map_from_mesh_to_mesh_nearest_neighbour( mesh_src, mesh_dst, map)
+  subroutine create_map_from_mesh_to_mesh_nearest_neighbour( mesh_src, mesh_dst, output_dir, map)
 
     ! In/output variables
-    type(type_mesh), intent(in   ) :: mesh_src
-    type(type_mesh), intent(in   ) :: mesh_dst
-    type(type_map),  intent(inout) :: map
+    type(type_mesh),  intent(in   ) :: mesh_src
+    type(type_mesh),  intent(in   ) :: mesh_dst
+    character(len=*), intent(in   ) :: output_dir
+    type(type_map),   intent(inout) :: map
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'create_map_from_mesh_to_mesh_nearest_neighbour'
@@ -51,8 +52,8 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_nn_mesh_src_dump.nc'
-    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_nn_mesh_dst_dump.nc'
+    filename_mesh_src = trim(output_dir) // '/mesh2mesh_nn_mesh_src_dump.nc'
+    filename_mesh_dst = trim(output_dir) // '/mesh2mesh_nn_mesh_dst_dump.nc'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
@@ -108,12 +109,13 @@ contains
   end subroutine create_map_from_mesh_to_mesh_nearest_neighbour
 
   !> Create a new mapping object from a mesh to a mesh using trilinear interpolation.
-  subroutine create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, map)
+  subroutine create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, output_dir, map)
 
     ! In/output variables
-    type(type_mesh), intent(in   ) :: mesh_src
-    type(type_mesh), intent(in   ) :: mesh_dst
-    type(type_map),  intent(inout) :: map
+    type(type_mesh),  intent(in   ) :: mesh_src
+    type(type_mesh),  intent(in   ) :: mesh_dst
+    character(len=*), intent(in   ) :: output_dir
+    type(type_map),   intent(inout) :: map
 
     ! Local variables:
     character(len=1024), parameter  :: routine_name = 'create_map_from_mesh_to_mesh_trilin'
@@ -133,8 +135,8 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_trilin_mesh_src_dump.nc'
-    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_trilin_mesh_dst_dump.nc'
+    filename_mesh_src = trim(output_dir) // '/mesh2mesh_trilin_mesh_src_dump.nc'
+    filename_mesh_dst = trim(output_dir) // '/mesh2mesh_trilin_mesh_dst_dump.nc'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
@@ -213,12 +215,13 @@ contains
   end subroutine create_map_from_mesh_to_mesh_trilin
 
   !> Create a new mapping object from a mesh to a mesh using 2nd-order conservative interpolation.
-  subroutine create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, map)
+  subroutine create_map_from_mesh_to_mesh_2nd_order_conservative( mesh_src, mesh_dst, output_dir, map)
 
     ! In/output variables
-    type(type_mesh), intent(in   ) :: mesh_src
-    type(type_mesh), intent(in   ) :: mesh_dst
-    type(type_map),  intent(inout) :: map
+    type(type_mesh),  intent(in   ) :: mesh_src
+    type(type_mesh),  intent(in   ) :: mesh_dst
+    character(len=*), intent(in   ) :: output_dir
+    type(type_map),   intent(inout) :: map
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'create_map_from_mesh_to_mesh_2nd_order_conservative'
@@ -233,8 +236,6 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_cons_mesh_src_dump.nc'
-    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_cons_mesh_dst_dump.nc'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
@@ -251,7 +252,7 @@ contains
 
     call calc_remapping_matrix( mesh_src, w0, w1x, w1y, M_cons_1st_order, map%M)
 
-    call correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, map%M)
+    call correct_mesh_to_mesh_map( mesh_src, mesh_dst, output_dir, M_cons_1st_order, map%M)
 
     ! Delete mesh netcdf dumps
     if (par%primary) then
@@ -266,12 +267,13 @@ contains
 
   end subroutine create_map_from_mesh_to_mesh_2nd_order_conservative
 
-  subroutine create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( mesh_src, mesh_dst, map)
+  subroutine create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative( mesh_src, mesh_dst, output_dir, map)
 
     ! In/output variables
-    type(type_mesh), intent(in   ) :: mesh_src
-    type(type_mesh), intent(in   ) :: mesh_dst
-    type(type_map),  intent(inout) :: map
+    type(type_mesh),  intent(in   ) :: mesh_src
+    type(type_mesh),  intent(in   ) :: mesh_dst
+    character(len=*), intent(in   ) :: output_dir
+    type(type_map),   intent(inout) :: map
 
     ! Local variables:
     character(len=1024), parameter      :: routine_name = 'create_map_from_mesh_tri_to_mesh_tri_2nd_order_conservative'
@@ -286,8 +288,8 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
-    filename_mesh_src = trim(C%output_dir) // '/mesh2mesh_tri_cons_mesh_src_dump.nc'
-    filename_mesh_dst = trim(C%output_dir) // '/mesh2mesh_tri_cons_mesh_dst_dump.nc'
+    filename_mesh_src = trim(output_dir) // '/mesh2mesh_tri_cons_mesh_src_dump.nc'
+    filename_mesh_dst = trim(output_dir) // '/mesh2mesh_tri_cons_mesh_dst_dump.nc'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
@@ -696,17 +698,18 @@ contains
 
   end subroutine calc_remapping_matrix_tri
 
-  subroutine correct_mesh_to_mesh_map( mesh_src, mesh_dst, M_cons_1st_order, M_cons_2nd_order)
+  subroutine correct_mesh_to_mesh_map( mesh_src, mesh_dst, output_dir, M_cons_1st_order, M_cons_2nd_order)
     !< Apply some final corrections to the 2nd-order conservative mesh-to-mesh remapping operator
     !
     ! - set remapped data to zero on the domain border
     ! - use direct copying for identical vertices
 
     ! In/output variables
-    type(type_mesh), intent(in)    :: mesh_src
-    type(type_mesh), intent(in)    :: mesh_dst
-    type(tMat),      intent(in)    :: M_cons_1st_order
-    type(tMat),      intent(inout) :: M_cons_2nd_order
+    type(type_mesh),  intent(in)    :: mesh_src
+    type(type_mesh),  intent(in)    :: mesh_dst
+    character(len=*), intent(in   ) :: output_dir
+    type(tMat),       intent(in)    :: M_cons_1st_order
+    type(tMat),       intent(inout) :: M_cons_2nd_order
 
     ! Local variables:
     character(len=1024), parameter          :: routine_name = 'correct_mesh_to_mesh_map'
@@ -840,7 +843,7 @@ contains
     ! which automatically violate conservation of extreme values.
 
     ! Calculate the trilinear interpolation operator to serve as a back-up
-    call create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, map_trilin)
+    call create_map_from_mesh_to_mesh_trilin( mesh_src, mesh_dst, output_dir, map_trilin)
     call mat_petsc2CSR( map_trilin%M, M_trilin_CSR)
 
     ! Find faulty operators in the 1st-order conservative remapping operator

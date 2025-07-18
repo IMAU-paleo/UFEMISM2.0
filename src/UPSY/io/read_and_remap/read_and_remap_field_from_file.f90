@@ -142,7 +142,7 @@ contains
       call read_field_from_mesh_file_dp_2D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
-      call map_from_mesh_to_mesh_2D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+      call map_from_mesh_to_mesh_2D( mesh_from_file, mesh, output_dir, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
 
       ! Clean up after yourself
       call deallocate_mesh( mesh_from_file)
@@ -246,7 +246,7 @@ contains
       call read_field_from_mesh_file_dp_2D_b( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
-      call map_from_mesh_tri_to_mesh_tri_2D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+      call map_from_mesh_tri_to_mesh_tri_2D( mesh_from_file, mesh, output_dir, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
 
       ! Clean up after yourself
       call deallocate_mesh( mesh_from_file)
@@ -392,7 +392,7 @@ contains
       call read_field_from_mesh_file_dp_2D_monthly( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
-      call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+      call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, output_dir, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
 
       ! Clean up after yourself
       call deallocate_mesh( mesh_from_file)
@@ -523,7 +523,7 @@ contains
       call read_field_from_mesh_file_dp_3D( filename, field_name_options, d_mesh_partial_from_file, time_to_read = time_to_read)
 
       ! Remap data
-      call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
+      call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, output_dir, d_mesh_partial_from_file, d_partial, method = method_mesh2mesh)
 
       ! Clean up after yourself
       call deallocate_mesh( mesh_from_file)
@@ -680,7 +680,7 @@ contains
       allocate( d_partial_raw_layers( mesh%vi1:mesh%vi2, ndepth_loc))
 
       ! Remap data horizontally
-      call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, d_mesh_partial_from_file, d_partial_raw_layers, method = method_mesh2mesh)
+      call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, output_dir, d_mesh_partial_from_file, d_partial_raw_layers, method = method_mesh2mesh)
 
       ! Remap data vertically
       call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)

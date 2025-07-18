@@ -89,16 +89,16 @@ contains
       ! Remap the existing bed roughness fields so they can continue to be nudged
 
       ! Bed roughness as described in different sliding laws
-      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, bed_roughness%till_friction_angle)
-      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, bed_roughness%alpha_sq)
-      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, bed_roughness%beta_sq)
+      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, bed_roughness%till_friction_angle)
+      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, bed_roughness%alpha_sq)
+      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, bed_roughness%beta_sq)
 
       ! Main data fields
-      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, bed_roughness%generic_bed_roughness)
+      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, bed_roughness%generic_bed_roughness)
 
       ! Timestepping
-      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, bed_roughness%generic_bed_roughness_prev)
-      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, bed_roughness%generic_bed_roughness_next)
+      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, bed_roughness%generic_bed_roughness_prev)
+      call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, bed_roughness%generic_bed_roughness_next)
 
     else
       ! Simply re-initialise from whatever the user said
