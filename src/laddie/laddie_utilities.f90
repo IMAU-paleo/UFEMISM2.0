@@ -136,6 +136,8 @@ CONTAINS
     call allocate_dist_shared( laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean, mesh%pai_V%n_nih)
     call allocate_dist_shared( laddie%mask_grounded_ice , laddie%wmask_grounded_ice , mesh%pai_V%n_nih)
     call allocate_dist_shared( laddie%mask_floating_ice , laddie%wmask_floating_ice , mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%mask_gl_fl        , laddie%wmask_gl_fl        , mesh%pai_V%n_nih)
+    call allocate_dist_shared( laddie%mask_SGD          , laddie%wmask_SGD          , mesh%pai_V%n_nih)
     call allocate_dist_shared( laddie%Ti                , laddie%wTi                , mesh%pai_V%n_nih, mesh%nz)
     call allocate_dist_shared( laddie%T_ocean           , laddie%wT_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
     call allocate_dist_shared( laddie%S_ocean           , laddie%wS_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
@@ -147,6 +149,8 @@ CONTAINS
     laddie%mask_icefree_ocean( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_icefree_ocean
     laddie%mask_grounded_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_grounded_ice
     laddie%mask_floating_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_floating_ice
+    laddie%mask_gl_fl        ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_gl_fl
+    laddie%mask_SGD          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_SGD
     laddie%Ti                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:mesh%nz   ) => laddie%Ti
     laddie%T_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%T_ocean
     laddie%S_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%S_ocean
@@ -199,11 +203,13 @@ CONTAINS
     call allocate_dist_shared( laddie%entr_dmin     , laddie%wentr_dmin     , mesh%pai_V%n_nih  )    ! [m s^-1]        Entrainment for D_min
     call allocate_dist_shared( laddie%detr          , laddie%wdetr          , mesh%pai_V%n_nih  )    ! [m s^-1]        Detrainment
     call allocate_dist_shared( laddie%entr_tot      , laddie%wentr_tot      , mesh%pai_V%n_nih  )    ! [m s^-1]        Total (net) entrainment
+    call allocate_dist_shared( laddie%SGD           , laddie%wSGD           , mesh%pai_V%n_nih  )    ! [m s^-1]        Subglacial discharge
     laddie%melt          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%melt
     laddie%entr          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%entr
     laddie%entr_dmin     ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%entr_dmin
     laddie%detr          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%detr
     laddie%entr_tot      ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%entr_tot
+    laddie%SGD           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%SGD
 
     ! Horizontal fluxes
     call allocate_dist_shared( laddie%divQH         , laddie%wdivQH         , mesh%pai_V%n_nih  )    ! [m^3 s^-1]      Divergence of layer thickness

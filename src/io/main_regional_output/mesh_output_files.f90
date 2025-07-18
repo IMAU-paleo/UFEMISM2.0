@@ -330,6 +330,13 @@ contains
           mask_int = 0
         end where
         call write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_ROI', mask_int)
+      case ('mask_SGD')
+        where (region%ice%mask_SGD)
+          mask_int = 1
+        elsewhere
+          mask_int = 0
+        end where
+        call write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask_SGD', mask_int)
       case ('mask')
         call write_to_field_multopt_mesh_int_2D( region%mesh, filename, ncid, 'mask', region%ice%mask)
       case ('basin_ID')
@@ -641,6 +648,8 @@ contains
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'entr', region%BMB%laddie%entr, d_is_hybrid = .true.)
       case ('entr_dmin')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'entr_dmin', region%BMB%laddie%entr_dmin, d_is_hybrid = .true.)
+      case ('SGD')
+        call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'SGD', region%BMB%laddie%SGD, d_is_hybrid = .true.)
       case ('melt')
         call write_to_field_multopt_mesh_dp_2D( region%mesh, filename, ncid, 'melt', region%BMB%laddie%melt, d_is_hybrid = .true.)
       case ('divQH')
@@ -1025,6 +1034,8 @@ contains
         call add_field_mesh_int_2D( filename, ncid, 'mask_coastline', long_name = 'Mask indicating ice-free land next to ice-free ocean')
       case ('mask_ROI')
         call add_field_mesh_int_2D( filename, ncid, 'mask_ROI', long_name = 'Mask indicating ROI')
+      case ('mask_SGD')
+        call add_field_mesh_int_2D( filename, ncid, 'mask_SGD', long_name = 'Mask indicating potential subglacial discharge cells')
       case ('mask')
         call add_field_mesh_int_2D( filename, ncid, 'mask', long_name = 'General mask')
       case ('basin_ID')
@@ -1336,6 +1347,8 @@ contains
         call add_field_mesh_dp_2D( filename, ncid, 'entr', long_name = 'Entrainment rate', units = 'm s^-1')
       case ('entr_dmin')
         call add_field_mesh_dp_2D( filename, ncid, 'entr_dmin', long_name = 'Entrainment rate for Dmin', units = 'm s^-1')
+      case ('SGD')
+        call add_field_mesh_dp_2D( filename, ncid, 'SGD', long_name = 'Subglacial discharge rate', units = 'm s^-1')
       case ('melt')
         call add_field_mesh_dp_2D( filename, ncid, 'melt', long_name = 'Melt rate', units = 'm s^-1')
       case ('divQH')
