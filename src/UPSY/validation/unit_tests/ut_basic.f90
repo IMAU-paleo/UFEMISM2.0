@@ -8,9 +8,10 @@ module ut_basic
 
   private
 
-  public :: filename_unit_tests_output, unit_test
+  public :: foldername_unit_tests_output, filename_unit_tests_output, unit_test
 
   ! Module variables
+  character(len=1024) :: foldername_unit_tests_output
   character(len=1024) :: filename_unit_tests_output
   logical             :: all_unit_tests_passed = .true.
 
@@ -51,7 +52,7 @@ contains
       write(0,*) trim( str_terminal)
 
       ! Write to file
-      open(newunit = io_unit_test_file, file = filename_unit_tests_output, status = "old", action = "write", position = "append", &
+      open(newunit = io_unit_test_file, file = trim( filename_unit_tests_output), status = "old", action = "write", position = "append", &
         iostat = stat, iomsg = msg)
       if (stat /= 0) then
         call crash('Could not open unit test output file, error message "' // trim(msg) // '"')

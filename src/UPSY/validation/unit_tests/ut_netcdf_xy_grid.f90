@@ -98,7 +98,7 @@ contains
     call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     call add_field_grid_int_2D_notime( filename, ncid, 'd')
@@ -170,7 +170,7 @@ contains
     call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     call add_zeta_dimension_to_file( filename, ncid, zeta)
@@ -232,7 +232,7 @@ contains
     call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     call add_field_grid_dp_2D_notime( filename, ncid, 'd')
@@ -295,7 +295,7 @@ contains
     call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     call add_month_dimension_to_file( filename, ncid)
@@ -368,7 +368,7 @@ contains
     call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     call add_zeta_dimension_to_file( filename, ncid, zeta)
@@ -440,7 +440,7 @@ contains
     call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
     call add_depth_dimension_to_file( filename, ncid, C%z_ocean)

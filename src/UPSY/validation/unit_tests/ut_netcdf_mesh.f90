@@ -104,7 +104,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_field_mesh_int_2D_notime( filename, ncid, 'd')
@@ -158,7 +158,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_field_mesh_int_2D_b_notime( filename, ncid, 'd')
@@ -212,7 +212,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_field_mesh_dp_2D_notime( filename, ncid, 'd')
@@ -266,7 +266,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_field_mesh_dp_2D_b_notime( filename, ncid, 'd')
@@ -322,7 +322,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_month_dimension_to_file( filename, ncid)
@@ -379,7 +379,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_zeta_dimension_to_file( filename, ncid, mesh%zeta)
@@ -436,7 +436,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_zeta_dimension_to_file( filename, ncid, mesh%zeta)
@@ -501,7 +501,7 @@ contains
     end do
 
     ! Write to output file
-    filename = trim(C%output_dir) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
+    filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
     call add_depth_dimension_to_file( filename, ncid, C%z_ocean)

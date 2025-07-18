@@ -236,6 +236,8 @@ contains
 
     ! Dump the two meshes to NetCDF. If the remapping crashes, having these available will
     ! help Tijn to find the error. If not, then they will be deleted at the end of this routine.
+    filename_mesh_src = trim( output_dir) // '/mesh_src'
+    filename_mesh_dst = trim( output_dir) // '/mesh_dst'
     call save_mesh_as_netcdf( filename_mesh_src, mesh_src)
     call save_mesh_as_netcdf( filename_mesh_dst, mesh_dst)
 
