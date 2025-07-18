@@ -140,6 +140,10 @@ UFEMISM_source = \
   UPSY/basic/math_utilities/tridiagonal_solver.f90 \
   UPSY/basic/math_utilities/shape_functions.f90 \
   \
+  UPSY/basic/analytical_solutions/Halfar_SIA_solution.f90 \
+  UPSY/basic/analytical_solutions/Bueler_SIA_solution.f90 \
+  UPSY/basic/analytical_solutions/Schoof_SSA_solution.f90 \
+  \
   UPSY/basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
   UPSY/basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
   UPSY/basic/CSR_matrix_algebra/CSR_matrix_solving.f90 \
@@ -271,6 +275,16 @@ UFEMISM_source = \
   UPSY/validation/unit_tests/ut_mpi_CSR_matrix_solving.f90 \
   UPSY/validation/unit_tests/ut_mpi_CSR_matrix_algebra.f90 \
   UPSY/validation/unit_tests/unit_tests_multinode.f90 \
+  \
+  UPSY/validation/component_tests/ct_create_test_meshes.f90 \
+  UPSY/validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
+  UPSY/validation/component_tests/ct_discretisation_solve_Laplace_eq.f90 \
+  UPSY/validation/component_tests/ct_discretisation.f90 \
+  UPSY/validation/component_tests/ct_remapping_basic.f90 \
+  UPSY/validation/component_tests/ct_remapping_grid_to_mesh.f90 \
+  UPSY/validation/component_tests/ct_remapping_mesh_to_grid.f90 \
+  UPSY/validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
+  UPSY/validation/component_tests/ct_remapping.f90 \
 	\
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
@@ -299,10 +313,6 @@ UFEMISM_source = \
   io/main_regional_output/scalar_output_files.f90 \
   io/main_regional_output/grid_output_files.f90 \
   io/main_regional_output/mesh_output_files.f90 \
-  \
-  basic/analytical_solutions/Halfar_SIA_solution.f90 \
-  basic/analytical_solutions/Bueler_SIA_solution.f90 \
-  basic/analytical_solutions/Schoof_SSA_solution.f90 \
   \
   reference_geometries/idealised_geometries.f90 \
   reference_geometries/preprocess_geometry.f90 \
@@ -423,16 +433,7 @@ UFEMISM_source = \
   validation/unit_tests/ut_ocean_extrapolation.f90 \
   validation/unit_tests/ut_laddie.f90 \
   validation/unit_tests/unit_tests.f90 \
-  \
-  validation/component_tests/ct_create_test_meshes.f90 \
-  validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
-  validation/component_tests/ct_discretisation_solve_Laplace_eq.f90 \
-  validation/component_tests/ct_discretisation.f90 \
-  validation/component_tests/ct_remapping_basic.f90 \
-  validation/component_tests/ct_remapping_grid_to_mesh.f90 \
-  validation/component_tests/ct_remapping_mesh_to_grid.f90 \
-  validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
-  validation/component_tests/ct_remapping.f90 \
+	\
   validation/component_tests/ct_mass_conservation.f90 \
   validation/component_tests/component_tests.f90 \
   \
