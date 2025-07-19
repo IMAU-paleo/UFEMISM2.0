@@ -184,9 +184,9 @@ contains
       if (allocated( refgeo%mesh_raw%V)) call crash('found both grid and mesh in refgeo!')
 
       ! Remap data to the model mesh
-      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hi_grid_raw, refgeo%Hi)
-      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hb_grid_raw, refgeo%Hb)
-      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%SL_grid_raw, refgeo%SL)
+      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, C%output_dir, refgeo%Hi_grid_raw, refgeo%Hi)
+      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, C%output_dir, refgeo%Hb_grid_raw, refgeo%Hb)
+      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, C%output_dir, refgeo%SL_grid_raw, refgeo%SL)
 
     elseif (allocated( refgeo%mesh_raw%V)) then
       ! Meshed
@@ -196,9 +196,9 @@ contains
 
       ! Remap data to the model mesh
       method = '2nd_order_conservative'
-      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hi_mesh_raw, refgeo%Hi, method)
-      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hb_mesh_raw, refgeo%Hb, method)
-      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%SL_mesh_raw, refgeo%SL, method)
+      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, C%output_dir, refgeo%Hi_mesh_raw, refgeo%Hi, method)
+      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, C%output_dir, refgeo%Hb_mesh_raw, refgeo%Hb, method)
+      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, C%output_dir, refgeo%SL_mesh_raw, refgeo%SL, method)
 
     else
       call crash('no grid or mesh is found in refgeo!')

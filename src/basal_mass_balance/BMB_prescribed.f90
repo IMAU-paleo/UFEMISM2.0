@@ -210,10 +210,10 @@ CONTAINS
     ! Read BMB from file
     IF (timeframe_BMB_prescribed == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, BMB%BMB_shelf)
+      CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, C%output_dir, BMB%BMB_shelf)
     ELSE
       ! Assume the file has a time dimension, and read the specified timeframe
-      CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, BMB%BMB_shelf, time_to_read = timeframe_BMB_prescribed)
+      CALL read_field_from_file_2D( filename_BMB_prescribed, 'BMB||basal_mass_balance||', mesh, C%output_dir, BMB%BMB_shelf, time_to_read = timeframe_BMB_prescribed)
     END IF
 
     ! Finalise routine path

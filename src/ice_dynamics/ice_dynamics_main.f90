@@ -474,7 +474,7 @@ contains
     call remap_basic_ice_geometry( mesh_old, mesh_new, refgeo_PD, GIA, ice)
 
     ! Remap dHi/dt to improve stability of the P/C scheme after mesh updates
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, ice%dHi_dt, '2nd_order_conservative')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -486,7 +486,7 @@ contains
     Ti_min = minval(ice%Ti)
 
     ! Use 2nd-order conservative remapping for the ice temperature.
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, ice%Ti, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, ice%Ti, '2nd_order_conservative')
 
     ! Make sure that no values are smaller than the original minimum
     ice%Ti = max( ice%Ti, Ti_min)
@@ -893,8 +893,8 @@ contains
     call gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! First, naively remap ice thickness and surface elevation without any restrictions
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hi, Hi_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hs, Hs_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, C%output_dir, ice%Hi, Hi_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, C%output_dir, ice%Hs, Hs_new, '2nd_order_conservative')
 
     ! Calculate remapped ice thickness as the difference between new bedrock and remapped surface elevation
     do vi = mesh_new%vi1, mesh_new%vi2
@@ -1233,10 +1233,10 @@ contains
     ! == Remap SMB, BMB, LMB, and AMB to get more stable ice thickness
     ! ================================================================
 
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, SMB%SMB, SMB_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, BMB%BMB, BMB_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, LMB%LMB, LMB_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, AMB%AMB, AMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, SMB%SMB, SMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, BMB%BMB, BMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, LMB%LMB, LMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, AMB%AMB, AMB_new, '2nd_order_conservative')
 
     ! == Relax the ice thickness for a few time steps
     ! ===============================================

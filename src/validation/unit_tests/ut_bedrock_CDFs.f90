@@ -65,7 +65,7 @@ subroutine unit_tests_bedrock_CDFs_main( test_name_parent)
   alpha_min = 25._dp * pi / 180._dp
   res_max = 50e3_dp
 
-  call allocate_mesh_primary( mesh, name, 5, 4, C%nC_mem)
+  call allocate_mesh_primary( mesh, name, 5, 4)
   call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
   call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
   call calc_field_to_vector_form_translation_tables( mesh)

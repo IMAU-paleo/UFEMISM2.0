@@ -177,9 +177,9 @@ contains
     allocate( SMB_grid_vec_partial( particles%grid_new_particles%n1: particles%grid_new_particles%n2))
 
     ! Map ice thickness and SMB to the particle creation grid
-    call map_from_mesh_vertices_to_xy_grid_2D( mesh, particles%grid_new_particles, &
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, particles%grid_new_particles, C%output_dir, &
       ice%Hi , Hi_grid_vec_partial)
-    call map_from_mesh_vertices_to_xy_grid_2D( mesh, particles%grid_new_particles, &
+    call map_from_mesh_vertices_to_xy_grid_2D( mesh, particles%grid_new_particles, C%output_dir, &
       SMB%SMB, SMB_grid_vec_partial)
 
     ! Gather data to all processes, so they can be interpolated to the particle positions

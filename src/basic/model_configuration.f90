@@ -258,9 +258,6 @@ MODULE model_configuration
     REAL(dp)            :: dx_square_grid_smooth_GRL_config             = 5000._dp
     REAL(dp)            :: dx_square_grid_smooth_ANT_config             = 5000._dp
 
-    ! Memory
-    INTEGER             :: nC_mem_config                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
-
   ! == The scaled vertical coordinate zeta
   ! ======================================
 
@@ -1350,9 +1347,6 @@ MODULE model_configuration
     REAL(dp)            :: dx_square_grid_smooth_EAS
     REAL(dp)            :: dx_square_grid_smooth_GRL
     REAL(dp)            :: dx_square_grid_smooth_ANT
-
-    ! Memory
-    INTEGER             :: nC_mem
 
   ! == The scaled vertical coordinate zeta
   ! ======================================
@@ -2584,7 +2578,6 @@ CONTAINS
       dx_square_grid_smooth_EAS_config                            , &
       dx_square_grid_smooth_GRL_config                            , &
       dx_square_grid_smooth_ANT_config                            , &
-      nC_mem_config                                               , &
       choice_zeta_grid_config                                     , &
       nz_config                                                   , &
       zeta_irregular_log_R_config                                 , &
@@ -3406,9 +3399,6 @@ CONTAINS
     C%dx_square_grid_smooth_EAS                              = dx_square_grid_smooth_EAS_config
     C%dx_square_grid_smooth_GRL                              = dx_square_grid_smooth_GRL_config
     C%dx_square_grid_smooth_ANT                              = dx_square_grid_smooth_ANT_config
-
-    ! Memory
-    C%nC_mem                                                 = nC_mem_config
 
   ! == The scaled vertical coordinate zeta
   ! ======================================

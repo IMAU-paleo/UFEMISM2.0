@@ -49,13 +49,13 @@ contains
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)
           case('initialisation')
-            ! nothing to do here 
+            ! nothing to do here
           case default
             call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
         end select
 
       case ('transient')
-        call run_ocean_model_transient(mesh, ocean, time)  
+        call run_ocean_model_transient(mesh, ocean, time)
 
       case default
         call crash('unknown choice_ocean_model_realistic "' // trim( C%choice_ocean_model_realistic) // '"')
@@ -108,19 +108,19 @@ contains
         end select
 
         ! Fill in  main variables
-        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, ocean%T)
-        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, ocean%S)
+        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, C%output_dir, ocean%T)
+        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, C%output_dir, ocean%S)
 
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)
           case('initialisation')
             call extrapolate_ocean_forcing( mesh, ice, ocean%T)
-            call extrapolate_ocean_forcing( mesh, ice, ocean%S) 
+            call extrapolate_ocean_forcing( mesh, ice, ocean%S)
           case default
             call crash('unknown choice_ocean_extrapolation_method "' // trim( C%choice_ocean_extrapolation_method) // '"')
         end select
 
-      case ('transient')  
+      case ('transient')
           call initialise_ocean_model_transient(mesh, ice, ocean, region_name, start_time_of_run)
 
       case default
@@ -153,7 +153,7 @@ contains
     select case (C%choice_ocean_model_transient)
       case ('deltaT')
         call initialise_ocean_model_deltaT( mesh, ice, ocean, region_name, start_time_of_run)
-      
+
       case ('GlacialIndex')
         call initialise_ocean_model_GlacialIndex( mesh, ice, ocean, region_name, start_time_of_run)
 
@@ -182,7 +182,7 @@ contains
     select case (C%choice_ocean_model_transient)
       case('deltaT')
         call run_ocean_model_deltaT(mesh, ocean, time)
-        
+
       case('GlacialIndex')
         call run_ocean_model_GlacialIndex(mesh, ocean, time)
 

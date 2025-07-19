@@ -17,7 +17,7 @@ module laddie_dummy_domain
   use ocean_model_types, only: type_ocean_model
   use ocean_main, only: initialise_ocean_vertical_grid
   use laddie_model_types, only: type_laddie_model, type_laddie_timestep
-  use laddie_main, only: update_laddie_forcing 
+  use laddie_main, only: update_laddie_forcing
   use laddie_utilities, only: allocate_laddie_model, allocate_laddie_timestep
   use mesh_memory, only: allocate_mesh_primary
   use mesh_parallel_creation, only: broadcast_mesh
@@ -104,7 +104,7 @@ contains
     ymin = -50e3_dp
     ymax =  50e3_dp
 
-    call allocate_mesh_primary( mesh, name, 16, 18, C%nC_mem)
+    call allocate_mesh_primary( mesh, name, 16, 18)
     call initialise_dummy_mesh_16( mesh, xmin, xmax, ymin, ymax)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
     call calc_all_matrix_operators_mesh( mesh)
@@ -181,18 +181,18 @@ contains
     ! Set up ocean forcing
     ! ====================
 
-    ! Vertical grid 
-    C%ocean_vertical_grid_max_depth = 5000._dp 
-    C%ocean_vertical_grid_dz = 100._dp 
-   
-    if (allocated( C%z_ocean)) deallocate( C%z_ocean) 
-    call initialise_ocean_vertical_grid 
-   
-    ! Ocean temperatures 
-    if (allocated( ocean%T)) deallocate( ocean%T) 
-    if (allocated( ocean%S)) deallocate( ocean%S) 
-    allocate( ocean%T( mesh%vi1:mesh%vi2,C%nz_ocean)) 
-    allocate( ocean%S( mesh%vi1:mesh%vi2,C%nz_ocean)) 
+    ! Vertical grid
+    C%ocean_vertical_grid_max_depth = 5000._dp
+    C%ocean_vertical_grid_dz = 100._dp
+
+    if (allocated( C%z_ocean)) deallocate( C%z_ocean)
+    call initialise_ocean_vertical_grid
+
+    ! Ocean temperatures
+    if (allocated( ocean%T)) deallocate( ocean%T)
+    if (allocated( ocean%S)) deallocate( ocean%S)
+    allocate( ocean%T( mesh%vi1:mesh%vi2,C%nz_ocean))
+    allocate( ocean%S( mesh%vi1:mesh%vi2,C%nz_ocean))
 
     ! Define simple forcing
     do vi = mesh%vi1, mesh%vi2

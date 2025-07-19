@@ -86,13 +86,202 @@ $(OBJ_PATH)/%.o : */*/*/*/*/*/%.f90 Makefile | $(OBJ_PATH) $(MOD_PATH)
 
 UFEMISM_source = \
   \
-  basic/precisions.f90 \
+  UPSY/basic/precisions.f90 \
   \
-  types/parallel_array_info_type.f90 \
-  types/CSR_sparse_matrix_type.f90 \
-  types/grid_types.f90 \
-  types/mesh_types.f90 \
-  types/remapping_types.f90 \
+  UPSY/types/parallel_array_info_type.f90 \
+  UPSY/types/CSR_sparse_matrix_type.f90 \
+  UPSY/types/grid_types.f90 \
+  UPSY/types/mesh_types.f90 \
+  UPSY/types/remapping_types.f90 \
+  \
+  UPSY/basic/parameters.f90 \
+  \
+  UPSY/basic/mpi_parallelisation/mpi_basic.f90 \
+  \
+  UPSY/basic/reallocate_mod.f90 \
+  UPSY/basic/string_module.f90 \
+  UPSY/basic/control_resources_and_error_messaging.f90 \
+  basic/model_configuration.f90 \
+  \
+  UPSY/validation/basic_tests/tests_logical.f90 \
+  UPSY/validation/basic_tests/tests_int.f90 \
+  UPSY/validation/basic_tests/tests_dp.f90 \
+  UPSY/validation/basic_tests/tests_CSR.f90 \
+  UPSY/validation/basic_tests/tests_grid.f90 \
+  UPSY/validation/basic_tests/tests_grid_lonlat.f90 \
+  UPSY/validation/basic_tests/tests_mesh.f90 \
+  UPSY/validation/basic_tests/tests_main.f90 \
+  UPSY/validation/basic_tests/assertions_basic.f90 \
+  \
+  UPSY/basic/mpi_parallelisation/mpi_distributed_memory.f90 \
+  UPSY/basic/mpi_parallelisation/allocate_dist_shared_mod.f90 \
+  UPSY/basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
+  UPSY/basic/mpi_parallelisation/reallocate_dist_shared_mod.f90 \
+  UPSY/basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
+  UPSY/basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
+  UPSY/basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
+  UPSY/basic/mpi_parallelisation/dist_to_hybrid_mod.f90 \
+  UPSY/basic/mpi_parallelisation/halo_exchange_mod.f90 \
+  UPSY/basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
+  UPSY/basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
+	\
+	UPSY/basic/checksum_mod.f90 \
+  \
+  UPSY/basic/math_utilities/flip_mod.f90 \
+  UPSY/basic/math_utilities/permute_mod.f90 \
+  UPSY/basic/math_utilities/projections.f90 \
+  UPSY/basic/math_utilities/matrix_algebra.f90 \
+  UPSY/basic/math_utilities/plane_geometry.f90 \
+  UPSY/basic/math_utilities/ice_geometry_basics.f90 \
+  UPSY/basic/math_utilities/line_integrals.f90 \
+  UPSY/basic/math_utilities/sorting.f90 \
+  UPSY/basic/math_utilities/erf_mod.f90 \
+  UPSY/basic/math_utilities/interpolation.f90 \
+  UPSY/basic/math_utilities/tridiagonal_solver.f90 \
+  UPSY/basic/math_utilities/shape_functions.f90 \
+  \
+  UPSY/basic/analytical_solutions/Halfar_SIA_solution.f90 \
+  UPSY/basic/analytical_solutions/Bueler_SIA_solution.f90 \
+  UPSY/basic/analytical_solutions/Schoof_SSA_solution.f90 \
+  \
+  UPSY/basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
+  UPSY/basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
+  UPSY/basic/CSR_matrix_algebra/CSR_matrix_solving.f90 \
+  UPSY/basic/petsc_basic.f90 \
+  \
+  UPSY/basic/grid/grid_basic.f90 \
+  UPSY/basic/grid/smooth_gridded_data.f90 \
+  UPSY/basic/grid_lonlat_basic.f90 \
+  \
+  UPSY/mesh/mesh_memory.f90 \
+  UPSY/mesh/mesh_utilities.f90 \
+  UPSY/mesh/mesh_integrate_over_domain.f90 \
+  UPSY/mesh/mesh_contour.f90 \
+  UPSY/mesh/mesh_dummy_meshes.f90 \
+  UPSY/mesh/mesh_ROI_polygons.f90 \
+  UPSY/mesh/Delaunay/check_Delaunay_criterion.f90 \
+  UPSY/mesh/Delaunay/flip_triangles.f90 \
+  UPSY/mesh/Delaunay/move_vertices.f90 \
+  UPSY/mesh/Delaunay/split_border_edges.f90 \
+  UPSY/mesh/Delaunay/split_edges.f90 \
+  UPSY/mesh/Delaunay/split_triangles.f90 \
+  UPSY/mesh/edges/mesh_edges.f90 \
+  UPSY/mesh/Voronoi_mesh/mesh_Voronoi.f90 \
+  UPSY/mesh/mesh_refinement_basic.f90 \
+  UPSY/mesh/mesh_refinement_basic_ROI.f90 \
+  UPSY/mesh/mesh_refinement_fun.f90 \
+  UPSY/mesh/mesh_contiguous_domains.f90 \
+  UPSY/mesh/mesh_Lloyds_algorithm.f90 \
+  UPSY/mesh/mesh_parallel_creation.f90 \
+  UPSY/mesh/mesh_zeta.f90 \
+  UPSY/mesh/discretisation/mesh_translation_tables.f90 \
+  UPSY/mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
+  UPSY/mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
+  UPSY/mesh/discretisation/mesh_disc_apply_operators.f90 \
+  UPSY/mesh/mesh_parallelisation.f90 \
+  UPSY/mesh/mesh_secondary.f90 \
+  UPSY/mesh/mesh_halo_exchange.f90 \
+  UPSY/mesh/mesh_repartitioning.f90 \
+  \
+  UPSY/io/netcdf_basic/netcdf_basic_wrappers.f90 \
+  UPSY/io/netcdf_basic/netcdf_field_name_options.f90 \
+  UPSY/io/netcdf_basic/netcdf_inquire_dimensions.f90 \
+  UPSY/io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
+  UPSY/io/netcdf_basic/netcdf_read_var_primary.f90 \
+  UPSY/io/netcdf_basic/netcdf_check_dimensions.f90 \
+  UPSY/io/netcdf_basic/netcdf_write_var_primary.f90 \
+  UPSY/io/netcdf_basic/netcdf_check_fields.f90 \
+  UPSY/io/netcdf_basic/netcdf_find_timeframe.f90 \
+  UPSY/io/netcdf_basic/netcdf_save_single_variables.f90 \
+  UPSY/io/netcdf_basic/netcdf_basic.f90 \
+  \
+  UPSY/io/netcdf_input/netcdf_determine_indexing.f90 \
+  UPSY/io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_series_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
+  UPSY/io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
+  UPSY/io/netcdf_input/netcdf_input.f90 \
+  \
+  UPSY/io/netcdf_output/netcdf_generate_numbered_filename.f90 \
+  UPSY/io/netcdf_output/netcdf_add_write_scalar_variables.f90 \
+  UPSY/io/netcdf_output/netcdf_add_basic_dimensions.f90 \
+  UPSY/io/netcdf_output/netcdf_add_field_grid.f90 \
+  UPSY/io/netcdf_output/netcdf_add_field_mesh.f90 \
+  UPSY/io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
+  UPSY/io/netcdf_output/netcdf_write_field_grid.f90 \
+  UPSY/io/netcdf_output/netcdf_write_field_mesh.f90 \
+  UPSY/io/netcdf_output/netcdf_resource_tracking.f90 \
+  UPSY/io/netcdf_output/netcdf_output.f90 \
+  \
+  UPSY/mesh/remapping/line_tracing_basic.f90 \
+  UPSY/mesh/remapping/line_tracing_grid.f90 \
+  UPSY/mesh/remapping/line_tracing_triangles.f90 \
+  UPSY/mesh/remapping/line_tracing_Voronoi.f90 \
+  UPSY/mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
+  UPSY/mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
+  UPSY/mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
+  UPSY/mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
+  UPSY/mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
+  UPSY/mesh/remapping/remapping_mesh_to_mesh.f90 \
+  UPSY/mesh/remapping/apply_maps.f90 \
+  UPSY/mesh/remapping/remapping_main.f90 \
+  UPSY/mesh/mesh_data_smoothing.f90 \
+  \
+  UPSY/io/read_and_remap/read_and_remap_field_from_file.f90 \
+  UPSY/io/netcdf_io_main.f90 \
+  \
+  UPSY/validation/unit_tests/ut_basic.f90 \
+  UPSY/validation/unit_tests/ut_mpi.f90 \
+  UPSY/validation/unit_tests/ut_petsc.f90 \
+  UPSY/validation/unit_tests/ut_math_utilities.f90 \
+  UPSY/validation/unit_tests/ut_mesh_Delaunay.f90 \
+  UPSY/validation/unit_tests/ut_mesh_refinement.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_start.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_a.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_b.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_cx.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid_cy.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_grid.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_start.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_ti.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_vi.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri_ei.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_tri.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_start.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_vi.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ti.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ei.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_trace_line_Vor.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping_mesh_to_mesh.f90 \
+  UPSY/validation/unit_tests/ut_mesh_remapping.f90 \
+  UPSY/validation/unit_tests/ut_mesh.f90 \
+  UPSY/validation/unit_tests/ut_netcdf_xy_grid.f90 \
+  UPSY/validation/unit_tests/ut_netcdf_mesh.f90 \
+  UPSY/validation/unit_tests/ut_netcdf.f90 \
+  \
+  UPSY/validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \
+  UPSY/validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
+  UPSY/validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
+  UPSY/validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
+  UPSY/validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
+  UPSY/validation/unit_tests/ut_halo_exchange.f90 \
+  UPSY/validation/unit_tests/ut_halo_exchange_mesh.f90 \
+  UPSY/validation/unit_tests/ut_mpi_CSR_matrix_vector_multiplication.f90 \
+  UPSY/validation/unit_tests/ut_mpi_CSR_matrix_solving.f90 \
+  UPSY/validation/unit_tests/ut_mpi_CSR_matrix_algebra.f90 \
+  UPSY/validation/unit_tests/unit_tests_multinode.f90 \
+  \
+  UPSY/validation/component_tests/ct_create_test_meshes.f90 \
+  UPSY/validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
+  UPSY/validation/component_tests/ct_discretisation_solve_Laplace_eq.f90 \
+  UPSY/validation/component_tests/ct_discretisation.f90 \
+  UPSY/validation/component_tests/ct_remapping_basic.f90 \
+  UPSY/validation/component_tests/ct_remapping_grid_to_mesh.f90 \
+  UPSY/validation/component_tests/ct_remapping_mesh_to_grid.f90 \
+  UPSY/validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
+  UPSY/validation/component_tests/ct_remapping.f90 \
+	\
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \
   types/global_forcing_types.f90 \
@@ -109,152 +298,18 @@ UFEMISM_source = \
   types/tracer_tracking_model_types.f90 \
   types/transect_types.f90 \
   types/region_types.f90 \
-  \
-  basic/parameters.f90 \
-  \
-  basic/mpi_parallelisation/mpi_basic.f90 \
-  \
-  basic/reallocate_mod.f90 \
-  basic/string_module.f90 \
-  basic/control_resources_and_error_messaging.f90 \
-  basic/model_configuration.f90 \
-  \
-  validation/basic_tests/tests_logical.f90 \
-  validation/basic_tests/tests_int.f90 \
-  validation/basic_tests/tests_dp.f90 \
-  validation/basic_tests/tests_CSR.f90 \
-  validation/basic_tests/tests_grid.f90 \
-  validation/basic_tests/tests_grid_lonlat.f90 \
-  validation/basic_tests/tests_mesh.f90 \
-  validation/basic_tests/tests_main.f90 \
-  validation/basic_tests/assertions_basic.f90 \
-  \
-  basic/mpi_parallelisation/mpi_distributed_memory.f90 \
-  basic/mpi_parallelisation/allocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/reallocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
-  basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
-  basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
-  basic/mpi_parallelisation/dist_to_hybrid_mod.f90 \
-  basic/mpi_parallelisation/halo_exchange_mod.f90 \
-  basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
-  basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
 	\
-	basic/checksum_mod.f90 \
+  mesh_creation/reduce_ice_geometry.f90 \
+  mesh_creation/mesh_creation_refine_in_ROIs.f90 \
+  mesh_creation/mesh_creation_from_reduced_geometry.f90 \
+  mesh_creation/mesh_creation_main.f90 \
   \
-  basic/math_utilities/flip_mod.f90 \
-  basic/math_utilities/permute_mod.f90 \
-  basic/math_utilities/projections.f90 \
-  basic/math_utilities/matrix_algebra.f90 \
-  basic/math_utilities/plane_geometry.f90 \
-  basic/math_utilities/ice_geometry_basics.f90 \
-  basic/math_utilities/line_integrals.f90 \
-  basic/math_utilities/sorting.f90 \
-  basic/math_utilities/erf_mod.f90 \
-  basic/math_utilities/interpolation.f90 \
-  basic/math_utilities/tridiagonal_solver.f90 \
-  basic/math_utilities/shape_functions.f90 \
-  \
-  basic/analytical_solutions/Halfar_SIA_solution.f90 \
-  basic/analytical_solutions/Bueler_SIA_solution.f90 \
-  basic/analytical_solutions/Schoof_SSA_solution.f90 \
-  \
-  basic/CSR_matrix_algebra/CSR_matrix_basics.f90 \
-  basic/CSR_matrix_algebra/CSR_matrix_vector_multiplication.f90 \
-  basic/CSR_matrix_algebra/CSR_matrix_solving.f90 \
-  basic/petsc_basic.f90 \
-  \
-  basic/grid/grid_basic.f90 \
-  basic/grid/smooth_gridded_data.f90 \
-  basic/grid_lonlat_basic.f90 \
-  \
-  mesh/mesh_memory.f90 \
-  mesh/mesh_utilities.f90 \
-  mesh/mesh_integrate_over_domain.f90 \
-  mesh/mesh_contour.f90 \
-  mesh/mesh_dummy_meshes.f90 \
-  mesh/mesh_ROI_polygons.f90 \
-  mesh/Delaunay/check_Delaunay_criterion.f90 \
-  mesh/Delaunay/flip_triangles.f90 \
-  mesh/Delaunay/move_vertices.f90 \
-  mesh/Delaunay/split_border_edges.f90 \
-  mesh/Delaunay/split_edges.f90 \
-  mesh/Delaunay/split_triangles.f90 \
-  mesh/edges/mesh_edges.f90 \
-  mesh/Voronoi_mesh/mesh_Voronoi.f90 \
-  mesh/mesh_refinement_basic.f90 \
-  mesh/mesh_refinement_basic_ROI.f90 \
-  mesh/mesh_refinement_fun.f90 \
-  mesh/mesh_contiguous_domains.f90 \
-  mesh/mesh_Lloyds_algorithm.f90 \
-  mesh/mesh_parallel_creation.f90 \
-  mesh/mesh_zeta.f90 \
-  mesh/discretisation/mesh_translation_tables.f90 \
-  mesh/discretisation/mesh_disc_calc_matrix_operators_2D.f90 \
-  mesh/discretisation/mesh_disc_calc_matrix_operators_3D.f90 \
-  mesh/discretisation/mesh_disc_apply_operators.f90 \
-  mesh/mesh_parallelisation.f90 \
-  mesh/mesh_secondary.f90 \
-  mesh/mesh_halo_exchange.f90 \
-  mesh/creation/reduce_ice_geometry.f90 \
-  mesh/creation/mesh_creation_refine_in_ROIs.f90 \
-  mesh/creation/mesh_creation_from_reduced_geometry.f90 \
-  mesh/creation/mesh_creation_main.f90 \
-  mesh/mesh_repartitioning.f90 \
-  \
-  io/netcdf_basic/netcdf_basic_wrappers.f90 \
-  io/netcdf_basic/netcdf_field_name_options.f90 \
-  io/netcdf_basic/netcdf_inquire_dimensions.f90 \
-  io/netcdf_basic/netcdf_inquire_grid_mesh.f90 \
-  io/netcdf_basic/netcdf_read_var_primary.f90 \
-  io/netcdf_basic/netcdf_check_dimensions.f90 \
-  io/netcdf_basic/netcdf_write_var_primary.f90 \
-  io/netcdf_basic/netcdf_check_fields.f90 \
-  io/netcdf_basic/netcdf_find_timeframe.f90 \
-  io/netcdf_basic/netcdf_save_single_variables.f90 \
-  io/netcdf_basic/netcdf_basic.f90 \
-  \
-  io/netcdf_input/netcdf_determine_indexing.f90 \
-  io/netcdf_input/netcdf_setup_grid_mesh_from_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_mesh_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_series_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_lonlat_grid_file.f90 \
-  io/netcdf_input/netcdf_read_field_from_xy_grid_file.f90 \
-  io/netcdf_input/netcdf_input.f90 \
-  \
-  io/netcdf_output/netcdf_generate_numbered_filename.f90 \
-  io/netcdf_output/netcdf_add_write_scalar_variables.f90 \
-  io/netcdf_output/netcdf_add_basic_dimensions.f90 \
+  transects/netcdf_write_field_transect.f90 \
+  transects/apply_maps_transects.f90 \
+  transects/remapping_transects.f90 \
+  transects/transects_main.f90 \
+	\
   io/netcdf_output/netcdf_bedrock_CDF.f90 \
-  io/netcdf_output/netcdf_add_field_grid.f90 \
-  io/netcdf_output/netcdf_add_field_mesh.f90 \
-  io/netcdf_output/netcdf_setup_grid_mesh_in_file.f90 \
-  io/netcdf_output/netcdf_write_field_grid.f90 \
-  io/netcdf_output/netcdf_write_field_mesh.f90 \
-  io/netcdf_output/netcdf_write_field_transect.f90 \
-  io/netcdf_output/netcdf_resource_tracking.f90 \
-  io/netcdf_output/netcdf_output.f90 \
-  \
-  mesh/remapping/line_tracing_basic.f90 \
-  mesh/remapping/line_tracing_grid.f90 \
-  mesh/remapping/line_tracing_triangles.f90 \
-  mesh/remapping/line_tracing_Voronoi.f90 \
-  mesh/remapping/remapping_grid_to_mesh_vertices.f90 \
-  mesh/remapping/remapping_grid_to_mesh_triangles.f90 \
-  mesh/remapping/remapping_mesh_vertices_to_grid.f90 \
-  mesh/remapping/remapping_mesh_triangles_to_grid.f90 \
-  mesh/remapping/remapping_gridlonlat_to_mesh.f90 \
-  mesh/remapping/remapping_mesh_to_mesh.f90 \
-  mesh/remapping/remapping_transects.f90 \
-  mesh/remapping/apply_maps.f90 \
-  mesh/remapping/remapping_main.f90 \
-  mesh/mesh_data_smoothing.f90 \
-  \
-  io/read_and_remap/read_and_remap_field_from_file.f90 \
-  io/netcdf_io_main.f90 \
-  \
-  io/transects/transects_main.f90 \
   \
   io/main_regional_output/scalar_output_files.f90 \
   io/main_regional_output/grid_output_files.f90 \
@@ -374,61 +429,12 @@ UFEMISM_source = \
   main/UFEMISM_main_model.f90 \
   \
   laddie/laddie_dummy_domain.f90 \
-  \
-  validation/unit_tests/ut_basic.f90 \
-  validation/unit_tests/ut_mpi.f90 \
-  validation/unit_tests/ut_petsc.f90 \
-  validation/unit_tests/ut_math_utilities.f90 \
-  validation/unit_tests/ut_mesh_Delaunay.f90 \
-  validation/unit_tests/ut_mesh_refinement.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_start.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_a.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_b.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_cx.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid_cy.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_grid.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_start.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_ti.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_vi.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri_ei.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_tri.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_start.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_vi.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ti.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor_ei.f90 \
-  validation/unit_tests/ut_mesh_remapping_trace_line_Vor.f90 \
-  validation/unit_tests/ut_mesh_remapping_mesh_to_mesh.f90 \
-  validation/unit_tests/ut_mesh_remapping.f90 \
-  validation/unit_tests/ut_mesh.f90 \
-  validation/unit_tests/ut_netcdf_xy_grid.f90 \
-  validation/unit_tests/ut_netcdf_mesh.f90 \
-  validation/unit_tests/ut_netcdf.f90 \
+	\
   validation/unit_tests/ut_bedrock_CDFs.f90 \
   validation/unit_tests/ut_ocean_extrapolation.f90 \
   validation/unit_tests/ut_laddie.f90 \
   validation/unit_tests/unit_tests.f90 \
-  \
-  validation/unit_tests/ut_mpi_allocate_dist_shared.f90 \
-  validation/unit_tests/ut_mpi_gather_dist_shared_to_primary.f90 \
-  validation/unit_tests/ut_mpi_gather_dist_shared_to_all.f90 \
-  validation/unit_tests/ut_mpi_distribute_dist_shared_from_primary.f90 \
-  validation/unit_tests/ut_mpi_dist_shared_memory.f90 \
-  validation/unit_tests/ut_halo_exchange.f90 \
-  validation/unit_tests/ut_halo_exchange_mesh.f90 \
-  validation/unit_tests/ut_mpi_CSR_matrix_vector_multiplication.f90 \
-  validation/unit_tests/ut_mpi_CSR_matrix_solving.f90 \
-  validation/unit_tests/ut_mpi_CSR_matrix_algebra.f90 \
-  validation/unit_tests/unit_tests_multinode.f90 \
-  \
-  validation/component_tests/ct_create_test_meshes.f90 \
-  validation/component_tests/ct_discretisation_mapping_derivatives.f90 \
-  validation/component_tests/ct_discretisation_solve_Laplace_eq.f90 \
-  validation/component_tests/ct_discretisation.f90 \
-  validation/component_tests/ct_remapping_basic.f90 \
-  validation/component_tests/ct_remapping_grid_to_mesh.f90 \
-  validation/component_tests/ct_remapping_mesh_to_grid.f90 \
-  validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
-  validation/component_tests/ct_remapping.f90 \
+	\
   validation/component_tests/ct_mass_conservation.f90 \
   validation/component_tests/component_tests.f90 \
   \
