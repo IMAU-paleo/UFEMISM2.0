@@ -49,6 +49,7 @@ module bedrock_cumulative_density_functions
   use petsc_basic, only: mat_petsc2CSR
   use mpi_distributed_memory_grid, only: gather_gridded_data_to_primary
   use netcdf_io_main
+  use mpi_distributed_memory, only: distribute_from_primary
 
   implicit none
 
@@ -415,5 +416,131 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine calc_bedrock_CDFs_b
+
+  subroutine read_field_from_mesh_file_CDF( filename, field_name_options, &
+    d_mesh_partial)
+    !< Read a cumulative density function field from a NetCDF file on a mesh
+
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    ! In/output variables:
+    character(len=*),                   intent(in   ) :: filename
+    character(len=*),                   intent(in   ) :: field_name_options
+    real(dp), dimension(:,:),           intent(  out) :: d_mesh_partial
+
+    ! Local variables:
+    character(len=1024), parameter        :: routine_name = 'read_field_from_mesh_file_CDF'
+    integer                               :: ncid
+    integer                               :: id_dim_vi, id_var, id_dim_bins, nbins_loc, nV_loc
+    character(len=1024)                   :: var_name
+    real(dp), dimension(:,:), allocatable :: d_mesh
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Get number of mesh vertices
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nV, id_dim_vi, dim_length = nV_loc)
+
+    ! Check that number of bins in file match the ones in the config file
+    call inquire_dim_multopt( filename, ncid, 'bin', id_dim_bins, dim_length = nbins_loc)
+    if (nbins_loc /= C%subgrid_bedrock_cdf_nbins) then
+      call crash('number of CDF bins in external file ({int_01}) does not match subgrid_bedrock_cdf_nbins in config file!', int_01 = nbins_loc)
+    end if
+
+    ! Look for the specified variable in the file
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
+
+    ! allocate memory
+    if (par%primary) allocate( d_mesh( nV_loc, C%subgrid_bedrock_cdf_nbins))
+
+    ! Read data from file
+    call read_var_primary( filename, ncid, id_var, d_mesh)
+
+    ! Close the NetCDF file
+    call close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the primary to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    call distribute_from_primary( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    if (par%primary) deallocate( d_mesh)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_field_from_mesh_file_CDF
+
+  subroutine read_field_from_mesh_file_CDF_b( filename, field_name_options, &
+    d_mesh_partial)
+    !< Read a cumulative density function field from a NetCDF file on a mesh b-grid
+
+    ! NOTE: the mesh should be read before, and memory allocated for d_mesh_partial!
+
+    ! In/output variables:
+    character(len=*),                   intent(in   ) :: filename
+    character(len=*),                   intent(in   ) :: field_name_options
+    real(dp), dimension(:,:),           intent(  out) :: d_mesh_partial
+
+    ! Local variables:
+    character(len=1024), parameter          :: routine_name = 'read_field_from_mesh_file_CDF_b'
+    integer                                 :: ncid
+    integer                                 :: id_dim_ti, id_var, id_dim_bins, nbins_loc, nTri_loc
+    character(len=1024)                     :: var_name
+    real(dp), dimension(:,:  ), allocatable :: d_mesh
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! == Read grid and data from file
+    ! ===============================
+
+    ! Open the NetCDF file
+    call open_existing_netcdf_file_for_reading( filename, ncid)
+
+    ! Get number of mesh triangles
+    call inquire_dim_multopt( filename, ncid, field_name_options_dim_nTri, id_dim_ti, dim_length = nTri_loc)
+
+    ! Check that number of bins in file match the ones in the config file
+    call inquire_dim_multopt( filename, ncid, 'bin', id_dim_bins, dim_length = nbins_loc)
+    if (nbins_loc /= C%subgrid_bedrock_cdf_nbins) then
+      call crash('number of CDF bins in external file ({int_01}) does not match subgrid_bedrock_cdf_nbins in config file!', int_01 = nbins_loc)
+    end if
+
+    ! Look for the specified variable in the file
+    call inquire_var_multopt( filename, ncid, field_name_options, id_var, var_name = var_name)
+    if (id_var == -1) call crash('couldnt find any of the options "' // trim( field_name_options) // '" in file "' // trim( filename)  // '"!')
+
+    ! allocate memory
+    if (par%primary) allocate( d_mesh( nTri_loc, C%subgrid_bedrock_cdf_nbins))
+
+    ! Read data from file
+    call read_var_primary( filename, ncid, id_var, d_mesh)
+
+    ! Close the NetCDF file
+    call close_netcdf_file( ncid)
+
+    ! == Distribute gridded data from the primary to all processes in partial vector form
+    ! ==================================================================================
+
+    ! Distribute data
+    call distribute_from_primary( d_mesh, d_mesh_partial)
+
+    ! Clean up after yourself
+    if (par%primary) deallocate( d_mesh)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine read_field_from_mesh_file_CDF_b
 
 end module bedrock_cumulative_density_functions
