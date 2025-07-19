@@ -8,7 +8,6 @@ module ut_netcdf_xy_grid
   use netcdf_io_main
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, strrep
-  use model_configuration, only: C
   use grid_types, only: type_grid
   use grid_basic, only: setup_square_grid
   use mpi_distributed_memory_grid, only: distribute_gridded_data_from_primary
@@ -403,6 +402,8 @@ contains
     character(len=1024), parameter          :: routine_name = 'unit_tests_netcdf_xy_grid_dp_3D_ocean'
     character(len=1024), parameter          :: test_name_local = 'dp_3D_ocean'
     character(len=1024)                     :: test_name
+    integer                                 :: nz_ocean
+    real(dp), dimension(:),     allocatable :: z_ocean
     real(dp), dimension(:,:,:), allocatable :: d
     real(dp), dimension(:,:  ), allocatable :: d_grid_vec_partial
     integer                                 :: i,j,k
@@ -418,32 +419,32 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Vertical coordinate
-    C%nz_ocean = 10
-    if (allocated( C%z_ocean)) deallocate( C%z_ocean)
-    allocate( C%z_ocean( C%nz_ocean))
-    do k = 1, C%nz_ocean
-      C%z_ocean( k) = real(k-1,dp) * 500._dp
+    nz_ocean = 10
+    if (allocated( z_ocean)) deallocate( z_ocean)
+    allocate( z_ocean( nz_ocean))
+    do k = 1, nz_ocean
+      z_ocean( k) = real(k-1,dp) * 500._dp
     end do
 
     ! Generate test data
-    allocate( d( grid%nx, grid%ny, C%nz_ocean))
+    allocate( d( grid%nx, grid%ny, nz_ocean))
     do i = 1, grid%nx
       do j = 1, grid%ny
-        do k = 1, C%nz_ocean
-          d( i,j,k) = real(i*grid%ny*C%nz_ocean,dp) + real(j*C%nz_ocean,dp) + real(k,dp)
+        do k = 1, nz_ocean
+          d( i,j,k) = real(i*grid%ny*nz_ocean,dp) + real(j*nz_ocean,dp) + real(k,dp)
         end do
       end do
     end do
 
     ! Distribute data over the processes
-    allocate( d_grid_vec_partial( grid%n_loc, C%nz_ocean))
+    allocate( d_grid_vec_partial( grid%n_loc, nz_ocean))
     call distribute_gridded_data_from_primary( grid, d, d_grid_vec_partial)
 
     ! Write to output file
     filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_xy_grid_in_netcdf_file( filename, ncid, grid)
-    call add_depth_dimension_to_file( filename, ncid, C%z_ocean)
+    call add_depth_dimension_to_file( filename, ncid, z_ocean)
     call add_field_grid_dp_3D_ocean_notime( filename, ncid, 'd')
     call write_to_field_multopt_grid_dp_3D_ocean_notime( grid, filename, ncid, 'd', d_grid_vec_partial)
     call close_netcdf_file( ncid)
@@ -453,7 +454,7 @@ contains
     call setup_xy_grid_from_file( filename, ncid, grid_from_file)
     call close_netcdf_file( ncid)
 
-    allocate( d_grid_vec_partial_from_file( grid_from_file%n_loc, C%nz_ocean))
+    allocate( d_grid_vec_partial_from_file( grid_from_file%n_loc, nz_ocean))
     call read_field_from_xy_file_dp_3D_ocean( filename, 'd', d_grid_vec_partial_from_file)
 
     ! Test if what we read is the same as what we wrote

@@ -3,7 +3,6 @@ module ct_discretisation_mapping_derivatives
   ! Test the mesh matrix operators for mapping and derivatives
 
   use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
-  use model_configuration, only: C
   use precisions, only: dp
   use parameters
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string, warning

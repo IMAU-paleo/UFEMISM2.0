@@ -104,6 +104,12 @@ contains
       ! Initialise the dummy mesh
       call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
+      ! Set mesh configuration
+      mesh%resolution_tolerance = C%mesh_resolution_tolerance
+      mesh%choice_zeta_grid     = C%choice_zeta_grid
+      mesh%nz                   = C%nz
+      mesh%zeta_irregular_log_R = C%zeta_irregular_log_R
+
       ! == Refine to a uniform resolution; iteratively reduce this,
       ! == and smooth the mesh in between to get a nice, high-quality mesh
       ! ==================================================================

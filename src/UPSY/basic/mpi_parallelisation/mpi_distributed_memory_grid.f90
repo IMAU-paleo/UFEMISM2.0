@@ -6,7 +6,6 @@ module mpi_distributed_memory_grid
   use grid_types, only: type_grid
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use model_configuration, only: C
   use mpi_distributed_memory, only: distribute_from_primary, gather_to_primary, gather_to_all
 
   implicit none
@@ -488,15 +487,16 @@ subroutine gather_gridded_data_to_all_dp_2D( grid, d_grid_vec_partial, d_grid)
 
 end subroutine gather_gridded_data_to_all_dp_2D
 
-subroutine gather_gridded_data_to_all_int_3D( grid, d_grid_vec_partial, d_grid)
+subroutine gather_gridded_data_to_all_int_3D( grid, nz, d_grid_vec_partial, d_grid)
   !< Gather a 3-D gridded data field to all the processes.
   !< Input from all: partial data in vector form
   !< Output to primary: total data field in field form
 
   ! In/output variables:
-  type(type_grid),                          intent(in   ) :: grid
-  integer, dimension(grid%n1:grid%n2,C%nz), intent(in   ) :: d_grid_vec_partial
-  integer, dimension(grid%nx,grid%ny,C%nz), intent(  out) :: d_grid
+  type(type_grid),                        intent(in   ) :: grid
+  integer,                                intent(in   ) :: nz
+  integer, dimension(grid%n1:grid%n2,nz), intent(in   ) :: d_grid_vec_partial
+  integer, dimension(grid%nx,grid%ny,nz), intent(  out) :: d_grid
 
   ! Local variables:
   character(len=256), parameter       :: routine_name = 'gather_gridded_data_to_all_int_3D'
@@ -508,7 +508,7 @@ subroutine gather_gridded_data_to_all_int_3D( grid, d_grid_vec_partial, d_grid)
   call init_routine( routine_name)
 
   ! Treat each layer as a separate 2-D field
-  do k = 1, C%nz
+  do k = 1, nz
     d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
     call gather_gridded_data_to_all_int_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
     d_grid( :,:,k) = d_grid_2D
@@ -519,15 +519,16 @@ subroutine gather_gridded_data_to_all_int_3D( grid, d_grid_vec_partial, d_grid)
 
 end subroutine gather_gridded_data_to_all_int_3D
 
-subroutine gather_gridded_data_to_all_dp_3D( grid, d_grid_vec_partial, d_grid)
+subroutine gather_gridded_data_to_all_dp_3D( grid, nz, d_grid_vec_partial, d_grid)
   !< Gather a 3-D gridded data field to all the processes.
   !< Input from all: partial data in vector form
   !< Output to primary: total data field in field form
 
   ! In/output variables:
-  type(type_grid),                           intent(in   ) :: grid
-  real(dp), dimension(grid%n1:grid%n2,C%nz), intent(in   ) :: d_grid_vec_partial
-  real(dp), dimension(grid%nx,grid%ny,C%nz), intent(  out) :: d_grid
+  type(type_grid),                         intent(in   ) :: grid
+  integer,                                 intent(in   ) :: nz
+  real(dp), dimension(grid%n1:grid%n2,nz), intent(in   ) :: d_grid_vec_partial
+  real(dp), dimension(grid%nx,grid%ny,nz), intent(  out) :: d_grid
 
   ! Local variables:
   character(len=256), parameter        :: routine_name = 'gather_gridded_data_to_all_dp_3D'
@@ -539,7 +540,7 @@ subroutine gather_gridded_data_to_all_dp_3D( grid, d_grid_vec_partial, d_grid)
   call init_routine( routine_name)
 
   ! Treat each layer as a separate 2-D field
-  do k = 1, C%nz
+  do k = 1, nz
     d_grid_vec_partial_2D = d_grid_vec_partial( :,k)
     call gather_gridded_data_to_all_dp_2D( grid, d_grid_vec_partial_2D, d_grid_2D)
     d_grid( :,:,k) = d_grid_2D

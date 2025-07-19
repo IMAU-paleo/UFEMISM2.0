@@ -2,7 +2,6 @@ module ut_basic
 
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: crash, init_routine, finalise_routine, colour_string
-  use model_configuration, only: C
 
   implicit none
 

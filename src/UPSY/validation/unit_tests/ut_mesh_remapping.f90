@@ -8,7 +8,6 @@ module ut_mesh_remapping
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
-  use model_configuration, only: C
   use parameters, only: pi
   use grid_types, only: type_grid
   use grid_basic, only: setup_square_grid
@@ -143,7 +142,7 @@ contains
     call allocate_mesh_primary( mesh, name, 100, 200)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
     call refine_mesh_uniform( mesh, res_max, alpha_min)
-    call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
+    call calc_all_secondary_mesh_data( mesh, 0._dp, -90._dp, 71._dp)
 
     ! Run unit tests on this mesh
     call test_trace_line_tri_start( test_name, mesh)
@@ -189,7 +188,7 @@ contains
     call allocate_mesh_primary( mesh, name, 100, 200)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
     call refine_mesh_uniform( mesh, res_max, alpha_min)
-    call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
+    call calc_all_secondary_mesh_data( mesh, 0._dp, -90._dp, 71._dp)
 
     ! Run unit tests on this mesh
     call test_trace_line_Vor_start( test_name, mesh)

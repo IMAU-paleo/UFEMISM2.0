@@ -3,7 +3,6 @@ module ct_remapping_mesh_to_grid
   ! Test everything related to remapping
 
   use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
-  use model_configuration, only: C
   use precisions, only: dp
   use mpi_basic, only: par
   use parameters

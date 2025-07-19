@@ -12,7 +12,6 @@ MODULE mesh_utilities
   USE precisions                                             , ONLY: dp
   USE mpi_basic                                              , ONLY: par, sync
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string
-  USE model_configuration                                    , ONLY: C
   USE reallocate_mod
   USE mesh_types                                             , ONLY: type_mesh
   use plane_geometry, only: geometric_center, is_in_triangle, lies_on_line_segment, circumcenter, &
@@ -1357,13 +1356,6 @@ CONTAINS
       stack1  = stack2
       stackN1 = stackN2
 
-      ! If no more non-checked neighbours could be found, terminate and throw an error.
-      IF (stackN2 == 0 .AND. .NOT. FoundIt) THEN
-        ! Write the problem-causing mesh to a text file for debugging
-        call write_mesh_to_text_file( mesh, trim(C%output_dir) // '/problem_mesh.txt')
-        CALL crash('find_containing_triangle - couldnt find triangle containing p = [{dp_01}, {dp_02}]', dp_01 = p(1), dp_02 = p(2))
-      END IF
-
     END DO ! DO WHILE (.NOT. FoundIt)
 
     ! Clean up after yourself
@@ -1497,15 +1489,15 @@ CONTAINS
 
     ! In/output variables:
     type(type_mesh),                         intent(in   ) :: mesh
-    real(dp), dimension(mesh%nV,C%nz),       intent(in   ) :: d
+    real(dp), dimension(mesh%nV,mesh%nz),    intent(in   ) :: d
     real(dp), dimension(2),                  intent(in   ) :: p
     integer,                                 intent(inout) :: ti_in
-    real(dp), dimension(C%nz),               intent(  out) :: d_int
+    real(dp), dimension(mesh%nz),               intent(  out) :: d_int
 
     ! Local variables:
-    integer                   :: via, vib, vic
-    real(dp), dimension(C%nz) :: da, db, dc
-    real(dp), dimension(2)    :: pa, pb, pc
+    integer                      :: via, vib, vic
+    real(dp), dimension(mesh%nz) :: da, db, dc
+    real(dp), dimension(2)       :: pa, pb, pc
 
     ! Find the triangle containing p
     call find_containing_triangle( mesh, p, ti_in)
@@ -1589,17 +1581,17 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_mesh),                                INTENT(IN)    :: mesh
-    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2,1:C%nz), INTENT(IN)    :: d
-    REAL(dp), DIMENSION(2),                         INTENT(IN)    :: p
-    integer,                                        intent(inout) :: ti_in
-    REAL(dp), DIMENSION(C%nz),                      INTENT(  OUT) :: d_int
+    TYPE(type_mesh),                                   INTENT(IN)    :: mesh
+    REAL(dp), DIMENSION( mesh%vi1:mesh%vi2,1:mesh%nz), INTENT(IN)    :: d
+    REAL(dp), DIMENSION(2),                            INTENT(IN)    :: p
+    integer,                                           intent(inout) :: ti_in
+    REAL(dp), DIMENSION(mesh%nz),                      INTENT(  OUT) :: d_int
 
     ! Local variables:
     INTEGER                       :: k, ierr
-    REAL(dp), DIMENSION(C%nz)     :: d_min
+    REAL(dp), DIMENSION(mesh%nz)  :: d_min
     INTEGER                       :: via, vib, vic
-    REAL(dp), DIMENSION(C%nz)     :: da, db, dc
+    REAL(dp), DIMENSION(mesh%nz)  :: da, db, dc
     REAL(dp), DIMENSION(2)        :: pa, pb, pc
 
 #if (DO_ASSERTIONS)
@@ -1607,10 +1599,10 @@ CONTAINS
 #endif
 
     ! Find the global minimum value of d
-    do k = 1, C%nz
+    do k = 1, mesh%nz
       d_min(k) = MINVAL( d(:,k))
     end do
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d_min, C%nz, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d_min, mesh%nz, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
     ! Find the triangle containing p
     CALL find_containing_triangle( mesh, p, ti_in)
@@ -1631,21 +1623,21 @@ CONTAINS
     ELSE
       da = d_min
     END IF
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, da, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, da, mesh%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     IF (vib >= mesh%vi1 .AND. vib <= mesh%vi2) THEN
       db = d( vib,:)
     ELSE
       db = d_min
     END IF
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, db, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, db, mesh%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     IF (vic >= mesh%vi1 .AND. vic <= mesh%vi2) THEN
       dc = d( vic,:)
     ELSE
       dc = d_min
     END IF
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, C%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dc, mesh%nz, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
 
     call interpolate_inside_triangle( pa, pb, pc, da, db, dc, p, d_int, mesh%tol_dist)
 
@@ -2628,7 +2620,7 @@ CONTAINS
 
   ! == ISMIP-HOM periodic boundary conditions
 
-  SUBROUTINE find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+  SUBROUTINE find_ti_copy_ISMIP_HOM_periodic( mesh, L, ti, ti_copy, wti_copy)
     ! Periodic boundary conditions in the ISMIP-HOM experiments are implemented by
     ! taking advantage of the fact that u(x,y) = u(x+L/2,y+L/2)
     !
@@ -2641,6 +2633,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_mesh),                     INTENT(IN)              :: mesh
+    real(dp),                            intent(in   )           :: L
     INTEGER,                             INTENT(IN)              :: ti
     INTEGER,  DIMENSION(mesh%nC_mem),    INTENT(OUT)             :: ti_copy
     REAL(dp), DIMENSION(mesh%nC_mem),    INTENT(OUT)             :: wti_copy
@@ -2655,14 +2648,14 @@ CONTAINS
 
     ! The point where we want to copy the previous velocity solution
     IF (gc( 1) > 0._dp) THEN
-      p( 1) = gc( 1) - C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+      p( 1) = gc( 1) - L / 2._dp
     ELSE
-      p( 1) = gc( 1) + C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+      p( 1) = gc( 1) + L / 2._dp
     END IF
     IF (gc( 2) > 0._dp) THEN
-      p( 2) = gc( 2) - C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+      p( 2) = gc( 2) - L / 2._dp
     ELSE
-      p( 2) = gc( 2) + C%refgeo_idealised_ISMIP_HOM_L / 2._dp
+      p( 2) = gc( 2) + L / 2._dp
     END IF
 
     ! The vertex whose Voronoi cell contains this point

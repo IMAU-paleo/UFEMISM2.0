@@ -74,8 +74,8 @@ subroutine initialise_ocean_model_deltaT( mesh, ice, ocean, region_name, start_t
             ocean%deltaT%S0 = 0._dp
 
             ! Fill in  main variables
-            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean,  mesh, C%output_dir, ocean%deltaT%T0)
-            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean,  mesh, C%output_dir, ocean%deltaT%S0)
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean,  mesh, C%output_dir, C%z_ocean, ocean%deltaT%T0)
+            call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean,  mesh, C%output_dir, C%z_ocean, ocean%deltaT%S0)
 
             call read_field_from_series_file(   filename_ocean_dT,       field_name_options_dT_ocean, ocean%deltaT%dT_series, ocean%deltaT%dT_series_time)
             call update_timeframes_from_record(ocean%deltaT%dT_series_time, ocean%deltaT%dT_series, ocean%deltaT%dT_t0, ocean%deltaT%dT_t1, ocean%deltaT%dT_at_t0, ocean%deltaT%dT_at_t1, start_time_of_run)

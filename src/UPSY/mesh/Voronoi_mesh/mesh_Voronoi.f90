@@ -6,7 +6,6 @@ module mesh_Voronoi
   use assertions_basic
   use precisions, only: dp
   use mesh_types, only: type_mesh
-  use model_configuration, only: C
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
 
   implicit none

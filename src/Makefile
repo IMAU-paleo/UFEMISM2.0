@@ -101,7 +101,7 @@ UFEMISM_source = \
   UPSY/basic/reallocate_mod.f90 \
   UPSY/basic/string_module.f90 \
   UPSY/basic/control_resources_and_error_messaging.f90 \
-  basic/model_configuration.f90 \
+  UPSY/basic/basic_model_utilities.f90 \
   \
   UPSY/validation/basic_tests/tests_logical.f90 \
   UPSY/validation/basic_tests/tests_int.f90 \
@@ -281,6 +281,8 @@ UFEMISM_source = \
   UPSY/validation/component_tests/ct_remapping_mesh_to_grid.f90 \
   UPSY/validation/component_tests/ct_remapping_mesh_to_mesh.f90 \
   UPSY/validation/component_tests/ct_remapping.f90 \
+	\
+  basic/model_configuration.f90 \
 	\
   types/reference_geometry_types.f90 \
   types/scalar_types.f90 \

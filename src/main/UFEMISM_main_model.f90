@@ -977,7 +977,7 @@ CONTAINS
               'TransMounts','DotsonCrosson', 'Franka_WAIS', 'Dotson_channel', &                                      ! Antarctica
               'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                   ! Greenland
               'Patagonia', &                                                                                         ! Patagonia
-              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                             ! Idealised
+              'CalvMIP_quarter')                                                             ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -1047,8 +1047,6 @@ CONTAINS
               CALL calc_polygon_DotsonCrosson_ice_shelf( poly_ROI)
             CASE ('Patagonia')
               CALL calc_polygon_Patagonia( poly_ROI)
-            CASE ('Tijn_test_ISMIP_HOM_A')
-              CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
             CASE ('CalvMIP_quarter')
               ! Not interesting; skip
               CYCLE

@@ -108,8 +108,8 @@ contains
         end select
 
         ! Fill in  main variables
-        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, C%output_dir, ocean%T)
-        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, C%output_dir, ocean%S)
+        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_T_ocean, mesh, C%output_dir, C%z_ocean, ocean%T)
+        call read_field_from_file_3D_ocean( filename_ocean_snapshot, field_name_options_S_ocean, mesh, C%output_dir, C%z_ocean, ocean%S)
 
         ! Apply extrapolation method if required
         select case (C%choice_ocean_extrapolation_method)

@@ -19,7 +19,6 @@ module DIVA_main
     map_b_a_2D, map_b_a_3D, ddx_b_a_2D, ddy_b_a_2D
   use mesh_zeta, only: integrate_from_zeta_is_one_to_zeta_is_zetap, vertical_average
   use constitutive_equation, only: calc_ice_rheology_Glen, calc_effective_viscosity_Glen_3D_uv_only
-  use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic
   use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
   use reallocate_mod, only: reallocate_bounds, reallocate_clean

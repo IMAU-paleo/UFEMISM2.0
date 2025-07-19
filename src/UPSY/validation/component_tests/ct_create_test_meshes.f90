@@ -6,7 +6,6 @@ module ct_create_test_meshes
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
-  use model_configuration, only: C
   use tests_main
   use assertions_basic
   use mesh_types, only: type_mesh
@@ -30,11 +29,12 @@ module ct_create_test_meshes
 contains
 
   !> Create the suite of test meshes for the component tests.
-  subroutine create_all_test_meshes_and_grids( test_mesh_filenames, test_grid_filenames)
+  subroutine create_all_test_meshes_and_grids( output_dir, test_mesh_filenames, test_grid_filenames)
 
     ! In/output variables:
-    character(len=*), dimension(:), allocatable, intent(out) :: test_mesh_filenames
-    character(len=*), dimension(:), allocatable, intent(out) :: test_grid_filenames
+    character(len=*),                            intent(in   ) :: output_dir
+    character(len=*), dimension(:), allocatable, intent(  out) :: test_mesh_filenames
+    character(len=*), dimension(:), allocatable, intent(  out) :: test_grid_filenames
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_all_test_meshes_and_grids'
@@ -47,7 +47,7 @@ contains
     if (par%primary) write(0,*) ''
 
     ! Create output folder within the component tests folder to store the meshes
-    call create_component_tests_mesh_output_folder( foldername_test_meshes)
+    call create_component_tests_mesh_output_folder( output_dir, foldername_test_meshes)
 
     ! Create all the test meshes and grids for the Antarctica domain
     call create_all_test_meshes_and_grids_Antarctica( foldername_test_meshes, &
@@ -61,10 +61,11 @@ contains
   end subroutine create_all_test_meshes_and_grids
 
   !> Create the output folder for the mesh component tests
-  subroutine create_component_tests_mesh_output_folder( foldername_test_meshes)
+  subroutine create_component_tests_mesh_output_folder( output_dir, foldername_test_meshes)
 
     ! In/output variables:
-    character(len=*), intent(out) :: foldername_test_meshes
+    character(len=*), intent(in   ) :: output_dir
+    character(len=*), intent(  out) :: foldername_test_meshes
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_component_tests_mesh_output_folder'
@@ -74,7 +75,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    foldername_test_meshes = trim(C%output_dir) // '/test_meshes_and_grids'
+    foldername_test_meshes = trim(output_dir) // '/test_meshes_and_grids'
 
     if (par%primary) then
 
@@ -88,7 +89,7 @@ contains
       call system('mkdir ' // trim( foldername_test_meshes))
 
     end if
-    call MPI_BCAST( foldername_test_meshes,    len(foldername_test_meshes   ), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+    call MPI_BCAST( foldername_test_meshes, len(foldername_test_meshes), MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

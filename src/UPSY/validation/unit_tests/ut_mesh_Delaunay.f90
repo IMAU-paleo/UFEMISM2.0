@@ -8,7 +8,6 @@ module ut_mesh_Delaunay
   use precisions, only: dp
   use parameters
   use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string
-  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5

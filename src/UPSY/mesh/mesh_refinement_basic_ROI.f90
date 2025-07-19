@@ -6,7 +6,6 @@ module mesh_refinement_basic_ROI
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
-  use model_configuration, only: C
   use grid_basic, only: poly2line
   use plane_geometry, only: is_in_polygon, crop_line_to_domain, smallest_triangle_angle, &
     is_in_triangle, segment_intersection, lies_on_line_segment, longest_triangle_leg, circumcenter
@@ -317,7 +316,7 @@ contains
           meets_resolution_criterion = .true.
           if (mesh%Tri_li( ti,1) <= mesh%Tri_li( ti,2)) then
             longest_leg = longest_triangle_leg( va, vb, vc)
-            if (longest_leg > res_max * C%mesh_resolution_tolerance) meets_resolution_criterion = .false.
+            if (longest_leg > res_max * mesh%resolution_tolerance) meets_resolution_criterion = .false.
           end if
 
         end if ! if (li_min == nl+1 .or. li_max == 0) then
@@ -478,7 +477,7 @@ contains
           ! The triangle lies inside the polygon
 
           longest_leg = longest_triangle_leg( va, vb, vc)
-          meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
+          meets_resolution_criterion = longest_leg <= res_max * mesh%resolution_tolerance
 
         else
           ! The triangle does not lie inside the polygon

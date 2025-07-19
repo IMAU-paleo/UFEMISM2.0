@@ -3,7 +3,6 @@ module ct_discretisation
   ! Test everything related to discretisation
 
   use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_CHAR
-  use model_configuration, only: C
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, colour_string
@@ -19,9 +18,10 @@ module ct_discretisation
 contains
 
   !> Run all discretisation component tests.
-  subroutine run_all_discretisation_component_tests( test_mesh_filenames)
+  subroutine run_all_discretisation_component_tests( output_dir, test_mesh_filenames)
 
     ! In/output variables:
+    character(len=*),               intent(in) :: output_dir
     character(len=*), dimension(:), intent(in) :: test_mesh_filenames
 
     ! Local variables:
@@ -34,7 +34,7 @@ contains
     if (par%primary) write(0,*) '  Running discretisation component tests...'
     if (par%primary) write(0,*) ''
 
-    call create_discretisation_component_tests_output_folder( foldername_discretisation)
+    call create_discretisation_component_tests_output_folder( output_dir, foldername_discretisation)
 
     call run_all_map_deriv_tests( foldername_discretisation, test_mesh_filenames)
     call run_all_Laplace_eq_solving_tests( foldername_discretisation, test_mesh_filenames)
@@ -45,10 +45,11 @@ contains
   end subroutine run_all_discretisation_component_tests
 
   !> Create the output folder for the discretisation component tests
-  subroutine create_discretisation_component_tests_output_folder( foldername_discretisation)
+  subroutine create_discretisation_component_tests_output_folder( output_dir, foldername_discretisation)
 
     ! In/output variables:
-    character(len=*), intent(out) :: foldername_discretisation
+    character(len=*), intent(in   ) :: output_dir
+    character(len=*), intent(  out) :: foldername_discretisation
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_discretisation_component_tests_output_folder'
@@ -58,7 +59,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    foldername_discretisation = trim(C%output_dir) // '/discretisation'
+    foldername_discretisation = trim( output_dir) // '/discretisation'
 
     if (par%primary) then
 

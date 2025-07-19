@@ -6,7 +6,6 @@ module netcdf_save_single_variables
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
-  use model_configuration, only: C
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp
   use CSR_matrix_basics, only: deallocate_matrix_CSR_dist, gather_CSR_dist_to_primary
   use petsc_basic, only: mat_petsc2CSR
@@ -26,10 +25,11 @@ module netcdf_save_single_variables
 
 contains
 
-  subroutine write_PETSc_matrix_to_NetCDF( A, filename)
+  subroutine write_PETSc_matrix_to_NetCDF( output_dir, A, filename)
     !< Write a PETSc matrix to a NetCDF file
 
     ! In- and output variables:
+    character(len=*), intent(in) :: output_dir
     type(tMat),       intent(in) :: A
     character(len=*), intent(in) :: filename
 
@@ -44,7 +44,7 @@ contains
     call mat_petsc2CSR( A, AA)
 
     ! Write the CSR matrix to a file
-    call write_CSR_matrix_to_NetCDF( AA, filename)
+    call write_CSR_matrix_to_NetCDF( output_dir, AA, filename)
 
     ! Clean up after yourself
     call deallocate_matrix_CSR_dist( AA)
@@ -54,10 +54,11 @@ contains
 
   end subroutine write_PETSc_matrix_to_NetCDF
 
-  subroutine write_CSR_matrix_to_NetCDF( AA, filename)
+  subroutine write_CSR_matrix_to_NetCDF( output_dir, AA, filename)
     !< Write a CSR matrix to a NetCDF file
 
     ! In- and output variables:
+    character(len=*),                intent(in) :: output_dir
     type(type_sparse_matrix_CSR_dp), intent(in) :: AA
     character(len=*),                intent(in) :: filename
 
@@ -76,7 +77,7 @@ contains
     call gather_CSR_dist_to_primary( AA, AA_tot)
 
     ! Append output directory to filename
-    filename_applied = trim( C%output_dir) // '/' // trim( filename) // '.nc'
+    filename_applied = trim( output_dir) // '/' // trim( filename) // '.nc'
     call delete_existing_file( filename_applied)
 
     ! Create a new NetCDF file
@@ -106,10 +107,11 @@ contains
 
   end subroutine write_CSR_matrix_to_NetCDF
 
-  subroutine save_variable_as_netcdf_logical_1D( d_partial, field_name)
+  subroutine save_variable_as_netcdf_logical_1D( output_dir, d_partial, field_name)
     !< Save a single variable to a NetCDF file
 
     ! Input variables:
+    character(len=*),      intent(in) :: output_dir
     logical, dimension(:), intent(in) :: d_partial
     character(len=*),      intent(in) :: field_name
 
@@ -131,19 +133,20 @@ contains
     end where
 
     ! Write integer version to NetCDF
-    call save_variable_as_netcdf_int_1D( d_partial_int, field_name)
+    call save_variable_as_netcdf_int_1D( output_dir, d_partial_int, field_name)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine save_variable_as_netcdf_logical_1D
 
-  subroutine save_variable_as_netcdf_int_1D( d_partial, field_name)
+  subroutine save_variable_as_netcdf_int_1D( output_dir, d_partial, field_name)
     !< Save a single variable to a NetCDF file
 
     ! Input variables:
-    integer,  dimension(:), intent(in) :: d_partial
-    character(len=*),       intent(in) :: field_name
+    character(len=*),      intent(in) :: output_dir
+    integer, dimension(:), intent(in) :: d_partial
+    character(len=*),      intent(in) :: field_name
 
     ! Local variables:
     character(len=256), parameter      :: routine_name = 'save_variable_as_netcdf_int_1D'
@@ -159,7 +162,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
+    filename = trim( output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file
@@ -192,12 +195,13 @@ contains
 
   end subroutine save_variable_as_netcdf_int_1D
 
-  subroutine save_variable_as_netcdf_int_2D( d_partial, field_name)
+  subroutine save_variable_as_netcdf_int_2D( output_dir, d_partial, field_name)
     !< Save a single variable to a NetCDF file
 
     ! Input variables:
-    integer,  dimension(:,:), intent(in) :: d_partial
-    character(len=*),         intent(in) :: field_name
+    character(len=*),        intent(in) :: output_dir
+    integer, dimension(:,:), intent(in) :: d_partial
+    character(len=*),        intent(in) :: field_name
 
     ! Local variables:
     character(len=256), parameter        :: routine_name = 'save_variable_as_netcdf_int_2D'
@@ -213,7 +217,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
+    filename = trim( output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file
@@ -248,10 +252,11 @@ contains
 
   end subroutine save_variable_as_netcdf_int_2D
 
-  subroutine save_variable_as_netcdf_dp_1D( d_partial, field_name)
+  subroutine save_variable_as_netcdf_dp_1D( output_dir, d_partial, field_name)
     !< Save a single variable to a NetCDF file
 
     ! Input variables:
+    character(len=*),       intent(in) :: output_dir
     real(dp), dimension(:), intent(in) :: d_partial
     character(len=*),       intent(in) :: field_name
 
@@ -269,7 +274,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
+    filename = trim( output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file
@@ -302,10 +307,11 @@ contains
 
   end subroutine save_variable_as_netcdf_dp_1D
 
-  subroutine save_variable_as_netcdf_dp_2D( d_partial, field_name)
+  subroutine save_variable_as_netcdf_dp_2D( output_dir, d_partial, field_name)
     !< Save a single variable to a NetCDF file
 
     ! Input variables:
+    character(len=*),         intent(in) :: output_dir
     real(dp), dimension(:,:), intent(in) :: d_partial
     character(len=*),         intent(in) :: field_name
 
@@ -323,7 +329,7 @@ contains
     call init_routine( routine_name)
 
     ! Determine file name
-    filename = trim( C%output_dir) // '/' // trim( field_name) // '.nc'
+    filename = trim( output_dir) // '/' // trim( field_name) // '.nc'
     call delete_existing_file( filename)
 
     ! Create a new NetCDF file

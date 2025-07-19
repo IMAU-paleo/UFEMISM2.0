@@ -544,7 +544,7 @@ contains
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)
@@ -619,7 +619,7 @@ contains
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tiuv, row_tiuv,  1._dp)

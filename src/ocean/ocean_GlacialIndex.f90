@@ -82,10 +82,10 @@ subroutine initialise_ocean_model_GlacialIndex( mesh, ice, ocean, region_name, s
     ocean%GI%S0_cold = 0._dp
 
     ! Fill in  main variables
-    call read_field_from_file_3D_ocean( filename_ocean_snapshot_warm, field_name_options_T_ocean,  mesh, C%output_dir, ocean%GI%T0_warm)
-    call read_field_from_file_3D_ocean( filename_ocean_snapshot_warm, field_name_options_S_ocean,  mesh, C%output_dir, ocean%GI%S0_warm)
-    call read_field_from_file_3D_ocean( filename_ocean_snapshot_cold, field_name_options_T_ocean,  mesh, C%output_dir, ocean%GI%T0_cold)
-    call read_field_from_file_3D_ocean( filename_ocean_snapshot_cold, field_name_options_S_ocean,  mesh, C%output_dir, ocean%GI%S0_cold)
+    call read_field_from_file_3D_ocean( filename_ocean_snapshot_warm, field_name_options_T_ocean,  mesh, C%output_dir, C%z_ocean, ocean%GI%T0_warm)
+    call read_field_from_file_3D_ocean( filename_ocean_snapshot_warm, field_name_options_S_ocean,  mesh, C%output_dir, C%z_ocean, ocean%GI%S0_warm)
+    call read_field_from_file_3D_ocean( filename_ocean_snapshot_cold, field_name_options_T_ocean,  mesh, C%output_dir, C%z_ocean, ocean%GI%T0_cold)
+    call read_field_from_file_3D_ocean( filename_ocean_snapshot_cold, field_name_options_S_ocean,  mesh, C%output_dir, C%z_ocean, ocean%GI%S0_cold)
 
     call read_field_from_series_file(   filename_ocean_GI,       field_name_options_GI, ocean%GI%GI_series, ocean%GI%GI_series_time)
     call update_timeframes_from_record(ocean%GI%GI_series_time, ocean%GI%GI_series, ocean%GI%GI_t0, ocean%GI%GI_t1, ocean%GI%GI_at_t0, ocean%GI%GI_at_t1, start_time_of_run)
