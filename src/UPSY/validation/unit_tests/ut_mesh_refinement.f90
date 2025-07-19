@@ -94,6 +94,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_uniform( mesh, res_max, alpha_min)
 
     ! Check if the mesh is still self-consistent
@@ -161,6 +162,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_point( mesh, POI, res_Max, alpha_min)
 
     ! Check if the mesh is still self-consistent
@@ -226,6 +228,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
     p_line( 1,:) = [-0.43_dp, -0.129_dp, 0.67_dp, 0.85_dp]
     width = res_max / 2._dp
     call refine_mesh_line( mesh, p_line, res_max, width, alpha_min)
@@ -300,6 +303,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
     poly( 1,:) = [-0.43_dp, -0.129_dp]
     poly( 2,:) = [0.27_dp, -0.45_dp]
     poly( 3,:) = [0.67_dp, 0.16_dp]
@@ -383,6 +387,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
 
     n_line = 100
     allocate( p_line(n_line,4))
@@ -484,6 +489,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
 
     poly( 1,:) = [-0.43_dp, -0.129_dp]
     poly( 2,:) = [0.27_dp, -0.45_dp]
@@ -575,6 +581,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh around a point, to generate strong resolution gradients
+    C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_point( mesh, POI, res_max, alpha_min)
 
     ! Check if the refined mesh is self-consistent
@@ -642,6 +649,7 @@ contains
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
     ! Refine the mesh
+    C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_uniform( mesh, res_max, alpha_min)
 
     ! Reorder the vertices and triangles to enforce contiguous process domains

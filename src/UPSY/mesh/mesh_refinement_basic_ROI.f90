@@ -317,7 +317,7 @@ contains
           meets_resolution_criterion = .true.
           if (mesh%Tri_li( ti,1) <= mesh%Tri_li( ti,2)) then
             longest_leg = longest_triangle_leg( va, vb, vc)
-            if (longest_leg > res_max * mesh%resolution_tolerance) meets_resolution_criterion = .false.
+            if (longest_leg > res_max * C%mesh_resolution_tolerance) meets_resolution_criterion = .false.
           end if
 
         end if ! if (li_min == nl+1 .or. li_max == 0) then
@@ -478,7 +478,7 @@ contains
           ! The triangle lies inside the polygon
 
           longest_leg = longest_triangle_leg( va, vb, vc)
-          meets_resolution_criterion = longest_leg <= res_max * mesh%resolution_tolerance
+          meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
 
         else
           ! The triangle does not lie inside the polygon

@@ -20,7 +20,7 @@ module mesh_types
   ! ===============================
 
     logical                                 :: do_singlecore_mesh_creation = .true.   ! Whether or not to let each process create the entire mesh themselves (as opposed to letting each process create a partial mesh and then merging them together - which is not yet supported...)
-    real(dp)                                :: resolution_tolerance        = 1.25_dp  ! Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
+
 
   ! Basic meta properties
   ! =====================

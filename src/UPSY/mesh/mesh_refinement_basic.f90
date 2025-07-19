@@ -71,7 +71,7 @@ subroutine refine_mesh_uniform( mesh, res_max, alpha_min)
 
     ! Check if it meets the resolution criterion
     longest_leg = longest_triangle_leg( va, vb, vc)
-    meets_resolution_criterion = longest_leg <= res_max * mesh%resolution_tolerance
+    meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
 
     ! if either of the two criteria is not met, split the triangle
     if (.not. meets_geometry_criterion .or. .not. meets_resolution_criterion) then
@@ -157,7 +157,7 @@ subroutine refine_mesh_point( mesh, POI, res_max, alpha_min)
     if (ti_in == ti) then
       ! This triangle contains the point
       longest_leg = longest_triangle_leg( va, vb, vc)
-      meets_resolution_criterion = longest_leg <= res_max * mesh%resolution_tolerance
+      meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
     else
       ! This triangle does not contain the point
       meets_resolution_criterion = .true.
@@ -454,7 +454,7 @@ subroutine refine_mesh_line( mesh, p_line, res_max, width, alpha_min)
         meets_resolution_criterion = .true.
         if (mesh%Tri_li( ti,1) <= mesh%Tri_li( ti,2)) then
           longest_leg = longest_triangle_leg( va, vb, vc)
-          if (longest_leg > res_max * mesh%resolution_tolerance) meets_resolution_criterion = .false.
+          if (longest_leg > res_max * C%mesh_resolution_tolerance) meets_resolution_criterion = .false.
         end if
 
       end if ! if (li_min == nl+1 .or. li_max == 0) then
@@ -619,7 +619,7 @@ subroutine refine_mesh_polygon( mesh, poly, res_max, alpha_min, poly_mult_not)
         ! The triangle lies inside the polygon
 
         longest_leg = longest_triangle_leg( va, vb, vc)
-        meets_resolution_criterion = longest_leg <= res_max * mesh%resolution_tolerance
+        meets_resolution_criterion = longest_leg <= res_max * C%mesh_resolution_tolerance
 
       else
         ! The triangle does not lie inside the polygon

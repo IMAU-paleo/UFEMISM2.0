@@ -250,6 +250,7 @@ MODULE model_configuration
     LOGICAL             :: do_singlecore_mesh_creation_config           = .TRUE.                           !              Whether or not to use only a single core for mesh generation (for better reproducibility)
     REAL(dp)            :: alpha_min_config                             = 0.4363_dp                        ! [radians]    Smallest allowed internal triangle angle (recommended value: 25 degrees = 0.4363)
     INTEGER             :: nit_Lloyds_algorithm_config                  = 3                                ! [-]          Number of iterations of Lloyds algorithm to be applied after refinement
+    REAL(dp)            :: mesh_resolution_tolerance_config             = 1.25_dp                          ! [-]          Factors the target resolution for trangle-size requirement. 1=strict, use >1 to avoid unnecesarily high resolution
 
     ! Square grid used for smoothing
     REAL(dp)            :: dx_square_grid_smooth_NAM_config             = 5000._dp
@@ -1339,6 +1340,7 @@ MODULE model_configuration
     LOGICAL             :: do_singlecore_mesh_creation
     REAL(dp)            :: alpha_min
     INTEGER             :: nit_Lloyds_algorithm
+    REAL(dp)            :: mesh_resolution_tolerance
 
     ! Square grid used for smoothing
     REAL(dp)            :: dx_square_grid_smooth_NAM
@@ -2017,7 +2019,7 @@ MODULE model_configuration
     ! Subglacial discharge (SGD)
     CHARACTER(LEN=256)  :: choice_laddie_SGD
     CHARACTER(LEN=256)  :: choice_laddie_SGD_idealised
-    REAL(dp)            :: laddie_SGD_flux
+    REAL(dp)            :: laddie_SGD_flux  
 
   ! == Lateral mass balance
   ! =======================
@@ -2571,6 +2573,7 @@ CONTAINS
       do_singlecore_mesh_creation_config                          , &
       alpha_min_config                                            , &
       nit_Lloyds_algorithm_config                                 , &
+      mesh_resolution_tolerance_config                            , &
       dx_square_grid_smooth_NAM_config                            , &
       dx_square_grid_smooth_EAS_config                            , &
       dx_square_grid_smooth_GRL_config                            , &
@@ -3389,6 +3392,7 @@ CONTAINS
     C%do_singlecore_mesh_creation                            = do_singlecore_mesh_creation_config
     C%alpha_min                                              = alpha_min_config
     C%nit_Lloyds_algorithm                                   = nit_Lloyds_algorithm_config
+    C%mesh_resolution_tolerance                              = mesh_resolution_tolerance_config
 
     ! Square grid used for smoothing
     C%dx_square_grid_smooth_NAM                              = dx_square_grid_smooth_NAM_config
