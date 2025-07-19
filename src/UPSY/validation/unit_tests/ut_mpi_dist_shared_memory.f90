@@ -8,7 +8,6 @@ module ut_mpi_dist_shared_memory
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
-  use model_configuration, only: C
   use ut_mpi_allocate_dist_shared, only: test_allocate_dist_shared
   use ut_mpi_gather_dist_shared_to_primary, only: test_gather_dist_shared_to_primary
   use ut_mpi_gather_dist_shared_to_all, only: test_gather_dist_shared_to_all

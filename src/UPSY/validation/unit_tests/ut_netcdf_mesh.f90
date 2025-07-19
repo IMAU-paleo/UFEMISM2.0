@@ -9,7 +9,6 @@ module ut_netcdf_mesh
   use precisions, only: dp
   use parameters, only: pi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, strrep
-  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use mesh_memory, only: allocate_mesh_primary
   use mesh_dummy_meshes, only: initialise_dummy_mesh_5
@@ -55,9 +54,8 @@ contains
 
     call allocate_mesh_primary( mesh, name, 100, 200)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
-    C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_uniform( mesh, res_max, alpha_min)
-    call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
+    call calc_all_secondary_mesh_data( mesh, 0._dp, -90._dp, 71._dp)
 
     call unit_tests_netcdf_mesh_int_2D       ( test_name, mesh)
     call unit_tests_netcdf_mesh_int_2D_b     ( test_name, mesh)
@@ -471,6 +469,8 @@ contains
     character(len=1024), parameter        :: routine_name = 'unit_tests_netcdf_mesh_dp_3D_ocean'
     character(len=1024), parameter        :: test_name_local = 'dp_3D_ocean'
     character(len=1024)                   :: test_name
+    integer                               :: nz_ocean
+    real(dp), dimension(:),   allocatable :: z_ocean
     real(dp), dimension(:,:), allocatable :: d
     integer                               :: vi,k
     character(len=1024)                   :: filename
@@ -485,18 +485,18 @@ contains
     test_name = trim( test_name_parent) // '/' // trim( test_name_local)
 
     ! Vertical coordinate
-    C%nz_ocean = 10
-    if (allocated( C%z_ocean)) deallocate( C%z_ocean)
-    allocate( C%z_ocean( C%nz_ocean))
-    do k = 1, C%nz_ocean
-      C%z_ocean( k) = real(k-1,dp) * 500._dp
+    nz_ocean = 10
+    if (allocated( z_ocean)) deallocate( z_ocean)
+    allocate( z_ocean( nz_ocean))
+    do k = 1, nz_ocean
+      z_ocean( k) = real(k-1,dp) * 500._dp
     end do
 
     ! Generate test data
-    allocate( d( mesh%vi1:mesh%vi2,C%nz_ocean))
+    allocate( d( mesh%vi1:mesh%vi2,nz_ocean))
     do vi = mesh%vi1, mesh%vi2
-      do k = 1, C%nz_ocean
-        d( vi,k) = real(vi*C%nz_ocean,dp) + real(k,dp)
+      do k = 1, nz_ocean
+        d( vi,k) = real(vi*nz_ocean,dp) + real(k,dp)
       end do
     end do
 
@@ -504,7 +504,7 @@ contains
     filename = trim(foldername_unit_tests_output) // '/' // trim( strrep( test_name,'/','_')) // '.nc'
     call create_new_netcdf_file_for_writing( filename, ncid)
     call setup_mesh_in_netcdf_file( filename, ncid, mesh)
-    call add_depth_dimension_to_file( filename, ncid, C%z_ocean)
+    call add_depth_dimension_to_file( filename, ncid, z_ocean)
     call add_field_mesh_dp_3D_ocean_notime( filename, ncid, 'd')
     call write_to_field_multopt_mesh_dp_3D_ocean_notime( mesh, filename, ncid, 'd', d)
     call close_netcdf_file( ncid)
@@ -514,7 +514,7 @@ contains
     call setup_mesh_from_file( filename, ncid, mesh_from_file)
     call close_netcdf_file( ncid)
 
-    allocate( d_from_file( mesh_from_file%vi1:mesh_from_file%vi2,C%nz_ocean))
+    allocate( d_from_file( mesh_from_file%vi1:mesh_from_file%vi2,nz_ocean))
     call read_field_from_mesh_file_dp_3D_ocean( filename, 'd', d_from_file)
 
     ! Test if what we read is the same as what we wrote
