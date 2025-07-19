@@ -39,6 +39,7 @@ PROGRAM UFEMISM_program
   use unit_tests, only: run_all_unit_tests
   use component_tests, only: run_all_component_tests
   use unit_tests_multinode, only: run_all_multinode_unit_tests
+  use checksum_mod, only: create_checksum_logfile
 
 
   IMPLICIT NONE
@@ -111,6 +112,7 @@ PROGRAM UFEMISM_program
 
     ! Create the resource tracking output file
     CALL create_resource_tracking_file
+    call create_checksum_logfile( C%output_dir)
 
     ! Initialise surface elevations for the automated flow factor tuning in MISMIP+
     Hs_cur = 1._dp
