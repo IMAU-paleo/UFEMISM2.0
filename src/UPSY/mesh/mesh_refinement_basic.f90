@@ -5,7 +5,6 @@ module mesh_refinement_basic
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
   use mesh_types, only: type_mesh
-  use model_configuration, only: C
   use grid_basic, only: poly2line
   use plane_geometry, only: crop_line_to_domain, smallest_triangle_angle, longest_triangle_leg, &
     is_in_triangle, segment_intersection, lies_on_line_segment, circumcenter, is_in_polygon

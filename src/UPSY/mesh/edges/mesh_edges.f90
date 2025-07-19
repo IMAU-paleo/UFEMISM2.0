@@ -5,7 +5,6 @@ module mesh_edges
   use precisions, only: dp
   use mpi_basic, only: par, sync
   use control_resources_and_error_messaging, only: warning, crash, init_routine, finalise_routine
-  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use plane_geometry, only: triangle_area
 

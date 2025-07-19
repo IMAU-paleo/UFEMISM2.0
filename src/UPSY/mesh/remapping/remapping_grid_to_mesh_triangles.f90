@@ -5,7 +5,6 @@ module remapping_grid_to_mesh_triangles
   use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use model_configuration, only: C
   use grid_types, only: type_grid
   use mesh_types, only: type_mesh
   use CSR_sparse_matrix_type, only: type_sparse_matrix_CSR_dp

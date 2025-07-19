@@ -4,7 +4,6 @@ module mesh_ROI_polygons
 
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
-  use model_configuration, only: C
 
   implicit none
 
