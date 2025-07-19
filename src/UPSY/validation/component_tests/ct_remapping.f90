@@ -19,9 +19,10 @@ module ct_remapping
 contains
 
   !> Run all remapping component tests.
-  subroutine run_all_remapping_component_tests( test_mesh_filenames, test_grid_filenames)
+  subroutine run_all_remapping_component_tests( output_dir, test_mesh_filenames, test_grid_filenames)
 
     ! In/output variables:
+    character(len=*),               intent(in) :: output_dir
     character(len=*), dimension(:), intent(in) :: test_mesh_filenames
     character(len=*), dimension(:), intent(in) :: test_grid_filenames
 
@@ -35,7 +36,7 @@ contains
     if (par%primary) write(0,*) '  Running remapping component tests...'
     if (par%primary) write(0,*) ''
 
-    call create_remapping_component_tests_output_folder( foldername_remapping)
+    call create_remapping_component_tests_output_folder( output_dir, foldername_remapping)
 
     call run_all_grid_to_mesh_remapping_tests( foldername_remapping, test_mesh_filenames, test_grid_filenames)
     call run_all_mesh_to_grid_remapping_tests( foldername_remapping, test_mesh_filenames, test_grid_filenames)
@@ -47,10 +48,11 @@ contains
   end subroutine run_all_remapping_component_tests
 
   !> Create the output folder for the remapping component tests
-  subroutine create_remapping_component_tests_output_folder( foldername_remapping)
+  subroutine create_remapping_component_tests_output_folder( output_dir, foldername_remapping)
 
     ! In/output variables:
-    character(len=*), intent(out) :: foldername_remapping
+    character(len=*), intent(in   ) :: output_dir
+    character(len=*), intent(  out) :: foldername_remapping
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_remapping_component_tests_output_folder'
@@ -60,7 +62,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    foldername_remapping = trim(C%output_dir) // '/remapping'
+    foldername_remapping = trim( output_dir) // '/remapping'
 
     if (par%primary) then
 
