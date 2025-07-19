@@ -8,7 +8,6 @@ module read_and_remap_field_from_file
   use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_DOUBLE_PRECISION
   use precisions, only: dp
   use mpi_basic, only: par
-  use model_configuration, only: C
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int, warning
   use mesh_types, only: type_mesh
   use grid_types, only: type_grid, type_grid_lonlat, type_grid_lat
@@ -549,7 +548,7 @@ contains
   end subroutine read_field_from_file_3D
 
   subroutine read_field_from_file_3D_ocean( filename, field_name_options, &
-    mesh, output_dir, d_partial, time_to_read, ndepth, depth)
+    mesh, output_dir, z_ocean, d_partial, time_to_read, ndepth, depth)
     !< Read a data field from a NetCDF file, and map it to the model mesh.
 
     ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
@@ -562,6 +561,7 @@ contains
     character(len=*),                              intent(in   ) :: field_name_options
     type(type_mesh),                               intent(in   ) :: mesh
     character(len=*),                              intent(in   ) :: output_dir
+    real(dp), dimension(:),                        intent(in   ) :: z_ocean
     real(dp), dimension(:,:),                      intent(  out) :: d_partial
     real(dp), optional,                            intent(in   ) :: time_to_read
     integer ,                            optional, intent(  out) :: ndepth
@@ -625,7 +625,7 @@ contains
       call map_from_xy_grid_to_mesh_3D( grid_from_file, mesh, output_dir, d_grid_vec_partial_from_file, d_partial_raw_layers)
 
       ! Remap data vertically
-      call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)
+      call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, z_ocean, d_partial_raw_layers, d_partial)
 
       ! Clean up after yourself
       call deallocate_grid( grid_from_file)
@@ -654,7 +654,7 @@ contains
       call map_from_lonlat_grid_to_mesh_3D( grid_lonlat_from_file, mesh, d_grid_lonlat_vec_partial_from_file, d_partial_raw_layers)
 
       ! Remap data vertically
-      call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)
+      call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, z_ocean, d_partial_raw_layers, d_partial)
 
       ! Clean up after yourself
       call deallocate_lonlat_grid( grid_lonlat_from_file)
@@ -683,7 +683,7 @@ contains
       call map_from_mesh_to_mesh_3D( mesh_from_file, mesh, output_dir, d_mesh_partial_from_file, d_partial_raw_layers, method = method_mesh2mesh)
 
       ! Remap data vertically
-      call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, C%z_ocean, d_partial_raw_layers, d_partial)
+      call map_from_vertical_to_vertical_2D_ocean( mesh, depth_loc, z_ocean, d_partial_raw_layers, d_partial)
 
       ! Clean up after yourself
       call deallocate_mesh( mesh_from_file)
