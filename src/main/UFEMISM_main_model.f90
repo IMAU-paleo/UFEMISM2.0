@@ -1287,7 +1287,7 @@ CONTAINS
       ! Grounding line
       IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
         nV_grounding_line_tot = nV_grounding_line_tot + 1
-        IF (mesh%R( vi) > C%maximum_resolution_grounding_line * C%mesh_resolution_tolerance) THEN
+        IF (mesh%R( vi) > C%maximum_resolution_grounding_line) THEN
           nV_grounding_line_bad = nV_grounding_line_bad + 1
         END IF
       END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
@@ -1295,7 +1295,7 @@ CONTAINS
       ! Calving front
       IF (ice%mask_cf_gr( vi) .OR. ice%mask_cf_fl( vi)) THEN
         nV_calving_front_tot = nV_calving_front_tot + 1
-        IF (mesh%R( vi) > C%maximum_resolution_calving_front * C%mesh_resolution_tolerance) THEN
+        IF (mesh%R( vi) > C%maximum_resolution_calving_front) THEN
           nV_calving_front_bad = nV_calving_front_bad + 1
         END IF
       END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
@@ -1303,7 +1303,7 @@ CONTAINS
       ! Ice front
       IF (ice%mask_margin( vi)) THEN
         nV_ice_front_tot = nV_ice_front_tot + 1
-        IF (mesh%R( vi) > C%maximum_resolution_ice_front * C%mesh_resolution_tolerance) THEN
+        IF (mesh%R( vi) > C%maximum_resolution_ice_front) THEN
           nV_ice_front_bad = nV_ice_front_bad + 1
         END IF
       END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN
@@ -1311,7 +1311,7 @@ CONTAINS
       ! Coastline
       IF (ice%mask_coastline( vi)) THEN
         nV_coastline_tot = nV_coastline_tot + 1
-        IF (mesh%R( vi) > C%maximum_resolution_coastline * C%mesh_resolution_tolerance) THEN
+        IF (mesh%R( vi) > C%maximum_resolution_coastline) THEN
           nV_coastline_bad = nV_coastline_bad + 1
         END IF
       END IF ! IF (ice%mask_gl_gr( vi) .OR. ice%mask_gl_fl( vi)) THEN

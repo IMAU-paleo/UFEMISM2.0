@@ -55,7 +55,6 @@ contains
 
     call allocate_mesh_primary( mesh, name, 100, 200)
     call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
-    C%mesh_resolution_tolerance = 1._dp
     call refine_mesh_uniform( mesh, res_max, alpha_min)
     call calc_all_secondary_mesh_data( mesh, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
 
