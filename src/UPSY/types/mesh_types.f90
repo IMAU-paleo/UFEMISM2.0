@@ -39,9 +39,15 @@ module mesh_types
     integer                                 :: nC_mem = 32                   !           Maximum allowed number of connections per vertex
     integer                                 :: nV                            !           Number of vertices
     integer                                 :: nTri                          !           Number of triangles
-    integer                                 :: nz                            !           Number of vertical layers
-    real(dp), dimension(:    ), allocatable :: zeta                          ! [0-1]     Scaled vertical coordinate
-    real(dp), dimension(:    ), allocatable :: zeta_stag                     !           Staggered zeta grid
+
+  ! Vertical grid (scaled coordinate)
+  ! =================================
+
+    character(len=1024)                     :: choice_zeta_grid      = 'irregular_log'  !           Choice of zeta grid ("regular", "irregular_log", "old_15_layer_zeta")
+    integer                                 :: nz                    = 12               !           Number of vertical layers
+    real(dp)                                :: zeta_irregular_log_R  = 10               !           Ratio between surface and base layer spacings
+    real(dp), dimension(:    ), allocatable :: zeta                                     ! [0-1]     Scaled vertical coordinate
+    real(dp), dimension(:    ), allocatable :: zeta_stag                                !           Staggered zeta grid
 
   ! Primary mesh data
   ! =================

@@ -24,40 +24,37 @@ CONTAINS
   ! Initialising the scaled vertical coordinate zeta
   ! ================================================
 
-  SUBROUTINE initialise_scaled_vertical_coordinate( mesh)
+  subroutine initialise_scaled_vertical_coordinate( mesh)
     ! Initialise the scaled vertical coordinate zeta
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
+    type(type_mesh), intent(inout) :: mesh
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_scaled_vertical_coordinate'
+    character(len=1024), parameter :: routine_name = 'initialise_scaled_vertical_coordinate'
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Allocate memory
-    mesh%nz = C%nz
-    ALLOCATE( mesh%zeta(      mesh%nz  ))
-    ALLOCATE( mesh%zeta_stag( mesh%nz-1))
+    allocate( mesh%zeta(      mesh%nz  ))
+    allocate( mesh%zeta_stag( mesh%nz-1))
 
     ! Calculate zeta values
-    IF     (C%choice_zeta_grid == 'regular') THEN
-      CALL initialise_scaled_vertical_coordinate_regular( mesh)
-    ELSEIF (C%choice_zeta_grid == 'irregular_log') THEN
-      CALL initialise_scaled_vertical_coordinate_irregular_log( mesh)
-    ELSEIF (C%choice_zeta_grid == 'old_15_layer_zeta') THEN
-      CALL initialise_scaled_vertical_coordinate_old_15_layer( mesh)
-    ELSE
-      CALL crash('unknown choice_zeta_grid "' // TRIM( C%choice_zeta_grid) // '"!')
-    END IF
+    select case (mesh%choice_zeta_grid)
+    case default
+      call crash('unknown choice_zeta_grid "' // trim( mesh%choice_zeta_grid) // '"')
+    case ('regular')
+      call initialise_scaled_vertical_coordinate_regular( mesh)
+    case ('irregular_log')
+      call initialise_scaled_vertical_coordinate_irregular_log( mesh)
+    case ('old_15_layer_zeta')
+      call initialise_scaled_vertical_coordinate_old_15_layer( mesh)
+    end select
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    call finalise_routine( routine_name)
 
-  END SUBROUTINE initialise_scaled_vertical_coordinate
+  end subroutine initialise_scaled_vertical_coordinate
 
   SUBROUTINE initialise_scaled_vertical_coordinate_regular( mesh)
     ! Initialise the scaled vertical coordinate zeta
@@ -95,10 +92,8 @@ CONTAINS
     ! constant, and that the ratio between the first (surface) and last (basal)
     ! layer thickness is (approximately) equal to R
 
-    IMPLICIT NONE
-
     ! In/output variables:
-    TYPE(type_mesh),                 INTENT(INOUT)     :: mesh
+    type(type_mesh),    intent(inout) :: mesh
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_scaled_vertical_coordinate_irregular_log'
@@ -109,10 +104,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (C%zeta_irregular_log_R <= 0._dp) CALL crash('zeta_irregular_log_R should be positive!')
+    IF (mesh%zeta_irregular_log_R <= 0._dp) CALL crash('R should be positive!')
 
     ! Exception: R = 1 implies a regular grid, but the equation becomes 0/0
-    IF (C%zeta_irregular_log_R == 1._dp) THEN
+    IF (mesh%zeta_irregular_log_R == 1._dp) THEN
       CALL initialise_scaled_vertical_coordinate_regular( mesh)
       CALL finalise_routine( routine_name)
       RETURN
@@ -121,11 +116,11 @@ CONTAINS
     DO k = 1, mesh%nz
       ! Regular grid
       sigma = REAL( k-1,dp) / REAL( mesh%nz-1,dp)
-      mesh%zeta( mesh%nz + 1 - k) = 1._dp - (C%zeta_irregular_log_R**sigma - 1._dp) / (C%zeta_irregular_log_R - 1._dp)
+      mesh%zeta( mesh%nz + 1 - k) = 1._dp - (mesh%zeta_irregular_log_R**sigma - 1._dp) / (mesh%zeta_irregular_log_R - 1._dp)
       ! Staggered grid
       IF (k < mesh%nz) THEN
         sigma_stag = sigma + 0.5_dp / REAL( mesh%nz-1,dp)
-        mesh%zeta_stag( mesh%nz - k) = 1._dp - (C%zeta_irregular_log_R**sigma_stag - 1._dp) / (C%zeta_irregular_log_R - 1._dp)
+        mesh%zeta_stag( mesh%nz - k) = 1._dp - (mesh%zeta_irregular_log_R**sigma_stag - 1._dp) / (mesh%zeta_irregular_log_R - 1._dp)
       END IF
     END DO
 
@@ -506,17 +501,17 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate memory for the three diagonals of both matrices
-    ALLOCATE( mesh%M_ddzeta_k_k_ldiag(   C%nz-1))
-    ALLOCATE( mesh%M_ddzeta_k_k_diag(    C%nz  ))
-    ALLOCATE( mesh%M_ddzeta_k_k_udiag(   C%nz-1))
-    ALLOCATE( mesh%M_d2dzeta2_k_k_ldiag( C%nz-1))
-    ALLOCATE( mesh%M_d2dzeta2_k_k_diag(  C%nz  ))
-    ALLOCATE( mesh%M_d2dzeta2_k_k_udiag( C%nz-1))
+    ALLOCATE( mesh%M_ddzeta_k_k_ldiag(   mesh%nz-1))
+    ALLOCATE( mesh%M_ddzeta_k_k_diag(    mesh%nz  ))
+    ALLOCATE( mesh%M_ddzeta_k_k_udiag(   mesh%nz-1))
+    ALLOCATE( mesh%M_d2dzeta2_k_k_ldiag( mesh%nz-1))
+    ALLOCATE( mesh%M_d2dzeta2_k_k_diag(  mesh%nz  ))
+    ALLOCATE( mesh%M_d2dzeta2_k_k_udiag( mesh%nz-1))
 
     ! Fill in coefficients
 
     ! d/dzeta
-    DO k = 1, C%nz
+    DO k = 1, mesh%nz
 
       ! Lower diagonal
       IF (k > 1) THEN
@@ -530,7 +525,7 @@ CONTAINS
           j = mesh%M_ddzeta_k_k_1D%ind( ii)
           IF (j == k-1) mesh%M_ddzeta_k_k_ldiag( k-1) = mesh%M_ddzeta_k_k_1D%val( ii)
         END DO
-      END IF ! IF (k > 1) THEN
+      END IF
 
       ! Central diagonal
       ! Initialise
@@ -545,7 +540,7 @@ CONTAINS
       END DO
 
       ! Upper diagonal
-      IF (k < C%nz) THEN
+      IF (k < mesh%nz) THEN
         ! Initialise
         mesh%M_ddzeta_k_k_udiag( k) = 0._dp
         ! Find matrix element at [k,k-1]
@@ -556,12 +551,12 @@ CONTAINS
           j = mesh%M_ddzeta_k_k_1D%ind( ii)
           IF (j == k+1) mesh%M_ddzeta_k_k_udiag( k) = mesh%M_ddzeta_k_k_1D%val( ii)
         END DO
-      END IF ! IF (k > 1) THEN
+      END IF
 
-    END DO ! DO k = 1, C%nz
+    END DO
 
     ! d2/dzeta2
-    DO k = 1, C%nz
+    DO k = 1, mesh%nz
 
       ! Lower diagonal
       IF (k > 1) THEN
@@ -575,7 +570,7 @@ CONTAINS
           j = mesh%M_d2dzeta2_k_k_1D%ind( ii)
           IF (j == k-1) mesh%M_d2dzeta2_k_k_ldiag( k-1) = mesh%M_d2dzeta2_k_k_1D%val( ii)
         END DO
-      END IF ! IF (k > 1) THEN
+      END IF
 
       ! Central diagonal
       ! Initialise
@@ -590,7 +585,7 @@ CONTAINS
       END DO
 
       ! Upper diagonal
-      IF (k < C%nz) THEN
+      IF (k < mesh%nz) THEN
         ! Initialise
         mesh%M_d2dzeta2_k_k_udiag( k) = 0._dp
         ! Find matrix element at [k,k-1]
@@ -601,9 +596,9 @@ CONTAINS
           j = mesh%M_d2dzeta2_k_k_1D%ind( ii)
           IF (j == k+1) mesh%M_d2dzeta2_k_k_udiag( k) = mesh%M_d2dzeta2_k_k_1D%val( ii)
         END DO
-      END IF ! IF (k > 1) THEN
+      END IF
 
-    END DO ! DO k = 1, C%nz
+    END DO
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
