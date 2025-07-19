@@ -3,7 +3,6 @@ module netcdf_read_field_from_series_file
   use precisions, only: dp
   use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, insert_val_into_string_int
-  use model_configuration, only: C
   use mpi_distributed_memory, only: distribute_from_primary
   use netcdf_determine_indexing
   use netcdf_basic
@@ -46,7 +45,7 @@ contains
 
     ! == Read data from file
     ! ======================
-    
+
     ! Open the NetCDF file
     call open_existing_netcdf_file_for_reading( filename, ncid)
 
@@ -143,7 +142,7 @@ contains
       ! allocate memory
       allocate( d_vec( vec_loc%nlat, 12))
       call read_var_primary( filename, ncid, id_var, d_vec)
-      
+
       ! copy along the longitudes
       if (par%primary) then
         do i = 1, grid_loc%nlon
@@ -151,7 +150,7 @@ contains
         end do
       end if
     else
-    
+
       ! allocate memory
       allocate( d_vec_with_time( 1, 12, vec_loc%nlat))
 
@@ -160,7 +159,7 @@ contains
 
       ! Read data
       call read_var_primary( filename, ncid, id_var, d_vec_with_time, start = (/ ti, 1, 1 /), count = (/ 1, 12, vec_loc%nlat /) )
-      
+
       ! Copy to output memory, replicating along the longitudes and into the proper dimensions
       if (par%primary) then
         do i = 1, grid_loc%nlon

@@ -111,7 +111,7 @@ PROGRAM UFEMISM_program
     CALL initialise_model_configuration
 
     ! Create the resource tracking output file
-    CALL create_resource_tracking_file
+    CALL create_resource_tracking_file( C%output_dir)
     call create_checksum_logfile( C%output_dir)
 
     ! Initialise surface elevations for the automated flow factor tuning in MISMIP+
