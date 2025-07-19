@@ -104,6 +104,9 @@ contains
       ! Initialise the dummy mesh
       call initialise_dummy_mesh_5( mesh, xmin, xmax, ymin, ymax)
 
+      ! Set mesh configuration
+      mesh%resolution_tolerance = C%mesh_resolution_tolerance
+
       ! == Refine to a uniform resolution; iteratively reduce this,
       ! == and smooth the mesh in between to get a nice, high-quality mesh
       ! ==================================================================
