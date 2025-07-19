@@ -9,7 +9,6 @@ module netcdf_resource_tracking
 
   use precisions, only: dp
   use control_resources_and_error_messaging, only: resource_tracker, init_routine, finalise_routine, crash
-  use model_configuration, only: C
   use netcdf_basic
   use netcdf_add_write_scalar_variables
   use netcdf, only: NF90_DOUBLE, NF90_INT, NF90_UNLIMITED
@@ -89,7 +88,10 @@ contains
 
   end subroutine write_to_resource_tracking_file
 
-  subroutine create_resource_tracking_file
+  subroutine create_resource_tracking_file( output_dir)
+
+    ! In/output variables:
+    character(len=*), intent(in) :: output_dir
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'create_resource_tracking_file'
@@ -108,7 +110,7 @@ contains
     length_routine_name = len( resource_tracker( 1)%routine_path)
 
     ! Determine the file name
-    filename_resource_tracker = TRIM( C%output_dir) // '/resource_tracking.nc'
+    filename_resource_tracker = TRIM( output_dir) // '/resource_tracking.nc'
 
     ! Create a new NetCDF file
     call create_new_netcdf_file_for_writing( filename_resource_tracker, ncid)

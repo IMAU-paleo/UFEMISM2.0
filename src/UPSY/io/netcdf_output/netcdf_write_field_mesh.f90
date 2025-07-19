@@ -4,7 +4,6 @@ module netcdf_write_field_mesh
   use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, warning
-  use model_configuration, only: C
   use mesh_types, only: type_mesh
   use mpi_distributed_memory, only: gather_to_primary
   use netcdf_basic
@@ -543,7 +542,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter          :: routine_name = 'write_to_field_multopt_mesh_dp_3D_ocean'
-    integer                                 :: id_var, id_dim_time, ti
+    integer                                 :: id_var, id_dim_time, ti, nz_ocean
     character(len=1024)                     :: var_name
     real(dp), dimension(:,:), pointer       :: d_nih => null()
     type(MPI_WIN)                           :: wd_nih
@@ -553,6 +552,8 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    nz_ocean = size( d_partial,2)
 
     if (present( d_is_hybrid)) then
       d_is_hybrid_ = d_is_hybrid
@@ -573,21 +574,21 @@ contains
     if (d_is_hybrid_) then
       d_nih => d_partial
     else
-      call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih, C%nz_ocean)
-      call dist_to_hybrid( mesh%pai_V, C%nz_ocean, d_partial, d_nih)
+      call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih, nz_ocean)
+      call dist_to_hybrid( mesh%pai_V, nz_ocean, d_partial, d_nih)
     end if
 
     ! Gather data to the primary
     if (par%primary) then
-      allocate( d_tot( mesh%nV, C%nz_ocean))
-      call gather_dist_shared_to_primary( mesh%pai_V, C%nz_ocean, d_nih, d_tot = d_tot)
+      allocate( d_tot( mesh%nV, nz_ocean))
+      call gather_dist_shared_to_primary( mesh%pai_V, nz_ocean, d_nih, d_tot = d_tot)
     else
-      call gather_dist_shared_to_primary( mesh%pai_V, C%nz_ocean, d_nih)
+      call gather_dist_shared_to_primary( mesh%pai_V, nz_ocean, d_nih)
     end if
 
     ! Add "pretend" time dimension
     if (par%primary) then
-      allocate( d_tot_with_time( mesh%nV,C%nz_ocean,1))
+      allocate( d_tot_with_time( mesh%nV,nz_ocean,1))
       d_tot_with_time( :,:,1) = d_tot
     end if
 
@@ -595,7 +596,7 @@ contains
     call inquire_dim_multopt( filename, ncid, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Write data to the variable
-    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, C%nz_ocean, 1 /) )
+    call write_var_primary( filename, ncid, id_var, d_tot_with_time, start = (/ 1, 1, ti /), count = (/ mesh%nV, nz_ocean, 1 /) )
 
     ! Clean up after yourself
     if (d_is_hybrid_) then
@@ -1290,7 +1291,7 @@ contains
 
     ! Local variables:
     character(len=1024), parameter        :: routine_name = 'write_to_field_multopt_mesh_dp_3D_ocean_notime'
-    integer                               :: id_var, id_dim_time, ti
+    integer                               :: id_var, id_dim_time, ti, nz_ocean
     character(len=1024)                   :: var_name
     real(dp), dimension(:,:), pointer     :: d_nih => null()
     type(MPI_WIN)                         :: wd_nih
@@ -1299,6 +1300,8 @@ contains
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    nz_ocean = size( d_partial,2)
 
     if (present( d_is_hybrid)) then
       d_is_hybrid_ = d_is_hybrid
@@ -1319,16 +1322,16 @@ contains
     if (d_is_hybrid_) then
       d_nih => d_partial
     else
-      call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih, C%nz_ocean)
-      call dist_to_hybrid( mesh%pai_V, C%nz_ocean, d_partial, d_nih)
+      call allocate_dist_shared( d_nih, wd_nih, mesh%pai_V%n_nih, nz_ocean)
+      call dist_to_hybrid( mesh%pai_V, nz_ocean, d_partial, d_nih)
     end if
 
     ! Gather data to the primary
     if (par%primary) then
-      allocate( d_tot( mesh%nV, C%nz_ocean))
-      call gather_dist_shared_to_primary( mesh%pai_V, C%nz_ocean, d_nih, d_tot = d_tot)
+      allocate( d_tot( mesh%nV, nz_ocean))
+      call gather_dist_shared_to_primary( mesh%pai_V, nz_ocean, d_nih, d_tot = d_tot)
     else
-      call gather_dist_shared_to_primary( mesh%pai_V, C%nz_ocean, d_nih)
+      call gather_dist_shared_to_primary( mesh%pai_V, nz_ocean, d_nih)
     end if
 
     ! Inquire length of time dimension

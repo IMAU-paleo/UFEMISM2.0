@@ -539,8 +539,6 @@ contains
               call calc_polygon_Pine_Island_Glacier( poly_ROI)
             case ('Thwaites')
               call calc_polygon_Thwaites_Glacier( poly_ROI)
-            case ('Tijn_test_ISMIP_HOM_A')
-              call calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
           end select
 
       end select

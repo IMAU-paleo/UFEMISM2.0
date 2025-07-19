@@ -8,7 +8,6 @@ module ut_mesh_remapping_mesh_to_mesh
   use mpi_f08, only: MPI_COMM_WORLD, MPI_BCAST, MPI_LOGICAL
   use precisions, only: dp
   use mpi_basic, only: par
-  use model_configuration, only: C
   use parameters, only: pi
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning
   use mesh_types, only: type_mesh
@@ -107,10 +106,10 @@ contains
     call crop_mesh_primary( mesh_nV16)
     call crop_mesh_primary( mesh_refined)
 
-    call calc_all_secondary_mesh_data( mesh_nV5    , C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
-    call calc_all_secondary_mesh_data( mesh_nV9    , C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
-    call calc_all_secondary_mesh_data( mesh_nV16   , C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
-    call calc_all_secondary_mesh_data( mesh_refined, C%lambda_M_ANT, C%phi_M_ANT, C%beta_stereo_ANT)
+    call calc_all_secondary_mesh_data( mesh_nV5    , 0._dp, -90._dp, 71._dp)
+    call calc_all_secondary_mesh_data( mesh_nV9    , 0._dp, -90._dp, 71._dp)
+    call calc_all_secondary_mesh_data( mesh_nV16   , 0._dp, -90._dp, 71._dp)
+    call calc_all_secondary_mesh_data( mesh_refined, 0._dp, -90._dp, 71._dp)
 
     call calc_field_to_vector_form_translation_tables( mesh_nV5)
     call calc_field_to_vector_form_translation_tables( mesh_nV9)

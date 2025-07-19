@@ -24,9 +24,10 @@ module ct_mass_conservation
 contains
 
   !> Run all mass conservation component tests.
-  subroutine run_all_mass_cons_component_tests( test_mesh_filenames)
+  subroutine run_all_mass_cons_component_tests( output_dir, test_mesh_filenames)
 
     ! In/output variables:
+    character(len=*),               intent(in) :: output_dir
     character(len=*), dimension(:), intent(in) :: test_mesh_filenames
 
     ! Local variables:
@@ -40,7 +41,7 @@ contains
     if (par%primary) write(0,*) '  Running mass_cons component tests...'
     if (par%primary) write(0,*) ''
 
-    call create_mass_cons_component_tests_output_folder( foldername_mass_cons)
+    call create_mass_cons_component_tests_output_folder( output_dir, foldername_mass_cons)
 
     do i = 1, size( test_mesh_filenames,1)
       call run_mass_cons_test_on_mesh( foldername_mass_cons, test_mesh_filenames( i))
@@ -52,10 +53,11 @@ contains
   end subroutine run_all_mass_cons_component_tests
 
   !> Create the output folder for the mass conservation component tests
-  subroutine create_mass_cons_component_tests_output_folder( foldername_mass_cons)
+  subroutine create_mass_cons_component_tests_output_folder( output_dir, foldername_mass_cons)
 
     ! In/output variables:
-    character(len=*), intent(out) :: foldername_mass_cons
+    character(len=*), intent(in   ) :: output_dir
+    character(len=*), intent(  out) :: foldername_mass_cons
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_mass_cons_component_tests_output_folder'
@@ -65,7 +67,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    foldername_mass_cons = trim(C%output_dir) // '/mass_conservation'
+    foldername_mass_cons = trim( output_dir) // '/mass_conservation'
 
     if (par%primary) then
 

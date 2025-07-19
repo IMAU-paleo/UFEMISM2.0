@@ -4,7 +4,6 @@ module mesh_ROI_polygons
 
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
-  use model_configuration, only: C
 
   implicit none
 
@@ -24,7 +23,6 @@ module mesh_ROI_polygons
   public :: calc_polygon_Jakobshavn
   public :: calc_polygon_NGIS
   public :: calc_polygon_Qaanaaq
-  public :: calc_polygon_Tijn_test_ISMIP_HOM_A
   public :: calc_polygon_CalvMIP_quarter
   public :: calc_polygon_Franka_WAIS
   public :: calc_polygon_Dotson_channel
@@ -759,31 +757,6 @@ subroutine calc_polygon_Qaanaaq( poly)
   call finalise_routine( routine_name)
 
 end subroutine calc_polygon_Qaanaaq
-
-subroutine calc_polygon_Tijn_test_ISMIP_HOM_A( poly)
-  ! Return a polygon enveloping the central square of the
-  ! ISMIP-HOM Experiment A domain
-
-  ! In/output variables:
-  real(dp), dimension(:,:), allocatable, intent(out) :: poly
-
-  ! Local variables:
-  character(len=256), parameter :: routine_name = 'calc_polygon_Tijn_test_ISMIP_HOM_A'
-
-  ! Add routine to path
-  call init_routine( routine_name)
-
-  allocate( poly( 4,2))
-
-  poly(  1,:) = [-0.5_dp, -0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
-  poly(  2,:) = [ 0.5_dp, -0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
-  poly(  3,:) = [ 0.5_dp,  0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
-  poly(  4,:) = [-0.5_dp,  0.5_dp] * C%refgeo_idealised_ISMIP_HOM_L
-
-  ! Finalise routine path
-  call finalise_routine( routine_name)
-
-end subroutine calc_polygon_Tijn_test_ISMIP_HOM_A
 
 subroutine calc_polygon_CalvMIP_quarter( poly)
   ! Return a polygon enveloping one of the radially

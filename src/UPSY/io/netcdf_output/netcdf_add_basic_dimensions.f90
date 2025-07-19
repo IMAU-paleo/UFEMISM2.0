@@ -3,7 +3,6 @@ module netcdf_add_basic_dimensions
   use mpi_basic, only: par
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash
-  use model_configuration, only: C
   use netcdf_basic
   use netcdf, only: NF90_INT, NF90_DOUBLE, NF90_UNLIMITED
 
