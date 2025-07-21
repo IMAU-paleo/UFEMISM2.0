@@ -100,9 +100,9 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    filename_unit_tests_output   = trim( foldername_unit_tests_output) // '/unit_tests_output.txt'
+
     if (par%primary) then
-      ! Create filename
-      filename_unit_tests_output = trim(C%output_dir) // '/unit_tests_output.txt'
       ! Create file
       open(newunit = io_unit_test_file, file = filename_unit_tests_output, status = "new", action = "write", &
         iostat = stat, iomsg = msg)
@@ -129,24 +129,25 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    C%output_dir = 'automated_testing/unit_tests/results'
+    foldername_unit_tests_output = 'automated_testing/unit_tests/results'
+    C%output_dir = foldername_unit_tests_output
 
     ! Create the directory
     if (par%primary) then
 
       ! Remove existing folder if necessary
-      inquire( file = trim( C%output_dir) // '/.', exist = ex)
+      inquire( file = trim( foldername_unit_tests_output) // '/.', exist = ex)
       if (ex) then
-        call system('rm -rf ' // trim( C%output_dir))
+        call system('rm -rf ' // trim( foldername_unit_tests_output))
       end if
 
       ! Create output directory
-      CALL system('mkdir ' // trim( C%output_dir))
+      CALL system('mkdir ' // trim( foldername_unit_tests_output))
 
       ! Tell the user where it is
       call getcwd( cwd)
       write(0,'(A)') ''
-      write(0,'(A)') ' Output directory: ' // colour_string( trim(cwd)//'/'//trim( C%output_dir), 'light blue')
+      write(0,'(A)') ' Output directory: ' // colour_string( trim(cwd)//'/'//trim( foldername_unit_tests_output), 'light blue')
       write(0,'(A)') ''
 
     end if

@@ -23,7 +23,7 @@ MODULE SMB_main
   use plane_geometry, only: is_in_polygon
   use mesh_data_smoothing, only: smooth_Gaussian
   use netcdf_io_main
-  
+
   IMPLICIT NONE
 
 CONTAINS
@@ -100,7 +100,7 @@ CONTAINS
         CALL run_SMB_model_prescribed( mesh, ice, SMB, region_name, time)
       CASE ('reconstructed')
         CALL run_SMB_model_reconstructed( mesh, grid_smooth, ice, SMB, region_name, time)
-      CASE ('IMAU-ITM')  
+      CASE ('IMAU-ITM')
         !IF (par%primary)  WRITE(*,"(A)") '   Running IMAU-ITM SMB model...'
         CALL run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
       CASE DEFAULT
@@ -166,7 +166,7 @@ CONTAINS
         CALL initialise_SMB_model_prescribed( mesh, SMB, region_name)
       CASE ('reconstructed')
         CALL initialise_SMB_model_reconstructed( mesh, SMB, region_name)
-      CASE ('IMAU-ITM')  
+      CASE ('IMAU-ITM')
         IF (par%primary)  WRITE(*,"(A)") '   Initialising IMAU-ITM SMB...'
         CALL initialise_SMB_model_IMAUITM( mesh, ice, SMB%IMAUITM, region_name)
       CASE DEFAULT
@@ -220,7 +220,7 @@ CONTAINS
         ! No need to do anything
       CASE ('reconstructed')
         ! No need to do anything
-      CASE ('IMAU-ITM')  
+      CASE ('IMAU-ITM')
         call write_to_restart_file_SMB_model_region(mesh, SMB, region_name, time)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -319,7 +319,7 @@ CONTAINS
         ! No need to do anything
       CASE ('reconstructed')
         ! No need to do anything
-      CASE ('IMAU-ITM')  
+      CASE ('IMAU-ITM')
         call create_restart_file_SMB_model_region(mesh, SMB, region_name)
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
@@ -358,7 +358,7 @@ CONTAINS
     ! Set the filename
     filename_base = TRIM( C%output_dir) // 'restart_SMB_' // region_name
     CALL generate_filename_XXXXXdotnc( filename_base, SMB%restart_filename)
-    
+
     ! Print to terminal
     IF (par%primary) WRITE(0,'(A)') '   Creating SMB model restart file "' // &
       colour_string( TRIM( SMB%restart_filename), 'light blue') // '"...'
@@ -385,7 +385,7 @@ CONTAINS
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-    
+
   END SUBROUTINE create_restart_file_SMB_model_region
 
   SUBROUTINE remap_SMB_model( mesh_old, mesh_new, SMB, region_name)
@@ -434,8 +434,8 @@ CONTAINS
         ! No need to do anything
       CASE ('prescribed')
         CALL initialise_SMB_model_prescribed( mesh_new, SMB, region_name)
-      CASE ('IMAU-ITM')  
-        !CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)  
+      CASE ('IMAU-ITM')
+        !CALL initialise_SMB_model_parameterised( mesh, ice, SMB, climate, region_name)
         CALL reallocate_bounds( SMB%SMB                    , mesh_new%vi1, mesh_new%vi2)
         CALL reallocate_bounds(SMB%IMAUITM%AlbedoSurf      , mesh_new%vi1, mesh_new%vi2)
         CALL reallocate_bounds(SMB%IMAUITM%MeltPreviousYear, mesh_new%vi1, mesh_new%vi2)
@@ -450,9 +450,9 @@ CONTAINS
         CALL reallocate_bounds(SMB%IMAUITM%Runoff      , mesh_new%vi1, mesh_new%vi2, 12)
         CALL reallocate_bounds(SMB%IMAUITM%Albedo      , mesh_new%vi1, mesh_new%vi2, 12)
         CALL reallocate_bounds(SMB%IMAUITM%SMB_monthly , mesh_new%vi1, mesh_new%vi2, 12)
-    
+
       CASE ('reconstructed')
-        CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')  
+        CALL crash('Remapping after mesh update not implemented yet for reconstructed SMB')
       CASE DEFAULT
         CALL crash('unknown choice_SMB_model "' // TRIM( choice_SMB_model) // '"')
     END SELECT
@@ -529,7 +529,7 @@ CONTAINS
 
     ! Smooth the reconstructed field
     SMB_smoothed = SMB%SMB
-    CALL smooth_Gaussian( mesh, grid_smooth, SMB_smoothed, r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, C%output_dir, SMB_smoothed, r_smooth)
 
     ! Only apply the smoothed field inside the reconstructed area
     ! to reduce the power of positive SMB there
@@ -547,7 +547,7 @@ CONTAINS
 
     ! Smooth the field once more
     SMB_smoothed = SMB%SMB
-    CALL smooth_Gaussian( mesh, grid_smooth, SMB_smoothed, r_smooth)
+    CALL smooth_Gaussian( mesh, grid_smooth, C%output_dir, SMB_smoothed, r_smooth)
 
     ! Apply this second smoothing only outside of the reconstructed area
     ! to conserve the power of negative SMB there

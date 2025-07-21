@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_fun_3.0000E+04_m_nit_Lloyd_2_periodic</name>
+    <category>component_tests/mass_conservation/mesh_vertices_to_grid</category>
+    <date_and_time>18-Jul-2025 08:26:24</date_and_time>
+    <git_hash_string>f8b70eb42b970c637e5dd6f22d2024843cfb1352</git_hash_string>
+    <cost_functions>
+        <name>rmse_explicit</name>
+        <definition>sqrt( mean( (dHi_dt_explicit - dHi_dt_ex).^2))</definition>
+        <value>0.23603</value>
+    </cost_functions>
+    <cost_functions>
+        <name>rmse_semiimplicit</name>
+        <definition>sqrt( mean( (dHi_dt_semiimplicit - dHi_dt_ex).^2))</definition>
+        <value>0.47285</value>
+    </cost_functions>
+    <cost_functions>
+        <name>rmse_implicit</name>
+        <definition>sqrt( mean( (dHi_dt_implicit - dHi_dt_ex).^2))</definition>
+        <value>0.84326</value>
+    </cost_functions>
+    <cost_functions>
+        <name>rmse_overimplicit</name>
+        <definition>sqrt( mean( (dHi_dt_overimplicit - dHi_dt_ex).^2))</definition>
+        <value>1.2319</value>
+    </cost_functions>
+</single_run>

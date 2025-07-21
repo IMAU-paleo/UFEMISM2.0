@@ -25,7 +25,8 @@ module reference_geometries_main
   private
 
   public :: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh, &
-    initialise_reference_geometry_raw_from_file, remap_reference_geometry_to_mesh
+    initialise_reference_geometry_raw_from_file, remap_reference_geometry_to_mesh, &
+    reallocate_reference_geometry_on_mesh
 
 contains
 
@@ -55,17 +56,7 @@ contains
     ! == Initial geometry
     ! ===================
 
-    ! deallocate existing memory if needed
-    if (allocated( refgeo_init%Hi)) deallocate( refgeo_init%Hi)
-    if (allocated( refgeo_init%Hb)) deallocate( refgeo_init%Hb)
-    if (allocated( refgeo_init%Hs)) deallocate( refgeo_init%Hs)
-    if (allocated( refgeo_init%SL)) deallocate( refgeo_init%SL)
-
-    ! allocate memory for reference ice geometry on the model mesh
-    allocate( refgeo_init%Hi( mesh%vi1:mesh%vi2))
-    allocate( refgeo_init%Hb( mesh%vi1:mesh%vi2))
-    allocate( refgeo_init%Hs( mesh%vi1:mesh%vi2))
-    allocate( refgeo_init%SL( mesh%vi1:mesh%vi2))
+    call reallocate_reference_geometry_on_mesh( mesh, refgeo_init)
 
     ! Get config choices for this model region
     select case (region_name)
@@ -99,17 +90,7 @@ contains
     ! == Present-day geometry
     ! =======================
 
-    ! deallocate existing memory if needed
-    if (allocated( refgeo_PD%Hi)) deallocate( refgeo_PD%Hi)
-    if (allocated( refgeo_PD%Hb)) deallocate( refgeo_PD%Hb)
-    if (allocated( refgeo_PD%Hs)) deallocate( refgeo_PD%Hs)
-    if (allocated( refgeo_PD%SL)) deallocate( refgeo_PD%SL)
-
-    ! allocate memory for reference ice geometry on the model mesh
-    allocate( refgeo_PD%Hi( mesh%vi1:mesh%vi2))
-    allocate( refgeo_PD%Hb( mesh%vi1:mesh%vi2))
-    allocate( refgeo_PD%Hs( mesh%vi1:mesh%vi2))
-    allocate( refgeo_PD%SL( mesh%vi1:mesh%vi2))
+    call reallocate_reference_geometry_on_mesh( mesh, refgeo_PD)
 
     ! Get config choices for this model region
     select case (region_name)
@@ -143,17 +124,7 @@ contains
     ! == GIA equilibrium geometry
     ! ===========================
 
-    ! deallocate existing memory if needed
-    if (allocated( refgeo_GIAeq%Hi)) deallocate( refgeo_GIAeq%Hi)
-    if (allocated( refgeo_GIAeq%Hb)) deallocate( refgeo_GIAeq%Hb)
-    if (allocated( refgeo_GIAeq%Hs)) deallocate( refgeo_GIAeq%Hs)
-    if (allocated( refgeo_GIAeq%SL)) deallocate( refgeo_GIAeq%SL)
-
-    ! allocate memory for reference ice geometry on the model mesh
-    allocate( refgeo_GIAeq%Hi( mesh%vi1:mesh%vi2))
-    allocate( refgeo_GIAeq%Hb( mesh%vi1:mesh%vi2))
-    allocate( refgeo_GIAeq%Hs( mesh%vi1:mesh%vi2))
-    allocate( refgeo_GIAeq%SL( mesh%vi1:mesh%vi2))
+    call reallocate_reference_geometry_on_mesh( mesh, refgeo_GIAeq)
 
     ! Get config choices for this model region
     select case (region_name)
@@ -204,17 +175,7 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    ! deallocate existing memory if needed
-    if (allocated( refgeo%Hi)) deallocate( refgeo%Hi)
-    if (allocated( refgeo%Hb)) deallocate( refgeo%Hb)
-    if (allocated( refgeo%Hs)) deallocate( refgeo%Hs)
-    if (allocated( refgeo%SL)) deallocate( refgeo%SL)
-
-    ! allocate memory for reference ice geometry on the model mesh
-    allocate( refgeo%Hi( mesh%vi1:mesh%vi2))
-    allocate( refgeo%Hb( mesh%vi1:mesh%vi2))
-    allocate( refgeo%Hs( mesh%vi1:mesh%vi2))
-    allocate( refgeo%SL( mesh%vi1:mesh%vi2))
+    call reallocate_reference_geometry_on_mesh( mesh, refgeo)
 
     ! Determine if the initial geometry is provided gridded or meshed
     if (allocated( refgeo%grid_raw%x)) then
@@ -224,9 +185,9 @@ contains
       if (allocated( refgeo%mesh_raw%V)) call crash('found both grid and mesh in refgeo!')
 
       ! Remap data to the model mesh
-      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hi_grid_raw, refgeo%Hi)
-      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%Hb_grid_raw, refgeo%Hb)
-      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, refgeo%SL_grid_raw, refgeo%SL)
+      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, C%output_dir, refgeo%Hi_grid_raw, refgeo%Hi)
+      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, C%output_dir, refgeo%Hb_grid_raw, refgeo%Hb)
+      call map_from_xy_grid_to_mesh_2D( refgeo%grid_raw, mesh, C%output_dir, refgeo%SL_grid_raw, refgeo%SL)
 
     elseif (allocated( refgeo%mesh_raw%V)) then
       ! Meshed
@@ -236,9 +197,9 @@ contains
 
       ! Remap data to the model mesh
       method = '2nd_order_conservative'
-      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hi_mesh_raw, refgeo%Hi, method)
-      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%Hb_mesh_raw, refgeo%Hb, method)
-      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, refgeo%SL_mesh_raw, refgeo%SL, method)
+      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, C%output_dir, refgeo%Hi_mesh_raw, refgeo%Hi, method)
+      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, C%output_dir, refgeo%Hb_mesh_raw, refgeo%Hb, method)
+      call map_from_mesh_to_mesh_2D( refgeo%mesh_raw, mesh, C%output_dir, refgeo%SL_mesh_raw, refgeo%SL, method)
 
     else
       call crash('no grid or mesh is found in refgeo!')
@@ -785,5 +746,53 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine initialise_reference_geometry_idealised
+
+  ! Utilities
+  ! =========
+
+  subroutine reallocate_reference_geometry_on_mesh( mesh, refgeo)
+
+    ! In/output variables
+    type(type_mesh)              , intent(in   ) :: mesh
+    type(type_reference_geometry), intent(inout) :: refgeo
+
+    ! Local variabler:
+    character(len=1024), parameter :: routine_name = 'deallocate_reference_geometry_on_mesh'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (allocated( refgeo%Hi)) call deallocate_reference_geometry_on_mesh( refgeo)
+
+    allocate( refgeo%Hi( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( refgeo%Hb( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( refgeo%Hs( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( refgeo%SL( mesh%vi1:mesh%vi2), source = 0._dp)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine reallocate_reference_geometry_on_mesh
+
+  subroutine deallocate_reference_geometry_on_mesh( refgeo)
+
+    ! In/output variables
+    type(type_reference_geometry), intent(inout) :: refgeo
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'deallocate_reference_geometry_on_mesh'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    if (allocated( refgeo%Hi)) deallocate( refgeo%Hi)
+    if (allocated( refgeo%Hb)) deallocate( refgeo%Hb)
+    if (allocated( refgeo%Hs)) deallocate( refgeo%Hs)
+    if (allocated( refgeo%SL)) deallocate( refgeo%SL)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine deallocate_reference_geometry_on_mesh
 
 end module reference_geometries_main

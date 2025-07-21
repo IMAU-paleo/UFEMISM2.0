@@ -20,10 +20,12 @@ MODULE model_configuration
 ! ====================
 
   use mpi_f08, only: MPI_BCAST, MPI_COMM_WORLD, MPI_CHAR, MPI_LOGICAL
-  USE precisions                                             , ONLY: dp
+  use precisions, only: dp
   use mpi_basic, only: par, sync
-  USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, &
-                                                                     capitalise_string, remove_leading_spaces
+  use control_resources_and_error_messaging, only: warning, crash, happy, init_routine, finalise_routine, colour_string, &
+    capitalise_string, remove_leading_spaces
+  use basic_model_utilities, only: get_git_commit_hash, git_commit_hash, &
+    check_for_uncommitted_changes, has_uncommitted_changes
 
   IMPLICIT NONE
 
@@ -236,6 +238,10 @@ MODULE model_configuration
     REAL(dp)            :: ROI_maximum_resolution_coastline_config      = 50e3_dp                          ! [m]          Maximum resolution for the coastline
     REAL(dp)            :: ROI_coastline_width_config                   = 50e3_dp                          ! [m]          Width of the band around the coastline that should get this resolution
 
+    ! Miscellaneous refinement options
+    logical             :: do_refine_TransAntMounts_glaciers_config     = .false.                          !              Whether or not to refine the mesh over the Transantarctic Mountains glaciers (resolving those really helps in getting a stable Ross ice shelf)
+    real(dp)            :: max_res_TransAntMounts_glaciers_config       = 5e3_dp                           ! [m]          Maximum resolution for the Transantarctic Mountains glaciers
+
     ! Mesh update settings
     LOGICAL             :: allow_mesh_updates_config                    = .TRUE.                           ! [-]          Whether or not mesh updates are allowed
     REAL(dp)            :: dt_mesh_update_min_config                    = 50._dp                           ! [yr]         Minimum amount of time between mesh updates
@@ -253,9 +259,6 @@ MODULE model_configuration
     REAL(dp)            :: dx_square_grid_smooth_EAS_config             = 5000._dp
     REAL(dp)            :: dx_square_grid_smooth_GRL_config             = 5000._dp
     REAL(dp)            :: dx_square_grid_smooth_ANT_config             = 5000._dp
-
-    ! Memory
-    INTEGER             :: nC_mem_config                                = 32                               ! [-]          How many columns of memory should be allocated for connectivity lists
 
   ! == The scaled vertical coordinate zeta
   ! ======================================
@@ -787,10 +790,9 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB_config                   = .TRUE.                           ! Whether or not the BMB should be calculated asynchronously from the rest of the model; if so, use dt_climate; if not, calculate it in every time step
     REAL(dp)            :: dt_BMB_config                                = 10._dp                           ! [yr] Time step for calculating BMB
 
-    ! Inversion
-    LOGICAL             :: do_BMB_inversion_config                      = .FALSE.                          ! Whether or not the BMB should be inverted to keep whatever geometry the floating areas have at any given moment
-    REAL(dp)            :: BMB_inversion_t_start_config                 = +9.9E9_dp                        ! [yr] Start time for BMB inversion based on computed thinning rates in marine areas
-    REAL(dp)            :: BMB_inversion_t_end_config                   = +9.9E9_dp                        ! [yr] End   time for BMB inversion based on computed thinning rates in marine areas
+    ! Hard limits on melt/refreezing rates
+    REAL(dp)            :: BMB_maximum_allowed_melt_rate_config         = 100._dp                         ! [m/yr] Maximum allowed melt       rate   (note: positive value means melt!)
+    REAL(dp)            :: BMB_maximum_allowed_refreezing_rate_config   = 10._dp                         ! [m/yr] Maximum allowed refreezing rate   (note: positive value means refreezing!)
 
     ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase_config               = .FALSE.                          ! Whether or not the model should slowly transition from inverted BMB to modelled BMB over a specified time window (only applied when do_BMB_transition_phase_config = .TRUE.)
@@ -812,7 +814,6 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_BMB_model_EAS_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
     CHARACTER(LEN=256)  :: choice_BMB_model_GRL_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
     CHARACTER(LEN=256)  :: choice_BMB_model_ANT_ROI_config              = 'identical_to_choice_BMB_model'  ! Choose BMB model in ROI, options: 'identical_to_choice_BMB_model', 'uniform', 'laddie_py'
-
 
     ! Prescribed BMB forcing
     CHARACTER(LEN=256)  :: choice_BMB_prescribed_NAM_config             = ''
@@ -853,6 +854,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output_config    = ''                               ! File name containing output from laddie spinup
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model_config                  = ''                               ! Directory where laddie code is located
     CHARACTER(LEN=256)  :: conda_activate_prompt_config                 = 'conda activate laddie'          ! Prompt to activate conda environment used for running laddie
+
+    ! "inverted"
+    REAL(dp)            :: BMB_inversion_t_start_config                 = -9.9E9                           ! [yr] Only nudge melt rates when the model time lies between t_start and t_end
+    REAL(dp)            :: BMB_inversion_t_end_config                   =  9.9E9                           ! [yr]
 
   ! == LADDIE model
   ! ===============
@@ -920,6 +925,13 @@ MODULE model_configuration
     ! Tides
     CHARACTER(LEN=256)  :: choice_laddie_tides_config                   = 'uniform'                        ! Choose option for tidal velocity. Options: 'uniform'
     REAL(dp)            :: uniform_laddie_tidal_velocity_config         = 0.1_dp                           ! [m s^-1] Uniform tidal velocity
+
+    ! Subglacial discharge (SGD)
+    CHARACTER(LEN=256)  :: choice_laddie_SGD_config                     = 'none'                           ! Choose option for subglacial discharge. Options: 'none', 'idealised'
+    CHARACTER(LEN=256)  :: choice_laddie_SGD_idealised_config           = 'MISMIPplus_PC'                  ! Choose option for idealised SGD. Options: 'MISMIPplus_PC', 'MISMIPplus_PW', 'MISMIPplus_PE'
+    REAL(dp)            :: laddie_SGD_flux_config                       = 72._dp                           ! [m^3 s^-1] Total subglacial discharge flux
+    ! CHARACTER(LEN=256)  :: filename_subglacial_discharge_mask_config    = ''                               ! area file containing the subglacial discharge mask on the original mesh
+
 
   ! == Lateral mass balance
   ! =======================
@@ -1316,6 +1328,10 @@ MODULE model_configuration
     REAL(dp)            :: ROI_maximum_resolution_coastline
     REAL(dp)            :: ROI_coastline_width
 
+    ! Miscellaneous refinement options
+    logical             :: do_refine_TransAntMounts_glaciers
+    real(dp)            :: max_res_TransAntMounts_glaciers
+
     ! Mesh update settings
     LOGICAL             :: allow_mesh_updates
     REAL(dp)            :: dt_mesh_update_min
@@ -1333,9 +1349,6 @@ MODULE model_configuration
     REAL(dp)            :: dx_square_grid_smooth_EAS
     REAL(dp)            :: dx_square_grid_smooth_GRL
     REAL(dp)            :: dx_square_grid_smooth_ANT
-
-    ! Memory
-    INTEGER             :: nC_mem
 
   ! == The scaled vertical coordinate zeta
   ! ======================================
@@ -1868,10 +1881,9 @@ MODULE model_configuration
     LOGICAL             :: do_asynchronous_BMB
     REAL(dp)            :: dt_BMB
 
-    ! Inversion
-    LOGICAL             :: do_BMB_inversion
-    REAL(dp)            :: BMB_inversion_t_start
-    REAL(dp)            :: BMB_inversion_t_end
+    ! Hard limits on melt/refreezing rates
+    REAL(dp)            :: BMB_maximum_allowed_melt_rate
+    REAL(dp)            :: BMB_maximum_allowed_refreezing_rate
 
     ! BMB transition phase
     LOGICAL             :: do_BMB_transition_phase
@@ -1934,6 +1946,10 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: filename_BMB_laddie_initial_output
     CHARACTER(LEN=256)  :: dir_BMB_laddie_model
     CHARACTER(LEN=256)  :: conda_activate_prompt
+
+    ! "inverted"
+    REAL(dp)            :: BMB_inversion_t_start
+    REAL(dp)            :: BMB_inversion_t_end
 
   ! == LADDIE model
   ! ===============
@@ -2001,6 +2017,11 @@ MODULE model_configuration
     ! Tides
     CHARACTER(LEN=256)  :: choice_laddie_tides
     REAL(dp)            :: uniform_laddie_tidal_velocity
+
+    ! Subglacial discharge (SGD)
+    CHARACTER(LEN=256)  :: choice_laddie_SGD
+    CHARACTER(LEN=256)  :: choice_laddie_SGD_idealised
+    REAL(dp)            :: laddie_SGD_flux
 
   ! == Lateral mass balance
   ! =======================
@@ -2200,10 +2221,6 @@ MODULE model_configuration
 
   ! The main config structure
   TYPE(type_config)   :: C
-
-  ! The has of the current git commit
-  character(len=1024) :: git_commit_hash
-  logical             :: has_uncommitted_changes = .false.
 
 CONTAINS
 
@@ -2545,6 +2562,8 @@ CONTAINS
       ROI_ice_front_width_config                                  , &
       ROI_maximum_resolution_coastline_config                     , &
       ROI_coastline_width_config                                  , &
+      do_refine_TransAntMounts_glaciers_config                    , &
+      max_res_TransAntMounts_glaciers_config                      , &
       allow_mesh_updates_config                                   , &
       dt_mesh_update_min_config                                   , &
       minimum_mesh_fitness_coefficient_config                     , &
@@ -2557,7 +2576,6 @@ CONTAINS
       dx_square_grid_smooth_EAS_config                            , &
       dx_square_grid_smooth_GRL_config                            , &
       dx_square_grid_smooth_ANT_config                            , &
-      nC_mem_config                                               , &
       choice_zeta_grid_config                                     , &
       nz_config                                                   , &
       zeta_irregular_log_R_config                                 , &
@@ -2894,9 +2912,8 @@ CONTAINS
       SMB_IMAUITM_albedo_snow_config                              , &
       do_asynchronous_BMB_config                                  , &
       dt_BMB_config                                               , &
-      do_BMB_inversion_config                                     , &
-      BMB_inversion_t_start_config                                , &
-      BMB_inversion_t_end_config                                  , &
+      BMB_maximum_allowed_melt_rate_config                        , &
+      BMB_maximum_allowed_refreezing_rate_config                  , &
       do_BMB_transition_phase_config                              , &
       BMB_transition_phase_t_start_config                         , &
       BMB_transition_phase_t_end_config                           , &
@@ -2934,6 +2951,8 @@ CONTAINS
       filename_BMB_laddie_initial_output_config                   , &
       dir_BMB_laddie_model_config                                 , &
       conda_activate_prompt_config                                , &
+      BMB_inversion_t_start_config                                , &
+      BMB_inversion_t_end_config                                  , &
       do_repartition_laddie_config                                , &
       do_write_laddie_output_fields_config                        , &
       do_write_laddie_output_scalar_config                        , &
@@ -2968,6 +2987,9 @@ CONTAINS
       laddie_thickness_maximum_config                             , &
       laddie_velocity_maximum_config                              , &
       laddie_buoyancy_minimum_config                              , &
+      choice_laddie_SGD_config                                    , &
+      choice_laddie_SGD_idealised_config                          , &
+      laddie_SGD_flux_config                                      , &
       choice_laddie_tides_config                                  , &
       uniform_laddie_tidal_velocity_config                        , &
       dt_LMB_config                                               , &
@@ -3354,6 +3376,10 @@ CONTAINS
     C%ROI_maximum_resolution_coastline                       = ROI_maximum_resolution_coastline_config
     C%ROI_coastline_width                                    = ROI_coastline_width_config
 
+    ! Miscellaneous refinement options
+    C%do_refine_TransAntMounts_glaciers                      = do_refine_TransAntMounts_glaciers_config
+    C%max_res_TransAntMounts_glaciers                        = max_res_TransAntMounts_glaciers_config
+
     ! Mesh update settings
     C%allow_mesh_updates                                     = allow_mesh_updates_config
     C%dt_mesh_update_min                                     = dt_mesh_update_min_config
@@ -3371,9 +3397,6 @@ CONTAINS
     C%dx_square_grid_smooth_EAS                              = dx_square_grid_smooth_EAS_config
     C%dx_square_grid_smooth_GRL                              = dx_square_grid_smooth_GRL_config
     C%dx_square_grid_smooth_ANT                              = dx_square_grid_smooth_ANT_config
-
-    ! Memory
-    C%nC_mem                                                 = nC_mem_config
 
   ! == The scaled vertical coordinate zeta
   ! ======================================
@@ -3904,10 +3927,9 @@ CONTAINS
     C%do_asynchronous_BMB                                    = do_asynchronous_BMB_config
     C%dt_BMB                                                 = dt_BMB_config
 
-    ! Inversion
-    C%do_BMB_inversion                                       = do_BMB_inversion_config
-    C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
-    C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
+    ! Hard limits on melt/refreezing rates
+    C%BMB_maximum_allowed_melt_rate                          = BMB_maximum_allowed_melt_rate_config
+    C%BMB_maximum_allowed_refreezing_rate                    = BMB_maximum_allowed_refreezing_rate_config
 
     ! BMB transition phase
     C%do_BMB_transition_phase                                = do_BMB_transition_phase_config
@@ -3970,6 +3992,10 @@ CONTAINS
     C%filename_BMB_laddie_initial_output                     = filename_BMB_laddie_initial_output_config
     C%dir_BMB_laddie_model                                   = dir_BMB_laddie_model_config
     C%conda_activate_prompt                                  = conda_activate_prompt_config
+
+    ! "inverted|
+    C%BMB_inversion_t_start                                  = BMB_inversion_t_start_config
+    C%BMB_inversion_t_end                                    = BMB_inversion_t_end_config
 
   ! == LADDIE model
   ! ===============
@@ -4036,6 +4062,11 @@ CONTAINS
     ! Tides
     C%choice_laddie_tides                                    = choice_laddie_tides_config
     C%uniform_laddie_tidal_velocity                          = uniform_laddie_tidal_velocity_config
+
+    ! Subglacial discharge (SGD)
+    C%choice_laddie_SGD                                      = choice_laddie_SGD_config
+    C%choice_laddie_SGD_idealised                            = choice_laddie_SGD_idealised_config
+    C%laddie_SGD_flux                                        = laddie_SGD_flux_config
 
   ! == Lateral mass balance
   ! =======================
@@ -4754,83 +4785,5 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE generate_procedural_output_dir_name
-
-  subroutine get_git_commit_hash( git_commit_hash)
-
-    ! In/output variables:
-    character(len=*), intent(out) :: git_commit_hash
-
-    ! Local variables:
-    character(len=256), parameter :: routine_name = 'get_git_commit_hash'
-    character(len=256), parameter :: filename_git_commit_hash = 'git_commit_hash.txt'
-    integer                       :: ierr, ios
-    integer, parameter            :: git_commit_hash_file_unit = 1847
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Create a text file containing the hash of the current git commit
-    call system( 'git rev-parse HEAD > ' // trim(filename_git_commit_hash), ierr)
-    if (ierr /= 0) call crash('failed to obtain hash of current git commit')
-
-    ! Read the hash from the temporary commit hash file
-    open( unit = git_commit_hash_file_unit, file = filename_git_commit_hash, iostat = ios)
-    if (ios /= 0) call crash('couldnt open temporary commit hash file "' // trim( filename_git_commit_hash) // '"!')
-    read( unit = git_commit_hash_file_unit, fmt = '(A)', iostat = ios) git_commit_hash
-    if (ios < 0) call crash('couldnt read commit hash from the temporary commit hash file')
-    close( unit = git_commit_hash_file_unit)
-
-    ! Delete the temporary commit hash file
-    call system( 'rm -f ' // trim( filename_git_commit_hash), ierr)
-    if (ierr /= 0) call crash('failed to delete temporary commit hash file')
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine get_git_commit_hash
-
-  subroutine check_for_uncommitted_changes
-
-    ! Local variables:
-    character(len=256), parameter :: routine_name = 'check_for_uncommitted_changes'
-    character(len=256), parameter :: filename_git_status = 'git_status.txt'
-    integer                       :: ierr, ios
-    integer, parameter            :: git_status_file_unit = 1847
-    character(len=1024)           :: single_line
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Create a text file containing the output of git status
-    call system( 'git status > ' // trim( filename_git_status), ierr)
-    if (ierr /= 0) call crash('failed to write git status to text file')
-
-    ! Check the temporary git status file for uncommitted changes
-    open( unit = git_status_file_unit, file = filename_git_status, iostat = ios)
-    if (ios /= 0) call crash('couldnt open temporary git status file "' // trim( filename_git_status) // '"!')
-
-    do while (.true.)
-        ! Read a single line from the temporary git status file
-        read( unit = git_status_file_unit, fmt = '(A)', iostat = ios) single_line
-        ! If we've reached the end of the file, stop reading.
-        if (ios < 0) exit
-        ! Check if the temporary git status file mentions any uncommitted changes
-        if (single_line == 'Changes not staged for commit:') has_uncommitted_changes = .true.
-    end do
-
-    close( unit = git_status_file_unit)
-
-    ! Mention uncommitted changes in the commit hash (done after writing the commit hash to the terminal,
-    ! but still useful for the version that ends up in the NetCDF output files)
-    if (has_uncommitted_changes) git_commit_hash = trim( git_commit_hash) // ' (with uncommitted changes!)'
-
-    ! Delete the temporary git status file
-    call system( 'rm -f ' // trim( filename_git_status), ierr)
-    if (ierr /= 0) call crash('failed to delete temporary git status file')
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine check_for_uncommitted_changes
 
 END MODULE model_configuration

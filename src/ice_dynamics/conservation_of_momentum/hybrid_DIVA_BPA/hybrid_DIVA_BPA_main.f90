@@ -177,7 +177,10 @@ contains
     call calc_zeta_gradients( mesh, ice)
 
     ! Calculate 3-D matrix operators for the current ice geometry
-    call calc_3D_matrix_operators_mesh( mesh, ice)
+    call calc_3D_matrix_operators_mesh( mesh, &
+      ice%dzeta_dx_ak, ice%dzeta_dy_ak, ice%dzeta_dx_bk, ice%dzeta_dy_bk, &
+      ice%dzeta_dz_bk, ice%dzeta_dz_bks, &
+      ice%d2zeta_dx2_bk, ice%d2zeta_dxdy_bk, ice%d2zeta_dy2_bk)
 
     ! Calculate the driving stress
     call calc_driving_stress_DIVA( mesh, ice, hybrid%DIVA%tau_dx_b, hybrid%DIVA%tau_dy_b)
@@ -354,10 +357,10 @@ contains
     call map_b_a_3D( mesh_old, hybrid%v_bk   , v_ak   )
 
     ! Remap data from the vertices of the old mesh to the vertices of the new mesh
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_vav_a, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_vav_a, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_ak   , '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_ak   , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, u_vav_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, v_vav_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, u_ak   , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, v_ak   , '2nd_order_conservative')
 
     ! reallocate memory for the data on the triangles
     call reallocate_bounds( hybrid%u_vav_b, mesh_new%ti1, mesh_new%ti2             )
@@ -536,8 +539,6 @@ contains
               call calc_polygon_Pine_Island_Glacier( poly_ROI)
             case ('Thwaites')
               call calc_polygon_Thwaites_Glacier( poly_ROI)
-            case ('Tijn_test_ISMIP_HOM_A')
-              call calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
           end select
 
       end select

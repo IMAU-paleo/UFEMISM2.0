@@ -27,7 +27,7 @@ module inversion_utilities
 
   private
 
-  public :: initialise_dHi_dt_target, MISMIPplus_adapt_flow_factor, BMB_inversion
+  public :: initialise_dHi_dt_target, MISMIPplus_adapt_flow_factor
 
 contains
 
@@ -77,10 +77,10 @@ contains
     ! Read dHi_dt from file
     if (timeframe_dHi_dt_target == 1E9_dp) then
       ! Assume the file has no time dimension
-      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target)
+      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, C%output_dir, ice%dHi_dt_target)
     else
       ! Assume the file has a time dimension, and read the specified timeframe
-      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_target)
+      call read_field_from_file_2D( filename_dHi_dt_target, 'dHdt||dHi_dt', mesh, C%output_dir, ice%dHi_dt_target, time_to_read = timeframe_dHi_dt_target)
     end if
 
     ! Finalise routine path
@@ -137,151 +137,5 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine MISMIPplus_adapt_flow_factor
-
-  subroutine BMB_inversion( region, dt)
-    !< Invert the basal mass balance that would keep the ice shelves in equilibrium
-
-    ! In/output variables:
-    type(type_model_region), intent(inout) :: region
-    real(dp),                intent(in   ) :: dt
-
-    ! Local variables:
-    character(len=1024), parameter                       :: routine_name = 'BMB_inversion'
-    integer                                              :: vi
-    integer,  dimension(region%mesh%vi1:region%mesh%vi2) :: extrapolation_mask
-    real(dp)                                             :: dt_dummy
-    real(dp), dimension(region%mesh%vi1:region%mesh%vi2) :: SMB_dummy, BMB_dummy, LMB_dummy, AMB_dummy, dHi_dt_dummy, Hi_dummy
-    real(dp)                                             :: w
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    ! Check if this inversion is desired
-    if (C%do_BMB_inversion .and. &
-        region%time >= C%BMB_inversion_t_start .and. &
-        region%time <= C%BMB_inversion_t_end) then
-      ! Go for it
-    else
-      ! Finalise routine path
-      call finalise_routine( routine_name)
-      ! And exit subroutine
-      return
-    end if
-
-    ! Initialise
-    extrapolation_mask = 0
-
-    ! == Equilibrium LMB
-    ! ==================
-
-    ! Set dummy mass balance terms to 0
-    SMB_dummy    = 0._dp
-    BMB_dummy    = 0._dp
-    LMB_dummy    = 0._dp
-    AMB_dummy    = 0._dp
-
-    ! Copy model time step
-    dt_dummy = dt
-
-    ! Use no basal or lateral mass balance to invert BMB values for an ice shelf in equilibrium
-    call calc_dHi_dt( region%mesh, region%ice%Hi, region%ice%Hb, region%ice%SL, region%ice%u_vav_b, region%ice%v_vav_b, region%SMB%SMB, BMB_dummy, LMB_dummy, AMB_dummy, region%ice%fraction_margin, &
-                      region%ice%mask_noice, dt_dummy, dHi_dt_dummy, Hi_dummy, region%ice%divQ, region%ice%dHi_dt_target)
-
-    ! Initialise
-    region%BMB%BMB_inv = 0._dp
-
-    ! Compute equilibrium LMB
-    do vi = region%mesh%vi1, region%mesh%vi2
-
-      ! Skip vertices where BMB does not operate
-      if (.not. region%ice%mask_gl_gr( vi) .and. &
-          .not. region%ice%mask_floating_ice( vi) .and. &
-          .not. region%ice%mask_cf_fl( vi)) cycle
-
-      ! Equilibrium BMB field
-      region%BMB%BMB_inv( vi) = -dHi_dt_dummy( vi)
-
-      ! Add to extrapolation seeds
-      extrapolation_mask( vi) = 2
-
-    end do
-
-    ! == Calving fronts
-    ! =================
-
-    do vi = region%mesh%vi1, region%mesh%vi2
-
-      ! Detect shelf fronts where upstream BMB can be extrapolated into
-      if (region%ice%mask_cf_fl( vi) .and. .not. region%ice%mask_gl_fl( vi)) then
-        extrapolation_mask( vi) = 1
-      end if
-
-    end do
-
-    ! Perform the extrapolation - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    call extrapolate_Gaussian( region%mesh, extrapolation_mask, region%BMB%BMB_inv, 10000._dp)
-
-    ! == Total BMB
-    ! ============
-
-    ! Initialise
-    region%BMB%BMB        = 0._dp
-    region%BMB%BMB_transition_phase = 0._dp
-
-    if (C%do_BMB_transition_phase) then
-
-      ! Safety
-      if (C%BMB_transition_phase_t_start < C%BMB_inversion_t_start .or. C%BMB_transition_phase_t_end > C%BMB_inversion_t_end ) then
-        ! If the window of smoothing falls outside window of BMB inversion, crash.
-        call crash(' The time window for BMB smoothing does not fall within the time window for BMB inversion. Make sure that "BMB_transition_phase_t_start" >= "BMB_inversion_t_start", and "BMB_transition_phase_t_end" <= "BMB_inversion_t_end".')
-
-      elseif (C%BMB_transition_phase_t_start >= C%BMB_transition_phase_t_end) then
-        ! If start and end time of smoothing window is equal or start > end, crash.
-        call crash(' "BMB_transition_phase_t_start" is equivalent or larger than "BMB_transition_phase_t_end".')
-
-      end if
-
-      ! Compute smoothing weights for BMB inversion smoothing
-      if (region%time < C%BMB_transition_phase_t_start) then
-        w = 1.0_dp
-
-      elseif (region%time >= C%BMB_transition_phase_t_start .and. &
-        region%time <= C%BMB_transition_phase_t_end) then
-        w = 1.0_dp - ((region%time - C%BMB_transition_phase_t_start)/(C%BMB_transition_phase_t_end - C%BMB_transition_phase_t_start))
-
-      elseif (region%time > C%BMB_transition_phase_t_end) then
-        w = 0.0_dp
-
-      end if
-
-    end if
-
-    ! Compute total BMB
-    do vi = region%mesh%vi1, region%mesh%vi2
-
-      ! Skip vertices where BMB does not operate
-      if (.not. region%ice%mask_gl_gr( vi) .and. &
-          .not. region%ice%mask_floating_ice( vi) .and. &
-          .not. region%ice%mask_cf_fl( vi)) cycle
-
-      if (C%do_BMB_transition_phase) then
-        ! If BMB_transition_phase is turned ON, use weight 'w' to compute BMB field
-        region%BMB%BMB( vi) = w * region%BMB%BMB_inv( vi) + (1.0_dp - w) * region%BMB%BMB_modelled( vi)
-
-        ! Save smoothed BMB field for diagnostic output
-        region%BMB%BMB_transition_phase( vi) = region%BMB%BMB( vi)
-
-      else
-        ! If BMB_transition_phase is turned OFF, just apply inverted melt rates
-        region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
-
-      end if
-
-    end do
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine BMB_inversion
 
 end module inversion_utilities

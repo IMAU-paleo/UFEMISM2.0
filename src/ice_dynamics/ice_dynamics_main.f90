@@ -25,7 +25,7 @@ module ice_dynamics_main
     apply_mask_noice_direct
   use ice_geometry_basics, only: ice_surface_elevation, thickness_above_floatation, &
     Hi_from_Hb_Hs_and_SL
-  use masks_mod, only: determine_masks, calc_mask_ROI, calc_mask_noice
+  use masks_mod, only: determine_masks, calc_mask_ROI, calc_mask_noice, calc_mask_SGD
   use subgrid_ice_margin, only: calc_effective_thickness
   use zeta_gradients, only: calc_zeta_gradients
   use subgrid_grounded_fractions_main, only: calc_grounded_fractions
@@ -300,6 +300,9 @@ contains
     ! Compute mask_ROI only at initialisation, (NOTE: This works only for one single ROI right now)
     call calc_mask_ROI( mesh, ice, region_name)
 
+    ! Compute mask_SGD only at initialisation
+    call calc_mask_SGD( mesh, ice)
+
     ! Effective ice thickness
     ! =======================
 
@@ -471,7 +474,7 @@ contains
     call remap_basic_ice_geometry( mesh_old, mesh_new, refgeo_PD, GIA, ice)
 
     ! Remap dHi/dt to improve stability of the P/C scheme after mesh updates
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, ice%dHi_dt, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, ice%dHi_dt, '2nd_order_conservative')
 
     ! === Thermodynamics and rheology ===
     ! ===================================
@@ -483,7 +486,7 @@ contains
     Ti_min = minval(ice%Ti)
 
     ! Use 2nd-order conservative remapping for the ice temperature.
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, ice%Ti, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, ice%Ti, '2nd_order_conservative')
 
     ! Make sure that no values are smaller than the original minimum
     ice%Ti = max( ice%Ti, Ti_min)
@@ -550,6 +553,7 @@ contains
     call reallocate_bounds( ice%mask_cf_fl             , mesh_new%vi1, mesh_new%vi2)  ! T: floating ice next to ice-free water (sea or lake), F: otherwise
     call reallocate_bounds( ice%mask_coastline         , mesh_new%vi1, mesh_new%vi2)  ! T: ice-free land next to ice-free ocean, F: otherwise
     call reallocate_bounds( ice%mask_ROI               , mesh_new%vi1, mesh_new%vi2)  ! T: located in ROI, F: otherwise
+    call reallocate_bounds( ice%mask_SGD               , mesh_new%vi1, mesh_new%vi2)  ! T: Area where subglacial discharge can be applied, F: otherwise
     ! call reallocate_bounds( ice%mask_noice           , mesh_new%vi1, mesh_new%vi2)  ! T: no ice is allowed here, F: ice is allowed here
     call reallocate_bounds( ice%mask                   , mesh_new%vi1, mesh_new%vi2)  ! Diagnostic, only meant for quick visual inspection in output
     call reallocate_bounds( ice%basin_ID               , mesh_new%vi1, mesh_new%vi2)  ! The drainage basin to which each vertex belongs
@@ -762,6 +766,9 @@ contains
     ! Compute mask_ROI
     call calc_mask_ROI( mesh_new, ice, region_name)
 
+    ! Compute mask_SGD
+    call calc_mask_SGD( mesh_new, ice)
+
     ! ! Smooth the ice at the calving front to improve model stability
     ! call relax_calving_front_after_mesh_update( mesh_new, ice)
 
@@ -886,8 +893,8 @@ contains
     call gather_to_all( ice%mask_icefree_ocean, mask_icefree_ocean_tot)
 
     ! First, naively remap ice thickness and surface elevation without any restrictions
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hi, Hi_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, ice%Hs, Hs_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, C%output_dir, ice%Hi, Hi_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh_new, C%output_dir, ice%Hs, Hs_new, '2nd_order_conservative')
 
     ! Calculate remapped ice thickness as the difference between new bedrock and remapped surface elevation
     do vi = mesh_new%vi1, mesh_new%vi2
@@ -1226,10 +1233,10 @@ contains
     ! == Remap SMB, BMB, LMB, and AMB to get more stable ice thickness
     ! ================================================================
 
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, SMB%SMB, SMB_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, BMB%BMB, BMB_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, LMB%LMB, LMB_new, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_2D( mesh_old, mesh, AMB%AMB, AMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, SMB%SMB, SMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, BMB%BMB, BMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, LMB%LMB, LMB_new, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_2D( mesh_old, mesh, C%output_dir, AMB%AMB, AMB_new, '2nd_order_conservative')
 
     ! == Relax the ice thickness for a few time steps
     ! ===============================================

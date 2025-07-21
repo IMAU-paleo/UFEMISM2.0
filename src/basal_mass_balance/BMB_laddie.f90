@@ -75,12 +75,12 @@ CONTAINS
 
       IF (do_hybrid) THEN
         ! Only apply values to ROI
-        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, temporary_BMB)
+        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, C%output_dir, temporary_BMB)
 
         DO vi = mesh%vi1, mesh%vi2
           IF (ice%mask_ROI(vi)) THEN
             ! Initialise all values in ROI at zero
-            BMB%BMB( vi) = 0._dp 
+            BMB%BMB( vi) = 0._dp
 
             ! Copy values from temporary BMB to all floating / grounding cells within ROI
             IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_fl( vi) .OR. ice%mask_gl_gr( vi)) THEN
@@ -93,7 +93,7 @@ CONTAINS
 
       ELSE
         ! Apply values to all ice shelf grid cells
-        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, BMB%BMB_shelf)
+        CALL read_field_from_file_2D( filename_BMB_laddie_output, 'BMBext', mesh, C%output_dir, BMB%BMB_shelf)
 
       END IF
 
@@ -102,12 +102,12 @@ CONTAINS
 
       IF (do_hybrid) THEN
         ! Only apply values to ROI
-        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, temporary_BMB)
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, C%output_dir, temporary_BMB)
 
         DO vi = mesh%vi1, mesh%vi2
-          IF (ice%mask_ROI(vi)) THEN              
+          IF (ice%mask_ROI(vi)) THEN
             ! Initialise all values in ROI at zero
-            BMB%BMB( vi) = 0._dp 
+            BMB%BMB( vi) = 0._dp
 
             ! Copy values from temporary BMB to all floating / grounding cells within ROI
             IF (ice%mask_floating_ice( vi) .OR. ice%mask_gl_fl( vi) .OR. ice%mask_gl_gr( vi)) THEN
@@ -120,7 +120,7 @@ CONTAINS
 
       ELSE
         ! Apply values to all ice shelf grid cells
-        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
+        CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, C%output_dir, BMB%BMB_shelf)
 
       END IF
 
@@ -185,7 +185,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Read in BMB data from LADDIE
-    CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, BMB%BMB_shelf)
+    CALL read_field_from_file_2D( C%filename_BMB_laddie_initial_output, 'BMBext', mesh, C%output_dir, BMB%BMB_shelf)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
