@@ -300,41 +300,6 @@ UFEMISM_source = \
   types/tracer_tracking_model_types.f90 \
   types/transect_types.f90 \
   types/region_types.f90 \
-<<<<<<< HEAD
-  \
-  basic/parameters.f90 \
-  \
-  basic/mpi_parallelisation/mpi_basic.f90 \
-  \
-  basic/reallocate_mod.f90 \
-  basic/string_module.f90 \
-  basic/control_resources_and_error_messaging.f90 \
-  basic/model_configuration.f90 \
-  basic/laddie_configuration.f90 \
-  \
-  validation/basic_tests/tests_logical.f90 \
-  validation/basic_tests/tests_int.f90 \
-  validation/basic_tests/tests_dp.f90 \
-  validation/basic_tests/tests_CSR.f90 \
-  validation/basic_tests/tests_grid.f90 \
-  validation/basic_tests/tests_grid_lonlat.f90 \
-  validation/basic_tests/tests_mesh.f90 \
-  validation/basic_tests/tests_main.f90 \
-  validation/basic_tests/assertions_basic.f90 \
-  \
-  basic/mpi_parallelisation/mpi_distributed_memory.f90 \
-  basic/mpi_parallelisation/allocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/deallocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/reallocate_dist_shared_mod.f90 \
-  basic/mpi_parallelisation/gather_dist_shared_to_primary_mod.f90 \
-  basic/mpi_parallelisation/gather_dist_shared_to_all_mod.f90 \
-  basic/mpi_parallelisation/distribute_dist_shared_from_primary_mod.f90 \
-  basic/mpi_parallelisation/dist_to_hybrid_mod.f90 \
-  basic/mpi_parallelisation/halo_exchange_mod.f90 \
-  basic/mpi_parallelisation/mpi_distributed_shared_memory.f90 \
-  basic/mpi_parallelisation/mpi_distributed_memory_grid.f90 \
-=======
->>>>>>> main
 	\
   mesh_creation/reduce_ice_geometry.f90 \
   mesh_creation/mesh_creation_refine_in_ROIs.f90 \
@@ -495,6 +460,7 @@ UFEMISM_program : $(UFEMISM_program_objects:%=$(OBJ_PATH)/%)
 
 clean :
 	rm -frv $(all_programs) $(OBJ_PATH) $(MOD_PATH) *.mod *.lst
+
 
 
 # =============================================================
