@@ -1,4 +1,4 @@
-MODULE LADDIE_main_model
+module LADDIE_main_model
 
   ! The main regional model
 
@@ -44,8 +44,7 @@ MODULE LADDIE_main_model
   use tracer_tracking_model_main, only: initialise_tracer_tracking_model, run_tracer_tracking_model, &
     remap_tracer_tracking_model
   use transects_main, only: initialise_transects, write_to_transect_netcdf_output_files
-  use UFEMISM_main_model, only: write_to_regional_output_files, setup_first_mesh, &
-    setup_first_mesh_from_initial_geometry, setup_ROI_grids_and_output_files
+  use UFEMISM_main_model, only: write_to_regional_output_files, setup_ROI_grids_and_output_files
 
   IMPLICIT NONE
 
@@ -183,7 +182,7 @@ CONTAINS
     ! ========================
 
     ! Set up the first model mesh
-    CALL setup_first_mesh( region)
+    CALL setup_first_mesh( region_name, mesh, refgeo)
 
     ! Remap reference geometries from their raw input grids to the model mesh
     CALL initialise_reference_geometries_on_model_mesh( region%name, region%mesh, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
@@ -346,4 +345,104 @@ CONTAINS
 
   END SUBROUTINE initialise_model_region
 
-END MODULE LADDIE_main_model
+  subroutine setup_mesh( region_name, mesh, refgeo)
+    ! Set up the model mesh
+
+    ! In/output variables:
+    character(len=256),                                  intent(in   ) :: region_name
+    type(type_mesh),                                     intent(inout) :: mesh
+    type(type_reference_geometry),                       intent(in)    :: refgeo
+
+    ! Local variables:
+    character(len=256), parameter                                      :: routine_name = 'setup_mesh'
+    character(len=256)                                                 :: mesh_name
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Print to screen
+    if (par%primary) write(0,'(A)') '   Setting up the mesh ...'
+
+    ! Mesh name
+    mesh_name = 'model_mesh_' // trim( region_name) // '_00001'
+
+    ! Calculate a new mesh based on the initial ice-sheet geometry, or read an existing mesh from a file
+    call setup_first_mesh_from_initial_geometry( region_name, mesh_name, mesh, refgeo)
+
+    ! Write the mesh creation success message to the terminal
+    call write_mesh_success( region%mesh)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine setup_mesh
+
+  subroutine setup_mesh_from_geometry( region_name, mesh_name, mesh, refgeo)
+    ! Set up the model mesh based on the ice-sheet geometry
+
+    ! In/output variables:
+    character(len=256),                                  intent(in   ) :: region_name
+    character(len=256),                                  intent(in)    :: mesh_name
+    type(type_mesh),                                     intent(inout) :: mesh
+    type(type_reference_geometry),                       intent(in)    :: refgeo
+
+    ! Local variables:
+    character(len=256), parameter                                      :: routine_name = 'setup_mesh_from_geometry'
+    real(dp)                                                           :: xmin, xmax, ymin, ymax
+    real(dp)                                                           :: lambda_M, phi_M, beta_stereo
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Print to screen
+    if (par%primary) write(0,'(A)') '     Creating mesh from geometry...'
+
+    ! Determine model domain
+    xmin = C%xmin
+    xmax = C%xmax
+    ymin = C%ymin
+    ymax = C%ymax
+
+    ! Determine if the geometry is provided gridded or meshed
+    if (allocated( refgeo%grid_raw%x)) then
+      ! Gridded
+
+      ! Safety
+      if (allocated( refgeo%mesh_raw%V)) call crash('found both grid and mesh in refgeo!')
+
+      ! Create mesh from gridded geometry
+      call create_mesh_from_gridded_geometry( region_name, mesh_name, &
+        refgeo%grid_raw, &
+        refgeo%Hi_grid_raw, &
+        refgeo%Hb_grid_raw, &
+        refgeo%Hs_grid_raw, &
+        refgeo%SL_grid_raw, &
+        xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+        mesh)
+
+    elseif (allocated( region%refgeo_init%mesh_raw%V)) then
+      ! Meshed
+
+      ! Safety
+      if (allocated( region%refgeo_init%grid_raw%x)) call crash('found boht grid and mesh in region%refgeo_init!')
+
+      ! Create mesh from meshed initial geometry data
+      call create_mesh_from_meshed_geometry( region_name, mesh_name, &
+        refgeo%mesh_raw, &
+        refgeo%Hi_mesh_raw, &
+        refgeo%Hb_mesh_raw, &
+        refgeo%Hs_mesh_raw, &
+        refgeo%SL_mesh_raw, &
+        xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
+        mesh)
+
+    else
+      call crash('no grid or mesh is found in refgeo!')
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine setup__mesh_from_geometry
+
+end module LADDIE_main_model
