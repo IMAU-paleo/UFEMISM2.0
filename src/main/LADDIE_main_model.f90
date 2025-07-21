@@ -15,6 +15,7 @@ module LADDIE_main_model
   USE region_types                                           , ONLY: type_model_region
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
+  USE laddie_model_types                                     , ONLY: type_laddie_model
   USE mesh_types                                             , ONLY: type_mesh
   use grid_types, only: type_grid
   USE reference_geometry_types                               , ONLY: type_reference_geometry
@@ -48,6 +49,8 @@ module LADDIE_main_model
     remap_tracer_tracking_model
   use transects_main, only: initialise_transects, write_to_transect_netcdf_output_files
   use UFEMISM_main_model, only: write_to_regional_output_files, setup_ROI_grids_and_output_files
+  use laddie_output, only: create_laddie_output_fields_file 
+  use laddie_main, only: initialise_laddie_model
 
   IMPLICIT NONE
 
@@ -130,7 +133,7 @@ CONTAINS
 ! ===== Model initialisation =====
 ! ================================
 
-  SUBROUTINE initialise_model_region( region, region_name, refgeo, mesh, forcing, start_time_of_run)
+  SUBROUTINE initialise_model_region( region, region_name, laddie, refgeo, mesh, forcing, start_time_of_run)
     ! Initialise this model region
 
     IMPLICIT NONE
@@ -138,6 +141,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(OUT)   :: region
     CHARACTER(LEN=3),                                    INTENT(IN)    :: region_name
+    type(type_laddie_model),                             intent(out)   :: laddie
     type(type_reference_geometry),                       intent(out)   :: refgeo
     type(type_mesh),                                     intent(out)   :: mesh
     TYPE(type_global_forcing)                          , INTENT(IN)    :: forcing
@@ -169,8 +173,6 @@ CONTAINS
 
     filename_refgeo = C%filename_refgeo_init_ANT
     timeframe_refgeo = C%timeframe_refgeo_init_ANT
-
-    if (par%primary) write(0,'(A)') ' Filename refgeo: '// trim(filename_refgeo) // ' ...'
 
     ! Clean up memory if necessary
     if (allocated( refgeo%Hi_grid_raw)) deallocate( refgeo%Hi_grid_raw)
@@ -213,13 +215,12 @@ CONTAINS
     ! ===== Ocean =====
     ! =================
 
-    CALL initialise_ocean_model( mesh, ice, ocean, region_name, time)
+    call initialise_ocean_model( mesh, ice, ocean, region_name, time)
 
-    ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
-    ! ============================================================
+    ! ===== LADDIE =====
+    ! ==================
 
-    ! Run the models
-    CALL run_ocean_model( mesh, ice, ocean, region_name, time)
+    call initialise_laddie_model( mesh, laddie, ocean, ice, region_name)
 
     ! ===== Integrated scalars =====
     ! ==============================
@@ -233,22 +234,20 @@ CONTAINS
     dx_grid_output = C%dx_output_grid_ANT
 
     ! Create the square output grid
-    grid_name = 'square_grid_output_' // region%name
-    CALL setup_square_grid( grid_name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, &
+    grid_name = 'square_grid_output_' // region_name
+    call setup_square_grid( grid_name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, &
        dx_grid_output, output_grid, &
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
     ! Create the main regional output files
-    CALL create_main_regional_output_file_mesh( region)
-    CALL create_main_regional_output_file_grid( region)
+    call create_laddie_output_fields_file( mesh, laddie, region_name)
+    !CALL create_main_regional_output_file_grid( region)
 
     ! Create the main regional output files for the regions of interest
     CALL setup_ROI_grids_and_output_files( region)
 
     ! Create the restart files for all the model components
-    CALL create_restart_files_ice_model   ( region%mesh, region%ice)
-    CALL create_restart_file_ocean_model  ( region%mesh, region%ocean  , region%name)
-    CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
+    !CALL create_restart_file_BMB_model    ( region%mesh, region%BMB    , region%name)
 
     ! Initialise the output transects
     call initialise_transects( region)

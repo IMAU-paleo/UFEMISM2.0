@@ -34,6 +34,7 @@ PROGRAM LADDIE_program
   use netcdf_io_main
   USE region_types                                           , ONLY: type_model_region
   USE mesh_types                                             , ONLY: type_mesh
+  USE laddie_model_types                                     , ONLY: type_laddie_model
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE global_forcing_types                                   , ONLY: type_global_forcing
   USE LADDIE_main_model                                      , ONLY: initialise_model_region, run_model_region
@@ -50,6 +51,7 @@ PROGRAM LADDIE_program
   ! The global forcings
   TYPE(type_global_forcing)              :: forcing
 
+  type(type_laddie_model)                :: laddie
   type(type_reference_geometry)          :: refgeo
   type(type_mesh)                        :: mesh
 
@@ -107,7 +109,7 @@ PROGRAM LADDIE_program
     ! == Initialise the model regions
     ! ===============================
 
-    call initialise_model_region( ANT, 'ANT', refgeo, mesh, forcing, C%start_time_of_run)
+    call initialise_model_region( ANT, 'ANT', laddie, refgeo, mesh, forcing, C%start_time_of_run)
 
     ! == The coupling time loop
     ! =========================
