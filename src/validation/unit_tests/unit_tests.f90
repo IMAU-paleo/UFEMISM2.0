@@ -55,6 +55,7 @@ contains
     ! call unit_tests_tracer_tracking_main       ( test_name)
     call unit_tests_bedrock_CDFs_main          ( test_name)
     call unit_tests_ocean_extrapolation_main   ( test_name)
+    call unit_tests_laddie_main                ( test_name)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
