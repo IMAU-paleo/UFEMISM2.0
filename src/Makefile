@@ -39,7 +39,7 @@ endif
 # ========================================
 
 # Adding this program to the list of all programs:
-all_programs += UFEMISM_program
+all_programs += LADDIE_program
 
 # ===============================
 #       Building everything
@@ -429,6 +429,7 @@ UFEMISM_source = \
   tracer_tracking/tracer_tracking_main.f90 \
   \
   main/UFEMISM_main_model.f90 \
+  main/LADDIE_main_model.f90 \
   \
   laddie/laddie_dummy_domain.f90 \
 	\
@@ -440,14 +441,14 @@ UFEMISM_source = \
   validation/component_tests/ct_mass_conservation.f90 \
   validation/component_tests/component_tests.f90 \
   \
-  main/UFEMISM_program.f90
+  main/LADDIE_program.f90
 
 UFEMISM_source_files_=$(notdir $(UFEMISM_source))
 UFEMISM_program_objects=$(UFEMISM_source_files_:%.f90=%.o)
 
 # This rule is used to build an executable from the object files:
 # The executable (the target) depends on the object files:
-UFEMISM_program : $(UFEMISM_program_objects:%=$(OBJ_PATH)/%)
+LADDIE_program : $(UFEMISM_program_objects:%=$(OBJ_PATH)/%)
 	$(F90) $(F90FLAGS) $(F90DEFINITIONS) -o $@ $^ $(LDFLAGS)
 
 # ==================================

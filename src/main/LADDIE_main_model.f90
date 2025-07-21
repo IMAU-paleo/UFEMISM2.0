@@ -16,6 +16,7 @@ module LADDIE_main_model
   USE ice_model_types                                        , ONLY: type_ice_model
   USE ocean_model_types                                      , ONLY: type_ocean_model
   USE mesh_types                                             , ONLY: type_mesh
+  use grid_types, only: type_grid
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE global_forcing_types                                   , ONLY: type_global_forcing
   use reference_geometries_main, only: initialise_reference_geometry_raw_from_file, &
@@ -151,6 +152,7 @@ CONTAINS
     real(dp)                                                           :: time
     type(type_ocean_model)                                             :: ocean
     type(type_ice_model)                                               :: ice
+    type(type_grid)                                                    :: output_grid
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -167,6 +169,8 @@ CONTAINS
 
     filename_refgeo = C%filename_refgeo_init_ANT
     timeframe_refgeo = C%timeframe_refgeo_init_ANT
+
+    if (par%primary) write(0,'(A)') ' Filename refgeo: '// trim(filename_refgeo) // ' ...'
 
     ! Clean up memory if necessary
     if (allocated( refgeo%Hi_grid_raw)) deallocate( refgeo%Hi_grid_raw)
@@ -211,30 +215,17 @@ CONTAINS
 
     CALL initialise_ocean_model( mesh, ice, ocean, region_name, time)
 
-    ! ===== Basal mass balance =====
-    ! ==============================
-
-    CALL initialise_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name)
-
     ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
     ! ============================================================
 
     ! Run the models
-    CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
-    CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
-
-    ! Reset the timers
-    region%climate%t_next = C%start_time_of_run
-    region%ocean%t_next   = C%start_time_of_run
-    region%SMB%t_next     = C%start_time_of_run
-    region%BMB%t_next     = C%start_time_of_run
-    region%LMB%t_next     = C%start_time_of_run
+    CALL run_ocean_model( mesh, ice, ocean, region_name, time)
 
     ! ===== Integrated scalars =====
     ! ==============================
 
     ! Calculate ice-sheet integrated values (total volume, area, etc.)
-    CALL calc_ice_mass_and_fluxes( region%mesh, region%ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
+    ! CALL calc_ice_mass_and_fluxes( mesh, ice, region%SMB, region%BMB, region%LMB, region%refgeo_PD, region%scalars)
 
     ! ===== Regional output =====
     ! ===========================
@@ -243,8 +234,8 @@ CONTAINS
 
     ! Create the square output grid
     grid_name = 'square_grid_output_' // region%name
-    CALL setup_square_grid( grid_name, region%mesh%xmin, region%mesh%xmax, region%mesh%ymin, region%mesh%ymax, &
-       dx_grid_output, region%output_grid, &
+    CALL setup_square_grid( grid_name, mesh%xmin, mesh%xmax, mesh%ymin, mesh%ymax, &
+       dx_grid_output, output_grid, &
        lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
 
     ! Create the main regional output files

@@ -30,7 +30,7 @@ PROGRAM LADDIE_program
   USE control_resources_and_error_messaging                  , ONLY: warning, crash, happy, init_routine, finalise_routine, colour_string, do_colour_strings, &
                                                                      initialise_control_and_resource_tracker, reset_resource_tracker, &
                                                                      print_LADDIE_start, print_LADDIE_end
-  USE laddie_configuration                                   , ONLY: C, initialise_model_configuration, initialise_model_configuration_unit_tests
+  USE model_configuration                                    , ONLY: C, initialise_model_configuration, initialise_model_configuration_unit_tests
   use netcdf_io_main
   USE region_types                                           , ONLY: type_model_region
   USE mesh_types                                             , ONLY: type_mesh
@@ -102,7 +102,7 @@ PROGRAM LADDIE_program
     CALL initialise_model_configuration
 
     ! Create the resource tracking output file
-    CALL create_resource_tracking_file
+    CALL create_resource_tracking_file( C%output_dir)
 
     ! == Initialise the model regions
     ! ===============================
