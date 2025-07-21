@@ -14,10 +14,12 @@ module LADDIE_main_model
   USE parameters
   USE region_types                                           , ONLY: type_model_region
   USE ice_model_types                                        , ONLY: type_ice_model
+  USE ocean_model_types                                      , ONLY: type_ocean_model
   USE mesh_types                                             , ONLY: type_mesh
   USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE global_forcing_types                                   , ONLY: type_global_forcing
-  use reference_geometries_main, only: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
+  use reference_geometries_main, only: initialise_reference_geometry_raw_from_file, &
+    remap_reference_geometry_to_mesh
   use ice_dynamics_main, only: initialise_ice_dynamics_model, run_ice_dynamics_model, remap_ice_dynamics_model, &
     create_restart_files_ice_model, write_to_restart_files_ice_model, apply_geometry_relaxation
   use basal_hydrology_main, only: run_basal_hydrology_model
@@ -127,7 +129,7 @@ CONTAINS
 ! ===== Model initialisation =====
 ! ================================
 
-  SUBROUTINE initialise_model_region( region, region_name, forcing, start_time_of_run)
+  SUBROUTINE initialise_model_region( region, region_name, refgeo, mesh, forcing, start_time_of_run)
     ! Initialise this model region
 
     IMPLICIT NONE
@@ -135,133 +137,91 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region)                            , INTENT(OUT)   :: region
     CHARACTER(LEN=3),                                    INTENT(IN)    :: region_name
+    type(type_reference_geometry),                       intent(out)   :: refgeo
+    type(type_mesh),                                     intent(out)   :: mesh
     TYPE(type_global_forcing)                          , INTENT(IN)    :: forcing
     REAL(dp)                                           , INTENT(IN)    :: start_time_of_run
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'initialise_model_region'
-    CHARACTER(LEN=256)                                                 :: grid_name
-    REAL(dp)                                                           :: dx_grid_smooth, dx_grid_output
-    TYPE(type_global_forcing)                                          :: regional_forcing
+    character(len=256), parameter                                      :: routine_name = 'initialise_model_region'
+    character(len=256)                                                 :: grid_name
+    character(len=256)                                                 :: filename_refgeo
+    real(dp)                                                           :: timeframe_refgeo
+    real(dp)                                                           :: dx_grid_output
+    real(dp)                                                           :: time
+    type(type_ocean_model)                                             :: ocean
+    type(type_ice_model)                                               :: ice
 
     ! Add routine to path
-    CALL init_routine( routine_name)
+    call init_routine( routine_name)
 
-    ! Set region time
-    region%time = C%start_time_of_run
-
-    ! ===== Region name =====
-    ! =======================
-
-    ! Which region are we initialising?
-    region%name = region_name
-    IF     (region%name == 'NAM') THEN
-      region%long_name = 'North America'
-    ELSEIF (region%name == 'EAS') THEN
-      region%long_name = 'Eurasia'
-    ELSEIF (region%name == 'GRL') THEN
-      region%long_name = 'Greenland'
-    ELSEIF (region%name == 'ANT') THEN
-      region%long_name = 'Antarctica'
-    ELSE
-      CALL crash('unknown region "' // TRIM( region%name) // '"')
-    END IF
+    ! Set time
+    time = C%start_time_of_run
 
     ! Print to screen
-    IF (par%primary) WRITE(0,'(A)') ''
-    IF (par%primary) WRITE(0,'(A)') ' Initialising model region ' // colour_string( region%name,'light blue') // ' (' // &
-      colour_string( TRIM( region%long_name),'light blue') // ')...'
+    if (par%primary) write(0,'(A)') ''
+    if (par%primary) write(0,'(A)') ' Initialising model ...'
 
-    ! ===== Reference geometries =====
-    ! ================================
-
-    ! Initialise all the reference geometries on their raw input grids
-    CALL initialise_reference_geometries_raw( region%name, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
-
-    ! ===== Initial mesh =====
+    ! ===== Raw geometry =====
     ! ========================
 
-    ! Set up the first model mesh
-    CALL setup_first_mesh( region_name, mesh, refgeo)
+    filename_refgeo = C%filename_refgeo_init_ANT
+    timeframe_refgeo = C%timeframe_refgeo_init_ANT
+
+    ! Clean up memory if necessary
+    if (allocated( refgeo%Hi_grid_raw)) deallocate( refgeo%Hi_grid_raw)
+    if (allocated( refgeo%Hb_grid_raw)) deallocate( refgeo%Hb_grid_raw)
+    if (allocated( refgeo%Hs_grid_raw)) deallocate( refgeo%Hs_grid_raw)
+    if (allocated( refgeo%SL_grid_raw)) deallocate( refgeo%SL_grid_raw)
+
+    ! Initialise the reference geometry on their raw input grids
+    call initialise_reference_geometry_raw_from_file( region_name, 'refgeo', refgeo, filename_refgeo, timeframe_refgeo)
+
+    ! ===== Geometry on mesh =====
+    ! ============================
+
+    ! Set up the model mesh
+    call setup_mesh( region_name, mesh, refgeo)
 
     ! Remap reference geometries from their raw input grids to the model mesh
-    CALL initialise_reference_geometries_on_model_mesh( region%name, region%mesh, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq)
 
-    ! ===== Square grid used for smoothing =====
-    ! ==========================================
+    ! deallocate existing memory if needed
+    if (allocated( refgeo%Hi)) deallocate( refgeo%Hi)
+    if (allocated( refgeo%Hb)) deallocate( refgeo%Hb)
+    if (allocated( refgeo%Hs)) deallocate( refgeo%Hs)
+    if (allocated( refgeo%SL)) deallocate( refgeo%SL)
 
-    ! Determine resolution for this region's output grid
-    IF     (region%name == 'NAM') THEN
-      dx_grid_smooth = C%dx_square_grid_smooth_NAM
-    ELSEIF (region%name == 'EAS') THEN
-      dx_grid_smooth = C%dx_square_grid_smooth_EAS
-    ELSEIF (region%name == 'GRL') THEN
-      dx_grid_smooth = C%dx_square_grid_smooth_GRL
-    ELSEIF (region%name == 'ANT') THEN
-      dx_grid_smooth = C%dx_square_grid_smooth_ANT
-    ELSE
-      CALL crash('unknown region name "' // region%name // '"!')
-    END IF
+    ! allocate memory for reference ice geometry on the model mesh
+    allocate( refgeo%Hi( mesh%vi1:mesh%vi2))
+    allocate( refgeo%Hb( mesh%vi1:mesh%vi2))
+    allocate( refgeo%Hs( mesh%vi1:mesh%vi2))
+    allocate( refgeo%SL( mesh%vi1:mesh%vi2))
 
-    ! Create the square smooth grid
-    grid_name = 'square_grid_smooth_' // region%name
-    CALL setup_square_grid( grid_name, region%mesh%xmin, region%mesh%xmax, region%mesh%ymin, region%mesh%ymax, &
-       dx_grid_smooth, region%grid_smooth, &
-       lambda_M = region%mesh%lambda_M, phi_M = region%mesh%phi_M, beta_stereo = region%mesh%beta_stereo)
+    call remap_reference_geometry_to_mesh( mesh, refgeo)
 
-    ! Set up a regional frocing data type so the regional models can run asynchronously
-    regional_forcing = forcing
+    if (par%primary) write(0,'(A)') ' Got geometry ...'
 
     ! ===== Ice dynamics =====
     ! ========================
 
-    CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, regional_forcing, start_time_of_run)
-
-    call initialise_bed_roughness_model( region%mesh, region%ice, region%bed_roughness, region%name)
-
-    ! ===== Climate =====
-    ! ===================
-    CALL initialise_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name)
+    ! CALL initialise_ice_dynamics_model( region%mesh, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%GIA, region%name, regional_forcing, time)
 
     ! ===== Ocean =====
     ! =================
 
-    CALL initialise_ocean_model( region%mesh, region%ice, region%ocean, region%name, start_time_of_run)
-
-    ! ===== Surface mass balance =====
-    ! ================================
-
-    CALL initialise_SMB_model( region%mesh, region%ice, region%climate, region%SMB, region%name)
+    CALL initialise_ocean_model( mesh, ice, ocean, region_name, time)
 
     ! ===== Basal mass balance =====
     ! ==============================
 
     CALL initialise_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name)
 
-    ! ===== Lateral mass balance =====
-    ! ================================
-
-    CALL initialise_LMB_model( region%mesh, region%LMB, region%name, start_time_of_run)
-
-    ! ===== Artificial mass balance =====
-    ! ===================================
-
-    CALL initialise_AMB_model( region%mesh, region%AMB)
-
-    ! ===== Tracer tracking model =====
-    ! =================================
-
-    call initialise_tracer_tracking_model( region%mesh, region%ice, region%tracer_tracking)
-
     ! ===== Run the climate, ocean, SMB, BMB, and LMB models =====
     ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name, C%start_time_of_run)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
-    CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
-    CALL run_LMB_model( region%mesh, region%ice, region%LMB, region%name, region%time)
 
     ! Reset the timers
     region%climate%t_next = C%start_time_of_run
@@ -279,18 +239,7 @@ CONTAINS
     ! ===== Regional output =====
     ! ===========================
 
-    ! Determine resolution for this region's output grid
-    IF     (region%name == 'NAM') THEN
-      dx_grid_output = C%dx_output_grid_NAM
-    ELSEIF (region%name == 'EAS') THEN
-      dx_grid_output = C%dx_output_grid_EAS
-    ELSEIF (region%name == 'GRL') THEN
-      dx_grid_output = C%dx_output_grid_GRL
-    ELSEIF (region%name == 'ANT') THEN
-      dx_grid_output = C%dx_output_grid_ANT
-    ELSE
-      CALL crash('unknown region name "' // region%name // '"!')
-    END IF
+    dx_grid_output = C%dx_output_grid_ANT
 
     ! Create the square output grid
     grid_name = 'square_grid_output_' // region%name
@@ -349,7 +298,7 @@ CONTAINS
     ! Set up the model mesh
 
     ! In/output variables:
-    character(len=256),                                  intent(in   ) :: region_name
+    character(len=3),                                    intent(in   ) :: region_name
     type(type_mesh),                                     intent(inout) :: mesh
     type(type_reference_geometry),                       intent(in)    :: refgeo
 
@@ -367,10 +316,10 @@ CONTAINS
     mesh_name = 'model_mesh_' // trim( region_name) // '_00001'
 
     ! Calculate a new mesh based on the initial ice-sheet geometry, or read an existing mesh from a file
-    call setup_first_mesh_from_initial_geometry( region_name, mesh_name, mesh, refgeo)
+    call setup_mesh_from_geometry( region_name, mesh_name, mesh, refgeo)
 
     ! Write the mesh creation success message to the terminal
-    call write_mesh_success( region%mesh)
+    call write_mesh_success( mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -381,7 +330,7 @@ CONTAINS
     ! Set up the model mesh based on the ice-sheet geometry
 
     ! In/output variables:
-    character(len=256),                                  intent(in   ) :: region_name
+    character(len=3),                                    intent(in   ) :: region_name
     character(len=256),                                  intent(in)    :: mesh_name
     type(type_mesh),                                     intent(inout) :: mesh
     type(type_reference_geometry),                       intent(in)    :: refgeo
@@ -398,10 +347,10 @@ CONTAINS
     if (par%primary) write(0,'(A)') '     Creating mesh from geometry...'
 
     ! Determine model domain
-    xmin = C%xmin
-    xmax = C%xmax
-    ymin = C%ymin
-    ymax = C%ymax
+    xmin = C%xmin_ANT
+    xmax = C%xmax_ANT
+    ymin = C%ymin_ANT
+    ymax = C%ymax_ANT
 
     ! Determine if the geometry is provided gridded or meshed
     if (allocated( refgeo%grid_raw%x)) then
@@ -420,11 +369,11 @@ CONTAINS
         xmin, xmax, ymin, ymax, lambda_M, phi_M, beta_stereo, &
         mesh)
 
-    elseif (allocated( region%refgeo_init%mesh_raw%V)) then
+    elseif (allocated( refgeo%mesh_raw%V)) then
       ! Meshed
 
       ! Safety
-      if (allocated( region%refgeo_init%grid_raw%x)) call crash('found boht grid and mesh in region%refgeo_init!')
+      if (allocated( refgeo%grid_raw%x)) call crash('found both grid and mesh in refgeo!')
 
       ! Create mesh from meshed initial geometry data
       call create_mesh_from_meshed_geometry( region_name, mesh_name, &
@@ -443,6 +392,6 @@ CONTAINS
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine setup__mesh_from_geometry
+  end subroutine setup_mesh_from_geometry
 
 end module LADDIE_main_model

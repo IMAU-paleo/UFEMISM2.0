@@ -22,7 +22,7 @@ module unit_tests
 
   private
 
-  public :: run_all_unit_tests
+  public :: run_all_unit_tests, run_laddie_unit_tests
 
 contains
 

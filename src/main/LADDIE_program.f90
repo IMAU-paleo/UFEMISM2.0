@@ -33,9 +33,11 @@ PROGRAM LADDIE_program
   USE laddie_configuration                                   , ONLY: C, initialise_model_configuration, initialise_model_configuration_unit_tests
   use netcdf_io_main
   USE region_types                                           , ONLY: type_model_region
+  USE mesh_types                                             , ONLY: type_mesh
+  USE reference_geometry_types                               , ONLY: type_reference_geometry
   USE global_forcing_types                                   , ONLY: type_global_forcing
   USE LADDIE_main_model                                      , ONLY: initialise_model_region, run_model_region
-  use unit_tests                                             , only: run_all_unit_tests
+  use unit_tests                                             , only: run_laddie_unit_tests
 
   IMPLICIT NONE
 
@@ -47,6 +49,9 @@ PROGRAM LADDIE_program
 
   ! The global forcings
   TYPE(type_global_forcing)              :: forcing
+
+  type(type_reference_geometry)          :: refgeo
+  type(type_mesh)                        :: mesh
 
   ! Coupling
   REAL(dp)                               :: t_coupling, t_end_models
@@ -90,7 +95,7 @@ PROGRAM LADDIE_program
   ! Special cases
   if (input_argument == 'unit_tests') then
     call initialise_model_configuration_unit_tests
-    call run_all_unit_tests
+    call run_laddie_unit_tests
   else ! An actual model simulation
 
     ! Initialise the main model configuration
@@ -102,7 +107,7 @@ PROGRAM LADDIE_program
     ! == Initialise the model regions
     ! ===============================
 
-    CALL initialise_model_region( ANT, 'ANT', forcing, C%start_time_of_run)
+    call initialise_model_region( ANT, 'ANT', refgeo, mesh, forcing, C%start_time_of_run)
 
     ! == The coupling time loop
     ! =========================

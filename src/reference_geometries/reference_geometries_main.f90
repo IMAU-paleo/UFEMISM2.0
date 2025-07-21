@@ -24,7 +24,8 @@ module reference_geometries_main
 
   private
 
-  public :: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh
+  public :: initialise_reference_geometries_raw, initialise_reference_geometries_on_model_mesh, &
+    initialise_reference_geometry_raw_from_file, remap_reference_geometry_to_mesh
 
 contains
 
