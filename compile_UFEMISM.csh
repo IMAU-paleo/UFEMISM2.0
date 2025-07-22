@@ -48,6 +48,9 @@ endif
 
 echo ""
 
+# If no build directory exists, create it
+if (! -d build) mkdir build
+
 # For a "clean" build, remove all build files first
 if ($selection == 'clean') rm -rf build/*
 
