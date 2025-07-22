@@ -33,6 +33,11 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
+      - name: Update UPSY & LADDIE submodules
+        run: |
+          git submodule update --init --recursive
+          git submodule update --recursive --remote
+
       - name: Compile UFEMISM
         run: ./compile_UFEMISM.csh  dev  clean
 

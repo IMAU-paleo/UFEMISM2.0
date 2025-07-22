@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>Ant_init_20kyr_invBMB_invfric_40km</name>
+    <category>integrated_tests/realistic/Antarctica/initialisation</category>
+    <date_and_time>22-Jul-2025 15:10:37</date_and_time>
+    <git_hash_string>9a6f92596d9a742a8d5c725407419561d318cc2e</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (Hi( :,end) - Hi( :,1)).^2 ))</definition>
+        <value>68.5362</value>
+    </cost_functions>
+    <cost_functions>
+        <name>peak_volume_difference</name>
+        <definition>max( abs( ice_volume - ice_volume(1)))</definition>
+        <value>0.80162</value>
+    </cost_functions>
+    <cost_functions>
+        <name>final_volume_difference</name>
+        <definition>ice_volume( end) - ice_volume(1)</definition>
+        <value>0.077458</value>
+    </cost_functions>
+    <cost_functions>
+        <name>ice_volume_var</name>
+        <definition>max( ice_volume( last 5000 yr)) - min( ice_volume( last 5000 yr))</definition>
+        <value>0.011699</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>28089</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>29160</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>3132349</value>
+    </cost_functions>
+</single_run>
