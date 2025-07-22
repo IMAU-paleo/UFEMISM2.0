@@ -22,7 +22,7 @@ module unit_tests
 
   private
 
-  public :: run_all_unit_tests
+  public :: run_all_unit_tests, run_laddie_unit_tests
 
 contains
 
@@ -61,6 +61,33 @@ contains
     call finalise_routine( routine_name)
 
   end subroutine run_all_unit_tests
+
+  subroutine run_laddie_unit_tests
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'run_laddie_unit_tests'
+    character(len=256), parameter :: test_name = 'LADDIE'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
+
+    if (par%primary) write(0,'(a)') ''
+    if (par%primary) write(0,'(a)') ' Running LADDIE unit tests...'
+
+    ! Create an output folder and output file
+    call create_unit_tests_output_folder
+    call create_unit_tests_output_file
+
+    ! Run all unit tests
+    call unit_tests_laddie_main                ( test_name)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine run_laddie_unit_tests
 
   !> Create the unit test output file
   subroutine create_unit_tests_output_file
