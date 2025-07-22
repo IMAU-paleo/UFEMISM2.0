@@ -63,3 +63,4 @@ link_directories(${NETCDF_LIBRARY_DIRS})
 add_definitions(${NETCDF_CFLAGS_OTHER})
 
 target_link_libraries(UFEMISM_program PRIVATE ${NETCDF_LIBRARY_DIRS}/libnetcdff.dylib)
+
