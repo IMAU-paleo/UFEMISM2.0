@@ -3,12 +3,22 @@ project(UFEMISM LANGUAGES Fortran)
 
 set(CMAKE_Fortran_STANDARD 2018)
 
-file(GLOB_RECURSE UFEMISM_SOURCES "src/*.f90" "external/UPSY/src/*.f90")
+# Collect UPSY/LADDIE/UFEMISM source files
+file(GLOB_RECURSE UPSY_SOURCES    "external/UPSY/src/*.f90")
+file(GLOB_RECURSE LADDIE_SOURCES  "external/LADDIE/src/*.f90")
+file(GLOB_RECURSE UFEMISM_SOURCES "src/*.f90")
 
-# Remove UPSY main program from the list
-list(REMOVE_ITEM UFEMISM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/external/UPSY/src/dummy/UPSY_dummy_program.f90")
+# Combine source files
+set(ALL_SOURCES ${UPSY_SOURCES} ${LADDIE_SOURCES} ${UFEMISM_SOURCES})
 
-add_executable(UFEMISM_program ${UFEMISM_SOURCES})
+# Remove all *_program.f90 except for UFEMISM_program.f90
+foreach(src ${ALL_SOURCES})
+    if(src MATCHES ".*/[^/]*_program[.]f90$" AND NOT src MATCHES ".*/UFEMISM_program[.]f90$")
+        list(REMOVE_ITEM ALL_SOURCES "${src}")
+    endif()
+endforeach()
+
+add_executable(UFEMISM_program ${ALL_SOURCES})
 
 # Enable preprocessing for all Fortran files
 target_compile_options(UFEMISM_program PRIVATE $<$<COMPILE_LANGUAGE:Fortran>:-cpp>)
