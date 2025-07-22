@@ -5,6 +5,9 @@ UFEMISM_program_perf
 
 LADDIE_program
 
+# Ignore build files
+build/*
+
 # Ignore scripts in main folder
 /*.sh
 /*.csh
