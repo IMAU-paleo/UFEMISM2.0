@@ -3,8 +3,6 @@ UFEMISM_program
 UFEMISM_program_dev
 UFEMISM_program_perf
 
-LADDIE_program
-
 # Ignore build files
 build/*
 
