@@ -36,6 +36,14 @@ jobs:
       - name: Update UPSY & LADDIE submodules
         run: git submodule update --remote
 
+      - name: DENK DROM - check if UPSY is really there
+        run: |
+          ls -a
+          ls src/
+          ls external/
+          ls external/UPSY
+          ls external/UPSY/src
+
       - name: Compile UFEMISM
         run: ./compile_UFEMISM.csh  perf  clean
 
