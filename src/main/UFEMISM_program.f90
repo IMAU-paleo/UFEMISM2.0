@@ -41,7 +41,6 @@ PROGRAM UFEMISM_program
   use unit_tests_multinode, only: run_all_multinode_unit_tests
   use checksum_mod, only: create_checksum_logfile
 
-
   IMPLICIT NONE
 
 ! ===== Main variables =====

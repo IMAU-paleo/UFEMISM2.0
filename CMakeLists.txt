@@ -3,7 +3,10 @@ project(UFEMISM LANGUAGES Fortran)
 
 set(CMAKE_Fortran_STANDARD 2018)
 
-file(GLOB_RECURSE UFEMISM_SOURCES "src/*.f90")
+file(GLOB_RECURSE UFEMISM_SOURCES "src/*.f90" "external/UPSY/src/*.f90")
+
+# Remove UPSY main program from the list
+list(REMOVE_ITEM UFEMISM_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/external/UPSY/src/dummy/UPSY_dummy_program.f90")
 
 add_executable(UFEMISM_program ${UFEMISM_SOURCES})
 
