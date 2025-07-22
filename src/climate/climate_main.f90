@@ -15,7 +15,7 @@ MODULE climate_main
   USE climate_model_types                                    , ONLY: type_climate_model
   USE global_forcing_types                                   , ONLY: type_global_forcing
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
-  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
+  USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic, remap_climate_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
 
@@ -400,8 +400,7 @@ CONTAINS
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to remap anything here
     ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
-      CALL reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+      call remap_climate_realistic(mesh_old, mesh_new, climate, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

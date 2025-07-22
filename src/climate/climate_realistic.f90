@@ -17,6 +17,7 @@ MODULE climate_realistic
   USE global_forcings_main
   USE netcdf_io_main
   USE netcdf_basic
+  use reallocate_mod                                         , only: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -427,5 +428,56 @@ CONTAINS
 
   END SUBROUTINE update_insolation_timeframes_from_file
 
+  subroutine remap_climate_realistic(mesh_old, mesh_new, climate, region_name)
+    ! In/out variables
+    type(type_mesh),                        intent(in)    :: mesh_old
+    type(type_mesh),                        intent(in)    :: mesh_new
+    type(type_climate_model),               intent(inout) :: climate
+    character(LEN=3),                       intent(in)    :: region_name
+
+    ! Local variables
+    character(LEN=256), parameter                         :: routine_name = 'remap_climate_realistic' 
+    character(LEN=256)                                    :: choice_climate_model
+    character(LEN=256)                                    :: filename_climate_snapshot
+    character(LEN=256)                                    :: choice_SMB_model
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Determine which climate model to initialise for this region
+    if     (region_name == 'NAM') then
+      filename_climate_snapshot = C%filename_climate_snapshot_NAM
+      choice_SMB_model = C%choice_SMB_model_NAM
+    elseif (region_name == 'EAS') then
+      filename_climate_snapshot = C%filename_climate_snapshot_EAS
+      choice_SMB_model = C%choice_SMB_model_EAS
+    elseif (region_name == 'GRL') then
+      filename_climate_snapshot = C%filename_climate_snapshot_GRL
+      choice_SMB_model = C%choice_SMB_model_GRL
+    elseif (region_name == 'ANT') THEN
+      filename_climate_snapshot = C%filename_climate_snapshot_ANT
+      choice_SMB_model = C%choice_SMB_model_ANT
+    else
+      call crash('unknown region_name "' // region_name // '"')
+    end if
+      
+    if (C%choice_climate_model_realistic == 'snapshot' .AND. choice_SMB_model == 'IMAU-ITM') then
+      ! reallocate IMAU-ITM variables
+      call reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+      call reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+      call reallocate_bounds( climate%snapshot%Q_TOA, mesh_new%vi1, mesh_new%vi2,12)
+      ! reallocate Hs from climate
+      call reallocate_bounds( climate%snapshot%Hs, mesh_new%vi1, mesh_new%vi2)
+
+      ! Read single-time data from external file
+      call read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh_new, climate%snapshot%Hs)
+      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh_new, climate%T2m)
+      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh_new, climate%Precip)
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remap_climate_realistic
 
 END MODULE climate_realistic
