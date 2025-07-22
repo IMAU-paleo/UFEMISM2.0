@@ -49,7 +49,7 @@ include_directories(${PETSC_INCLUDE_DIRS})
 link_directories(${PETSC_LIBRARY_DIRS})
 add_definitions(${PETSC_CFLAGS_OTHER})
 
-target_link_libraries(UFEMISM_program PRIVATE ${PETSC_LIBRARIES})
+target_link_libraries(UFEMISM_program PRIVATE ${PETSC_LIBRARY_DIRS}/libpetsc.dylib)
 
 # ============
 # == NetCDF ==
@@ -62,4 +62,4 @@ include_directories(${NETCDF_INCLUDE_DIRS})
 link_directories(${NETCDF_LIBRARY_DIRS})
 add_definitions(${NETCDF_CFLAGS_OTHER})
 
-target_link_libraries(UFEMISM_program PRIVATE ${NETCDF_LIBRARIES})
+target_link_libraries(UFEMISM_program PRIVATE ${NETCDF_LIBRARY_DIRS}/libnetcdff.dylib)
