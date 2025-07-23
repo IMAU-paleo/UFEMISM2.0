@@ -1,13 +1,17 @@
-name: UFEMISM Test Suite - compile and cache UFEMISM
-run-name: ${{ github.actor }} - UFEMISM Test Suite - compile and cache UFEMISM
+name: UFEMISM Test Suite - compile and cache UFEMISM (performance build) on Linux
+run-name: ${{ github.actor }} - UFEMISM Test Suite - compile and cache UFEMISM (performance build) on Linux
 on:
   workflow_call:
   workflow_dispatch:
 
 jobs:
-  compile_UFEMISM_dev:
-    runs-on: macos-latest
+  compile_UFEMISM_perf:
+    runs-on: ubuntu-latest
     steps:
+
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
@@ -38,12 +42,17 @@ jobs:
           git submodule update --init --recursive
           git submodule update --recursive --remote
 
-      - name: Compile UFEMISM
-        run: ./compile_UFEMISM.csh  dev  clean
+      - name: Install csh
+        run: |
+          sudo apt-get update
+          sudo apt-get install csh
 
-      - name: Cache UFEMISM program            # TijnB: caching is quite slow, and not optimal here since
-        uses: actions/cache/save@v3            # we assume the model code will be changed whenever this workflow
-        id: UFEMISM_program_cache_save         # is run, so we need to recompile the code anyway.
-        with:                                  # So: use artifacts instead!
+      - name: Compile UFEMISM
+        run: csh compile_UFEMISM.csh  perf  clean
+
+      - name: Cache UFEMISM program
+        uses: actions/cache/save@v3
+        id: UFEMISM_program_cache_save
+        with:
           path: UFEMISM_program
-          key: UFEMISM_program_dev_${{ github.ref_name }}_${{ github.run_id }}
+          key: UFEMISM_program_perf_${{ github.ref_name }}_${{ github.run_id }}
