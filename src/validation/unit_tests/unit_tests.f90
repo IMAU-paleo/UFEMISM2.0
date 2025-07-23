@@ -6,6 +6,7 @@ module unit_tests
   use assertions_basic
   use ut_basic
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, crash, colour_string
+  use model_configuration, only: C
   use mpi_basic, only: par, sync
   ! use ut_tracer_tracking, only: unit_tests_tracer_tracking_main
   use ut_bedrock_CDFs, only: unit_tests_bedrock_CDFs_main
@@ -38,6 +39,7 @@ contains
 
     ! Create an output folder and output file
     call create_unit_tests_output_folder('automated_testing/unit_tests/results')
+    C%output_dir = foldername_unit_tests_output
     call create_unit_tests_output_file
 
     ! Run all unit tests
