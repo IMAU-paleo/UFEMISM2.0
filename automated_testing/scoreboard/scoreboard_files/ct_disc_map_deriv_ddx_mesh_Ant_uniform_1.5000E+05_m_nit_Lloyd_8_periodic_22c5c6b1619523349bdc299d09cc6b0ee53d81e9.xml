@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_8_periodic</name>
+    <category>component_tests/discretisation/mapping_and_derivatives/ddx</category>
+    <date_and_time>23-Jul-2025 19:56:42</date_and_time>
+    <git_hash_string>22c5c6b1619523349bdc299d09cc6b0ee53d81e9</git_hash_string>
+    <cost_functions>
+        <name>max_err_ddx_a_a</name>
+        <definition>abs( ddx_a_a - ddx_a_ex) ./ max( abs( ddx_a_ex))</definition>
+        <value>0.015737</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_a_b</name>
+        <definition>abs( ddx_a_b - ddx_b_ex) ./ max( abs( ddx_b_ex))</definition>
+        <value>0.060411</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_b_a</name>
+        <definition>abs( ddx_b_a - ddx_a_ex) ./ max( abs( ddx_a_ex))</definition>
+        <value>0.018354</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddx_b_b</name>
+        <definition>abs( ddx_b_b - ddx_b_ex) ./ max( abs( ddx_b_ex))</definition>
+        <value>0.057655</value>
+    </cost_functions>
+</single_run>
