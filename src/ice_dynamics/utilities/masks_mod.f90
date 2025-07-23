@@ -490,7 +490,7 @@ contains
       case ('read_from_file')
         call calc_mask_SGD_from_file(mesh, ice)
       case default
-        ! Region not found
+        ! Choice not found
         call crash('unknown choice_laddie_SGD "' // TRIM( C%choice_laddie_SGD) // '"!')
     end select
 
