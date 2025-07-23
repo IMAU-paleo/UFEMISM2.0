@@ -879,6 +879,12 @@ CONTAINS
     ! Print to screen
     IF (par%primary) WRITE(0,'(A)') '   Reading mesh from file "' // colour_string( TRIM( filename_initial_mesh),'light blue') // '"...'
 
+    ! Set mesh configuration
+    region%mesh%resolution_tolerance = C%mesh_resolution_tolerance
+    region%mesh%choice_zeta_grid     = C%choice_zeta_grid
+    region%mesh%nz                   = C%nz
+    region%mesh%zeta_irregular_log_R = C%zeta_irregular_log_R
+
     ! Read the mesh from the NetCDF file
     CALL open_existing_netcdf_file_for_reading( filename_initial_mesh, ncid)
     CALL setup_mesh_from_file(                  filename_initial_mesh, ncid, region%mesh)
