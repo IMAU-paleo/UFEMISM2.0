@@ -100,10 +100,10 @@ subroutine run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
       ! 2.5 m of water. However, this is based on expert judgement, NOT empirical evidence.
       SMB%IMAUITM%Refreezing_year( vi) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))), 0.25_dp * SUM(SMB%IMAUITM%FirnDepth( vi,:)/12._dp)) ! version from IMAU-ICE dev branch
       !SMB%Refreezing_year( vi) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( vi,:))) ! outdated version on main branch
-      
+
       IF (ice%mask_grounded_ice( vi)  .eqv. .FALSE. .OR. ice%mask_floating_ice( vi) .eqv. .FALSE.) SMB%IMAUITM%Refreezing_year( vi) = 0._dp
       IF (ice%mask_icefree_ocean( vi) .eqv. .TRUE.)                                                SMB%IMAUITM%AddedFirn( vi,:)     = 0._dp ! Does it make sense to add firn over the ocean?!
-      
+
 
 
       DO m = 1, 12
@@ -123,7 +123,7 @@ subroutine run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
     ! Convert final SMB from water to ice equivalent
       SMB%IMAUITM%SMB_monthly( mesh%vi1:mesh%vi2,:) = SMB%IMAUITM%SMB_monthly(  mesh%vi1:mesh%vi2,:) * 1000._dp / ice_density
       SMB%SMB(                  mesh%vi1:mesh%vi2)   = SMB%SMB(                   mesh%vi1:mesh%vi2)   * 1000._dp / ice_density
-    
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -150,7 +150,7 @@ subroutine run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    
+
 
     ! Determine which constants to use for this region
     IF     (region_name == 'NAM') THEN
@@ -269,16 +269,16 @@ subroutine run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
 
     ! Assume that SMB and geometry are read from the same restart file
     SELECT CASE (region_name)
-    CASE('NAM') 
+    CASE('NAM')
       filename_restart_firn = C%filename_firn_IMAUITM_NAM
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_NAM
-    CASE('EAS') 
+    CASE('EAS')
       filename_restart_firn = C%filename_firn_IMAUITM_EAS
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_EAS
-    CASE('GRL') 
+    CASE('GRL')
       filename_restart_firn = C%filename_firn_IMAUITM_GRL
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_GRL
-    CASE('ANT') 
+    CASE('ANT')
       filename_restart_firn = C%filename_firn_IMAUITM_ANT
       timeframe_restart_firn = C%timeframe_restart_firn_IMAUITM_ANT
     CASE DEFAULT
@@ -292,12 +292,12 @@ subroutine run_SMB_model_IMAUITM( mesh, ice, SMB, climate)
     ! Read firn layer from file
     IF (timeframe_restart_firn == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, IMAUITM%FirnDepth)
-      CALL read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, IMAUITM%MeltPreviousYear)
+      CALL read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, C%output_dir, IMAUITM%FirnDepth)
+      CALL read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, C%output_dir, IMAUITM%MeltPreviousYear)
     ELSE
       ! Assume the file has a time dimension, and read the specified timeframe
-      CALL read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, IMAUITM%FirnDepth, time_to_read = timeframe_restart_firn)
-      CALL read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, IMAUITM%MeltPreviousYear, time_to_read = timeframe_restart_firn)
+      CALL read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, C%output_dir, IMAUITM%FirnDepth, time_to_read = timeframe_restart_firn)
+      CALL read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, C%output_dir, IMAUITM%MeltPreviousYear, time_to_read = timeframe_restart_firn)
     END IF
 
 

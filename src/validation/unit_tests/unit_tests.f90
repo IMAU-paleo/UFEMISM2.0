@@ -16,12 +16,13 @@ module unit_tests
   ! use ut_tracer_tracking, only: unit_tests_tracer_tracking_main
   use ut_bedrock_CDFs, only: unit_tests_bedrock_CDFs_main
   use ut_ocean_extrapolation, only: unit_tests_ocean_extrapolation_main
+  use ut_laddie, only: unit_tests_laddie_main
 
   implicit none
 
   private
 
-  public :: run_all_unit_tests
+  public :: run_all_unit_tests, run_laddie_unit_tests
 
 contains
 
@@ -54,11 +55,39 @@ contains
     ! call unit_tests_tracer_tracking_main       ( test_name)
     call unit_tests_bedrock_CDFs_main          ( test_name)
     call unit_tests_ocean_extrapolation_main   ( test_name)
+    call unit_tests_laddie_main                ( test_name)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine run_all_unit_tests
+
+  subroutine run_laddie_unit_tests
+
+    ! Local variables:
+    character(len=256), parameter :: routine_name = 'run_laddie_unit_tests'
+    character(len=256), parameter :: test_name = 'LADDIE'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety - should be run on two cores
+    call assert( test_eq( par%n, 2), 'should be run on two cores')
+
+    if (par%primary) write(0,'(a)') ''
+    if (par%primary) write(0,'(a)') ' Running LADDIE unit tests...'
+
+    ! Create an output folder and output file
+    call create_unit_tests_output_folder
+    call create_unit_tests_output_file
+
+    ! Run all unit tests
+    call unit_tests_laddie_main                ( test_name)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine run_laddie_unit_tests
 
   !> Create the unit test output file
   subroutine create_unit_tests_output_file
@@ -72,9 +101,9 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
+    filename_unit_tests_output   = trim( foldername_unit_tests_output) // '/unit_tests_output.txt'
+
     if (par%primary) then
-      ! Create filename
-      filename_unit_tests_output = trim(C%output_dir) // '/unit_tests_output.txt'
       ! Create file
       open(newunit = io_unit_test_file, file = filename_unit_tests_output, status = "new", action = "write", &
         iostat = stat, iomsg = msg)
@@ -101,24 +130,25 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    C%output_dir = 'automated_testing/unit_tests/results'
+    foldername_unit_tests_output = 'automated_testing/unit_tests/results'
+    C%output_dir = foldername_unit_tests_output
 
     ! Create the directory
     if (par%primary) then
 
       ! Remove existing folder if necessary
-      inquire( file = trim( C%output_dir) // '/.', exist = ex)
+      inquire( file = trim( foldername_unit_tests_output) // '/.', exist = ex)
       if (ex) then
-        call system('rm -rf ' // trim( C%output_dir))
+        call system('rm -rf ' // trim( foldername_unit_tests_output))
       end if
 
       ! Create output directory
-      CALL system('mkdir ' // trim( C%output_dir))
+      CALL system('mkdir ' // trim( foldername_unit_tests_output))
 
       ! Tell the user where it is
       call getcwd( cwd)
       write(0,'(A)') ''
-      write(0,'(A)') ' Output directory: ' // colour_string( trim(cwd)//'/'//trim( C%output_dir), 'light blue')
+      write(0,'(A)') ' Output directory: ' // colour_string( trim(cwd)//'/'//trim( foldername_unit_tests_output), 'light blue')
       write(0,'(A)') ''
 
     end if

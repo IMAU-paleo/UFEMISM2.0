@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6_quadratic</name>
+    <category>component_tests/discretisation/mapping_and_derivatives/2nd</category>
+    <date_and_time>18-Jul-2025 08:22:05</date_and_time>
+    <git_hash_string>f8b70eb42b970c637e5dd6f22d2024843cfb1352</git_hash_string>
+    <cost_functions>
+        <name>max_err_ddx_b_b_2nd</name>
+        <definition>abs( ddx_b_b_2nd    - ddx_b_ex   ) ./ max( abs( ddx_b_ex   ))</definition>
+        <value>5.016e-15</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_ddy_b_b_2nd</name>
+        <definition>abs( ddy_b_b_2nd    - ddy_b_ex   ) ./ max( abs( ddy_b_ex   ))</definition>
+        <value>5.0177e-15</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_d2dx2_b_b_2nd</name>
+        <definition>abs( d2dx2_b_b_2nd  - d2dx2_b_ex ) ./ max( abs( d2dx2_b_ex ))</definition>
+        <value>2.4804e-06</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_d2dxdy_b_b_2nd</name>
+        <definition>abs( d2dxdy_b_b_2nd - d2dxdy_b_ex) ./ max( abs( d2dxdy_b_ex))</definition>
+        <value>1.9866e-13</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_d2dy2_b_b_2nd</name>
+        <definition>abs( d2dy2_b_b_2nd  - d2dy2_b_ex ) ./ max( abs( d2dy2_b_ex ))</definition>
+        <value>9.5347e-07</value>
+    </cost_functions>
+</single_run>

@@ -490,7 +490,7 @@ CONTAINS
 
     ! Set up a regional frocing data type so the regional models can run asynchronously
     regional_forcing = forcing
-    
+
     ! ===== Ice dynamics =====
     ! ========================
 
@@ -516,7 +516,7 @@ CONTAINS
     ! ===== Basal mass balance =====
     ! ==============================
 
-    CALL initialise_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%name)
+    CALL initialise_BMB_model( region%mesh, region%ice, region%ocean, region%BMB, region%refgeo_PD, region%refgeo_init, region%name)
 
     ! ===== Lateral mass balance =====
     ! ================================
@@ -983,7 +983,7 @@ CONTAINS
               'TransMounts','DotsonCrosson', 'Franka_WAIS', 'Dotson_channel', &                                      ! Antarctica
               'Narsarsuaq','Nuuk','Jakobshavn','NGIS','Qaanaaq', &                                                   ! Greenland
               'Patagonia', &                                                                                         ! Patagonia
-              'Tijn_test_ISMIP_HOM_A','CalvMIP_quarter')                                                             ! Idealised
+              'CalvMIP_quarter')                                                             ! Idealised
           ! List of known regions of interest: these pass the test
         CASE DEFAULT
           ! Region not found
@@ -1053,8 +1053,6 @@ CONTAINS
               CALL calc_polygon_DotsonCrosson_ice_shelf( poly_ROI)
             CASE ('Patagonia')
               CALL calc_polygon_Patagonia( poly_ROI)
-            CASE ('Tijn_test_ISMIP_HOM_A')
-              CALL calc_polygon_Tijn_test_ISMIP_HOM_A( poly_ROI)
             CASE ('CalvMIP_quarter')
               ! Not interesting; skip
               CYCLE
@@ -1430,16 +1428,6 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%primary) WRITE(0,'(A)') '   Implementing regional corrections...'
-
-    ! === SMB over ice-free land ===
-    ! ==============================
-
-    ! If so desired, remove positive SMB over ice-free land
-    IF (C%do_SMB_removal_icefree_land) THEN
-      DO vi = region%mesh%vi1, region%mesh%vi2
-        IF (region%ice%mask_icefree_land( vi)) region%SMB%SMB( vi) = MIN( region%SMB%SMB( vi), 0._dp)
-      END DO
-    END IF
 
     ! == Target dHi_dt
     ! ================

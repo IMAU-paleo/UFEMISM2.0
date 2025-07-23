@@ -60,7 +60,7 @@ class Movie(object):
 
                     # Make and save figure
                     fig.make(f'frame_{self.fp:03d}', dxmin=self.dxmin, dxmax=self.dxmax,
-                        dymin=self.dymin, dymax=self.dymax)
+                        dymin=self.dymin, dymax=self.dymax, add_time=True)
                     self.fp += 1
                 ft += 1
 

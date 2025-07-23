@@ -7,11 +7,24 @@ MODULE BMB_model_types
 
   USE precisions                                             , ONLY: dp
   USE laddie_model_types                                     , ONLY: type_laddie_model
+  use reference_geometry_types, only: type_reference_geometry
 
   IMPLICIT NONE
 
+  private
+
+  public :: type_BMB_model, type_BMB_model_inverted
+
 ! ===== Types =====
 ! =================
+
+  type type_BMB_model_inverted
+
+    real(dp), dimension(:), allocatable :: BMB                             !< [m.i.e./yr] Basal mass balance
+    type(type_reference_geometry)       :: target_geometry                 !< The geometry that the BMB inversion should aim to reproduce
+    logical,  dimension(:), allocatable :: target_mask_shelf               !< Shelf mask of the target geometry
+
+  end type type_BMB_model_inverted
 
   TYPE type_BMB_model
     ! The BMB model data structure.
@@ -35,6 +48,8 @@ MODULE BMB_model_types
 
     ! LADDIE
     TYPE(type_laddie_model)                       :: laddie
+
+    type(type_BMB_model_inverted) :: inv
 
   END TYPE type_BMB_model
 

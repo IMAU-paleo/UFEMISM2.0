@@ -17,6 +17,8 @@ jobs:
           brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
           brew install netcdf
           brew install netcdf-fortran
+          brew install cmake
+          brew install ninja
 
       - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
         uses: fortran-lang/setup-fortran@v1
@@ -30,6 +32,16 @@ jobs:
 
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
+
+      - name: Update UPSY & LADDIE submodules
+        run: |
+          git submodule update --init --recursive
+          git submodule update --recursive --remote
+
+      - name: DENK DROM - check if UPSY is really there
+        run: |
+
+          ls external/UPSY
 
       - name: Compile UFEMISM
         run: ./compile_UFEMISM.csh  perf  clean

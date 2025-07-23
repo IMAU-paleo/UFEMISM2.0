@@ -3,6 +3,9 @@ UFEMISM_program
 UFEMISM_program_dev
 UFEMISM_program_perf
 
+# Ignore build files
+build/*
+
 # Ignore scripts in main folder
 /*.sh
 /*.csh

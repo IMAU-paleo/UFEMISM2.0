@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>grid_Ant_6.4000E+04_m_TO_mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6</name>
+    <category>component_tests/remapping/grid_to_mesh</category>
+    <date_and_time>17-Jul-2025 17:45:56</date_and_time>
+    <git_hash_string>6100ebd75cd05b526e2bcad1001fe35d7242f9e0</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (d_mesh - d_mesh_ex).^2))</definition>
+        <value>22.5756</value>
+    </cost_functions>
+    <cost_functions>
+        <name>rmse_tri</name>
+        <definition>sqrt( mean( (d_tri - d_tri_ex).^2))</definition>
+        <value>24.936</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max</name>
+        <definition>max( 0, max( d_mesh(:)) - max( d_grid_ex(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min</name>
+        <definition>max( 0, min( d_grid_ex(:)) - min( d_mesh(:)))</definition>
+        <value>29.0304</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max_tri</name>
+        <definition>max( 0, max( d_tri(:)) - max( d_grid_ex(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min_tri</name>
+        <definition>max( 0, min( d_grid_ex(:)) - min( d_tri(:)))</definition>
+        <value>35.2968</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err</name>
+        <definition>abs( 1 - int_mesh / int_grid)</definition>
+        <value>0.00028538</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err_tri</name>
+        <definition>abs( 1 - int_mesh_tri / int_grid)</definition>
+        <value>1.8097e-06</value>
+    </cost_functions>
+</single_run>

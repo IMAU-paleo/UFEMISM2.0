@@ -21,6 +21,7 @@ MODULE BMB_main
   USE BMB_prescribed                                         , ONLY: initialise_BMB_model_prescribed, run_BMB_model_prescribed
   USE BMB_parameterised                                      , ONLY: initialise_BMB_model_parameterised, run_BMB_model_parameterised
   USE BMB_laddie                                             , ONLY: initialise_BMB_model_laddie, run_BMB_model_laddie, remap_BMB_model_laddie
+  use BMB_inverted, only: initialise_BMB_model_inverted, run_BMB_model_inverted
   USE laddie_main                                            , ONLY: initialise_laddie_model, run_laddie_model, remap_laddie_model
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use ice_geometry_basics, only: is_floating
@@ -46,7 +47,7 @@ CONTAINS
     TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
-    logical,                                intent(in)    :: is_initial 
+    logical,                                intent(in)    :: is_initial
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model'
@@ -129,7 +130,8 @@ CONTAINS
       CASE ('parameterised')
         CALL run_BMB_model_parameterised( mesh, ice, ocean, BMB)
       CASE ('inverted')
-        CALL run_BMB_model_inverted( mesh, ice, BMB, time)
+        CALL run_BMB_model_inverted( mesh, ice, BMB%inv, time)
+        BMB%BMB = BMB%inv%BMB
       CASE ('laddie_py')
         CALL run_BMB_model_laddie( mesh, ice, BMB, time, .FALSE.)
       CASE ('laddie')
@@ -185,12 +187,15 @@ CONTAINS
       END DO
     END IF
 
+    ! Apply limits
+    BMB%BMB = max( -C%BMB_maximum_allowed_melt_rate, min( C%BMB_maximum_allowed_refreezing_rate, BMB%BMB ))
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_BMB_model
 
-  SUBROUTINE initialise_BMB_model( mesh, ice, ocean, BMB, region_name)
+  SUBROUTINE initialise_BMB_model( mesh, ice, ocean, BMB, refgeo_PD, refgeo_init, region_name)
     ! Initialise the BMB model
 
     ! In- and output variables
@@ -198,6 +203,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                   INTENT(OUT)   :: BMB
+    type(type_reference_geometry),          intent(in   ) :: refgeo_PD, refgeo_init
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -278,7 +284,7 @@ CONTAINS
       CASE ('parameterised')
         CALL initialise_BMB_model_parameterised( mesh, BMB)
       CASE ('inverted')
-        ! No need to do anything
+        call initialise_BMB_model_inverted( mesh, BMB%inv, refgeo_PD, refgeo_init)
       CASE ('laddie_py')
         CALL initialise_BMB_model_laddie( mesh, BMB)
       CASE ('laddie')
@@ -599,162 +605,6 @@ CONTAINS
 ! ===== Utilities =====
 ! =====================
 
-  SUBROUTINE run_BMB_model_inverted( mesh, ice, BMB, time)
-    ! Extrapolate inverted BMB values
-
-    ! In/output variables:
-    TYPE(type_mesh),                        INTENT(IN)    :: mesh
-    TYPE(type_ice_model),                   INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                   INTENT(INOUT) :: BMB
-    REAL(dp),                               INTENT(IN)    :: time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_BMB_model_inverted'
-    INTEGER                                               :: vi, ci, vj
-    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2)                :: BMB_floating_ice,  BMB_gl_fl, BMB_gl_gr
-    INTEGER,  DIMENSION(mesh%vi1:mesh%vi2)                :: mask_floating_ice, mask_gl_fl, mask_gl_gr
-    REAL(dp)                                              :: max_cavity_size, min_neighbour
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Only run this routine if we are outside the core inversion
-    ! which is performed within the ice dynamics model
-    IF (time >= C%BMB_inversion_t_start .AND. &
-        time <= C%BMB_inversion_t_end) THEN
-
-      ! Save the current BMB field
-      BMB%BMB_ref = BMB%BMB
-
-      ! Save the current masks
-      BMB%mask_floating_ice = ice%mask_floating_ice
-      BMB%mask_gl_fl = ice%mask_gl_fl
-      BMB%mask_gl_gr = ice%mask_gl_gr
-
-      ! Finalise routine path
-      CALL finalise_routine( routine_name)
-      ! And exit
-      RETURN
-
-    END IF
-
-    ! ! DENK DROM
-    ! IF (time == C%start_time_of_run) THEN
-    !   DO vi = mesh%vi1, mesh%vi2
-    !     IF(ice%mask_floating_ice( vi)) BMB%BMB_ref( vi) = -.05_dp
-    !     IF(ice%mask_gl_fl(        vi)) BMB%BMB_ref( vi) = -.2_dp
-    !   END DO
-    !   print*, ''
-    !   print*, ':)'
-    !   print*, ''
-    ! END IF
-
-    ! Set extrapolatable fields to the reference (inverted) BMB field
-    BMB_floating_ice = BMB%BMB_ref
-    BMB_gl_fl = BMB%BMB_ref
-    BMB_gl_gr = BMB%BMB_ref
-
-    ! Initialise extrapolation mask
-    mask_floating_ice = 0
-    mask_gl_fl = 0
-    mask_gl_gr = 0
-
-    ! Initialise maximum cavity size. The maximum size among
-    ! all valid BMB cavities will be used as the search radius
-    ! in the extrapolation later.
-    max_cavity_size = MINVAL(mesh%R)
-
-    ! Set extrapolation masks
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Skip vertices where BMB will not operate. These stay with extrapolation masks set to 0
-      IF (.NOT. ice%mask_floating_ice( vi) .AND. .NOT. ice%mask_gl_gr( vi) .AND. .NOT. ice%mask_icefree_ocean( vi)) THEN
-        CYCLE
-      END IF
-
-      ! Interior-shelf vertices. Values at floating grounding lines
-      ! will be overwritten later after the extrapolations.
-      IF (BMB%mask_floating_ice( vi)) THEN
-        ! Inverted cavity: use as seed
-        mask_floating_ice( vi) = 2
-      ELSE
-        ! New cavity: extrapolate here
-        mask_floating_ice( vi) = 1
-      END IF
-
-      ! Floating-side grounding line vertices
-      IF (BMB%mask_gl_fl( vi)) THEN
-        ! Inverted cavity: use as seed
-        mask_gl_fl( vi) = 2
-      ELSE
-        ! New cavity: extrapolate here
-        mask_gl_fl( vi) = 1
-      END IF
-
-      ! Floating-side grounding line vertices
-      IF (BMB%mask_gl_gr( vi)) THEN
-        ! Inverted cavity: use as seed
-        mask_gl_gr( vi) = 2
-      ELSE
-        ! New cavity: extrapolate here
-        mask_gl_gr( vi) = 1
-      END IF
-
-      ! Check if this cavity has a lower resolution
-      max_cavity_size = MAX( max_cavity_size, mesh%R( vi))
-
-    END DO
-
-    max_cavity_size = max_cavity_size / 3._dp
-
-    ! == Extrapolate into new cavities
-    ! ================================
-
-    ! Perform the extrapolations - mask: 2 -> use as seed; 1 -> extrapolate; 0 -> ignore
-    CALL extrapolate_Gaussian( mesh, mask_floating_ice, BMB_floating_ice, max_cavity_size)
-    CALL extrapolate_Gaussian( mesh, mask_gl_fl, BMB_gl_fl, max_cavity_size)
-    CALL extrapolate_Gaussian( mesh, mask_gl_gr, BMB_gl_gr, max_cavity_size)
-
-    ! == Final BMB field
-    ! ==================
-
-    DO vi = mesh%vi1, mesh%vi2
-
-      ! Floating-side grounding lines, or previously iced inverted ones
-      IF (ice%mask_gl_fl( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_gl_fl( vi))) THEN
-        BMB%BMB( vi) = BMB_gl_fl( vi)
-
-      ! Interior shelves, or previously iced inverted ones
-      ELSEIF (ice%mask_floating_ice( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_floating_ice( vi))) THEN
-        BMB%BMB( vi) = BMB_floating_ice( vi)
-
-      ! Grounded-side grounding lines, or previously iced inverted ones
-      ELSEIF (ice%mask_gl_gr( vi) .OR. (ice%mask_icefree_ocean( vi) .AND. BMB%mask_gl_gr( vi))) THEN
-        IF (BMB%mask_gl_gr( vi)) THEN
-          ! Original grounded-side grounding line: apply full value
-          BMB%BMB( vi) = BMB_gl_gr( vi)
-        ELSE
-          ! New grounded-side grounding line: scale value based on floating fraction
-          BMB%BMB( vi) = BMB_gl_gr( vi) * (1._dp - ice%fraction_gr( vi))
-        END IF
-
-      ! Original ice-free ocean
-      ELSEIF (ice%mask_icefree_ocean( vi)) THEN
-        ! Use inverted value directly
-        BMB%BMB( vi) = BMB%BMB_ref( vi)
-
-      ! Not a place where we want BMB
-      ELSE
-        BMB%BMB( vi) = 0._dp
-
-      END IF
-    END DO
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE run_BMB_model_inverted
-
   SUBROUTINE apply_BMB_subgrid_scheme( mesh, ice, BMB)
     ! Apply selected scheme for sub-grid shelf melt
     ! (see Leguy et al. 2021 for explanations of the three schemes)
@@ -787,7 +637,7 @@ CONTAINS
 
   END SUBROUTINE apply_BMB_subgrid_scheme
 
-    SUBROUTINE apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
+  SUBROUTINE apply_BMB_subgrid_scheme_ROI( mesh, ice, BMB)
     ! Apply selected scheme for sub-grid shelf melt
     ! (see Leguy et al. 2021 for explanations of the three schemes)
 
@@ -843,5 +693,69 @@ CONTAINS
         END IF
 
   END SUBROUTINE compute_subgrid_BMB
+
+
+
+  subroutine Frankas_BMB_transition
+
+    ! ! == Total BMB
+    ! ! ============
+
+    ! ! Initialise
+    ! region%BMB%BMB        = 0._dp
+    ! region%BMB%BMB_transition_phase = 0._dp
+
+    ! if (C%do_BMB_transition_phase) then
+
+    !   ! Safety
+    !   if (C%BMB_transition_phase_t_start < C%BMB_inversion_t_start .or. C%BMB_transition_phase_t_end > C%BMB_inversion_t_end ) then
+    !     ! If the window of smoothing falls outside window of BMB inversion, crash.
+    !     call crash(' The time window for BMB smoothing does not fall within the time window for BMB inversion. Make sure that "BMB_transition_phase_t_start" >= "BMB_inversion_t_start", and "BMB_transition_phase_t_end" <= "BMB_inversion_t_end".')
+
+    !   elseif (C%BMB_transition_phase_t_start >= C%BMB_transition_phase_t_end) then
+    !     ! If start and end time of smoothing window is equal or start > end, crash.
+    !     call crash(' "BMB_transition_phase_t_start" is equivalent or larger than "BMB_transition_phase_t_end".')
+
+    !   end if
+
+    !   ! Compute smoothing weights for BMB inversion smoothing
+    !   if (region%time < C%BMB_transition_phase_t_start) then
+    !     w = 1.0_dp
+
+    !   elseif (region%time >= C%BMB_transition_phase_t_start .and. &
+    !     region%time <= C%BMB_transition_phase_t_end) then
+    !     w = 1.0_dp - ((region%time - C%BMB_transition_phase_t_start)/(C%BMB_transition_phase_t_end - C%BMB_transition_phase_t_start))
+
+    !   elseif (region%time > C%BMB_transition_phase_t_end) then
+    !     w = 0.0_dp
+
+    !   end if
+
+    ! end if
+
+    ! ! Compute total BMB
+    ! do vi = region%mesh%vi1, region%mesh%vi2
+
+    !   ! Skip vertices where BMB does not operate
+    !   if (.not. region%ice%mask_gl_gr( vi) .and. &
+    !       .not. region%ice%mask_floating_ice( vi) .and. &
+    !       .not. region%ice%mask_cf_fl( vi)) cycle
+
+    !   if (C%do_BMB_transition_phase) then
+    !     ! If BMB_transition_phase is turned ON, use weight 'w' to compute BMB field
+    !     region%BMB%BMB( vi) = w * region%BMB%BMB_inv( vi) + (1.0_dp - w) * region%BMB%BMB_modelled( vi)
+
+    !     ! Save smoothed BMB field for diagnostic output
+    !     region%BMB%BMB_transition_phase( vi) = region%BMB%BMB( vi)
+
+    !   else
+    !     ! If BMB_transition_phase is turned OFF, just apply inverted melt rates
+    !     region%BMB%BMB( vi) = region%BMB%BMB_inv( vi)
+
+    !   end if
+
+    ! end do
+
+  end subroutine Frankas_BMB_transition
 
 END MODULE BMB_main
