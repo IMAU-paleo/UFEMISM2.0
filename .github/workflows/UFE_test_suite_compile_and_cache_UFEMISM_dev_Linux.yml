@@ -9,6 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Set up Homebrew
+        id: set-up-homebrew
+        uses: Homebrew/actions/setup-homebrew@main
+
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
           #brew install gcc                    # Not needed on GitHub server, already installed
