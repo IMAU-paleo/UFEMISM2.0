@@ -42,13 +42,13 @@ jobs:
           git submodule update --init --recursive
           git submodule update --recursive --remote
 
-      - name: DENK DROM - check if UPSY is really there
+      - name: Install csh
         run: |
-
-          ls external/UPSY
+          sudo apt-get update
+          sudo apt-get install csh
 
       - name: Compile UFEMISM
-        run: ./compile_UFEMISM.csh  perf  clean
+        run: csh compile_UFEMISM.csh  perf  clean
 
       - name: Cache UFEMISM program
         uses: actions/cache/save@v3

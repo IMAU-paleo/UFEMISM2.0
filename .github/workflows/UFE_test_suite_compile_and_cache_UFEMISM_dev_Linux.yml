@@ -42,8 +42,13 @@ jobs:
           git submodule update --init --recursive
           git submodule update --recursive --remote
 
+      - name: Install csh
+        run: |
+          sudo apt-get update
+          sudo apt-get install csh
+
       - name: Compile UFEMISM
-        run: ./compile_UFEMISM.csh  dev  clean
+        run: csh compile_UFEMISM.csh  dev  clean
 
       # - name: Cache UFEMISM program
       #   uses: actions/cache/save@v3

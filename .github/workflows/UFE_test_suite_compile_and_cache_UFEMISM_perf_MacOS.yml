@@ -38,11 +38,6 @@ jobs:
           git submodule update --init --recursive
           git submodule update --recursive --remote
 
-      - name: DENK DROM - check if UPSY is really there
-        run: |
-
-          ls external/UPSY
-
       - name: Compile UFEMISM
         run: ./compile_UFEMISM.csh  perf  clean
 
