@@ -70,7 +70,7 @@ CONTAINS
         CALL crash('unknown choice_laddie_SGD "' // trim( C%choice_laddie_SGD) // '"!')
       CASE ('none')
         ! Do nothing
-      CASE ('idealised')
+      CASE ('idealised', 'read_from_file')
         ! Compute SGD
         CALL compute_subglacial_discharge( mesh, laddie)
     END SELECT

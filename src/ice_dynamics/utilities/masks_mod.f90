@@ -477,8 +477,38 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_mask_SGD'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    select case (C%choice_laddie_SGD)
+      case ('none')
+        ! No SGD: don't need to do anything
+      case ('idealised')
+        call calc_mask_SGD_idealised(mesh, ice)
+      case ('read_from_file')
+        call calc_mask_SGD_from_file(mesh, ice)
+      case default
+        ! Region not found
+        call crash('unknown choice_laddie_SGD "' // TRIM( C%choice_laddie_SGD) // '"!')
+    end select
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_SGD
+
+  subroutine calc_mask_SGD_idealised( mesh, ice)
+    !< Calculate the subglacial discharge mask (SGD) - idealised setup for MISMIPplus
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_mask_SGD_idealised'
     integer                        :: vi
-    real(dp) :: y_coord_channel
+    real(dp)                       :: y_coord_channel
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -502,9 +532,31 @@ contains
       end if
     end do
 
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine calc_mask_SGD
+  end subroutine calc_mask_SGD_idealised
+
+  subroutine calc_mask_SGD_from_file( mesh, ice)
+    !< Calculate the subglacial discharge mask (SGD) - idealised setup for MISMIPplus
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_mask_SGD_from_file'
+    integer                        :: vi
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Read in SGD from 2D file and map to mesh
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_SGD_from_file
 
 end module masks_mod
