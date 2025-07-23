@@ -11,11 +11,17 @@ on:
 jobs:
 
   # Compile the model and cache the executable
-  compile_and_cache_UFEMISM_dev:
-    uses: ./.github/workflows/UFE_test_suite_compile_and_cache_UFEMISM_dev.yml
+  compile_and_cache_UFEMISM_dev_MacOS:
+    uses: ./.github/workflows/UFE_test_suite_compile_and_cache_UFEMISM_dev_MacOS.yml
 
-  compile_and_cache_UFEMISM_perf:
-    uses: ./.github/workflows/UFE_test_suite_compile_and_cache_UFEMISM_perf.yml
+  compile_and_cache_UFEMISM_dev_Linux:
+    uses: ./.github/workflows/UFE_test_suite_compile_and_cache_UFEMISM_dev_Linux.yml
+
+  compile_and_cache_UFEMISM_perf_MacOS:
+    uses: ./.github/workflows/UFE_test_suite_compile_and_cache_UFEMISM_perf_MacOS.yml
+
+  compile_and_cache_UFEMISM_perf_Linux:
+    uses: ./.github/workflows/UFE_test_suite_compile_and_cache_UFEMISM_perf_Linux.yml
 
   # Install and cache Matlab
   install_and_cache_Matlab:
@@ -27,7 +33,7 @@ jobs:
 
   # Run the unit tests and analyse the results
   run_unit_tests:
-    needs: [compile_and_cache_UFEMISM_dev, install_and_cache_Matlab]
+    needs: [compile_and_cache_UFEMISM_dev_MacOS, install_and_cache_Matlab]
     uses: ./.github/workflows/UFE_test_suite_run_unit_tests.yml
 
   analyse_unit_tests:
@@ -36,7 +42,7 @@ jobs:
 
   # Run the component tests and analyse the results
   run_component_tests:
-    needs: [compile_and_cache_UFEMISM_dev, install_and_cache_Matlab]
+    needs: [compile_and_cache_UFEMISM_dev_MacOS, install_and_cache_Matlab]
     uses: ./.github/workflows/UFE_test_suite_run_component_tests.yml
 
   analyse_component_tests:
@@ -45,7 +51,7 @@ jobs:
 
   # Run the integrated tests and analyse the results
   run_and_analyse_integrated_tests:
-    needs: [compile_and_cache_UFEMISM_perf, install_and_cache_Matlab, install_and_cache_Python]
+    needs: [compile_and_cache_UFEMISM_perf_MacOS, install_and_cache_Matlab, install_and_cache_Python]
     uses: ./.github/workflows/UFE_test_suite_run_and_analyse_integrated_tests.yml
 
   # Download artifacts with scoreboard files from the component and integrated tests
