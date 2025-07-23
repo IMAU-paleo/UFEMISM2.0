@@ -67,6 +67,7 @@ if ($version == 'dev') then
     -DDO_ASSERTIONS=ON \
     -DDO_RESOURCE_TRACKING=ON \
     -DEXTRA_Fortran_FLAGS="\
+      -fdiagnostics-color=always;\
       -Og;\
       -Wall;\
       -ffree-line-length-none;\
@@ -87,6 +88,7 @@ else if ($version == 'perf') then
     -DDO_ASSERTIONS=OFF \
     -DDO_RESOURCE_TRACKING=OFF \
     -DEXTRA_Fortran_FLAGS="\
+      -fdiagnostics-color=always;\
       -O3;\
       -Wall;\
       -ffree-line-length-none;\
