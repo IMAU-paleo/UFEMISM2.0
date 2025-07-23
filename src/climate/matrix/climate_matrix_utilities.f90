@@ -79,11 +79,11 @@ module climate_matrix_utilities
     ! Write message to screen
     if (par%primary) write(0,*) '  Reading climate for snapshot "' // trim( snapshot%name) // '" from file ' // trim( filename)
 
-    call read_field_from_file_2D(         filename, field_name_options_Hs , mesh, snapshot%Hs     )
-    call read_field_from_file_2D_monthly( filename, 'T2m'                 , mesh, snapshot%T2m    )
-    call read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, snapshot%Precip )
-    call read_field_from_file_2D_monthly( filename, 'Wind_WE||uas||'      , mesh, snapshot%Wind_WE) ! is needed the last ||? I copy it from SMB_realistic
-    call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, snapshot%Wind_SN)
+    call read_field_from_file_2D(         filename, field_name_options_Hs , mesh, C%output_dir, snapshot%Hs     )
+    call read_field_from_file_2D_monthly( filename, 'T2m'                 , mesh, C%output_dir, snapshot%T2m    )
+    call read_field_from_file_2D_monthly( filename, 'Precip'              , mesh, C%output_dir, snapshot%Precip )
+    call read_field_from_file_2D_monthly( filename, 'Wind_WE||uas||'      , mesh, C%output_dir, snapshot%Wind_WE) ! is needed the last ||? I copy it from SMB_realistic
+    call read_field_from_file_2D_monthly( filename, 'Wind_SN||vas||'      , mesh, C%output_dir, snapshot%Wind_SN)
     
     call rotate_wind_to_model_mesh( mesh, snapshot%Wind_WE, snapshot%Wind_SN, snapshot%Wind_LR, snapshot%Wind_DU)
 
@@ -425,8 +425,8 @@ module climate_matrix_utilities
         call read_field_from_file_0D( C%filename_insolation, field_name_options_time, snapshot%ins_t0, time_to_read = time-1000._dp)
       end if
 
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
-      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, snapshot%ins_Q_TOA1, time_to_read = snapshot%ins_t1)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, C%output_dir, snapshot%ins_Q_TOA0, time_to_read = snapshot%ins_t0)
+      call read_field_from_file_2D_monthly( C%filename_insolation, field_name_options_insolation, mesh, C%output_dir, snapshot%ins_Q_TOA1, time_to_read = snapshot%ins_t1)
 
       call warning('insolation timeframes at t = {dp_01} are ins_t0={dp_02} and ins_t1={dp_03}', dp_01 =  time, dp_02 = snapshot%ins_t0, dp_03 = snapshot%ins_t1)
 

@@ -243,7 +243,7 @@ contains
     ! Smooth the weighting field
     w_ins_smooth( mesh%vi1:mesh%vi2) = w_ins( mesh%vi1:mesh%vi2)
 
-    call smooth_Gaussian( mesh, grid, w_ins_smooth, 200000._dp)
+    call smooth_Gaussian( mesh, grid, C%output_dir, w_ins_smooth, 200000._dp)
 
     ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
     if (region_name == 'NAM' .OR. region_name == 'EAS') then
@@ -404,7 +404,7 @@ contains
       w_cold( mesh%vi1:mesh%vi2) = w_cold( mesh%vi1:mesh%vi2) * w_tot 
       
       ! Smooth the weighting field
-      call smooth_Gaussian( mesh, grid, w_cold, 200000._dp)
+      call smooth_Gaussian( mesh, grid, C%output_dir, w_cold, 200000._dp)
 
       w_warm( mesh%vi1:mesh%vi2) = 1._dp - w_cold( mesh%vi1:mesh%vi2)
 
@@ -630,7 +630,7 @@ contains
     end do
 
     ! Smooth the lapse rate field with a 160 km Gaussian filter
-    call smooth_Gaussian( mesh, grid_smooth, snapshot%lambda, 160000._dp)
+    call smooth_Gaussian( mesh, grid_smooth, C%output_dir, snapshot%lambda, 160000._dp)
 
     ! Normalise the entire region to a mean lapse rate of 8 K /km
     snapshot%lambda( mesh%vi1:mesh%vi2) = snapshot%lambda( mesh%vi1:mesh%vi2) * (C%climate_matrix_constant_lapserate / lambda_mean_ice)
