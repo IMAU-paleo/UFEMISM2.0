@@ -28,6 +28,7 @@ MODULE climate_realistic
   public :: run_climate_model_realistic
   public :: initialise_climate_model_realistic
   public :: initialise_insolation_forcing
+  public :: remap_climate_realistic
 
 CONTAINS
 
@@ -358,9 +359,9 @@ CONTAINS
       call reallocate_bounds( climate%snapshot%Hs, mesh_new%vi1, mesh_new%vi2)
 
       ! Read single-time data from external file
-      call read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh_new, climate%snapshot%Hs)
-      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh_new, climate%T2m)
-      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh_new, climate%Precip)
+      call read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh_new, C%output_dir, climate%snapshot%Hs)
+      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh_new, C%output_dir, climate%T2m)
+      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh_new, C%output_dir, climate%Precip)
     end if
 
     ! Finalise routine path
