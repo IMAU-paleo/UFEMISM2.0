@@ -43,7 +43,7 @@ module ice_dynamics_main
     write_to_restart_file_pc_scheme, initialise_pc_scheme, run_ice_dynamics_model_pc
   use ice_model_memory, only: allocate_ice_model
   use mesh_disc_apply_operators, only: ddx_a_b_2D, ddy_a_b_2D
-  use climate_realistic, only: update_sealevel_in_model
+  use global_forcings_main, only: update_sealevel_in_model
   use ice_shelf_base_slopes_onesided, only: calc_ice_shelf_base_slopes_onesided
   use bed_roughness_model_types, only: type_bed_roughness_model
 

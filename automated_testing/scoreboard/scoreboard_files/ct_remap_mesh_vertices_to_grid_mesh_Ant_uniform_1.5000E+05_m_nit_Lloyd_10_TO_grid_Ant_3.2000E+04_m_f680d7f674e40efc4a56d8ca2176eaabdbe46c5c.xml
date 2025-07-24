@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_10_TO_grid_Ant_3.2000E+04_m</name>
+    <category>component_tests/remapping/mesh_vertices_to_grid</category>
+    <date_and_time>24-Jul-2025 09:44:01</date_and_time>
+    <git_hash_string>f680d7f674e40efc4a56d8ca2176eaabdbe46c5c</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (d_grid - d_grid_ex).^2))</definition>
+        <value>25.7992</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max</name>
+        <definition>max( 0, max( d_grid(:)) - max( d_mesh_ex(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min</name>
+        <definition>max( 0, min( d_mesh_ex(:)) - min( d_grid(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err</name>
+        <definition>abs( 1 - int_grid / int_mesh)</definition>
+        <value>3.3984e-05</value>
+    </cost_functions>
+</single_run>

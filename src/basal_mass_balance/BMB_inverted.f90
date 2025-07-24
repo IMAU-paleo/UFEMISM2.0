@@ -10,6 +10,7 @@ module BMB_inverted
   use reference_geometry_types, only: type_reference_geometry
   use reference_geometries_main, only: reallocate_reference_geometry_on_mesh
   use ice_geometry_basics, only: is_floating
+  use mpi_distributed_memory, only: gather_to_all
 
   implicit none
 
@@ -30,13 +31,40 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'run_BMB_model_inverted'
-    integer                        :: vi
-    real(dp)                       :: deltaH, dHdt, dBMBdt
+    integer                        :: vi, ci, vj
+    logical,  dimension(mesh%nV)   :: mask_floating_ice_tot, mask_cf_fl_tot
+    real(dp), dimension(mesh%nV)   :: Hi_target_tot
+    real(dp)                       :: w_sum, wH_sum, deltaH, dHdt, dBMBdt
     real(dp), parameter            :: c_H     = -0.003_dp
     real(dp), parameter            :: c_dHdt  = -0.03_dp
 
     ! Add routine to path
     call init_routine( routine_name)
+
+    ! Exception: target ice thickness at the floating calving front
+    ! is often wrong (because of the difficulty of remapping a discontinuous
+    ! field), so instead use the mean of the neighbouring non-front shelf
+    ! vertices.
+    call gather_to_all( ice%mask_floating_ice     , mask_floating_ice_tot)
+    call gather_to_all( ice%mask_cf_fl            , mask_cf_fl_tot)
+    call gather_to_all( BMB_inv%target_geometry%Hi, Hi_target_tot)
+
+    do vi = mesh%vi1, mesh% vi2
+      if (mask_cf_fl_tot( vi)) then
+        w_sum  = 0._dp
+        wH_sum = 0._dp
+        do ci = 1, mesh%nC( vi)
+          vj = mesh%C( vi,ci)
+          if (mask_floating_ice_tot( vj) .and. .not. mask_cf_fl_tot( vj)) then
+            w_sum = w_sum + 1._dp
+            wH_sum = wH_sum + Hi_target_tot( vj)
+          end if
+        end do
+        if (w_sum > 0._dp) then
+          Hi_target_tot( vi) = wH_sum / w_sum
+        end if
+      end if
+    end do
 
     ! Only nudge during the user-defined time window
     if (time >= C%BMB_inversion_t_start .and.  time <= C%BMB_inversion_t_end) then
@@ -52,7 +80,7 @@ contains
 
         if (BMB_inv%target_mask_shelf( vi) .or. ice%mask_floating_ice( vi)) then
 
-          deltaH = ice%Hi( vi) - BMB_inv%target_geometry%Hi( vi)
+          deltaH = ice%Hi( vi) - Hi_target_tot( vi)
           dHdt   = ice%dHi_dt( vi)
 
           dBMBdt = c_H * deltaH + c_dHdt * dHdt

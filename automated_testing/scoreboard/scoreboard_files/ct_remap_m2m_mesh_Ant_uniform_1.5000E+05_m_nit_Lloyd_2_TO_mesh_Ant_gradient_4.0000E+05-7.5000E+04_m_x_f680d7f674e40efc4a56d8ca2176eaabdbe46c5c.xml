@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_2_TO_mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_x</name>
+    <category>component_tests/remapping/mesh_to_mesh</category>
+    <date_and_time>24-Jul-2025 09:45:46</date_and_time>
+    <git_hash_string>f680d7f674e40efc4a56d8ca2176eaabdbe46c5c</git_hash_string>
+    <cost_functions>
+        <name>rmse_nn</name>
+        <definition>sqrt( mean( (d_mesh2_nn     - d_mesh2_ex  ).^2))</definition>
+        <value>48.328</value>
+    </cost_functions>
+    <cost_functions>
+        <name>rmse_trilin</name>
+        <definition>sqrt( mean( (d_mesh2_trilin - d_mesh2_ex  ).^2))</definition>
+        <value>24.0879</value>
+    </cost_functions>
+    <cost_functions>
+        <name>rmse_cons</name>
+        <definition>sqrt( mean( (d_mesh2_cons   - d_mesh2_ex  ).^2))</definition>
+        <value>26.8939</value>
+    </cost_functions>
+    <cost_functions>
+        <name>rmse_b_cons</name>
+        <definition>sqrt( mean( (d_mesh2_b_cons - d_mesh2_b_ex).^2))</definition>
+        <value>22.6671</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max_nn</name>
+        <definition>max( 0, max( d_mesh2_nn(    :)) - max( d_mesh1_ex(  :)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max_trilin</name>
+        <definition>max( 0, max( d_mesh2_trilin(:)) - max( d_mesh1_ex(  :)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max_cons</name>
+        <definition>max( 0, max( d_mesh2_cons(  :)) - max( d_mesh1_ex(  :)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max_b_cons</name>
+        <definition>max( 0, max( d_mesh2_b_cons(:)) - max( d_mesh1_b_ex(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min_nn</name>
+        <definition>max( 0, min( d_mesh2_ex(  :)) - min( d_mesh2_nn(    :)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min_trilin</name>
+        <definition>max( 0, min( d_mesh2_ex(  :)) - min( d_mesh2_trilin(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min_cons</name>
+        <definition>max( 0, min( d_mesh2_ex(  :)) - min( d_mesh2_cons(  :)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min_b_cons</name>
+        <definition>max( 0, min( d_mesh2_b_ex(:)) - min( d_mesh2_b_cons(:)))</definition>
+        <value>217.0425</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err_nn</name>
+        <definition>abs( 1 - int_mesh2_nn     / int_mesh1)</definition>
+        <value>0.0011241</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err_trilin</name>
+        <definition>abs( 1 - int_mesh2_trilin / int_mesh1)</definition>
+        <value>2.1205e-06</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err_cons</name>
+        <definition>abs( 1 - int_mesh2_cons   / int_mesh1)</definition>
+        <value>1.4284e-05</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err_b_cons</name>
+        <definition>abs( 1 - int_mesh2_b_cons / int_mesh1_b)</definition>
+        <value>1.954e-14</value>
+    </cost_functions>
+</single_run>
