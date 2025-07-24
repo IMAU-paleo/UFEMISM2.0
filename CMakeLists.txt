@@ -8,6 +8,13 @@ file(GLOB_RECURSE UPSY_SOURCES    "external/UPSY/src/*.f90")
 file(GLOB_RECURSE LADDIE_SOURCES  "external/LADDIE/src/*.f90")
 file(GLOB_RECURSE UFEMISM_SOURCES "src/*.f90")
 
+# Remove all *_configuration.f90 from LADDIE
+foreach(src ${LADDIE_SOURCES})
+    if(src MATCHES ".*/[^/]*_configuration[.]f90$")
+        list(REMOVE_ITEM LADDIE_SOURCES "${src}")
+    endif()
+endforeach()
+
 # Combine source files
 set(ALL_SOURCES ${UPSY_SOURCES} ${LADDIE_SOURCES} ${UFEMISM_SOURCES})
 
