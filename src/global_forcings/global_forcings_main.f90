@@ -47,7 +47,9 @@ CONTAINS
     !IF (C%choice_SMB_parameterised == 'IMAU-ITM') CALL initialise_insolation_forcing( forcing, mesh)
 
     ! CO2 record - not yet implemented
-    
+    if (C%choice_matrix_forcing == 'CO2_direct') then
+      call initialise_CO2_record( forcing)
+    end if
     ! d18O record - not yet implemented
 
     ! Sea level
@@ -60,8 +62,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_global_forcings
-
-
 
   SUBROUTINE update_global_forcings(forcing, time)
   ! Update all records such as sea level, CO2, d18O, etc...
@@ -77,6 +77,10 @@ CONTAINS
 
   ! Add routine to path
   CALL init_routine( routine_name)
+
+  if (C%choice_matrix_forcing == 'CO2_direct') then
+      call update_CO2_at_model_time( forcing, time)
+  end if
 
   IF (C%choice_sealevel_model == 'prescribed') THEN
     CALL update_sealevel_at_model_time(forcing, time)
@@ -177,5 +181,134 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_sealevel_in_model
+
+  subroutine initialise_CO2_record( forcing)
+    ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is a file with time in yr and CO2 in ppmv
+
+    ! NOTE: assumes time is listed in yr BP (so LGM would be -21000)
+    implicit none
+    
+    ! In/output variables:
+!    REAL(dp),                            INTENT(IN)    :: time
+    type(type_global_forcing),         intent(inout)   :: forcing
+
+    ! Local variables:
+    character(LEN=256), parameter                      :: routine_name = 'initialise_CO2_record'
+    integer                                            :: i,ios
+    integer                                            :: CO2_record_length
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Safety
+    if     (C%choice_matrix_forcing == 'CO2_direct') THEN
+      ! Observed CO2 is needed for these forcing methods.
+    else
+      call crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
+    end if
+    
+    if (par%primary)  write(*,"(A)") ' Initialising CO2 record '
+
+    ! Read CO2 record (time and values) from specified text file
+    if (par%primary)  write(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+
+    call read_field_from_series_file( C%filename_CO2_record, field_name_options_CO2, forcing%CO2_record, forcing%CO2_time)
+
+    CO2_record_length = size(forcing%CO2_record)
+      if (C%start_time_of_run < forcing%CO2_time(1)) THEN
+      !print *, "print value of forcing%CO2_time(first), ", forcing%CO2_time(1)
+         call warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
+      end if
+      if (C%end_time_of_run > forcing%CO2_time(CO2_record_length)) THEN
+      !print *, "value of forcing%CO2_time(last), ", forcing%CO2_time(CO2_record_length)
+         call warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
+      end if
+    
+     !Set the value for the current (starting) model time
+    call update_CO2_at_model_time( forcing, C%start_time_of_run)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine initialise_CO2_record
+
+  subroutine update_CO2_at_model_time( forcing, time)
+    ! Interpolate the data in forcing%CO2 to find the value at the queried time.
+    ! If time lies outside the range of forcing%CO2_time, return the first/last value
+    !
+    ! NOTE: assumes time is listed in yr BP, so LGM would be -21000.0, and 0.0 corresponds to January 1st 1900.
+    !
+    ! NOTE: calculates average value over the preceding 30 years. For paleo this doesn't matter
+    !       in the least, but for the historical period this makes everything more smooth.
+
+    ! In/output variables:
+    real(dp),                            intent(in)    :: time
+    type(type_global_forcing),           intent(inout) :: forcing
+
+    ! Local variables:
+    character(LEN=256), parameter                      :: routine_name = 'update_CO2_at_model_time'
+    integer                                            :: ti1, ti2, til, tiu
+    real(dp)                                           :: a, b, tl, tu, intCO2, dintCO2, CO2_aux
+    real(dp), parameter                                :: dt_smooth = 60._dp
+    integer                                            :: CO2_record_length
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    !IF (par%primary)  WRITE(*,"(A)") '   Updating CO2 at model time...'
+
+    ! Safety
+    if     (C%choice_matrix_forcing == 'CO2_direct') then
+      ! Observed CO2 is needed for these forcing methods.
+    else
+      call crash('should only be called when choice_matrix_forcing = "CO2_direct"!')
+    end if
+
+    CO2_record_length = size(forcing%CO2_record)
+
+    if     (time < MINVAL( forcing%CO2_time)) then
+      ! Model time before start of CO2 record; using constant extrapolation
+      forcing%CO2_obs = forcing%CO2_record( 1)
+    elseif (time > MAXVAL( forcing%CO2_time)) then
+      ! Model time beyond end of CO2 record; using constant extrapolation
+      forcing%CO2_obs = forcing%CO2_record( CO2_record_length)
+    else
+
+      ! Find range of raw time frames enveloping model time
+      ti1 = 1
+      do while (forcing%CO2_time( ti1) < time - dt_smooth .AND. ti1 < CO2_record_length)
+        ti1 = ti1 + 1
+      end do
+      ti1 = MAX( 1, ti1 - 1)
+
+      ti2 = 2
+      do while (forcing%CO2_time( ti2) < time             .AND. ti2 < CO2_record_length)
+        ti2 = ti2 + 1
+      end do
+
+      ! Calculate conservatively-remapped time-averaged CO2
+      intCO2 = 0._dp
+      do til = ti1, ti2 - 1
+        tiu = til + 1
+
+        ! Linear interpolation between til and tiu: CO2( t) = a + b*t
+        b = (forcing%CO2_record( tiu) - forcing%CO2_record( til)) / (forcing%CO2_time( tiu) - forcing%CO2_time( til))
+        a = forcing%CO2_record( til) - b*forcing%CO2_time( til)
+
+        ! Window of overlap between [til,tiu] and [t - dt_smooth, t]
+        tl = MAX( forcing%CO2_time( til), time - dt_smooth)
+        tu = MIN( forcing%CO2_time( tiu), time            )
+        dintCO2 = (tu - tl) * (a + b * (tl + tu) / 2._dp)
+        intCO2 = intCO2 + dintCO2
+      end do
+      forcing%CO2_obs = intCO2 / dt_smooth
+
+    end if
+    call sync
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine update_CO2_at_model_time
 
 END MODULE global_forcings_main

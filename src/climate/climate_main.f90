@@ -12,12 +12,15 @@ MODULE climate_main
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE ice_model_types                                        , ONLY: type_ice_model
+  use SMB_model_types                                        , only: type_SMB_model
+  use grid_types                                             , ONLY: type_grid
   USE climate_model_types                                    , ONLY: type_climate_model
   USE global_forcing_types                                   , ONLY: type_global_forcing
   USE climate_idealised                                      , ONLY: initialise_climate_model_idealised, run_climate_model_idealised
   USE climate_realistic                                      , ONLY: initialise_climate_model_realistic, run_climate_model_realistic
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   use netcdf_io_main
+  use climate_matrix                                         , only: run_climate_model_matrix, initialise_climate_matrix, remap_climate_matrix_model
 
   IMPLICIT NONE
 
@@ -26,18 +29,20 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE run_climate_model( mesh, ice, climate, forcing, region_name, time)
+  SUBROUTINE run_climate_model( mesh, grid, ice, climate, forcing, region_name, time, SMB)
     ! Calculate the climate
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    TYPE(type_grid),                        INTENT(IN)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
     TYPE(type_global_forcing),              INTENT(IN)    :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
     REAL(dp),                               INTENT(IN)    :: time
+    TYPE(type_SMB_model), optional,         INTENT(IN)    :: SMB
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'run_climate_model'
@@ -45,7 +50,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
+    
     ! Check if we need to calculate a new climate
     IF (C%do_asynchronous_climate) THEN
       ! Asynchronous coupling: do not calculate a new climate in
@@ -89,6 +94,8 @@ CONTAINS
       CALL run_climate_model_idealised( mesh, ice, climate, time)
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL run_climate_model_realistic( mesh, ice, climate, forcing, time)
+    ELSEIF (choice_climate_model == 'matrix') THEN
+      call run_climate_model_matrix( mesh, grid, ice, SMB, climate, region_name, time, forcing)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF
@@ -98,16 +105,19 @@ CONTAINS
 
   END SUBROUTINE run_climate_model
 
-  SUBROUTINE initialise_climate_model( mesh, ice, climate, forcing, region_name)
+! solved as
+  SUBROUTINE initialise_climate_model( mesh, grid, ice, climate, forcing, region_name)
+
     ! Initialise the climate model
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
+    type(type_grid),                        intent(in)    :: grid
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_climate_model),               INTENT(OUT)   :: climate
-    TYPE(type_global_forcing),              INTENT(IN)    :: forcing
+    TYPE(type_global_forcing),              INTENT(IN) :: forcing
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -135,25 +145,34 @@ CONTAINS
 
     ! Allocate memory for main variables
     ALLOCATE( climate%snapshot%Hs(    mesh%vi1:mesh%vi2))
+    ALLOCATE( climate%Hs(    mesh%vi1:mesh%vi2))
     ALLOCATE( climate%T2m(    mesh%vi1:mesh%vi2,12))
     ALLOCATE( climate%Precip( mesh%vi1:mesh%vi2,12))
+    allocate( climate%Wind_LR( mesh%vi1:mesh%vi2, 12))
+    allocate( climate%Wind_DU( mesh%vi1:mesh%vi2, 12))
+    climate%Hs     = 0._dp
     climate%snapshot%Hs     = 0._dp
     climate%T2m    = 0._dp
     climate%Precip = 0._dp
+    climate%Wind_LR = 0._dp
+    climate%Wind_DU = 0._dp
 
     ! Set time of next calculation to start time
     climate%t_next = C%start_time_of_run
 
     ! Determine which climate model to initialise
-    IF     (choice_climate_model == 'none') THEN
+    select case (choice_climate_model)
       ! No need to do anything
-    ELSEIF (choice_climate_model == 'idealised') THEN
-      CALL initialise_climate_model_idealised( mesh, climate)
-    ELSEIF (choice_climate_model == 'realistic') THEN
-      CALL initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
-    ELSE
-      CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
-    END IF
+    case ('idealised')
+      call initialise_climate_model_idealised( mesh, climate)
+    case ('realistic')
+      call initialise_climate_model_realistic( mesh, ice, climate, forcing, region_name)
+    case ('matrix')
+      if (par%primary)  write(*,"(A)") '   Initialising climate matrix model...'
+      call initialise_climate_matrix( mesh, grid, ice, climate, region_name, forcing)
+    case ('default')
+      call crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
+    end select
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -196,7 +215,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to do anything
-    ELSEIF (choice_climate_model == 'realistic') THEN
+    ELSEIF (choice_climate_model == 'realistic' .OR. &
+            choice_climate_model == 'matrix') THEN
       CALL write_to_restart_file_climate_model_region( mesh, climate, region_name, time)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
@@ -288,7 +308,8 @@ CONTAINS
       ! No need to do anything
     ELSEIF (choice_climate_model == 'idealised') THEN
       ! No need to do anything
-    ELSEIF (choice_climate_model == 'realistic') THEN
+    ELSEIF (choice_climate_model == 'realistic' .OR. &
+            choice_climate_model == 'matrix') THEN
       CALL create_restart_file_climate_model_region( mesh, climate, region_name)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
@@ -356,7 +377,7 @@ CONTAINS
 
   END SUBROUTINE create_restart_file_climate_model_region
 
-  SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, region_name)
+  SUBROUTINE remap_climate_model( mesh_old, mesh_new, climate, region_name, grid, ice, forcing)
     ! Remap the climate model
 
     IMPLICIT NONE
@@ -366,6 +387,9 @@ CONTAINS
     TYPE(type_mesh),                        INTENT(IN)    :: mesh_new
     TYPE(type_climate_model),               INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                       INTENT(IN)    :: region_name
+    type(type_grid), optional,                    intent(in)    :: grid
+    type(type_ice_model), optional,               intent(in)    :: ice
+    type(type_global_forcing), optional,          intent(in) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'remap_climate_model'
@@ -402,6 +426,8 @@ CONTAINS
     ELSEIF (choice_climate_model == 'realistic') THEN
       CALL reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
       CALL reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+    ELSEIF (choice_climate_model == 'matrix') THEN
+      call remap_climate_matrix_model( mesh_new, climate, region_name, grid, ice, forcing)
     ELSE
       CALL crash('unknown choice_climate_model "' // TRIM( choice_climate_model) // '"')
     END IF

@@ -24,7 +24,7 @@ MODULE UFEMISM_main_model
   use bed_roughness_main, only: initialise_bed_roughness_model
   USE thermodynamics_main                                    , ONLY: initialise_thermodynamics_model, run_thermodynamics_model, &
                                                                      create_restart_file_thermo, write_to_restart_file_thermo
-  USE global_forcings_main                                   , ONLY: initialise_global_forcings, update_sealevel_in_model, update_sealevel_at_model_time
+  USE global_forcings_main                                   , ONLY: initialise_global_forcings, update_sealevel_in_model, update_sealevel_at_model_time, update_CO2_at_model_time
   USE climate_main                                           , ONLY: initialise_climate_model, run_climate_model, remap_climate_model, &
                                                                      create_restart_file_climate_model, write_to_restart_file_climate_model
   USE ocean_main                                             , ONLY: initialise_ocean_model, run_ocean_model, remap_ocean_model, &
@@ -107,7 +107,7 @@ CONTAINS
 
         ! If necessary and allowed, perform a mesh update
         IF (mesh_fitness_coefficient < C%minimum_mesh_fitness_coefficient) THEN
-          CALL update_mesh( region)
+          CALL update_mesh( region, regional_forcing)
         END IF
 
       END IF ! IF (C%allow_mesh_updates) THEN
@@ -121,6 +121,11 @@ CONTAINS
         CALL update_sealevel_in_model(regional_forcing, region%mesh, region%ice, region%time)
       END IF
 
+      ! Update CO2 if necessary? - this can be done in a better way, but will solve the error for now
+      IF (C%choice_matrix_forcing == 'CO2_direct') THEN
+        call update_CO2_at_model_time( regional_forcing, region%time)
+      END IF
+
       ! Run the ice dynamics model to calculate ice geometry at the desired time, and update
       ! velocities, thinning rates, and predicted geometry if necessary
       CALL run_ice_dynamics_model( region)
@@ -130,7 +135,7 @@ CONTAINS
       CALL run_thermodynamics_model( region)
 
       ! Calculate the climate
-      CALL run_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name, region%time)
+      CALL run_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, regional_forcing, region%name, region%time, region%SMB)
 
       ! Calculate the ocean
       CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, region%time)
@@ -495,7 +500,8 @@ CONTAINS
 
     ! ===== Climate =====
     ! ===================
-    CALL initialise_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name)
+
+    CALL initialise_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, regional_forcing, region%name)
 
     ! ===== Ocean =====
     ! =================
@@ -531,7 +537,7 @@ CONTAINS
     ! ============================================================
 
     ! Run the models
-    CALL run_climate_model( region%mesh, region%ice, region%climate, regional_forcing, region%name, C%start_time_of_run)
+    CALL run_climate_model( region%mesh, region%grid_smooth, region%ice, region%climate, regional_forcing, region%name, C%start_time_of_run, region%SMB)
     CALL run_ocean_model( region%mesh, region%ice, region%ocean, region%name, C%start_time_of_run)
     CALL run_SMB_model( region%mesh, region%grid_smooth, region%ice, region%climate, region%SMB, region%name, C%start_time_of_run)
     CALL run_BMB_model( region%mesh, region%ice, region%ocean, region%refgeo_PD, region%SMB, region%BMB, region%name, C%start_time_of_run, is_initial=.TRUE.)
@@ -1111,13 +1117,14 @@ CONTAINS
 ! ===== Mesh update =====
 ! =======================
 
-  SUBROUTINE update_mesh( region)
+  SUBROUTINE update_mesh( region, forcing)
     ! Update the model mesh
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_model_region),                             INTENT(INOUT) :: region
+    TYPE(type_global_forcing),                           INTENT(IN)    :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                                      :: routine_name = 'update_mesh'
@@ -1209,7 +1216,7 @@ CONTAINS
 
     ! Remap all the model data from the old mesh to the new mesh
     CALL remap_ice_dynamics_model(    region%mesh, mesh_new, region%ice, region%bed_roughness, region%refgeo_PD, region%SMB, region%BMB, region%LMB, region%AMB, region%GIA, region%time, region%name)
-    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name)
+    CALL remap_climate_model(         region%mesh, mesh_new,             region%climate, region%name, region%grid_smooth, region%ice, forcing)    
     CALL remap_ocean_model(           region%mesh, mesh_new, region%ice, region%ocean  , region%name, region%time)
     CALL remap_SMB_model(             region%mesh, mesh_new,             region%SMB    , region%name)
     CALL remap_BMB_model(             region%mesh, mesh_new, region%ice, region%ocean, region%BMB    , region%name, region%time)
