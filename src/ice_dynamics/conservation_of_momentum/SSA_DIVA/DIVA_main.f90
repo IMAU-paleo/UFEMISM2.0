@@ -19,7 +19,6 @@ module DIVA_main
     map_b_a_2D, map_b_a_3D, ddx_b_a_2D, ddy_b_a_2D
   use mesh_zeta, only: integrate_from_zeta_is_one_to_zeta_is_zetap, vertical_average
   use constitutive_equation, only: calc_ice_rheology_Glen, calc_effective_viscosity_Glen_3D_uv_only
-  use mesh_utilities, only: find_ti_copy_ISMIP_HOM_periodic
   use mpi_distributed_memory, only: gather_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
   use reallocate_mod, only: reallocate_bounds, reallocate_clean
@@ -304,13 +303,13 @@ contains
     call map_b_a_3D( mesh_old, DIVA%v_3D_b  , v_3D_a  )
 
     ! Remap data from the vertices of the old mesh to the vertices of the new mesh
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, u_vav_a , '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, v_vav_a , '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_bx_a, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, tau_by_a, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, eta_3D_a, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_3D_a  , '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_3D_a  , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, u_vav_a , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, v_vav_a , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, tau_bx_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_2D( mesh_old, mesh_new, C%output_dir, tau_by_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, eta_3D_a, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, u_3D_a  , '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, v_3D_a  , '2nd_order_conservative')
 
     ! reallocate memory for the data on the triangles
     call reallocate_bounds( DIVA%u_vav_b  , mesh_new%ti1, mesh_new%ti2             )

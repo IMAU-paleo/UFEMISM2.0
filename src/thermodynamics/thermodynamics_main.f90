@@ -438,11 +438,11 @@ CONTAINS
     ! Read data
     IF (timeframe_initial_ice_temperature == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_file_3D( filename_initial_ice_temperature, field_name_options_Ti, mesh, Ti_read, &
+      CALL read_field_from_file_3D( filename_initial_ice_temperature, field_name_options_Ti, mesh, C%output_dir, Ti_read, &
         nzeta = nzeta_read, zeta = zeta_read)
     ELSE
       ! Read the specified timeframe from the file
-      CALL read_field_from_file_3D( filename_initial_ice_temperature, field_name_options_Ti, mesh, Ti_read, &
+      CALL read_field_from_file_3D( filename_initial_ice_temperature, field_name_options_Ti, mesh, C%output_dir, Ti_read, &
         nzeta = nzeta_read, zeta = zeta_read, time_to_read = timeframe_initial_ice_temperature)
     END IF
 

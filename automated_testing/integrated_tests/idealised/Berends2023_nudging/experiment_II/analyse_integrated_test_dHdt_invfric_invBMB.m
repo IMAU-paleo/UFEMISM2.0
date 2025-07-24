@@ -104,7 +104,7 @@ if (do_figures)
   % Ice geometry
   d = Hs_inverted - Hs_target;
   H = plot_mesh_data( mesh, d);
-  set( H.Patch,'facevertexalphadata',a,'alphadatamapping','none','facealpha','flat');
+  % set( H.Patch,'facevertexalphadata',a,'alphadatamapping','none','facealpha','flat');
   set( H.Ax,'clim',[-50, 50]);
   title( H.Ax,'Ice thickness')
   ylabel( H.Cbar,'inverted - target')

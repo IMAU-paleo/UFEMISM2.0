@@ -101,11 +101,11 @@ contains
       call find_last_output_file( C%bednudge_H_u_flowline_file_u_target)
       call find_last_timeframe(   C%bednudge_H_u_flowline_file_u_target, bednudge_H_u_flowline_timeframe_u_target)
       call read_field_from_file_2D_b( trim( C%bednudge_H_u_flowline_file_u_target), 'uabs_surf', &
-        mesh, nudge%uabs_surf_target_b, time_to_read = bednudge_H_u_flowline_timeframe_u_target)
+        mesh, C%output_dir, nudge%uabs_surf_target_b, time_to_read = bednudge_H_u_flowline_timeframe_u_target)
     else
       ! Assume we're reading from a file with no time dimension
       call read_field_from_file_2D_b( trim( C%bednudge_H_u_flowline_file_u_target), 'uabs_surf', &
-        mesh, nudge%uabs_surf_target_b)
+        mesh, C%output_dir, nudge%uabs_surf_target_b)
     end if
 
     ! Finalise routine path

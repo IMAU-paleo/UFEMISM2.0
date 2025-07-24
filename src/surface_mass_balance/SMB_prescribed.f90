@@ -207,10 +207,10 @@ CONTAINS
     ! Read SMB from file
     IF (timeframe_SMB_prescribed == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      CALL read_field_from_file_2D( filename_SMB_prescribed, 'SMB||surface_mass_balance||', mesh, SMB%SMB)
+      CALL read_field_from_file_2D( filename_SMB_prescribed, 'SMB||surface_mass_balance||', mesh, C%output_dir, SMB%SMB)
     ELSE
       ! Assume the file has a time dimension, and read the specified timeframe
-      CALL read_field_from_file_2D( filename_SMB_prescribed, 'SMB||surface_mass_balance||', mesh, SMB%SMB, time_to_read = timeframe_SMB_prescribed)
+      CALL read_field_from_file_2D( filename_SMB_prescribed, 'SMB||surface_mass_balance||', mesh, C%output_dir, SMB%SMB, time_to_read = timeframe_SMB_prescribed)
     END IF
 
     ! Finalise routine path

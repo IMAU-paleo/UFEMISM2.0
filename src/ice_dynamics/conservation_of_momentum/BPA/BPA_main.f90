@@ -153,7 +153,10 @@ contains
     call calc_zeta_gradients( mesh, ice)
 
     ! Calculate 3-D matrix operators for the current ice geometry
-    call calc_3D_matrix_operators_mesh( mesh, ice)
+    call calc_3D_matrix_operators_mesh( mesh, &
+      ice%dzeta_dx_ak, ice%dzeta_dy_ak, ice%dzeta_dx_bk, ice%dzeta_dy_bk, &
+      ice%dzeta_dz_bk, ice%dzeta_dz_bks, &
+      ice%d2zeta_dx2_bk, ice%d2zeta_dxdy_bk, ice%d2zeta_dy2_bk)
 
     ! Calculate the driving stress
     call calc_driving_stress( mesh, ice, BPA)
@@ -275,8 +278,8 @@ contains
     call map_b_a_3D( mesh_old, BPA%v_bk, v_ak)
 
     ! Remap velocities from the vertices of the old mesh to the vertices of the new mesh
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, u_ak, '2nd_order_conservative')
-    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, v_ak, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, u_ak, '2nd_order_conservative')
+    call map_from_mesh_to_mesh_with_reallocation_3D( mesh_old, mesh_new, C%output_dir, v_ak, '2nd_order_conservative')
 
     ! reallocate memory for the velocities on the triangles
     call reallocate_bounds( BPA%u_bk, mesh_new%ti1, mesh_new%ti2, mesh_new%nz)
@@ -1219,7 +1222,7 @@ contains
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
@@ -1274,7 +1277,7 @@ contains
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
@@ -1359,7 +1362,7 @@ contains
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
@@ -1414,7 +1417,7 @@ contains
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
@@ -1499,7 +1502,7 @@ contains
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
@@ -1554,7 +1557,7 @@ contains
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
@@ -1639,7 +1642,7 @@ contains
         ! u(x,y) = u(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)
@@ -1694,7 +1697,7 @@ contains
         ! v(x,y) = v(x+-L/2,y+-L/2)
 
         ! Find the triangle ti_copy that is displaced by [x+-L/2,y+-L/2] relative to ti
-        call find_ti_copy_ISMIP_HOM_periodic( mesh, ti, ti_copy, wti_copy)
+        call find_ti_copy_ISMIP_HOM_periodic( mesh, C%refgeo_idealised_ISMIP_HOM_L, ti, ti_copy, wti_copy)
 
         ! Set value at ti equal to value at ti_copy
         call add_entry_CSR_dist( A_CSR, row_tikuv, row_tikuv,  1._dp)

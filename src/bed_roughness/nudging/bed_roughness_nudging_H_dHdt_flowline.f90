@@ -281,7 +281,7 @@ contains
     call init_routine( routine_name)
 
     dC_dt_smoothed = dC_dt
-    call smooth_Gaussian( mesh, grid_smooth, dC_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
+    call smooth_Gaussian( mesh, grid_smooth, C%output_dir, dC_dt_smoothed, C%bednudge_H_dHdt_flowline_r_smooth)
 
     dC_dt = (1._dp - C%bednudge_H_dHdt_flowline_w_smooth) * dC_dt + &
                      C%bednudge_H_dHdt_flowline_w_smooth  * dC_dt_smoothed

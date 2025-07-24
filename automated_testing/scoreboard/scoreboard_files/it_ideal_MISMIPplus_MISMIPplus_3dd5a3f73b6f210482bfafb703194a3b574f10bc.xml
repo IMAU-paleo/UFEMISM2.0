@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>MISMIPplus</name>
+    <category>integrated_tests/idealised/MISMIPplus</category>
+    <date_and_time>24-Jul-2025 05:46:33</date_and_time>
+    <git_hash_string>3dd5a3f73b6f210482bfafb703194a3b574f10bc</git_hash_string>
+    <cost_functions>
+        <name>err_x_GL_init</name>
+        <definition>abs( x_GL(1) - 450e3)</definition>
+        <value>651.0807</value>
+    </cost_functions>
+    <cost_functions>
+        <name>err_x_GL_final_lo</name>
+        <definition>abs( min( 0, x_GL( end) - 350e3))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>err_x_GL_final_hi</name>
+        <definition>abs( max( 0, x_GL( end) - 420e3))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>var_x_GL</name>
+        <definition>max( abs( x_GL_smooth - x_GL))</definition>
+        <value>852.0171</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_dt_ice</name>
+        <definition>total number of ice-dynamical time steps</definition>
+        <value>6645</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_visc_its</name>
+        <definition>total number of viscosity iterations</definition>
+        <value>6645</value>
+    </cost_functions>
+    <cost_functions>
+        <name>n_Axb_its</name>
+        <definition>total number of linear solver iterations</definition>
+        <value>610756</value>
+    </cost_functions>
+</single_run>

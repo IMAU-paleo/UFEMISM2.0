@@ -48,28 +48,72 @@ endif
 
 echo ""
 
-# Go to src/, make, and come back
-cd src
-if ($selection == 'clean') make clean
+# If no build directory exists, create it
+if (! -d build) mkdir build
+
+# For a "clean" build, remove all build files first
+if ($selection == 'clean') rm -rf build/*
+
+# For a "changed" build, remove only the CMake cache file
+if ($selection == 'changed') rm -f build/CMakeCache.txt
+
+# Use CMake to build UFEMISM, with Ninja to determine module dependencies;
+# use different compiler flags for the development/performance build
+cd build
+
 if ($version == 'dev') then
-  make all   DO_ASSERTIONS=yes   DO_RESOURCE_TRACKING=yes   DO_INCLUDE_COMPILER_CHECKS=yes
+
+  cmake -G Ninja -DPETSC_DIR=`brew --prefix petsc` \
+    -DDO_ASSERTIONS=ON \
+    -DDO_RESOURCE_TRACKING=ON \
+    -DEXTRA_Fortran_FLAGS="\
+      -fdiagnostics-color=always;\
+      -Og;\
+      -Wall;\
+      -ffree-line-length-none;\
+      -cpp;\
+      -Werror=implicit-interface;\
+      -fimplicit-none;\
+      -g;\
+      -march=native;\
+      -fcheck=all;\
+      -fbacktrace;\
+      -finit-real=nan;\
+      -finit-integer=-42;\
+      -finit-character=33" ..
+
 else if ($version == 'perf') then
-  make all   DO_ASSERTIONS=no    DO_RESOURCE_TRACKING=no    DO_INCLUDE_COMPILER_CHECKS=no
+
+  cmake -G Ninja -DPETSC_DIR=`brew --prefix petsc` \
+    -DDO_ASSERTIONS=OFF \
+    -DDO_RESOURCE_TRACKING=OFF \
+    -DEXTRA_Fortran_FLAGS="\
+      -fdiagnostics-color=always;\
+      -O3;\
+      -Wall;\
+      -ffree-line-length-none;\
+      -cpp;\
+      -fimplicit-none;\
+      -g;\
+      -march=native" ..
+
 endif
+
+ninja -v
 cd ..
 
 # Copy compiled program
 if ($version == 'dev') then
 
   rm -f UFEMISM_program_dev
-  mv src/UFEMISM_program UFEMISM_program_dev
+  mv build/UFEMISM_program UFEMISM_program_dev
   rm -f UFEMISM_program
   cp UFEMISM_program_dev UFEMISM_program
 
 else if ($version == 'perf') then
 
   rm -f UFEMISM_program_perf
-  mv src/UFEMISM_program UFEMISM_program_perf
+  mv build/UFEMISM_program UFEMISM_program_perf
   rm -f UFEMISM_program
   cp UFEMISM_program_perf UFEMISM_program
 
