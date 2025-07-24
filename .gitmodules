@@ -1,7 +1,7 @@
 [submodule "external/UPSY"]
 	path = external/UPSY
 	url = https://github.com/IMAU-paleo/UPSY.git
-[submodule "external/LADDIE2.0"]
-	path = external/LADDIE2.0
+[submodule "external/LADDIE"]
+	path = external/LADDIE
 	url = https://github.com/erwinlambert/LADDIE2.0.git
         branch = move-laddie
