@@ -37,7 +37,7 @@ jobs:
       - name: Checkout UFEMISM repository
         uses: actions/checkout@v4
 
-      - name: Update UPSY & LADDIE submodules
+      - name: Update submodules (UPSY, LADDIE, data)
         run: |
           git submodule update --init --remote
 
