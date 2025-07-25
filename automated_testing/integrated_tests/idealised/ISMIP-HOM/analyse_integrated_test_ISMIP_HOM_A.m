@@ -25,7 +25,7 @@ elseif isscalar( input_args)
 
   foldername_automated_testing = varargin{1};
   addpath('tools/matlab/')
-  foldername_ISMIP_HOM = 'data/model_ensembles/ISMIP-HOM';
+  foldername_ISMIP_HOM = 'external/data/model_ensembles/ISMIP-HOM';
 
 else
   error('need either foldername_automated_testing, or nothing as input!')
@@ -48,7 +48,7 @@ approxs = {'SIASSA','DIVA','BPA'};
 
 for Li = 1:6
   L = Ls( Li);
-  
+
   if L<10
     ex = ['L00' num2str(L)];
   elseif L<100
@@ -80,7 +80,7 @@ for Li = 1:6
     % Read stability info
     filename = [foldername '/scalar_output_ANT_00001.nc'];
     stab = read_stability_info( filename, 1);
-  
+
     % Write to scoreboard file
     test_path = ['integrated_tests/idealised/ISMIP_HOM/experiment_A/' approx];
     test_name = ex;
@@ -93,15 +93,15 @@ end
 
     % Set up a scoreboard results structure
     single_run = initialise_single_test_run( test_name, test_path);
-  
+
     % Add cost functions to results structure
     single_run = add_cost_function_to_single_run( single_run, ...
       'rmse', 'sqrt( mean( (u_surf - u_ensemble).^2 ))', RMSE_u_surf);
 
     single_run = add_stability_info_cost_functions( single_run, stab);
-    
+
     % Write to scoreboard file
     write_scoreboard_file( foldername_automated_testing, single_run);
-  
+
   end
 end

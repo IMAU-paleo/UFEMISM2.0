@@ -4,3 +4,6 @@
 [submodule "external/LADDIE"]
 	path = external/LADDIE
 	url = https://github.com/erwinlambert/LADDIE2.0.git
+[submodule "external/data"]
+	path = external/data
+	url = https://github.com/IMAU-paleo/data.git
