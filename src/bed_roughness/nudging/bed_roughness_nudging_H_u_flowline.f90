@@ -134,9 +134,9 @@ contains
     real(dp), dimension(2)                 :: p
     real(dp), dimension(mesh%nV, 2)        :: trace_up, trace_down
     integer                                :: n_up, n_down
-    real(dp), dimension(mesh%nV   )        :: s_up, s_down
-    real(dp), dimension(mesh%nV   )        :: deltaHs_up, deltaHs_down
-    real(dp), dimension(mesh%nTri )        :: deltau_up, deltau_down
+    real(dp), dimension(mesh%nV)           :: s_up, s_down
+    real(dp), dimension(mesh%nV)           :: deltaHs_up, deltaHs_down
+    real(dp), dimension(mesh%nTri)         :: deltau_up, deltau_down
 
     ! Add routine to path
     call init_routine( routine_name)
