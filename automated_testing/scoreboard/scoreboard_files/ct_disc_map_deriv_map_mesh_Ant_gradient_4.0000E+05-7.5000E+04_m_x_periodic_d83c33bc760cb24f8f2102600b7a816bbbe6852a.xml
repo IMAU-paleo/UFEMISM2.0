@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_gradient_4.0000E+05-7.5000E+04_m_x_periodic</name>
+    <category>component_tests/discretisation/mapping_and_derivatives/map</category>
+    <date_and_time>25-Jul-2025 10:15:38</date_and_time>
+    <git_hash_string>d83c33bc760cb24f8f2102600b7a816bbbe6852a</git_hash_string>
+    <cost_functions>
+        <name>max_err_map_a_b</name>
+        <definition>abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))</definition>
+        <value>0.014917</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_map_b_a</name>
+        <definition>abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))</definition>
+        <value>0.01445</value>
+    </cost_functions>
+</single_run>
