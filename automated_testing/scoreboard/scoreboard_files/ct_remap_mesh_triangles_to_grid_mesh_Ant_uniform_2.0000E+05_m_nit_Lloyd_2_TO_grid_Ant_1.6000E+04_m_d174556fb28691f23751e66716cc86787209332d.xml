@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_2.0000E+05_m_nit_Lloyd_2_TO_grid_Ant_1.6000E+04_m</name>
+    <category>component_tests/remapping/mesh_triangles_to_grid</category>
+    <date_and_time>25-Jul-2025 14:17:30</date_and_time>
+    <git_hash_string>d174556fb28691f23751e66716cc86787209332d</git_hash_string>
+    <cost_functions>
+        <name>rmse</name>
+        <definition>sqrt( mean( (d_grid - d_grid_ex).^2))</definition>
+        <value>59.935</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_max</name>
+        <definition>max( 0, max( d_grid(:)) - max( d_mesh_ex(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>bounds_min</name>
+        <definition>max( 0, min( d_mesh_ex(:)) - min( d_grid(:)))</definition>
+        <value>0</value>
+    </cost_functions>
+    <cost_functions>
+        <name>int_err</name>
+        <definition>abs( 1 - int_grid / int_mesh)</definition>
+        <value>0.00013312</value>
+    </cost_functions>
+</single_run>
