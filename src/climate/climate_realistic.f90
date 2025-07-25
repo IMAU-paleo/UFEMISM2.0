@@ -29,6 +29,7 @@ MODULE climate_realistic
   public :: initialise_climate_model_realistic
   public :: initialise_insolation_forcing
   public :: remap_climate_realistic
+  public :: remap_snapshot
 
 CONTAINS
 
@@ -351,22 +352,42 @@ CONTAINS
     end if
       
     if (C%choice_climate_model_realistic == 'snapshot' .AND. choice_SMB_model == 'IMAU-ITM') then
-      ! reallocate IMAU-ITM variables
-      call reallocate_bounds( climate%snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
-      call reallocate_bounds( climate%snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
-      call reallocate_bounds( climate%snapshot%Q_TOA, mesh_new%vi1, mesh_new%vi2,12)
-      ! reallocate Hs from climate
+      ! Reallocate the snapshot fields
+      call remap_snapshot( climate%snapshot, mesh_new)
       call reallocate_bounds( climate%snapshot%Hs, mesh_new%vi1, mesh_new%vi2)
-
+      
       ! Read single-time data from external file
       call read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh_new, C%output_dir, climate%snapshot%Hs)
       call read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh_new, C%output_dir, climate%T2m)
       call read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh_new, C%output_dir, climate%Precip)
+    else 
+      ! do nothing, no need to remap. The model will use the SMB field
     end if
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine remap_climate_realistic
+
+  subroutine remap_snapshot( snapshot, mesh_new)
+  ! In/out variables
+    type(type_mesh),                        intent(in)    :: mesh_new
+    type(type_climate_model_snapshot),      intent(inout) :: snapshot
+
+    ! Local variables
+    character(LEN=256), parameter                         :: routine_name = 'remap_snapshot'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! reallocate IMAU-ITM variables
+    call reallocate_bounds( snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+    call reallocate_bounds( snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+    call reallocate_bounds( snapshot%Q_TOA, mesh_new%vi1, mesh_new%vi2,12)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remap_snapshot
 
 END MODULE climate_realistic
