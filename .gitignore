@@ -10,10 +10,6 @@ build/*
 /*.sh
 /*.csh
 
-# Ignore the module and object files
-*.mod
-*.o
-
 # Ignore output files
 result*/
 
@@ -23,14 +19,8 @@ result*/
 # Ignore SLURM output on Snellius
 slurm-*.out
 
-# Ignore depend file
-.depend
-
 # Ignore Matlab autosave files
 *.asv
-
-# ignore data directory
-data
 
 # Ignore automated test reports
 automated_testing/test_reports/*.html
