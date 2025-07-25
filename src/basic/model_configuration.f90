@@ -962,11 +962,10 @@ MODULE model_configuration
     REAL(dp)            :: uniform_laddie_tidal_velocity_config         = 0.1_dp                           ! [m s^-1] Uniform tidal velocity
 
     ! Subglacial discharge (SGD)
-    CHARACTER(LEN=256)  :: choice_laddie_SGD_config                     = 'none'                           ! Choose option for subglacial discharge. Options: 'none', 'idealised'
+    CHARACTER(LEN=256)  :: choice_laddie_SGD_config                     = 'none'                           ! Choose option for subglacial discharge. Options: 'none', 'idealised', 'read_from_file'
     CHARACTER(LEN=256)  :: choice_laddie_SGD_idealised_config           = 'MISMIPplus_PC'                  ! Choose option for idealised SGD. Options: 'MISMIPplus_PC', 'MISMIPplus_PW', 'MISMIPplus_PE'
     REAL(dp)            :: laddie_SGD_flux_config                       = 72._dp                           ! [m^3 s^-1] Total subglacial discharge flux
-    ! CHARACTER(LEN=256)  :: filename_subglacial_discharge_mask_config    = ''                               ! area file containing the subglacial discharge mask on the original mesh
-
+    CHARACTER(LEN=256)  :: filename_laddie_mask_SGD_config              = ''                               ! Gridded file containing the subglacial discharge mask
 
   ! == Lateral mass balance
   ! =======================
@@ -2091,6 +2090,7 @@ MODULE model_configuration
     CHARACTER(LEN=256)  :: choice_laddie_SGD
     CHARACTER(LEN=256)  :: choice_laddie_SGD_idealised
     REAL(dp)            :: laddie_SGD_flux
+    CHARACTER(LEN=256)  :: filename_laddie_mask_SGD
 
   ! == Lateral mass balance
   ! =======================
@@ -3078,6 +3078,7 @@ CONTAINS
       choice_laddie_SGD_config                                    , &
       choice_laddie_SGD_idealised_config                          , &
       laddie_SGD_flux_config                                      , &
+      filename_laddie_mask_SGD_config                             , &
       choice_laddie_tides_config                                  , &
       uniform_laddie_tidal_velocity_config                        , &
       dt_LMB_config                                               , &
@@ -4189,7 +4190,8 @@ CONTAINS
     C%choice_laddie_SGD                                      = choice_laddie_SGD_config
     C%choice_laddie_SGD_idealised                            = choice_laddie_SGD_idealised_config
     C%laddie_SGD_flux                                        = laddie_SGD_flux_config
-
+    C%filename_laddie_mask_SGD                               = filename_laddie_mask_SGD_config
+    
   ! == Lateral mass balance
   ! =======================
 

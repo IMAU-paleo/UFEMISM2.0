@@ -11,6 +11,7 @@ module masks_mod
   use projections, only: oblique_sg_projection
   use plane_geometry, only: is_in_polygon
   use mesh_ROI_polygons
+  use netcdf_io_main
 
   implicit none
 
@@ -477,12 +478,43 @@ contains
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'calc_mask_SGD'
-    integer                        :: vi
-    real(dp) :: y_coord_channel
 
     ! Add routine to path
     call init_routine( routine_name)
 
+    select case (C%choice_laddie_SGD)
+      case ('none')
+        ! No SGD: don't need to do anything
+      case ('idealised')
+        call calc_mask_SGD_idealised(mesh, ice)
+      case ('read_from_file')
+        call calc_mask_SGD_from_file(mesh, ice)
+      case default
+        ! Choice not found
+        call crash('unknown choice_laddie_SGD "' // TRIM( C%choice_laddie_SGD) // '"!')
+    end select
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_SGD
+
+  subroutine calc_mask_SGD_idealised( mesh, ice)
+    !< Calculate the subglacial discharge mask (SGD) - idealised cases for the MISMIPplus geometry
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'calc_mask_SGD_idealised'
+    integer                        :: vi
+    real(dp)                       :: y_coord_channel
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Set the y-coordinate of the subglacial channel based on idealised configuration.
     if (C%choice_laddie_SGD_idealised == 'MISMIPplus_PC') then
       y_coord_channel = 0._dp
     elseif (C%choice_laddie_SGD_idealised == 'MISMIPplus_PW') then
@@ -492,7 +524,7 @@ contains
     end if
 
     do vi = mesh%vi1, mesh%vi2
-      ! If the vertex is close to the channel, set mask true
+      ! Assign mask_SGD as true when vertice falls within a 5 km band centered on the channel.
       ! NOTE: This approach allows for some vertices along the transect at a given y-coordinate to be marked as false.
       !       Therefore, if the grounding line retreats to a position where no vertices are marked as true, no SGD will be applied.
       if (mesh%V( vi,2) < y_coord_channel + 2500._dp .and. mesh%V( vi,2) > y_coord_channel - 2500._dp) then
@@ -505,6 +537,38 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine calc_mask_SGD
+  end subroutine calc_mask_SGD_idealised
+
+  subroutine calc_mask_SGD_from_file( mesh, ice)
+    !< Calculate the subglacial discharge (SGD) mask by reading values from an external file.
+
+    ! In/output variables:
+    type(type_mesh),      intent(in   ) :: mesh
+    type(type_ice_model), intent(inout) :: ice
+
+    ! Local variables:
+    character(len=1024), parameter         :: routine_name = 'calc_mask_SGD_from_file'
+    integer                                :: vi
+    REAL(dp), DIMENSION(mesh%vi1:mesh%vi2) :: temporary_mask_SGD
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Read the SGD mask from a 2D input file. Values > 0 indicate presence of an SGD channel.
+    call read_field_from_file_2D( C%filename_laddie_mask_SGD, 'mask_SGD', mesh, C%output_dir, temporary_mask_SGD)
+
+    ! Assign mask_SGD as true where the read-in field is greater than zero.
+    do vi = mesh%vi1, mesh%vi2
+      if (temporary_mask_SGD( vi)>0) then
+        ice%mask_SGD( vi) = .true.
+      else
+        ice%mask_SGD( vi) = .false.
+      end if
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_mask_SGD_from_file
 
 end module masks_mod
