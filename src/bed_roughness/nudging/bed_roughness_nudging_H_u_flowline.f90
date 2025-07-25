@@ -130,7 +130,7 @@ contains
     real(dp), dimension(mesh%nTri)         :: deltau_tot
     real(dp), dimension(mesh%nTri)         :: u_b_tot
     real(dp), dimension(mesh%nTri)         :: v_b_tot
-    integer                                :: vi
+    integer                                :: vi, ti
     real(dp), dimension(2)                 :: p
     real(dp), dimension(mesh%nV, 2)        :: trace_up, trace_down
     integer                                :: n_up, n_down
@@ -141,8 +141,14 @@ contains
     ! Add routine to path
     call init_routine( routine_name)
 
-    deltaHs = ice%Hi          - target_geometry%Hi
-    deltau  = ice%uabs_surf_b - nudge%uabs_surf_target_b
+    deltaHs = ice%Hi - target_geometry%Hi
+
+    deltau = 0._dp
+    do ti = mesh%ti1, mesh%ti2
+      if (.not. isnan( nudge%uabs_surf_target_b( ti))) then
+        deltau( ti) = ice%uabs_surf_b( ti) - nudge%uabs_surf_target_b( ti)
+      end if
+    end do
 
     call gather_to_all( ice%Hi     , Hi_tot     )
     call gather_to_all( deltaHs    , deltaHs_tot)
