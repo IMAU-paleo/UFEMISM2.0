@@ -1,0 +1,8 @@
+# 'pre-commit' is a program, install it by calling 'brew install pre-commit' from your terminal
+repos:
+  - repo: local
+    hooks:
+      - id: update-submodules
+        name: Update Git Submodules
+        entry: sh -c 'git submodule update --remote && git add $(git config --file .gitmodules --get-regexp path | awk "{print \$2}")'
+        language: system

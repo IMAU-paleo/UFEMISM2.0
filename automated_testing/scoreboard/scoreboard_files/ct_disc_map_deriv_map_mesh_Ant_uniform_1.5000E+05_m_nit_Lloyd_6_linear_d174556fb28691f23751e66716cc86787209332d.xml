@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<single_run>
+    <name>mesh_Ant_uniform_1.5000E+05_m_nit_Lloyd_6_linear</name>
+    <category>component_tests/discretisation/mapping_and_derivatives/map</category>
+    <date_and_time>25-Jul-2025 14:14:38</date_and_time>
+    <git_hash_string>d174556fb28691f23751e66716cc86787209332d</git_hash_string>
+    <cost_functions>
+        <name>max_err_map_a_b</name>
+        <definition>abs( d_a_b - d_b_ex) ./ max( abs( d_b_ex))</definition>
+        <value>3.5901e-16</value>
+    </cost_functions>
+    <cost_functions>
+        <name>max_err_map_b_a</name>
+        <definition>abs( d_b_a - d_a_ex) ./ max( abs( d_a_ex))</definition>
+        <value>4.4409e-16</value>
+    </cost_functions>
+</single_run>
