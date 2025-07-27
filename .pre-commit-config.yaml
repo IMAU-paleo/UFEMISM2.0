@@ -1,4 +1,5 @@
-# 'pre-commit' is a program, install it by calling 'brew install pre-commit' from your terminal
+# 'pre-commit' is a program, install it by calling 'brew install pre-commit' from your terminal,
+# then configure it for UFEMISM by calling 'pre-commit install' from the UFEMISM2.0 directory
 repos:
   - repo: local
     hooks:

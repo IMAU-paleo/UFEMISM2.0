@@ -244,7 +244,7 @@ contains
         I2( vi) = -nudge%deltau_av_down( vi) / C%bednudge_H_u_flowline_u0
         I3( vi) =  nudge%deltaHs_av_up ( vi) / C%bednudge_H_u_flowline_H0
 
-        nudge%I_tot( vi) = (I1( vi) + I2( vi) + I3( vi)) * nudge%R( vi)
+        nudge%I_tot( vi) = (I1( vi) + I2( vi) + I3( vi)) !* nudge%R( vi)
 
         nudge%dC_dt( vi) = -bed_roughness%generic_bed_roughness( vi) * &
           (nudge%I_tot( vi) / C%bednudge_H_u_flowline_t_scale &

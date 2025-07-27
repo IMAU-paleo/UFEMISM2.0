@@ -35,8 +35,8 @@ contains
     logical,  dimension(mesh%nV)   :: mask_floating_ice_tot, mask_cf_fl_tot
     real(dp), dimension(mesh%nV)   :: Hi_target_tot
     real(dp)                       :: w_sum, wH_sum, deltaH, dHdt, dBMBdt
-    real(dp), parameter            :: c_H     = -0.003_dp
-    real(dp), parameter            :: c_dHdt  = -0.03_dp
+    real(dp), parameter            :: c_H     = -0.01_dp
+    real(dp), parameter            :: c_dHdt  = -0.1_dp
 
     ! Add routine to path
     call init_routine( routine_name)
