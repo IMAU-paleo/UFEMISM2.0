@@ -19,6 +19,7 @@ MODULE climate_realistic
   USE netcdf_basic
   use mpi_distributed_memory, only: distribute_from_primary
   use climate_matrix_utilities, only: get_insolation_at_time
+  use reallocate_mod                                         , only: reallocate_bounds
 
   IMPLICIT NONE
 
@@ -27,6 +28,8 @@ MODULE climate_realistic
   public :: run_climate_model_realistic
   public :: initialise_climate_model_realistic
   public :: initialise_insolation_forcing
+  public :: remap_climate_realistic
+  public :: remap_snapshot
 
 CONTAINS
 
@@ -314,5 +317,77 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_insolation_forcing
+
+  subroutine remap_climate_realistic(mesh_old, mesh_new, climate, region_name)
+    ! In/out variables
+    type(type_mesh),                        intent(in)    :: mesh_old
+    type(type_mesh),                        intent(in)    :: mesh_new
+    type(type_climate_model),               intent(inout) :: climate
+    character(LEN=3),                       intent(in)    :: region_name
+
+    ! Local variables
+    character(LEN=256), parameter                         :: routine_name = 'remap_climate_realistic' 
+    character(LEN=256)                                    :: choice_climate_model
+    character(LEN=256)                                    :: filename_climate_snapshot
+    character(LEN=256)                                    :: choice_SMB_model
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Determine which climate model to initialise for this region
+    if     (region_name == 'NAM') then
+      filename_climate_snapshot = C%filename_climate_snapshot_NAM
+      choice_SMB_model = C%choice_SMB_model_NAM
+    elseif (region_name == 'EAS') then
+      filename_climate_snapshot = C%filename_climate_snapshot_EAS
+      choice_SMB_model = C%choice_SMB_model_EAS
+    elseif (region_name == 'GRL') then
+      filename_climate_snapshot = C%filename_climate_snapshot_GRL
+      choice_SMB_model = C%choice_SMB_model_GRL
+    elseif (region_name == 'ANT') THEN
+      filename_climate_snapshot = C%filename_climate_snapshot_ANT
+      choice_SMB_model = C%choice_SMB_model_ANT
+    else
+      call crash('unknown region_name "' // region_name // '"')
+    end if
+      
+    if (C%choice_climate_model_realistic == 'snapshot' .AND. choice_SMB_model == 'IMAU-ITM') then
+      ! Reallocate the snapshot fields
+      call remap_snapshot( climate%snapshot, mesh_new)
+      call reallocate_bounds( climate%snapshot%Hs, mesh_new%vi1, mesh_new%vi2)
+      
+      ! Read single-time data from external file
+      call read_field_from_file_2D( filename_climate_snapshot, 'Hs', mesh_new, C%output_dir, climate%snapshot%Hs)
+      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m', mesh_new, C%output_dir, climate%T2m)
+      call read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', mesh_new, C%output_dir, climate%Precip)
+    else 
+      ! do nothing, no need to remap. The model will use the SMB field
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remap_climate_realistic
+
+  subroutine remap_snapshot( snapshot, mesh_new)
+  ! In/out variables
+    type(type_mesh),                        intent(in)    :: mesh_new
+    type(type_climate_model_snapshot),      intent(inout) :: snapshot
+
+    ! Local variables
+    character(LEN=256), parameter                         :: routine_name = 'remap_snapshot'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! reallocate IMAU-ITM variables
+    call reallocate_bounds( snapshot%ins_Q_TOA0, mesh_new%vi1, mesh_new%vi2,12)
+    call reallocate_bounds( snapshot%ins_Q_TOA1, mesh_new%vi1, mesh_new%vi2,12)
+    call reallocate_bounds( snapshot%Q_TOA, mesh_new%vi1, mesh_new%vi2,12)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remap_snapshot
 
 END MODULE climate_realistic
