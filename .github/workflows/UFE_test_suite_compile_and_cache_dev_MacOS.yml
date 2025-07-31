@@ -1,17 +1,13 @@
-name: UFEMISM Test Suite - compile and cache UFEMISM (development build) on Linux
-run-name: ${{ github.actor }} - UFEMISM Test Suite - compile and cache UFEMISM (development build) on Linux
+name: UFEMISM Test Suite - compile and cache UFEMISM (development build) on MacOS
+run-name: ${{ github.actor }} - UFEMISM Test Suite - compile and cache UFEMISM (development build) on MacOS
 on:
   workflow_call:
   workflow_dispatch:
 
 jobs:
   compile_UFEMISM_dev:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
-
-      - name: Set up Homebrew
-        id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
         run: |
@@ -34,24 +30,19 @@ jobs:
       - name: Verify compiler setup
         run: gfortran --version
 
-      - name: Checkout UFEMISM repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Update submodules (UPSY, LADDIE, data)
+      - name: Update submodules
         run: |
           git submodule update --init --remote
 
-      - name: Install csh
-        run: |
-          sudo apt-get update
-          sudo apt-get install csh
-
       - name: Compile UFEMISM
-        run: csh compile_UFEMISM.csh  dev  clean
+        run: ./compile_UFEMISM.csh  dev  clean
 
-      # - name: Cache UFEMISM program
-      #   uses: actions/cache/save@v3
-      #   id: UFEMISM_program_cache_save
-      #   with:
-      #     path: UFEMISM_program
-      #     key: UFEMISM_program_dev_${{ github.ref_name }}_${{ github.run_id }}
+      - name: Cache UFEMISM program
+        uses: actions/cache/save@v3
+        id: UFEMISM_program_cache_save
+        with:
+          path: UFEMISM_program
+          key: UFEMISM_program_dev_${{ github.ref_name }}_${{ github.run_id }}

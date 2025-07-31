@@ -1,0 +1,48 @@
+name: UPSY Test Suite - compile and cache UPSY (performance build) on MacOS
+run-name: ${{ github.actor }} - UPSY Test Suite - compile and cache UPSY (performance build) on MacOS
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  compile_UPSY_perf:
+    runs-on: macos-latest
+    steps:
+
+      - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
+        run: |
+          #brew install gcc                    # Not needed on GitHub server, already installed
+          brew install open-mpi
+          brew install petsc
+          brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
+          brew install netcdf
+          brew install netcdf-fortran
+          brew install cmake
+          brew install ninja
+
+      - name: Set up Fortran compiler          # See: https://github.com/marketplace/actions/setup-fortran
+        uses: fortran-lang/setup-fortran@v1
+        id: setup-fortran
+        with:
+          compiler: gcc
+          version: 13
+
+      - name: Verify compiler setup
+        run: gfortran --version
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Update submodules
+        run: |
+          git submodule update --init --remote
+
+      - name: Compile UPSY
+        run: ./compile_UPSY.csh  perf  clean
+
+      - name: Cache UPSY program
+        uses: actions/cache/save@v3
+        id: UPSY_program_cache_save
+        with:
+          path: UPSY_unit_test_program
+          key: UPSY_unit_test_program_perf_${{ github.ref_name }}_${{ github.run_id }}

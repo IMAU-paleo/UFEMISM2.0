@@ -11,14 +11,14 @@ jobs:
     runs-on: macos-latest
     steps:
 
-      - name: Checkout UFEMISM repository (from pull request)
+      - name: Check out repository (from pull request)
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v4
         with:
          repository: ${{ github.event.pull_request.head.repo.full_name }}
          ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: Checkout UFEMISM repository (from manual run)
+      - name: Check out repository (from manual run)
         if: ${{ github.event_name != 'pull_request' }}
         uses: actions/checkout@v4
 
