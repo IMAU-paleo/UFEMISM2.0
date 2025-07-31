@@ -4,6 +4,5 @@ repos:
     hooks:
       - id: update-submodules
         name: Update Git Submodules
-        # entry: sh -c 'git submodule update --remote && git add $(git config --file .gitmodules --get-regexp path | awk "{print \$2}")'
-        entry: echo 'beep'
+        entry: sh -c 'git submodule update --remote && git add $(git config --file .gitmodules --get-regexp path | awk "{print \$2}")'
         language: system
