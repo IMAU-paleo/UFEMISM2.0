@@ -1,0 +1,58 @@
+# The full UPSY Test Suite
+
+name: UPSY Test Suite
+run-name: ${{ github.actor }} - UPSY Test Suite
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/UPSY/**'
+  workflow_dispatch:
+
+jobs:
+
+  # Compile the model and cache the executable
+  compile_and_cache_UPSY_dev_MacOS:
+    uses: ./.github/workflows/UPSY_test_suite_compile_and_cache_dev_MacOS.yml
+
+  compile_and_cache_UPSY_dev_Linux:
+    uses: ./.github/workflows/UPSY_test_suite_compile_and_cache_dev_Linux.yml
+
+  compile_and_cache_UPSY_perf_MacOS:
+    uses: ./.github/workflows/UPSY_test_suite_compile_and_cache_perf_MacOS.yml
+
+  compile_and_cache_UPSY_perf_Linux:
+    uses: ./.github/workflows/UPSY_test_suite_compile_and_cache_perf_Linux.yml
+
+  # Install and cache Matlab
+  install_and_cache_Matlab:
+    uses: ./.github/workflows/UPSY_test_suite_install_and_cache_Matlab.yml
+
+  # Install and cache Python
+  install_and_cache_Python:
+    uses: ./.github/workflows/UPSY_test_suite_install_and_cache_Python.yml
+
+  # # Run the unit tests and analyse the results
+  # run_unit_tests:
+  #   needs: [compile_and_cache_UPSY_dev_MacOS, install_and_cache_Matlab]
+  #   uses: ./.github/workflows/UFE_test_suite_run_unit_tests.yml
+
+  # analyse_unit_tests:
+  #   needs: run_unit_tests
+  #   uses: ./.github/workflows/UFE_test_suite_analyse_unit_tests.yml
+
+  # # Run the component tests and analyse the results
+  # run_component_tests:
+  #   needs: [compile_and_cache_UPSY_dev_MacOS, install_and_cache_Matlab]
+  #   uses: ./.github/workflows/UFE_test_suite_run_component_tests.yml
+
+  # analyse_component_tests:
+  #   needs: run_component_tests
+  #   uses: ./.github/workflows/UFE_test_suite_analyse_component_tests.yml
+
+  # # Download artifacts with scoreboard files from the component and integrated tests
+  # # and commit them to the repository. And create the visualisation (which is awesome)
+  # finalise_scoreboard:
+  #   needs: [analyse_component_tests]
+  #   uses: ./.github/workflows/UFE_test_suite_finalise_scoreboard.yml

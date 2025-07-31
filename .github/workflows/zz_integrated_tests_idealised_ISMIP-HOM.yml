@@ -25,10 +25,10 @@ jobs:
         with:
           cache: true
 
-      - name: Checkout UFEMISM repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Update submodules (UPSY, LADDIE, data)
+      - name: Update submodules
         run: |
           git submodule update --init --remote
 
