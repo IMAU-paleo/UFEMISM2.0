@@ -17,8 +17,9 @@ module laddie_dummy_domain
   use ocean_model_types, only: type_ocean_model
   use ocean_main, only: initialise_ocean_vertical_grid
   use laddie_model_types, only: type_laddie_model, type_laddie_timestep
-  use laddie_main, only: update_laddie_forcing
-  use laddie_utilities, only: allocate_laddie_model, allocate_laddie_timestep
+  use laddie_forcing_types, only: type_laddie_forcing
+  use BMB_main, only: update_laddie_forcing
+  use laddie_utilities, only: allocate_laddie_model, allocate_laddie_timestep, allocate_laddie_forcing
   use mesh_memory, only: allocate_mesh_primary
   use mesh_parallel_creation, only: broadcast_mesh
   use mesh_dummy_meshes, only: initialise_dummy_mesh_16
@@ -38,7 +39,7 @@ contains
 ! ===== Main routines =====
 ! =========================
 
-  subroutine create_dummy_domain_16( mesh, ice, ocean, laddie)
+  subroutine create_dummy_domain_16( mesh, ice, ocean, laddie, forcing)
     ! create the domain
 
     !   v1 ---------- v2 ---------- v3 ---------- v4
@@ -82,10 +83,11 @@ contains
     !   gr ---------- fl ---------- oc ---------- oc
 
     ! In/output variables
-    type(type_mesh),         intent(out  ) :: mesh
-    type(type_ice_model),    intent(out  ) :: ice
-    type(type_ocean_model),  intent(out  ) :: ocean
-    type(type_laddie_model), intent(out  ) :: laddie
+    type(type_mesh),           intent(out  ) :: mesh
+    type(type_ice_model),      intent(out  ) :: ice
+    type(type_ocean_model),    intent(out  ) :: ocean
+    type(type_laddie_model),   intent(out  ) :: laddie
+    type(type_laddie_forcing), intent(out  ) :: forcing
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'create_dummy_domain_16'
@@ -204,9 +206,9 @@ contains
     ! =================================
 
     call allocate_laddie_model( mesh, laddie)
+    call allocate_laddie_forcing( mesh, forcing)
 
-    call update_laddie_forcing( mesh, ice, ocean, laddie)
-
+    call update_laddie_forcing( mesh, ice, ocean, forcing)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

@@ -18,8 +18,10 @@ MODULE laddie_main
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE remapping_main                                         , ONLY: map_from_mesh_to_mesh_with_reallocation_2D, &
                                                                      map_from_mesh_tri_to_mesh_tri_with_reallocation_2D
+  use laddie_forcing_types, only: type_laddie_forcing
   USE laddie_utilities                                       , ONLY: compute_ambient_TS, allocate_laddie_model, &
-                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c
+                                                                     allocate_laddie_timestep, map_H_a_b, map_H_a_c, &
+                                                                     allocate_laddie_forcing
   use laddie_operators                                       , only: update_laddie_operators
   use laddie_velocity                                        , only: map_UV_b_c
   use laddie_physics                                         , only: compute_subglacial_discharge
@@ -43,17 +45,18 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  subroutine run_laddie_model( mesh, ice, ocean, laddie, time, is_initial, region_name)
+  subroutine run_laddie_model( mesh, ice, ocean, laddie, forcing, time, is_initial, region_name)
     ! Run the laddie model
 
     ! In/output variables
-    type(type_mesh),         intent(in   ) :: mesh
-    type(type_ice_model),    intent(in   ) :: ice
-    type(type_ocean_model),  intent(in   ) :: ocean
-    type(type_laddie_model), intent(inout) :: laddie
-    real(dp),                intent(in   ) :: time
-    logical,                 intent(in   ) :: is_initial
-    character(len=3),        intent(in   ) :: region_name
+    type(type_mesh),           intent(in   ) :: mesh
+    type(type_ice_model),      intent(in   ) :: ice
+    type(type_ocean_model),    intent(in   ) :: ocean
+    type(type_laddie_model),   intent(inout) :: laddie
+    type(type_laddie_forcing), intent(inout) :: forcing
+    real(dp),                  intent(in   ) :: time
+    logical,                   intent(in   ) :: is_initial
+    character(len=3),          intent(in   ) :: region_name
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'run_laddie_model'
@@ -61,8 +64,6 @@ CONTAINS
 
     ! Add routine to path
     call init_routine( routine_name)
-
-    call update_laddie_forcing( mesh, ice, ocean, laddie)
 
     ! Only in first time step
     SELECT CASE (C%choice_laddie_SGD)
@@ -72,7 +73,7 @@ CONTAINS
         ! Do nothing
       CASE ('idealised','read_from_file')
         ! Compute SGD
-        CALL compute_subglacial_discharge( mesh, laddie)
+        CALL compute_subglacial_discharge( mesh, laddie, forcing)
     END SELECT
 
     if (C%do_repartition_laddie) then
@@ -81,16 +82,16 @@ CONTAINS
       call repartition_mesh( mesh, mesh_repartitioned, laddie%mask_a, laddie%mask_b)
 
       ! Repartition laddie
-      call repartition_laddie( mesh, mesh_repartitioned, laddie)
+      call repartition_laddie( mesh, mesh_repartitioned, laddie, forcing)
 
       ! Run laddie on the repartitioned mesh
-      call run_laddie_model_leg( mesh_repartitioned, laddie, time, is_initial, region_name)
+      call run_laddie_model_leg( mesh_repartitioned, laddie, forcing, time, is_initial, region_name)
 
       ! Un-repartition laddie
-      call repartition_laddie( mesh_repartitioned, mesh, laddie)
+      call repartition_laddie( mesh_repartitioned, mesh, laddie, forcing)
     else
       ! Run laddie on the original mesh
-      call run_laddie_model_leg( mesh, laddie, time, is_initial, region_name)
+      call run_laddie_model_leg( mesh, laddie, forcing, time, is_initial, region_name)
     end if
 
     ! Clean up after yourself
@@ -101,15 +102,16 @@ CONTAINS
 
   end subroutine run_laddie_model
 
-  subroutine run_laddie_model_leg( mesh, laddie, time, is_initial, region_name)
+  subroutine run_laddie_model_leg( mesh, laddie, forcing, time, is_initial, region_name)
     ! Run one leg of the laddie model
 
     ! In/output variables
-    type(type_mesh),         intent(in   ) :: mesh
-    type(type_laddie_model), intent(inout) :: laddie
-    real(dp),                intent(in   ) :: time
-    logical,                 intent(in   ) :: is_initial
-    character(len=3),        intent(in   ) :: region_name
+    type(type_mesh),           intent(in   ) :: mesh
+    type(type_laddie_model),   intent(inout) :: laddie
+    type(type_laddie_forcing), intent(in   ) :: forcing
+    real(dp),                  intent(in   ) :: time
+    logical,                   intent(in   ) :: is_initial
+    character(len=3),          intent(in   ) :: region_name
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'run_laddie_model_leg'
@@ -130,10 +132,10 @@ CONTAINS
     ! =================
 
     ! Extrapolate data into new cells
-    CALL extrapolate_laddie_variables( mesh, laddie)
+    CALL extrapolate_laddie_variables( mesh, laddie, forcing)
 
     ! == Update masks ==
-    CALL update_laddie_masks( mesh, laddie)
+    CALL update_laddie_masks( mesh, laddie, forcing)
 
     ! Set values to zero if outside laddie mask
     DO vi = mesh%vi1, mesh%vi2
@@ -189,7 +191,7 @@ CONTAINS
     ! Perform first integration with half the time step for LFRA scheme
     dt = C%dt_laddie / fac_dt_relax
     if (C%choice_laddie_integration_scheme == 'lfra') then
-      call integrate_lfra( mesh, laddie, tl, time, dt)
+      call integrate_lfra( mesh, laddie, forcing, tl, time, dt)
     end if
 
     DO WHILE (tl < duration * sec_per_day)
@@ -207,11 +209,11 @@ CONTAINS
         CASE DEFAULT
           CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
         CASE ('euler')
-          CALL integrate_euler( mesh, laddie, tl, time, dt)
+          CALL integrate_euler( mesh, laddie, forcing, tl, time, dt)
         CASE ('fbrk3')
-          CALL integrate_fbrk3( mesh, laddie, tl, time, dt)
+          CALL integrate_fbrk3( mesh, laddie, forcing, tl, time, dt)
         CASE ('lfra')
-          CALL integrate_lfra( mesh, laddie, tl, time, 2*dt)
+          CALL integrate_lfra( mesh, laddie, forcing, tl, time, 2*dt)
       END SELECT
 
       ! Write to output
@@ -237,13 +239,14 @@ CONTAINS
 
   end subroutine run_laddie_model_leg
 
-  SUBROUTINE initialise_laddie_model( mesh, laddie, ocean, ice, region_name)
+  SUBROUTINE initialise_laddie_model( mesh, laddie, forcing, ocean, ice, region_name)
     ! Initialise the laddie model
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(in   ) :: forcing
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     character(len=3),                       intent(in   ) :: region_name
@@ -260,30 +263,28 @@ CONTAINS
     ! Allocate variables
     CALL allocate_laddie_model( mesh, laddie)
 
-    call update_laddie_forcing( mesh, ice, ocean, laddie)
-
     ! == Update masks ==
-    call update_laddie_masks( mesh, laddie)
+    call update_laddie_masks( mesh, laddie, forcing)
 
     ! == Update operators ==
     CALL update_laddie_operators( mesh, laddie)
 
     ! Initialise requested timesteps
-    CALL initialise_laddie_model_timestep( mesh, laddie, laddie%now)
+    CALL initialise_laddie_model_timestep( mesh, laddie, forcing, laddie%now)
 
     SELECT CASE(C%choice_laddie_integration_scheme)
       CASE DEFAULT
         CALL crash('unknown choice_laddie_integration_scheme "' // TRIM( C%choice_laddie_integration_scheme) // '"')
       CASE ('euler')
-        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, forcing, laddie%np1)
       CASE ('fbrk3')
-        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np13)
-        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np12)
-        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, forcing, laddie%np13)
+        CALL initialise_laddie_model_timestep( mesh, laddie, forcing, laddie%np12)
+        CALL initialise_laddie_model_timestep( mesh, laddie, forcing, laddie%np1)
       CASE ('lfra')
         call crash('LeapFrog RobertAsselin scheme does not work yet, use euler or fbrk3')
-        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%nm1)
-        CALL initialise_laddie_model_timestep( mesh, laddie, laddie%np1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, forcing, laddie%nm1)
+        CALL initialise_laddie_model_timestep( mesh, laddie, forcing, laddie%np1)
     END SELECT
 
     ! Create output file
@@ -295,13 +296,14 @@ CONTAINS
 
   END SUBROUTINE initialise_laddie_model
 
-  SUBROUTINE initialise_laddie_model_timestep( mesh, laddie, npx)
+  SUBROUTINE initialise_laddie_model_timestep( mesh, laddie, forcing, npx)
     ! Initialise the laddie model for given timestep
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(in   ) :: forcing
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx
 
     ! Local variables:
@@ -330,7 +332,7 @@ CONTAINS
     call checksum( npx%H_c, 'npx%H_c', mesh%pai_E)
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, laddie, npx%H)
+    CALL compute_ambient_TS( mesh, laddie, forcing, npx%H)
 
     ! Initialise main T and S
     DO vi = mesh%vi1, mesh%vi2
@@ -347,13 +349,14 @@ CONTAINS
 
   END SUBROUTINE initialise_laddie_model_timestep
 
-  SUBROUTINE update_laddie_masks( mesh, laddie)
+  SUBROUTINE update_laddie_masks( mesh, laddie, forcing)
     ! Update bunch of masks for laddie at the start of a new run
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(in   ) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'update_laddie_masks'
@@ -368,14 +371,14 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_gr_a( vi) = .true.
-      ELSE IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) THEN
+      ELSE IF (forcing%Hi( vi) < 1.0 .and. forcing%mask_floating_ice( vi)) THEN
         laddie%mask_a( vi)    = .false.
         laddie%mask_oc_a( vi) = .true.
       ELSE
         ! Inherit regular masks
-        laddie%mask_a( vi)    = laddie%mask_floating_ice( vi)
-        laddie%mask_gr_a( vi) = laddie%mask_grounded_ice( vi) .OR. laddie%mask_icefree_land( vi)
-        laddie%mask_oc_a( vi) = laddie%mask_icefree_ocean( vi)
+        laddie%mask_a( vi)    = forcing%mask_floating_ice( vi)
+        laddie%mask_gr_a( vi) = forcing%mask_grounded_ice( vi) .OR. forcing%mask_icefree_land( vi)
+        laddie%mask_oc_a( vi) = forcing%mask_icefree_ocean( vi)
       END IF
 
       ! Define domain for area integration
@@ -490,13 +493,14 @@ CONTAINS
 
   END SUBROUTINE update_laddie_masks
 
-  SUBROUTINE extrapolate_laddie_variables( mesh, laddie)
+  SUBROUTINE extrapolate_laddie_variables( mesh, laddie, forcing)
     ! Update bunch of masks for laddie at the start of a new run
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(in   ) :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                         :: routine_name = 'extrapolate_laddie_variables'
@@ -517,13 +521,13 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) CYCLE
 
       IF (C%choice_calving_law == 'threshold_thickness') THEN
-        IF (laddie%Hi( vi) < C%calving_threshold_thickness_shelf .and. laddie%mask_floating_ice( vi)) CYCLE
+        IF (forcing%Hi( vi) < C%calving_threshold_thickness_shelf .and. forcing%mask_floating_ice( vi)) CYCLE
       ELSE
-        IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) CYCLE
+        IF (forcing%Hi( vi) < 1.0 .and. forcing%mask_floating_ice( vi)) CYCLE
       END IF
 
       ! Currently floating ice, so either seed or fill here
-      IF (laddie%mask_floating_ice( vi)) THEN
+      IF (forcing%mask_floating_ice( vi)) THEN
         IF (laddie%mask_a( vi)) THEN
           ! Data already available here, so use as seed
           mask( vi) = 2
@@ -556,13 +560,13 @@ CONTAINS
       IF (mesh%VBI( vi) > 0) CYCLE
 
       IF (C%choice_calving_law == 'threshold_thickness') THEN
-        IF (laddie%Hi( vi) < C%calving_threshold_thickness_shelf .and. laddie%mask_floating_ice( vi)) CYCLE
+        IF (forcing%Hi( vi) < C%calving_threshold_thickness_shelf .and. forcing%mask_floating_ice( vi)) CYCLE
       ELSE
-        IF (laddie%Hi( vi) < 1.0 .and. laddie%mask_floating_ice( vi)) CYCLE
+        IF (forcing%Hi( vi) < 1.0 .and. forcing%mask_floating_ice( vi)) CYCLE
       END IF
 
       ! Currently floating ice, so either seed or fill here
-      IF (laddie%mask_floating_ice( vi)) THEN
+      IF (forcing%mask_floating_ice( vi)) THEN
         IF (laddie%now%H( vi) == 0.0_dp) THEN
           laddie%now%H( vi) = C%laddie_thickness_minimum
           laddie%now%T( vi) = laddie%T_amb( vi) + C%laddie_initial_T_offset
@@ -579,7 +583,7 @@ CONTAINS
 
   END SUBROUTINE extrapolate_laddie_variables
 
-  SUBROUTINE remap_laddie_model( mesh_old, mesh_new, ice, ocean, laddie, time, region_name)
+  SUBROUTINE remap_laddie_model( mesh_old, mesh_new, ice, ocean, laddie, forcing, time, region_name)
     ! Reallocate and remap laddie variables
 
     ! In- and output variables
@@ -588,6 +592,7 @@ CONTAINS
     TYPE(type_ice_model),                   INTENT(IN)    :: ice
     TYPE(type_ocean_model),                 INTENT(IN)    :: ocean
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(inout) :: forcing
     REAL(dp),                               INTENT(IN)    :: time
     character(len=3),                       intent(in   ) :: region_name
 
@@ -602,34 +607,6 @@ CONTAINS
     ! Thickness
     call reallocate_dist_shared( laddie%dH_dt,          laddie%wdH_dt,          mesh_new%pai_V%n_nih)
     laddie%dH_dt         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%dH_dt
-
-    ! Forcing
-    call reallocate_dist_shared( laddie%Hi                , laddie%wHi                , mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%Hib               , laddie%wHib               , mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%dHib_dx_b         , laddie%wdHib_dx_b         , mesh_new%pai_Tri%n_nih)
-    call reallocate_dist_shared( laddie%dHib_dy_b         , laddie%wdHib_dy_b         , mesh_new%pai_Tri%n_nih)
-    call reallocate_dist_shared( laddie%mask_icefree_land , laddie%wmask_icefree_land , mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean, mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%mask_grounded_ice , laddie%wmask_grounded_ice , mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%mask_floating_ice , laddie%wmask_floating_ice , mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%mask_gl_fl        , laddie%wmask_gl_fl        , mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%mask_SGD          , laddie%wmask_SGD          , mesh_new%pai_V%n_nih)
-    call reallocate_dist_shared( laddie%Ti                , laddie%wTi                , mesh_new%pai_V%n_nih, mesh_new%nz)
-    call reallocate_dist_shared( laddie%T_ocean           , laddie%wT_ocean           , mesh_new%pai_V%n_nih, C%nz_ocean)
-    call reallocate_dist_shared( laddie%S_ocean           , laddie%wS_ocean           , mesh_new%pai_V%n_nih, C%nz_ocean)
-    laddie%Hi                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hi
-    laddie%Hib               ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hib
-    laddie%dHib_dx_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dx_b
-    laddie%dHib_dy_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dy_b
-    laddie%mask_icefree_land ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_land
-    laddie%mask_icefree_ocean( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_ocean
-    laddie%mask_grounded_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_grounded_ice
-    laddie%mask_floating_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_floating_ice
-    laddie%mask_gl_fl        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_gl_fl
-    laddie%mask_SGD          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_SGD
-    laddie%Ti                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:mesh_new%nz) => laddie%Ti
-    laddie%T_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%T_ocean
-    laddie%S_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%S_ocean
 
     ! Temperatures
     call reallocate_dist_shared( laddie%T_amb,          laddie%wT_amb,          mesh_new%pai_V%n_nih)
@@ -758,10 +735,8 @@ CONTAINS
     laddie%domain_a      ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%domain_a
     laddie%domain_b      ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih) => laddie%domain_b
 
-    call update_laddie_forcing( mesh_new, ice, ocean, laddie)
-
     ! == Re-initialise masks ==
-    CALL update_laddie_masks( mesh_new, laddie)
+    CALL update_laddie_masks( mesh_new, laddie, forcing)
 
     ! == Update operators ==
     CALL update_laddie_operators( mesh_new, laddie)
@@ -784,7 +759,7 @@ CONTAINS
     END SELECT
 
     ! == Re-initialise ==
-    CALL run_laddie_model( mesh_new, ice, ocean, laddie, time, .FALSE., region_name)
+    CALL run_laddie_model( mesh_new, ice, ocean, laddie, forcing, time, .FALSE., region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -889,60 +864,12 @@ CONTAINS
 
   END SUBROUTINE remap_laddie_timestep
 
-  subroutine update_laddie_forcing( mesh, ice, ocean, laddie)
+  subroutine repartition_laddie( mesh_old, mesh_new, laddie, forcing)
 
     ! In/output variables
-    type(type_mesh),         intent(in   ) :: mesh
-    type(type_ice_model),    intent(in   ) :: ice
-    type(type_ocean_model),  intent(in   ) :: ocean
-    type(type_laddie_model), intent(inout) :: laddie
-
-    ! Local variables:
-    character(len=1024), parameter :: routine_name = 'update_laddie_forcing'
-
-    ! Add routine to path
-    call init_routine( routine_name)
-
-    laddie%Hi                ( mesh%vi1:mesh%vi2  ) = ice%Hi                ( mesh%vi1:mesh%vi2  )
-    laddie%Hib               ( mesh%vi1:mesh%vi2  ) = ice%Hib               ( mesh%vi1:mesh%vi2  )
-    laddie%dHib_dx_b         ( mesh%ti1:mesh%ti2  ) = ice%dHib_dx_b         ( mesh%ti1:mesh%ti2  )
-    laddie%dHib_dy_b         ( mesh%ti1:mesh%ti2  ) = ice%dHib_dy_b         ( mesh%ti1:mesh%ti2  )
-    laddie%mask_icefree_land ( mesh%vi1:mesh%vi2  ) = ice%mask_icefree_land ( mesh%vi1:mesh%vi2  )
-    laddie%mask_icefree_ocean( mesh%vi1:mesh%vi2  ) = ice%mask_icefree_ocean( mesh%vi1:mesh%vi2  )
-    laddie%mask_grounded_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_grounded_ice ( mesh%vi1:mesh%vi2  )
-    laddie%mask_floating_ice ( mesh%vi1:mesh%vi2  ) = ice%mask_floating_ice ( mesh%vi1:mesh%vi2  )
-
-    laddie%mask_gl_fl        ( mesh%vi1:mesh%vi2  ) = ice%mask_gl_fl        ( mesh%vi1:mesh%vi2  )
-    laddie%mask_SGD          ( mesh%vi1:mesh%vi2  ) = ice%mask_SGD          ( mesh%vi1:mesh%vi2  )
-    
-    laddie%Ti                ( mesh%vi1:mesh%vi2,:) = ice%Ti                ( mesh%vi1:mesh%vi2,:) - 273.15 ! [degC]
-    laddie%T_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%T               ( mesh%vi1:mesh%vi2,:)
-    laddie%S_ocean           ( mesh%vi1:mesh%vi2,:) = ocean%S               ( mesh%vi1:mesh%vi2,:)
-
-    call checksum( laddie%Hi                , 'laddie%Hi'                , mesh%pai_V)
-    call checksum( laddie%Hib               , 'laddie%Hib'               , mesh%pai_V)
-    call checksum( laddie%dHib_dx_b         , 'laddie%dHib_dx_b'         , mesh%pai_Tri)
-    call checksum( laddie%dHib_dy_b         , 'laddie%dHib_dy_b'         , mesh%pai_Tri)
-    call checksum( laddie%mask_icefree_land , 'laddie%mask_icefree_land' , mesh%pai_V)
-    call checksum( laddie%mask_icefree_ocean, 'laddie%mask_icefree_ocean', mesh%pai_V)
-    call checksum( laddie%mask_grounded_ice , 'laddie%mask_grounded_ice' , mesh%pai_V)
-    call checksum( laddie%mask_floating_ice , 'laddie%mask_floating_ice' , mesh%pai_V)
-    call checksum( laddie%mask_gl_fl        , 'laddie%mask_gl_fl'        , mesh%pai_V)
-    call checksum( laddie%mask_SGD          , 'laddie%mask_SGD'          , mesh%pai_V)
-    call checksum( laddie%Ti                , 'laddie%Ti'                , mesh%pai_V)
-    call checksum( laddie%T_ocean           , 'laddie%T_ocean'           , mesh%pai_V)
-    call checksum( laddie%S_ocean           , 'laddie%S_ocean'           , mesh%pai_V)
-
-    ! Finalise routine path
-    call finalise_routine( routine_name)
-
-  end subroutine update_laddie_forcing
-
-  subroutine repartition_laddie( mesh_old, mesh_new, laddie)
-
-    ! In/output variables
-    type(type_mesh),         intent(in   ) :: mesh_old, mesh_new
-    type(type_laddie_model), intent(inout) :: laddie
+    type(type_mesh),           intent(in   ) :: mesh_old, mesh_new
+    type(type_laddie_model),   intent(inout) :: laddie
+    type(type_laddie_forcing), intent(inout) :: forcing
 
     ! Local variables:
     character(len=1024), parameter :: routine_name = 'repartition_laddie'
@@ -955,47 +882,47 @@ CONTAINS
     laddie%dH_dt         ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih  ) => laddie%dH_dt
 
     ! Forcing
-    call repartition( mesh_old, mesh_new, laddie%Hi                , laddie%wHi                )
-    call repartition( mesh_old, mesh_new, laddie%Hib               , laddie%wHib               )
-    call repartition( mesh_old, mesh_new, laddie%dHib_dx_b         , laddie%wdHib_dx_b         )
-    call repartition( mesh_old, mesh_new, laddie%dHib_dy_b         , laddie%wdHib_dy_b         )
-    call repartition( mesh_old, mesh_new, laddie%mask_icefree_land , laddie%wmask_icefree_land )
-    call repartition( mesh_old, mesh_new, laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean)
-    call repartition( mesh_old, mesh_new, laddie%mask_grounded_ice , laddie%wmask_grounded_ice )
-    call repartition( mesh_old, mesh_new, laddie%mask_floating_ice , laddie%wmask_floating_ice )
-    call repartition( mesh_old, mesh_new, laddie%mask_gl_fl        , laddie%wmask_gl_fl        )
-    call repartition( mesh_old, mesh_new, laddie%mask_SGD          , laddie%wmask_SGD          )
-    call repartition( mesh_old, mesh_new, laddie%Ti                , laddie%wTi                )
-    call repartition( mesh_old, mesh_new, laddie%T_ocean           , laddie%wT_ocean           )
-    call repartition( mesh_old, mesh_new, laddie%S_ocean           , laddie%wS_ocean           )
+    call repartition( mesh_old, mesh_new, forcing%Hi                , forcing%wHi                )
+    call repartition( mesh_old, mesh_new, forcing%Hib               , forcing%wHib               )
+    call repartition( mesh_old, mesh_new, forcing%dHib_dx_b         , forcing%wdHib_dx_b         )
+    call repartition( mesh_old, mesh_new, forcing%dHib_dy_b         , forcing%wdHib_dy_b         )
+    call repartition( mesh_old, mesh_new, forcing%mask_icefree_land , forcing%wmask_icefree_land )
+    call repartition( mesh_old, mesh_new, forcing%mask_icefree_ocean, forcing%wmask_icefree_ocean)
+    call repartition( mesh_old, mesh_new, forcing%mask_grounded_ice , forcing%wmask_grounded_ice )
+    call repartition( mesh_old, mesh_new, forcing%mask_floating_ice , forcing%wmask_floating_ice )
+    call repartition( mesh_old, mesh_new, forcing%mask_gl_fl        , forcing%wmask_gl_fl        )
+    call repartition( mesh_old, mesh_new, forcing%mask_SGD          , forcing%wmask_SGD          )
+    call repartition( mesh_old, mesh_new, forcing%Ti                , forcing%wTi                )
+    call repartition( mesh_old, mesh_new, forcing%T_ocean           , forcing%wT_ocean           )
+    call repartition( mesh_old, mesh_new, forcing%S_ocean           , forcing%wS_ocean           )
 
-    laddie%Hi                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hi
-    laddie%Hib               ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%Hib
-    laddie%dHib_dx_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dx_b
-    laddie%dHib_dy_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => laddie%dHib_dy_b
-    laddie%mask_icefree_land ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_land
-    laddie%mask_icefree_ocean( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_icefree_ocean
-    laddie%mask_grounded_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_grounded_ice
-    laddie%mask_floating_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_floating_ice
-    laddie%mask_gl_fl        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_gl_fl
-    laddie%mask_SGD          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => laddie%mask_SGD
-    laddie%Ti                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:mesh_new%nz) => laddie%Ti
-    laddie%T_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%T_ocean
-    laddie%S_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => laddie%S_ocean
+    forcing%Hi                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%Hi
+    forcing%Hib               ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%Hib
+    forcing%dHib_dx_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => forcing%dHib_dx_b
+    forcing%dHib_dy_b         ( mesh_new%pai_Tri%i1_nih:mesh_new%pai_Tri%i2_nih             ) => forcing%dHib_dy_b
+    forcing%mask_icefree_land ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%mask_icefree_land
+    forcing%mask_icefree_ocean( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%mask_icefree_ocean
+    forcing%mask_grounded_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%mask_grounded_ice
+    forcing%mask_floating_ice ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%mask_floating_ice
+    forcing%mask_gl_fl        ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%mask_gl_fl
+    forcing%mask_SGD          ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih               ) => forcing%mask_SGD
+    forcing%Ti                ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:mesh_new%nz) => forcing%Ti
+    forcing%T_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => forcing%T_ocean
+    forcing%S_ocean           ( mesh_new%pai_V%i1_nih  :mesh_new%pai_V%i2_nih, 1:C%nz_ocean ) => forcing%S_ocean
 
-    call checksum( laddie%Hi                , 'laddie%Hi'                , mesh_new%pai_V)
-    call checksum( laddie%Hib               , 'laddie%Hib'               , mesh_new%pai_V)
-    call checksum( laddie%dHib_dx_b         , 'laddie%dHib_dx_b'         , mesh_new%pai_Tri)
-    call checksum( laddie%dHib_dy_b         , 'laddie%dHib_dy_b'         , mesh_new%pai_Tri)
-    call checksum( laddie%mask_icefree_land , 'laddie%mask_icefree_land' , mesh_new%pai_V)
-    call checksum( laddie%mask_icefree_ocean, 'laddie%mask_icefree_ocean', mesh_new%pai_V)
-    call checksum( laddie%mask_grounded_ice , 'laddie%mask_grounded_ice' , mesh_new%pai_V)
-    call checksum( laddie%mask_floating_ice , 'laddie%mask_floating_ice' , mesh_new%pai_V)
-    call checksum( laddie%mask_gl_fl        , 'laddie%mask_gl_fl'        , mesh_new%pai_V)
-    call checksum( laddie%mask_SGD          , 'laddie%mask_SGD'          , mesh_new%pai_V)
-    call checksum( laddie%Ti                , 'laddie%Ti'                , mesh_new%pai_V)
-    call checksum( laddie%T_ocean           , 'laddie%T_ocean'           , mesh_new%pai_V)
-    call checksum( laddie%S_ocean           , 'laddie%S_ocean'           , mesh_new%pai_V)
+    call checksum( forcing%Hi                , 'forcing%Hi'                , mesh_new%pai_V)
+    call checksum( forcing%Hib               , 'forcing%Hib'               , mesh_new%pai_V)
+    call checksum( forcing%dHib_dx_b         , 'forcing%dHib_dx_b'         , mesh_new%pai_Tri)
+    call checksum( forcing%dHib_dy_b         , 'forcing%dHib_dy_b'         , mesh_new%pai_Tri)
+    call checksum( forcing%mask_icefree_land , 'forcing%mask_icefree_land' , mesh_new%pai_V)
+    call checksum( forcing%mask_icefree_ocean, 'forcing%mask_icefree_ocean', mesh_new%pai_V)
+    call checksum( forcing%mask_grounded_ice , 'forcing%mask_grounded_ice' , mesh_new%pai_V)
+    call checksum( forcing%mask_floating_ice , 'forcing%mask_floating_ice' , mesh_new%pai_V)
+    call checksum( forcing%mask_gl_fl        , 'forcing%mask_gl_fl'        , mesh_new%pai_V)
+    call checksum( forcing%mask_SGD          , 'forcing%mask_SGD'          , mesh_new%pai_V)
+    call checksum( forcing%Ti                , 'forcing%Ti'                , mesh_new%pai_V)
+    call checksum( forcing%T_ocean           , 'forcing%T_ocean'           , mesh_new%pai_V)
+    call checksum( forcing%S_ocean           , 'forcing%S_ocean'           , mesh_new%pai_V)
 
     ! Temperatures
     call repartition( mesh_old, mesh_new, laddie%T_amb         , laddie%wT_amb         )    ! [degC]          Temperature layer bottom

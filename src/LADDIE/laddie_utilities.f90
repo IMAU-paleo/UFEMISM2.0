@@ -12,6 +12,7 @@ MODULE laddie_utilities
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
+  use laddie_forcing_types, only: type_laddie_forcing
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE ocean_utilities                                        , ONLY: interpolate_ocean_depth
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
@@ -28,7 +29,7 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_ambient_TS( mesh, laddie, Hstar)
+  SUBROUTINE compute_ambient_TS( mesh, laddie, forcing, Hstar)
     ! Compute T and S of ambient ocean water at the depth of LADDIE's layer bottom
     ! through vertical interpolation
 
@@ -36,6 +37,7 @@ CONTAINS
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(in)    :: forcing
     REAL(dp), DIMENSION(mesh%pai_V%i1_nih:mesh%pai_V%i2_nih), INTENT(IN)    :: Hstar
 
     ! Local variables:
@@ -48,8 +50,8 @@ CONTAINS
     ! Get T and S at layer base
     DO vi = mesh%vi1, mesh%vi2
        IF (laddie%mask_a( vi)) THEN
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, laddie%T_ocean( vi,:), Hstar( vi) - laddie%Hib( vi), laddie%T_amb( vi))
-         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, laddie%S_ocean( vi,:), Hstar( vi) - laddie%Hib( vi), laddie%S_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, forcing%T_ocean( vi,:), Hstar( vi) - forcing%Hib( vi), laddie%T_amb( vi))
+         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, forcing%S_ocean( vi,:), Hstar( vi) - forcing%Hib( vi), laddie%S_amb( vi))
        END IF
     END DO
     call checksum( laddie%T_amb, 'laddie%T_amb', mesh%pai_V)
@@ -126,34 +128,6 @@ CONTAINS
     ! Thickness
     call allocate_dist_shared( laddie%dH_dt         , laddie%wdH_dt         , mesh%pai_V%n_nih  )    ! [m]             change
     laddie%dH_dt         ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih  ) => laddie%dH_dt
-
-    ! Forcing
-    call allocate_dist_shared( laddie%Hi                , laddie%wHi                , mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%Hib               , laddie%wHib               , mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%dHib_dx_b         , laddie%wdHib_dx_b         , mesh%pai_Tri%n_nih)
-    call allocate_dist_shared( laddie%dHib_dy_b         , laddie%wdHib_dy_b         , mesh%pai_Tri%n_nih)
-    call allocate_dist_shared( laddie%mask_icefree_land , laddie%wmask_icefree_land , mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%mask_icefree_ocean, laddie%wmask_icefree_ocean, mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%mask_grounded_ice , laddie%wmask_grounded_ice , mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%mask_floating_ice , laddie%wmask_floating_ice , mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%mask_gl_fl        , laddie%wmask_gl_fl        , mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%mask_SGD          , laddie%wmask_SGD          , mesh%pai_V%n_nih)
-    call allocate_dist_shared( laddie%Ti                , laddie%wTi                , mesh%pai_V%n_nih, mesh%nz)
-    call allocate_dist_shared( laddie%T_ocean           , laddie%wT_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
-    call allocate_dist_shared( laddie%S_ocean           , laddie%wS_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
-    laddie%Hi                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%Hi
-    laddie%Hib               ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%Hib
-    laddie%dHib_dx_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => laddie%dHib_dx_b
-    laddie%dHib_dy_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => laddie%dHib_dy_b
-    laddie%mask_icefree_land ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_icefree_land
-    laddie%mask_icefree_ocean( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_icefree_ocean
-    laddie%mask_grounded_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_grounded_ice
-    laddie%mask_floating_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_floating_ice
-    laddie%mask_gl_fl        ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_gl_fl
-    laddie%mask_SGD          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => laddie%mask_SGD
-    laddie%Ti                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:mesh%nz   ) => laddie%Ti
-    laddie%T_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%T_ocean
-    laddie%S_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => laddie%S_ocean
 
     ! Temperatures
     call allocate_dist_shared( laddie%T_amb         , laddie%wT_amb         , mesh%pai_V%n_nih  )    ! [degC]          Temperature layer bottom
@@ -327,6 +301,52 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE allocate_laddie_timestep
+
+  subroutine allocate_laddie_forcing( mesh, forcing)
+    ! Allocate variables of the laddie model
+
+    ! In- and output variables
+    type(type_mesh),                        intent(in)    :: mesh
+    type(type_laddie_forcing),              intent(inout) :: forcing
+
+    ! Local variables:
+    character(len=256), parameter                         :: routine_name = 'allocate_laddie_forcing'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Forcing
+    call allocate_dist_shared( forcing%Hi                , forcing%wHi                , mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%Hib               , forcing%wHib               , mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%dHib_dx_b         , forcing%wdHib_dx_b         , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( forcing%dHib_dy_b         , forcing%wdHib_dy_b         , mesh%pai_Tri%n_nih)
+    call allocate_dist_shared( forcing%mask_icefree_land , forcing%wmask_icefree_land , mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%mask_icefree_ocean, forcing%wmask_icefree_ocean, mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%mask_grounded_ice , forcing%wmask_grounded_ice , mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%mask_floating_ice , forcing%wmask_floating_ice , mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%mask_gl_fl        , forcing%wmask_gl_fl        , mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%mask_SGD          , forcing%wmask_SGD          , mesh%pai_V%n_nih)
+    call allocate_dist_shared( forcing%Ti                , forcing%wTi                , mesh%pai_V%n_nih, mesh%nz)
+    call allocate_dist_shared( forcing%T_ocean           , forcing%wT_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
+    call allocate_dist_shared( forcing%S_ocean           , forcing%wS_ocean           , mesh%pai_V%n_nih, C%nz_ocean)
+    forcing%Hi                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%Hi
+    forcing%Hib               ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%Hib
+    forcing%dHib_dx_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => forcing%dHib_dx_b
+    forcing%dHib_dy_b         ( mesh%pai_Tri%i1_nih:mesh%pai_Tri%i2_nih            ) => forcing%dHib_dy_b
+    forcing%mask_icefree_land ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%mask_icefree_land
+    forcing%mask_icefree_ocean( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%mask_icefree_ocean
+    forcing%mask_grounded_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%mask_grounded_ice
+    forcing%mask_floating_ice ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%mask_floating_ice
+    forcing%mask_gl_fl        ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%mask_gl_fl
+    forcing%mask_SGD          ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih              ) => forcing%mask_SGD
+    forcing%Ti                ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:mesh%nz   ) => forcing%Ti
+    forcing%T_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => forcing%T_ocean
+    forcing%S_ocean           ( mesh%pai_V%i1_nih  :mesh%pai_V%i2_nih, 1:C%nz_ocean) => forcing%S_ocean
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine allocate_laddie_forcing
 
 END MODULE laddie_utilities
 

@@ -12,6 +12,7 @@ module laddie_integration
   use parameters
   use mesh_types                                             , only: type_mesh
   use laddie_model_types                                     , only: type_laddie_model, type_laddie_timestep
+  use laddie_forcing_types, only: type_laddie_forcing
   use reallocate_mod                                         , only: reallocate_bounds
   use mesh_halo_exchange                                     , only: exchange_halos
   use laddie_thickness                                       , only: compute_H_npx
@@ -30,13 +31,14 @@ contains
 ! ===== Main routines =====
 ! =========================
 
-  subroutine integrate_euler( mesh, laddie, tl, time, dt)
+  subroutine integrate_euler( mesh, laddie, forcing, tl, time, dt)
     ! Integrate 1 timestep Euler scheme
 
     ! In- and output variables
 
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(inout) :: laddie
+    type(type_laddie_forcing),              intent(in)    :: forcing
     real(dp),                               intent(inout) :: tl
     real(dp),                               intent(in)    :: time
     real(dp),                               intent(in)    :: dt
@@ -48,16 +50,16 @@ contains
     call init_routine( routine_name)
 
     ! Integrate H 1 time step
-    call compute_H_npx( mesh, laddie, laddie%now, laddie%now, laddie%np1, time, dt)
+    call compute_H_npx( mesh, laddie, forcing, laddie%now, laddie%now, laddie%np1, time, dt)
 
     ! Update diffusive terms based on now time step
     call update_diffusive_terms( mesh, laddie, laddie%now)
 
     ! Integrate U and V 1 time step
-    call compute_UV_npx( mesh, laddie, laddie%now, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    call compute_UV_npx( mesh, laddie, forcing, laddie%now, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! Integrate T and S 1 time step
-    call compute_TS_npx( mesh, laddie, laddie%now, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    call compute_TS_npx( mesh, laddie, forcing, laddie%now, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! == Move time ==
     call move_laddie_timestep( mesh, laddie%np1, laddie%now, tl, dt, .true.)
@@ -67,7 +69,7 @@ contains
 
   end subroutine integrate_euler
 
-  subroutine integrate_fbrk3( mesh, laddie, tl, time, dt)
+  subroutine integrate_fbrk3( mesh, laddie, forcing, tl, time, dt)
     ! Integrate 1 timestep Forward-Backward Runge Kutta 3 scheme
 
     ! Based on Lilly et al (2023, MWR) doi:10.1175/MWR-D-23-0113.1
@@ -76,6 +78,7 @@ contains
 
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(inout) :: laddie
+    type(type_laddie_forcing),              intent(in)    :: forcing
     real(dp),                               intent(inout) :: tl
     real(dp),                               intent(in)    :: time
     real(dp),                               intent(in)    :: dt
@@ -92,7 +95,7 @@ contains
     ! ====================================
 
     ! Integrate H 1/3 time step
-    call compute_H_npx( mesh, laddie, laddie%now, laddie%now, laddie%np13, time, dt/3)
+    call compute_H_npx( mesh, laddie, forcing, laddie%now, laddie%now, laddie%np13, time, dt/3)
 
     ! Compute Hstar
     do vi = mesh%vi1, mesh%vi2
@@ -105,17 +108,17 @@ contains
     call update_diffusive_terms( mesh, laddie, laddie%now)
 
     ! Integrate U and V 1/3 time step
-    call compute_UV_npx( mesh, laddie, laddie%now, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
+    call compute_UV_npx( mesh, laddie, forcing, laddie%now, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
 
     ! Integrate T and S 1/3 time step
-    call compute_TS_npx( mesh, laddie, laddie%now, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
+    call compute_TS_npx( mesh, laddie, forcing, laddie%now, laddie%now, laddie%np13, laddie%Hstar, dt/3, .false.)
 
     ! == Stage 2: explicit 1/2 timestep ==
     ! == RHS terms defined at n + 1/3 ====
     ! ====================================
 
     ! Integrate H 1/2 time step
-    call compute_H_npx( mesh, laddie, laddie%np13, laddie%np13, laddie%np12, time, dt/2)
+    call compute_H_npx( mesh, laddie, forcing, laddie%np13, laddie%np13, laddie%np12, time, dt/2)
 
     ! Compute new Hstar
     do vi = mesh%vi1, mesh%vi2
@@ -128,17 +131,17 @@ contains
     !call update_diffusive_terms( mesh, laddie, laddie%np13)
 
     ! Integrate U and V 1/2 time step
-    call compute_UV_npx( mesh, laddie, laddie%np13, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
+    call compute_UV_npx( mesh, laddie, forcing, laddie%np13, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
 
     ! Integrate T and S 1/2 time step
-    call compute_TS_npx( mesh, laddie, laddie%np13, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
+    call compute_TS_npx( mesh, laddie, forcing, laddie%np13, laddie%np13, laddie%np12, laddie%Hstar, dt/2, .false.)
 
     ! == Stage 3: explicit 1 timestep ====
     ! == RHS terms defined at n + 1/2 ====
     ! ====================================
 
     ! Integrate H 1 time step
-    call compute_H_npx( mesh, laddie, laddie%np12, laddie%np12, laddie%np1, time, dt)
+    call compute_H_npx( mesh, laddie, forcing, laddie%np12, laddie%np12, laddie%np1, time, dt)
 
     ! Compute new Hstar
     do vi = mesh%vi1, mesh%vi2
@@ -151,10 +154,10 @@ contains
     !call update_diffusive_terms( mesh, laddie, laddie%np12)
 
     ! Integrate U and V 1 time step
-    call compute_UV_npx( mesh, laddie, laddie%np12, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
+    call compute_UV_npx( mesh, laddie, forcing, laddie%np12, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
 
     ! Integrate T and S 1 time step
-    call compute_TS_npx( mesh, laddie, laddie%np12, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
+    call compute_TS_npx( mesh, laddie, forcing, laddie%np12, laddie%np12, laddie%np1, laddie%Hstar, dt, .true.)
 
     ! ===============
     ! == Move time ==
@@ -165,13 +168,14 @@ contains
 
   end subroutine integrate_fbrk3
 
-  subroutine integrate_lfra( mesh, laddie, tl, time, dt)
+  subroutine integrate_lfra( mesh, laddie, forcing, tl, time, dt)
     ! Integrate 1 timestep Leap Frog scheme with Robert-Asselin filter
 
     ! In- and output variables
 
     type(type_mesh),                        intent(in)    :: mesh
     type(type_laddie_model),                intent(inout) :: laddie
+    type(type_laddie_forcing),              intent(in)    :: forcing
     real(dp),                               intent(inout) :: tl
     real(dp),                               intent(in)    :: time
     real(dp),                               intent(in)    :: dt
@@ -185,16 +189,16 @@ contains
     call init_routine( routine_name)
 
     ! Integrate H 1 time step
-    call compute_H_npx( mesh, laddie, laddie%nm1, laddie%now, laddie%np1, time, dt)
+    call compute_H_npx( mesh, laddie, forcing, laddie%nm1, laddie%now, laddie%np1, time, dt)
 
     ! Update diffusive terms based on previous time step
     call update_diffusive_terms( mesh, laddie, laddie%nm1)
 
     ! Integrate U and V 1 time step
-    call compute_UV_npx( mesh, laddie, laddie%nm1, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    call compute_UV_npx( mesh, laddie, forcing, laddie%nm1, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! Integrate T and S 1 time step
-    call compute_TS_npx( mesh, laddie, laddie%nm1, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
+    call compute_TS_npx( mesh, laddie, forcing, laddie%nm1, laddie%now, laddie%np1, laddie%now%H, dt, .true.)
 
     ! Apply time filter
     nu = C%laddie_lfra_nu

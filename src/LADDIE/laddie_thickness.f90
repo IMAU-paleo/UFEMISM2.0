@@ -12,6 +12,7 @@ MODULE laddie_thickness
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
+  use laddie_forcing_types, only: type_laddie_forcing
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   USE laddie_physics                                         , ONLY: compute_melt_rate, compute_entrainment, &
@@ -27,13 +28,14 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_H_npx( mesh, laddie, npx_old, npx_ref, npx_new, time, dt)
+  SUBROUTINE compute_H_npx( mesh, laddie, forcing, npx_old, npx_ref, npx_new, time, dt)
     ! Integrate H by time step dt
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(in)    :: forcing
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_old   ! Old time step
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_ref   ! Reference time step for RHS terms
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx_new   ! New timestep as output
@@ -50,19 +52,19 @@ CONTAINS
     CALL compute_divQH( mesh, laddie, npx_ref)
 
     ! Compute freezing temperature
-    CALL compute_freezing_temperature( mesh, laddie, npx_ref)
+    CALL compute_freezing_temperature( mesh, laddie, forcing, npx_ref)
 
     ! Initialise ambient T and S
-    CALL compute_ambient_TS( mesh, laddie, npx_ref%H)
+    CALL compute_ambient_TS( mesh, laddie, forcing, npx_ref%H)
 
     ! Compute buoyancy
     CALL compute_buoyancy( mesh, laddie, npx_ref, npx_ref%H)
 
     ! Compute melt rate
-    CALL compute_melt_rate( mesh, laddie, npx_ref, npx_ref%H, time)
+    CALL compute_melt_rate( mesh, laddie, forcing, npx_ref, npx_ref%H, time)
 
     ! Compute entrainment
-    CALL compute_entrainment( mesh, laddie, npx_ref, npx_ref%H)
+    CALL compute_entrainment( mesh, laddie, forcing, npx_ref, npx_ref%H)
 
     ! Do integration
     CALL integrate_H( mesh, laddie, npx_old, npx_new, dt)

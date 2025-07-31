@@ -12,6 +12,7 @@ MODULE laddie_tracers
   USE parameters
   USE mesh_types                                             , ONLY: type_mesh
   USE laddie_model_types                                     , ONLY: type_laddie_model, type_laddie_timestep
+  use laddie_forcing_types, only: type_laddie_forcing
   USE reallocate_mod                                         , ONLY: reallocate_bounds
   USE mpi_distributed_memory                                 , ONLY: gather_to_all
   use mesh_halo_exchange, only: exchange_halos
@@ -24,13 +25,14 @@ CONTAINS
 ! ===== Main routines =====
 ! =========================
 
-  SUBROUTINE compute_TS_npx( mesh, laddie, npx_old, npx_ref, npx_new, Hstar, dt, include_diffusive_terms)
+  SUBROUTINE compute_TS_npx( mesh, laddie, forcing, npx_old, npx_ref, npx_new, Hstar, dt, include_diffusive_terms)
     ! Integrate T and S by one time step
 
     ! In- and output variables
 
     TYPE(type_mesh),                        INTENT(IN)    :: mesh
     TYPE(type_laddie_model),                INTENT(INOUT) :: laddie
+    type(type_laddie_forcing),              intent(in)    :: forcing
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_old   ! Old time step
     TYPE(type_laddie_timestep),             INTENT(IN)    :: npx_ref   ! Reference time step for RHS terms
     TYPE(type_laddie_timestep),             INTENT(INOUT) :: npx_new   ! New timestep as output
@@ -61,7 +63,7 @@ CONTAINS
                + MAX(0.0_dp,laddie%entr( vi)) * laddie%T_amb( vi) &
                + laddie%entr_dmin( vi) * laddie%T_amb( vi) &
                - laddie%detr( vi) * npx_ref%T( vi) &
-               + laddie%SGD( vi) * (freezing_lambda_2 + freezing_lambda_3*laddie%Hib( vi))
+               + laddie%SGD( vi) * (freezing_lambda_2 + freezing_lambda_3*forcing%Hib( vi))
 
         ! Time-derivative salt equation
         dHSdt = -laddie%divQS( vi) &
