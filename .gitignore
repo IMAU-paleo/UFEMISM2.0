@@ -14,6 +14,10 @@ build/*
 /*.sh
 /*.csh
 
+# ...except for the compile scripts
+!compile_UFEMISM.csh
+!compile_UPSY.csh
+
 # Ignore output files
 result*/
 
