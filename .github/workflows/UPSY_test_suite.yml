@@ -36,7 +36,7 @@ jobs:
   # Run the unit tests and analyse the results
   run_unit_tests:
     needs: compile_and_cache_UPSY_dev_MacOS
-    uses: ./.github/workflows/UFE_test_suite_run_unit_tests.yml
+    uses: ./.github/workflows/UPSY_test_suite_run_unit_tests.yml
 
   # analyse_unit_tests:
   #   needs: [run_unit_tests, install_and_cache_Matlab]

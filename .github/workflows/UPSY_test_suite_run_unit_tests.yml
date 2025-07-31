@@ -24,14 +24,14 @@ jobs:
         uses: actions/cache/restore@v3
         id: UPSY_program_cache_restore
         with:
-          path: UPSY_program
-          key: UPSY_program_dev_${{ github.ref_name }}_${{ github.run_id }}
+          path: UPSY_unit_test_program
+          key: UPSY_unit_test_program_dev_${{ github.ref_name }}_${{ github.run_id }}
 
       - name: Run unit tests
-        run: mpiexec  -n 2  UPSY_program  unit_tests
+        run: mpiexec  -n 2  UPSY_unit_test_program  unit_tests
 
       # - name: Run multi-node unit tests
-      #   run: mpiexec  -n 7 --map-by :OVERSUBSCRIBE  UPSY_program  unit_tests_multinode
+      #   run: mpiexec  -n 7 --map-by :OVERSUBSCRIBE  UPSY_unit_test_program  unit_tests_multinode
 
       - name: Upload output as artifacts
         uses: actions/upload-artifact@v4.3.4
