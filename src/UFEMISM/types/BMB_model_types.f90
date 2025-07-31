@@ -7,6 +7,7 @@ MODULE BMB_model_types
 
   USE precisions                                             , ONLY: dp
   USE laddie_model_types                                     , ONLY: type_laddie_model
+  use laddie_forcing_types, only: type_laddie_forcing
   use reference_geometry_types, only: type_reference_geometry
 
   IMPLICIT NONE
@@ -47,7 +48,8 @@ MODULE BMB_model_types
     REAL(dp)                                :: t_next
 
     ! LADDIE
-    TYPE(type_laddie_model)                       :: laddie
+    type(type_laddie_model)                       :: laddie
+    type(type_laddie_forcing)                     :: forcing
 
     type(type_BMB_model_inverted) :: inv
 

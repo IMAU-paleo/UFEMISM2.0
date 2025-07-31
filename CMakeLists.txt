@@ -9,7 +9,10 @@ include( cmake/add_compiler_flags.cmake)
 # Collect UPSY/LADDIE/UFEMISM source files
 file( GLOB_RECURSE UPSY_sources_raw    "src/UPSY/*.f90")
 file( GLOB_RECURSE LADDIE_sources_raw  "src/LADDIE/*.f90")
+list(REMOVE_ITEM LADDIE_sources_raw "${CMAKE_SOURCE_DIR}/src/LADDIE/main/LADDIE_program.f90")
+
 file( GLOB_RECURSE UFEMISM_sources_raw "src/UFEMISM/*.f90")
+list(REMOVE_ITEM UFEMISM_sources_raw "${CMAKE_SOURCE_DIR}/src/UFEMISM/main/UFEMISM_program.f90")
 
 # Create static library for UPSY
 add_library( UPSY_static_library STATIC ${UPSY_sources_raw})

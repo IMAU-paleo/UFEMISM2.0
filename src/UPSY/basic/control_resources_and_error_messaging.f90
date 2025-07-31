@@ -185,9 +185,11 @@ CONTAINS
 
         ! Some exceptions where extra used MPI windows should not be interpreted as a memory leak
         if (index( routine_path, 'UFEMISM_program/initialise') == 0 .and. &
+            index( routine_path, 'LADDIE_program/initialise') == 0 .and. &
             index( routine_path, 'allocate_dist_shared') == 0 .and. &
             index( routine_path, 'UPSY_unit_tests_program') == 0 .and. &
             index( routine_path, 'run_all_unit_tests') == 0 .and. &
+            index( routine_path, 'run_laddie_unit_tests') == 0 .and. &
             index( routine_path, 'run_all_multinode_unit_tests') == 0 .and. &
             index( routine_path, 'run_all_component_tests') == 0) then
 
