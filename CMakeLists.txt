@@ -4,9 +4,9 @@ project(UFEMISM LANGUAGES Fortran)
 set(CMAKE_Fortran_STANDARD 2018)
 
 # Collect UPSY/LADDIE/UFEMISM source files
-file(GLOB_RECURSE UPSY_SOURCES    "external/UPSY/src/*.f90")
-file(GLOB_RECURSE LADDIE_SOURCES  "external/LADDIE/src/*.f90")
-file(GLOB_RECURSE UFEMISM_SOURCES "src/*.f90")
+file(GLOB_RECURSE UPSY_SOURCES    "src/UPSY/*.f90")
+file(GLOB_RECURSE LADDIE_SOURCES  "src/LADDIE/*.f90")
+file(GLOB_RECURSE UFEMISM_SOURCES "src/UFEMISM/*.f90")
 
 # Remove all *_configuration.f90 from LADDIE
 foreach(src ${LADDIE_SOURCES})
