@@ -38,7 +38,7 @@ jobs:
           git submodule update --init --remote
 
       - name: Compile UPSY
-        run: ./compile_UPSY.csh  dev  clean
+        run: ./compile_UFEMISM.csh  dev  clean
 
       - name: Cache UPSY program
         uses: actions/cache/save@v3

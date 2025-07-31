@@ -47,7 +47,7 @@ jobs:
           sudo apt-get install csh
 
       - name: Compile UPSY
-        run: csh compile_UPSY.csh  dev  clean
+        run: csh compile_UFEMISM.csh  dev  clean
 
       # - name: Cache UPSY program
       #   uses: actions/cache/save@v3
