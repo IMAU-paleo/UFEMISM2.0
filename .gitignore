@@ -1,4 +1,8 @@
-# Ignore the main executable
+# Ignore the executable
+UPSY_unit_test_program
+UPSY_unit_test_program_dev
+UPSY_unit_test_program_perf
+
 UFEMISM_program
 UFEMISM_program_dev
 UFEMISM_program_perf
@@ -9,6 +13,10 @@ build/*
 # Ignore scripts in main folder
 /*.sh
 /*.csh
+
+# ...except for the compile scripts
+!compile_UFEMISM.csh
+!compile_UPSY.csh
 
 # Ignore output files
 result*/

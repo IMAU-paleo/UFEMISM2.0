@@ -1,0 +1,40 @@
+name: UPSY Test Suite - run unit tests
+run-name: ${{ github.actor }} - UPSY Test Suite - run unit tests
+on:
+  workflow_call:
+
+jobs:
+  run_unit_tests:
+    runs-on: macos-latest
+    steps:
+
+      - name: Install packages with Homebrew   # Packages end up in /opt/homebrew/Cellar
+        run: |
+          #brew install gcc                    # Not needed on GitHub server, already installed
+          brew install open-mpi
+          brew install petsc
+          brew unlink hdf5-mpi                 # To fix the following conflict: "hdf5-mpi: because hdf5-mpi is a variant of hdf5, one can only use one or the other"
+          brew install netcdf
+          brew install netcdf-fortran
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Restore UPSY program from cache
+        uses: actions/cache/restore@v3
+        id: UPSY_program_cache_restore
+        with:
+          path: UPSY_unit_test_program
+          key: UPSY_unit_test_program_dev_${{ github.ref_name }}_${{ github.run_id }}
+
+      - name: Run unit tests
+        run: mpiexec  -n 2  UPSY_unit_test_program  unit_tests
+
+      # - name: Run multi-node unit tests
+      #   run: mpiexec  -n 7 --map-by :OVERSUBSCRIBE  UPSY_unit_test_program  unit_tests_multinode
+
+      - name: Upload output as artifacts
+        uses: actions/upload-artifact@v4.3.4
+        with:
+          name: results_unit_tests
+          path: automated_testing/unit_tests/results

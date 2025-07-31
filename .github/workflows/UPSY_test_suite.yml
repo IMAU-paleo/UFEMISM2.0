@@ -33,13 +33,13 @@ jobs:
   install_and_cache_Python:
     uses: ./.github/workflows/UPSY_test_suite_install_and_cache_Python.yml
 
-  # # Run the unit tests and analyse the results
-  # run_unit_tests:
-  #   needs: [compile_and_cache_UPSY_dev_MacOS, install_and_cache_Matlab]
-  #   uses: ./.github/workflows/UFE_test_suite_run_unit_tests.yml
+  # Run the unit tests and analyse the results
+  run_unit_tests:
+    needs: compile_and_cache_UPSY_dev_MacOS
+    uses: ./.github/workflows/UPSY_test_suite_run_unit_tests.yml
 
   # analyse_unit_tests:
-  #   needs: run_unit_tests
+  #   needs: [run_unit_tests, install_and_cache_Matlab]
   #   uses: ./.github/workflows/UFE_test_suite_analyse_unit_tests.yml
 
   # # Run the component tests and analyse the results
