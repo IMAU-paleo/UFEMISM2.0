@@ -18,7 +18,7 @@ MODULE mesh_parallel_creation
   USE mesh_utilities                                         , ONLY: list_border_vertices_west, list_border_vertices_east, list_border_vertices_south, &
                                                                      list_border_vertices_north, find_containing_triangle
   use split_border_edges, only: split_border_edge
-  use flip_triangles, only: flip_triangles_until_Delaunay
+  use flip_triangles, only: add_triangle_pairs_around_vertex_to_Delaunay_check_stack, flip_triangles_until_Delaunay
   use move_vertices, only: move_vertex
 
   IMPLICIT NONE
@@ -266,7 +266,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: V_border
     INTEGER                                       :: i, vi_left, vi_right
     INTEGER                                       :: nV_left, nV_right, nV_new, nTri_left, nTri_right, nTri_new
-    INTEGER                                       :: vi, ci, iti, ti, n, vj, nf, tj, cip1
+    INTEGER                                       :: vi, ci, iti, ti, n, vj, tj, cip1
     REAL(dp), DIMENSION(2)                        :: pa, pb, pc, VorGC
     REAL(dp)                                      :: VorTriA, sumVorTriA
 
@@ -408,22 +408,8 @@ CONTAINS
     DO i = 1, nvi_border_left
 
       vi = lvi_border_left( i)
-
-      nf = 0
-
-      DO iti = 1, mesh_left%niTri( vi)
-        ti = mesh_left%iTri( vi,iti)
-        DO n = 1, 3
-          tj = mesh_left%TriC( ti,n)
-          IF (tj > 0) THEN
-            nf = nf + 1
-            mesh_left%Tri_flip_list( nf,:) = [ti,tj]
-          END IF
-        END DO
-      END DO
-
-      ! Flip triangle pairs
-      CALL flip_triangles_until_Delaunay( mesh_left, nf)
+      call add_triangle_pairs_around_vertex_to_Delaunay_check_stack( mesh_left, vi)
+      CALL flip_triangles_until_Delaunay( mesh_left)
 
     END DO ! DO i = 1, nvi_border_left
 

@@ -63,21 +63,22 @@ contains
 
     call allocate_mesh_primary( mesh_new, trim(mesh%name) // '_repartitioned', mesh%nV, mesh%nTri)
 
-    mesh_new%V(                1:mesh%nV  ,:) = mesh%V(                1:mesh%nV  ,:)
-    mesh_new%nC(               1:mesh%nV    ) = mesh%nC(               1:mesh%nV    )
-    mesh_new%C(                1:mesh%nV  ,:) = mesh%C(                1:mesh%nV  ,:)
-    mesh_new%niTri(            1:mesh%nV    ) = mesh%niTri(            1:mesh%nV    )
-    mesh_new%iTri(             1:mesh%nV  ,:) = mesh%iTri(             1:mesh%nV  ,:)
-    mesh_new%VBI(              1:mesh%nV    ) = mesh%VBI(              1:mesh%nV    )
+    mesh_new%V(                    1:mesh%nV  ,:) = mesh%V(                    1:mesh%nV  ,:)
+    mesh_new%nC(                   1:mesh%nV    ) = mesh%nC(                   1:mesh%nV    )
+    mesh_new%C(                    1:mesh%nV  ,:) = mesh%C(                    1:mesh%nV  ,:)
+    mesh_new%niTri(                1:mesh%nV    ) = mesh%niTri(                1:mesh%nV    )
+    mesh_new%iTri(                 1:mesh%nV  ,:) = mesh%iTri(                 1:mesh%nV  ,:)
+    mesh_new%VBI(                  1:mesh%nV    ) = mesh%VBI(                  1:mesh%nV    )
 
-    mesh_new%Tri(              1:mesh%nTri,:) = mesh%Tri(              1:mesh%nTri,:)
-    mesh_new%Tricc(            1:mesh%nTri,:) = mesh%Tricc(            1:mesh%nTri,:)
-    mesh_new%TriC(             1:mesh%nTri,:) = mesh%TriC(             1:mesh%nTri,:)
+    mesh_new%Tri(                  1:mesh%nTri,:) = mesh%Tri(                  1:mesh%nTri,:)
+    mesh_new%Tricc(                1:mesh%nTri,:) = mesh%Tricc(                1:mesh%nTri,:)
+    mesh_new%TriC(                 1:mesh%nTri,:) = mesh%TriC(                 1:mesh%nTri,:)
 
-    mesh_new%Tri_flip_list(    1:mesh%nTri,:) = mesh%Tri_flip_list(    1:mesh%nTri,:)
-    mesh_new%refinement_map(   1:mesh%nTri  ) = mesh%refinement_map(   1:mesh%nTri  )
-    mesh_new%refinement_stack( 1:mesh%nTri  ) = mesh%refinement_stack( 1:mesh%nTri  )
-    mesh_new%Tri_li(           1:mesh%nTri,:) = mesh%Tri_li(           1:mesh%nTri,:)
+    mesh_new%check_Delaunay_map(   1:mesh%nTri,:) = mesh%check_Delaunay_map(   1:mesh%nTri,:)
+    mesh_new%check_Delaunay_stack( 1:mesh%nTri,:) = mesh%check_Delaunay_stack( 1:mesh%nTri,:)
+    mesh_new%refinement_map(       1:mesh%nTri  ) = mesh%refinement_map(       1:mesh%nTri  )
+    mesh_new%refinement_stack(     1:mesh%nTri  ) = mesh%refinement_stack(     1:mesh%nTri  )
+    mesh_new%Tri_li(               1:mesh%nTri,:) = mesh%Tri_li(               1:mesh%nTri,:)
 
     ! Gather masks
     call allocate_dist_shared( mask_active_a_tot, wmask_active_a_tot, mesh%nV)

@@ -12,37 +12,40 @@ module flip_triangles
 
   implicit none
 
-  logical :: do_debug = .false.
-
   private
 
-  public :: flip_triangles_until_Delaunay
+  public :: flip_triangles_until_Delaunay, add_triangle_pairs_around_triangle_to_Delaunay_check_stack, &
+    add_triangle_pairs_around_vertex_to_Delaunay_check_stack, initialise_Delaunay_check_stack, &
+    add_triangle_pair_to_Delaunay_check_stack
 
 contains
 
-  subroutine flip_triangles_until_Delaunay( mesh, nf)
+  subroutine flip_triangles_until_Delaunay( mesh)
     ! Iteratively flip triangle pairs until the local Delaunay
     ! criterion is satisfied everywhere
 
     ! In/output variables:
-    type(type_mesh),            intent(inout)     :: mesh
-    integer,                    intent(inout)     :: nf
+    type(type_mesh), intent(inout) :: mesh
 
     ! Local variables:
-    character(len=1024), parameter                :: routine_name = 'flip_triangles_until_Delaunay'
-    integer                                       :: ti, tj
-    logical                                       :: are_connected_ij, are_connected_ji
-    integer                                       :: n
+    character(len=1024), parameter :: routine_name = 'flip_triangles_until_Delaunay'
+    integer                        :: ti, ni, tj, nj
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    do while (nf > 0)
+    do while (mesh%check_Delaunay_stackN > 0)
 
-      ! Take the last triangle pair from the list
-      ti = mesh%Tri_flip_list( nf,1)
-      tj = mesh%Tri_flip_list( nf,2)
-      nf = nf - 1
+      ! Take the last triangle pair from the Delaunay checking stack
+      ti = mesh%check_Delaunay_stack( mesh%check_Delaunay_stackN,1)
+      ni = mesh%check_Delaunay_stack( mesh%check_Delaunay_stackN,2)
+      tj = mesh%check_Delaunay_stack( mesh%check_Delaunay_stackN,3)
+      nj = mesh%check_Delaunay_stack( mesh%check_Delaunay_stackN,4)
+
+      mesh%check_Delaunay_stack( mesh%check_Delaunay_stackN,:) = 0
+      mesh%check_Delaunay_stackN = mesh%check_Delaunay_stackN - 1
+      mesh%check_Delaunay_map( ti,ni) = .false.
+      mesh%check_Delaunay_map( tj,nj) = .false.
 
 #if (DO_ASSERTIONS)
       ! Safety - assert that ti and tj are valid triangles
@@ -50,37 +53,20 @@ contains
       call assert( test_ge_le( tj, 1, mesh%nTri), 'invalid value for tj')
 #endif
 
-      ! Check if these two triangles are still connected (they might have
-      ! become disconnected due to an earlier flip operation
-      are_connected_ij = .false.
-      are_connected_ji = .false.
-      do n = 1, 3
-        if (mesh%TriC( ti,n) == tj) are_connected_ij = .true.
-        if (mesh%TriC( tj,n) == ti) are_connected_ji = .true.
-      end do
-      if (.not. are_connected_ij .and. .not. are_connected_ij) then
-        ! These two triangles are no longer connected
-        cycle
-      elseif ((are_connected_ij .and. .not. are_connected_ji) .or. (.not. are_connected_ij .and. are_connected_ji)) then
-        ! Safety
-        call crash('inconsistency in TriC!')
+      ! If triangle pair [ti,tj does not meet the local Delaunay criterion,
+      ! flip them, and add mark the new resulting pairs for (re)checking
+      if (.not. are_Delaunay( mesh, ti, tj)) then
+        call flip_triangle_pair( mesh, ti, tj)
       end if
 
-      ! if they do not meet the local Delaunay criterion, flip them, and add
-      ! any new triangle pairs to the flip list
-      if (.not. are_Delaunay( mesh, ti, tj)) then
-        ! Flip them
-        call flip_triangle_pair( mesh, ti, tj, nf)
-      end if ! if .not. are_Delaunay( mesh, ti, tj)
-
-    end do ! while (nf>0)
+    end do
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine flip_triangles_until_Delaunay
 
-  subroutine flip_triangle_pair( mesh, ti, tj, nf)
+  subroutine flip_triangle_pair( mesh, ti, tj)
     ! Flip the triangle pair ti-tj, supposedly because it doesn't meet the
     ! local Delaunay criterion
     !
@@ -125,18 +111,17 @@ contains
     !   / \           / \           / \
 
     ! In/output variables:
-    type(type_mesh),            intent(inout)     :: mesh
-    integer,                    intent(in)        :: ti,tj
-    integer,                    intent(inout)     :: nf
+    type(type_mesh), intent(inout) :: mesh
+    integer,         intent(in   ) :: ti,tj
 
     ! Local variables:
-    character(len=1024), parameter                :: routine_name = 'flip_triangle_pair'
-    integer                                       :: n
-    integer                                       :: via, vib, vic, vid
-    integer                                       :: ci, iti
-    integer                                       :: tia, tib, tja, tjb, t1, t2
-    integer                                       :: li_min, li_max
-    logical                                       :: foundit
+    character(len=1024), parameter :: routine_name = 'flip_triangle_pair'
+    integer                        :: n
+    integer                        :: via, vib, vic, vid
+    integer                        :: ci, iti
+    integer                        :: tia, tib, tja, tjb, t1, t2
+    integer                        :: li_min, li_max
+    logical                        :: foundit
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -149,11 +134,11 @@ contains
     call assert( test_mesh_triangles_are_neighbours( mesh, ti, tj), 'ti and tj are not meighbours')
 #endif
 
+    call remove_triangle_pairs_around_ti_from_Delaunay_check_stack( mesh, ti)
+    call remove_triangle_pairs_around_ti_from_Delaunay_check_stack( mesh, tj)
+
     ! Determine the local geometry around triangle pair [ti,tj]
     call find_triangle_pair_local_geometry( mesh, ti, tj, via, vib, vic, vid, tia, tib, tja, tjb)
-
-    ! DENK DROM
-    if (do_debug) call warning('flipping triangles [{int_01}-{int_02}}]', int_01 = ti, int_02 = tj)
 
     ! == V, Tri
 
@@ -325,27 +310,181 @@ contains
     mesh%Tri_li( t1,:) = [li_min, li_max]
     mesh%Tri_li( t2,:) = [li_min, li_max]
 
-    ! Add the four new pairs to the flip list
-    if (tia > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [tia, t2]
-    end if
-    if (tib > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [tib, t1]
-    end if
-    if (tja > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [tja, t2]
-    end if
-    if (tjb > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [tjb, t1]
-    end if
+    ! Re-mark the changed triangle pairs for Delaunay checking
+    if (tia > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, tia, t2)
+    if (tib > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, tib, t1)
+    if (tja > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, tja, t2)
+    if (tjb > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, tjb, t1)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
   end subroutine flip_triangle_pair
+
+  subroutine remove_triangle_pairs_around_ti_from_Delaunay_check_stack( mesh, ti_remove)
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+    integer,         intent(in   ) :: ti_remove
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'remove_triangle_pairs_around_ti_from_Delaunay_check_stack'
+    integer                        :: i, ti, ni, tj, nj, j
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    i = 1
+    do while (i <= mesh%check_Delaunay_stackN)
+      if (mesh%check_Delaunay_stack( i,1) == ti_remove .or. &
+          mesh%check_Delaunay_stack( i,3) == ti_remove) then
+
+        ti = mesh%check_Delaunay_stack( i,1)
+        ni = mesh%check_Delaunay_stack( i,2)
+        tj = mesh%check_Delaunay_stack( i,3)
+        nj = mesh%check_Delaunay_stack( i,4)
+
+        ! Remove
+        do j = 1, 4
+          mesh%check_Delaunay_stack( :,j) = &
+            [mesh%check_Delaunay_stack( 1  :i-1      ,j), &
+             mesh%check_Delaunay_stack( i+1:mesh%nTri,j), &
+             0]
+        end do
+        mesh%check_Delaunay_stackN = mesh%check_Delaunay_stackN - 1
+
+        mesh%check_Delaunay_map( ti,ni) = .false.
+        mesh%check_Delaunay_map( tj,nj) = .false.
+
+      else
+        i = i+1
+      end if
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine remove_triangle_pairs_around_ti_from_Delaunay_check_stack
+
+  subroutine add_triangle_pairs_around_vertex_to_Delaunay_check_stack( mesh, vi)
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+    integer,         intent(in   ) :: vi
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'add_triangle_pairs_around_vertex_to_Delaunay_check_stack'
+    integer                        :: iti, ti
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do iti = 1, mesh%niTri( vi)
+      ti = mesh%iTri( vi,iti)
+      call add_triangle_pairs_around_triangle_to_Delaunay_check_stack( mesh, ti)
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine add_triangle_pairs_around_vertex_to_Delaunay_check_stack
+
+  subroutine add_triangle_pairs_around_triangle_to_Delaunay_check_stack( mesh, ti)
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+    integer,         intent(in   ) :: ti
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'add_triangle_pairs_around_triangle_to_Delaunay_check_stack'
+    integer                        :: n, tj
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do n = 1, 3
+      tj = mesh%TriC( ti,n)
+      if (tj > 0) then
+        call add_triangle_pair_to_Delaunay_check_stack( mesh, ti, tj)
+      end if
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine add_triangle_pairs_around_triangle_to_Delaunay_check_stack
+
+  subroutine add_triangle_pair_to_Delaunay_check_stack( mesh, ti, tj)
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+    integer,         intent(in   ) :: ti, tj
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'add_triangle_pair_to_Delaunay_check_stack'
+    logical                        :: found_it
+    integer                        :: n, ni, nj
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    ! Find ni such that TriC( ti,ni) = tj
+    found_it = .false.
+    ni = 0
+    do n = 1, 3
+      if (mesh%TriC( ti,n) == tj) then
+        found_it = .true.
+        ni = n
+        exit
+      end if
+    end do
+    if (.not. found_it) call crash('couldnt find connection from ti to tj')
+
+    ! Find nj such that TriC( tj,nj) = ti
+    found_it = .false.
+    nj = 0
+    do n = 1, 3
+      if (mesh%TriC( tj,n) == ti) then
+        found_it = .true.
+        nj = n
+        exit
+      end if
+    end do
+    if (.not. found_it) call crash('couldnt find connection from tj to ti')
+
+    ! If this pair has not yet been checked and is not yet marked for checking,
+    ! add it to the to-be-checked stack
+    if (.not. mesh%check_Delaunay_map( ti,ni)) then
+      mesh%check_Delaunay_stackN = mesh%check_Delaunay_stackN + 1;
+      mesh%check_Delaunay_stack( mesh%check_Delaunay_stackN,:) = [ti,ni,tj,nj]
+
+      mesh%check_Delaunay_map( ti,ni) = .true.
+      mesh%check_Delaunay_map( tj,nj) = .true.
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine add_triangle_pair_to_Delaunay_check_stack
+
+  subroutine initialise_Delaunay_check_stack( mesh)
+
+    ! In/output variables:
+    type(type_mesh), intent(inout) :: mesh
+
+    ! Local variables:
+    character(len=1024), parameter :: routine_name = 'initialise_Delaunay_check_stack'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    mesh%check_Delaunay_map    = .false.
+    mesh%check_Delaunay_stack  = 0
+    mesh%check_Delaunay_stackN = 0
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine initialise_Delaunay_check_stack
 
 end module flip_triangles

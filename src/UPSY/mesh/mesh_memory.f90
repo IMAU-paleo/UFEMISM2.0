@@ -41,19 +41,20 @@ CONTAINS
     mesh%nTri_mem = nTri_mem
 
     ! Safety: check to make sure that no memory is allocated for this mesh yet
-    IF (ALLOCATED( mesh%V               ) .OR. &
-        ALLOCATED( mesh%nC              ) .OR. &
-        ALLOCATED( mesh%C               ) .OR. &
-        ALLOCATED( mesh%niTri           ) .OR. &
-        ALLOCATED( mesh%iTri            ) .OR. &
-        ALLOCATED( mesh%VBI             ) .OR. &
-        ALLOCATED( mesh%Tri             ) .OR. &
-        ALLOCATED( mesh%Tricc           ) .OR. &
-        ALLOCATED( mesh%TriC            ) .OR. &
-        ALLOCATED( mesh%Tri_flip_list   ) .OR. &
-        ALLOCATED( mesh%refinement_map  ) .OR. &
-        ALLOCATED( mesh%refinement_stack) .OR. &
-        ALLOCATED( mesh%Tri_li          )) THEN
+    IF (ALLOCATED( mesh%V                   ) .OR. &
+        ALLOCATED( mesh%nC                  ) .OR. &
+        ALLOCATED( mesh%C                   ) .OR. &
+        ALLOCATED( mesh%niTri               ) .OR. &
+        ALLOCATED( mesh%iTri                ) .OR. &
+        ALLOCATED( mesh%VBI                 ) .OR. &
+        ALLOCATED( mesh%Tri                 ) .OR. &
+        ALLOCATED( mesh%Tricc               ) .OR. &
+        ALLOCATED( mesh%TriC                ) .OR. &
+        ALLOCATED( mesh%check_Delaunay_map  ) .OR. &
+        ALLOCATED( mesh%check_Delaunay_stack) .OR. &
+        ALLOCATED( mesh%refinement_map      ) .OR. &
+        ALLOCATED( mesh%refinement_stack    ) .OR. &
+        ALLOCATED( mesh%Tri_li              )) THEN
       CALL crash('memory is already allocated for mesh "' // TRIM( name) // '"!')
     END IF
 
@@ -61,24 +62,26 @@ CONTAINS
     ! ===============
 
     ! Vertex data
-    ALLOCATE( mesh%V                (nV_mem,   2          ), source = 0._dp)
-    ALLOCATE( mesh%nC               (nV_mem               ), source = 0    )
-    ALLOCATE( mesh%C                (nV_mem,   mesh%nC_mem), source = 0    )
-    ALLOCATE( mesh%niTri            (nV_mem               ), source = 0    )
-    ALLOCATE( mesh%iTri             (nV_mem,   mesh%nC_mem), source = 0    )
-    ALLOCATE( mesh%VBI              (nV_mem               ), source = 0    )
+    ALLOCATE( mesh%V                   (nV_mem,   2          ), source = 0._dp  )
+    ALLOCATE( mesh%nC                  (nV_mem               ), source = 0      )
+    ALLOCATE( mesh%C                   (nV_mem,   mesh%nC_mem), source = 0      )
+    ALLOCATE( mesh%niTri               (nV_mem               ), source = 0      )
+    ALLOCATE( mesh%iTri                (nV_mem,   mesh%nC_mem), source = 0      )
+    ALLOCATE( mesh%VBI                 (nV_mem               ), source = 0      )
 
     ! Triangle data
-    ALLOCATE( mesh%Tri              (nTri_mem, 3     ), source = 0    )
-    ALLOCATE( mesh%Tricc            (nTri_mem, 2     ), source = 0._dp)
-    ALLOCATE( mesh%TriC             (nTri_mem, 3     ), source = 0    )
+    ALLOCATE( mesh%Tri                 (nTri_mem, 3          ), source = 0      )
+    ALLOCATE( mesh%Tricc               (nTri_mem, 2          ), source = 0._dp  )
+    ALLOCATE( mesh%TriC                (nTri_mem, 3          ), source = 0      )
 
     ! Mesh generation/refinement data
-    ALLOCATE( mesh%Tri_flip_list    (nTri_mem*2, 2   ), source = 0    )
-    ALLOCATE( mesh%refinement_map   (nTri_mem        ), source = 0    )
-    ALLOCATE( mesh%refinement_stack (nTri_mem        ), source = 0    )
+    allocate( mesh%check_Delaunay_map  (nTri_mem, 3          ), source = .false.)
+    allocate( mesh%check_Delaunay_stack(nTri_mem, 4          ), source = 0      )
+    mesh%check_Delaunay_stackN = 0
+    ALLOCATE( mesh%refinement_map      (nTri_mem             ), source = 0      )
+    ALLOCATE( mesh%refinement_stack    (nTri_mem             ), source = 0      )
     mesh%refinement_stackN = 0
-    ALLOCATE( mesh%Tri_li           (nTri_mem, 2     ), source = 0    )
+    ALLOCATE( mesh%Tri_li              (nTri_mem, 2          ), source = 0      )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -105,23 +108,24 @@ CONTAINS
     mesh%nTri_mem = nTri_mem_new
 
     ! Vertex data
-    CALL reallocate( mesh%V               , nV_mem_new  , 2          )
-    CALL reallocate( mesh%nC              , nV_mem_new               )
-    CALL reallocate( mesh%C               , nV_mem_new  , mesh%nC_mem)
-    CALL reallocate( mesh%niTri           , nV_mem_new               )
-    CALL reallocate( mesh%iTri            , nV_mem_new  , mesh%nC_mem)
-    CALL reallocate( mesh%VBI             , nV_mem_new               )
+    CALL reallocate( mesh%V                   , nV_mem_new  , 2          )
+    CALL reallocate( mesh%nC                  , nV_mem_new               )
+    CALL reallocate( mesh%C                   , nV_mem_new  , mesh%nC_mem)
+    CALL reallocate( mesh%niTri               , nV_mem_new               )
+    CALL reallocate( mesh%iTri                , nV_mem_new  , mesh%nC_mem)
+    CALL reallocate( mesh%VBI                 , nV_mem_new               )
 
     ! Triangle data
-    CALL reallocate( mesh%Tri             , nTri_mem_new, 3          )
-    CALL reallocate( mesh%Tricc           , nTri_mem_new, 2          )
-    CALL reallocate( mesh%TriC            , nTri_mem_new, 3          )
+    CALL reallocate( mesh%Tri                 , nTri_mem_new, 3          )
+    CALL reallocate( mesh%Tricc               , nTri_mem_new, 2          )
+    CALL reallocate( mesh%TriC                , nTri_mem_new, 3          )
 
     ! Mesh generation/refinement data
-    CALL reallocate( mesh%Tri_flip_list   , nTri_mem_new*2, 2        )
-    CALL reallocate( mesh%refinement_map  , nTri_mem_new             )
-    CALL reallocate( mesh%refinement_stack, nTri_mem_new             )
-    CALL reallocate( mesh%Tri_li          , nTri_mem_new, 2          )
+    CALL reallocate( mesh%check_Delaunay_map  , nTri_mem_new, 3          )
+    CALL reallocate( mesh%check_Delaunay_stack, nTri_mem_new, 4          )
+    CALL reallocate( mesh%refinement_map      , nTri_mem_new             )
+    CALL reallocate( mesh%refinement_stack    , nTri_mem_new             )
+    CALL reallocate( mesh%Tri_li              , nTri_mem_new, 2          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -162,15 +166,16 @@ CONTAINS
       mesh%nTri_mem = mesh%nTri
 
       ! Triangle data
-      CALL reallocate( mesh%Tri             , mesh%nTri, 3          )
-      CALL reallocate( mesh%Tricc           , mesh%nTri, 2          )
-      CALL reallocate( mesh%TriC            , mesh%nTri, 3          )
+      CALL reallocate( mesh%Tri                 , mesh%nTri, 3          )
+      CALL reallocate( mesh%Tricc               , mesh%nTri, 2          )
+      CALL reallocate( mesh%TriC                , mesh%nTri, 3          )
 
       ! Mesh generation/refinement data
-      CALL reallocate( mesh%Tri_flip_list   , mesh%nTri*2, 2        )
-      CALL reallocate( mesh%refinement_map  , mesh%nTri             )
-      CALL reallocate( mesh%refinement_stack, mesh%nTri             )
-      CALL reallocate( mesh%Tri_li          , mesh%nTri, 2          )
+      CALL reallocate( mesh%check_Delaunay_map  , mesh%nTri, 3          )
+      CALL reallocate( mesh%check_Delaunay_stack, mesh%nTri, 4          )
+      CALL reallocate( mesh%refinement_map      , mesh%nTri             )
+      CALL reallocate( mesh%refinement_stack    , mesh%nTri             )
+      CALL reallocate( mesh%Tri_li              , mesh%nTri, 2          )
 
     END IF ! IF (mesh%nTri_mem > mesh%nTri) THEN
 
@@ -218,10 +223,11 @@ CONTAINS
     ! Refinement data
     ! ===============
 
-    IF (ALLOCATED( mesh%Tri_flip_list   )) DEALLOCATE( mesh%Tri_flip_list   )
-    IF (ALLOCATED( mesh%refinement_map  )) DEALLOCATE( mesh%refinement_map  )
-    IF (ALLOCATED( mesh%refinement_stack)) DEALLOCATE( mesh%refinement_stack)
-    IF (ALLOCATED( mesh%Tri_li          )) DEALLOCATE( mesh%Tri_li          )
+    if( allocated( mesh%check_Delaunay_map  )) deallocate( mesh%check_Delaunay_map  )
+    if( allocated( mesh%check_Delaunay_stack)) deallocate( mesh%check_Delaunay_stack)
+    IF (ALLOCATED( mesh%refinement_map      )) DEALLOCATE( mesh%refinement_map      )
+    IF (ALLOCATED( mesh%refinement_stack    )) DEALLOCATE( mesh%refinement_stack    )
+    IF (ALLOCATED( mesh%Tri_li              )) DEALLOCATE( mesh%Tri_li              )
 
     ! Secondary mesh data (everything that can be calculated after mesh creation is finished)
     ! =======================================================================================

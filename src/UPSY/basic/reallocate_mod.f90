@@ -17,6 +17,7 @@ module reallocate_mod
     procedure :: reallocate_int_2D
     procedure :: reallocate_int8_1D
     procedure :: reallocate_logical_1D
+    procedure :: reallocate_logical_2D
   end interface
 
   interface reallocate_bounds
@@ -171,6 +172,30 @@ contains
     call move_alloc( newarray, array)
 
   end subroutine reallocate_logical_1D
+
+  subroutine reallocate_logical_2D( array, newx, newy, source)
+    ! allocate, swap pointer (bonus: implicit deallocate)
+
+    logical,  allocatable, dimension(:,:), intent(inout) :: array
+    integer                              , intent(in)    :: newx
+    integer                              , intent(in)    :: newy
+    logical,               optional,       intent(in)    :: source
+
+    logical,  allocatable, dimension(:,:) :: newarray
+    logical                               :: source_
+
+    if (present(source)) then
+      source_ = source
+    else
+      source_ = 0
+    end if
+
+    allocate( newarray( newx,newy), source = source_)
+    newarray( 1: min( newx,size( array,1)),1: min( newy,size( array,2))) &
+        = array(1: min( newx,size( array,1)),1: min( newy,size( array,2)))
+    call move_alloc( newarray, array)
+
+  end subroutine reallocate_logical_2D
 
   subroutine reallocate_bounds_dp_1D( array,start,stop)
     ! allocate, swap pointer (bonus: implicit deallocate)
