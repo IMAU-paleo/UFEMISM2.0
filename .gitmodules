@@ -1,6 +1,3 @@
-[submodule "external/UPSY"]
-	path = external/UPSY
-	url = https://github.com/IMAU-paleo/UPSY.git
 [submodule "external/data"]
 	path = external/data
 	url = https://github.com/IMAU-paleo/data.git
