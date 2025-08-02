@@ -5,7 +5,8 @@ module move_vertices
   use precisions, only: dp
   use control_resources_and_error_messaging, only: init_routine, finalise_routine
   use mesh_types, only: type_mesh
-  use flip_triangles, only: flip_triangles_until_Delaunay
+  use flip_triangles, only: initialise_Delaunay_check_stack, &
+    add_triangle_pairs_around_vertex_to_Delaunay_check_stack, flip_triangles_until_Delaunay
   use mesh_utilities, only: update_triangle_circumcenter
 
   implicit none
@@ -26,7 +27,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter                 :: routine_name = 'move_vertex'
-    integer                                       :: nf, iti, ti, n, tj
+    integer                                       :: iti, ti
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -41,21 +42,9 @@ contains
     end do
 
     ! Update triangulation
-    mesh%Tri_flip_list = 0
-    nf = 0
-
-    do iti = 1, mesh%niTri( vi)
-      ti = mesh%iTri( vi,iti)
-      do n = 1, 3
-        tj = mesh%TriC( ti,n)
-        if (tj > 0) then
-          nf = nf + 1
-          mesh%Tri_flip_list( nf,:) = [ti,tj]
-        end if
-      end do
-    end do
-
-    call flip_triangles_until_Delaunay( mesh, nf)
+    call initialise_Delaunay_check_stack( mesh)
+    call add_triangle_pairs_around_vertex_to_Delaunay_check_stack( mesh, vi)
+    call flip_triangles_until_Delaunay( mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

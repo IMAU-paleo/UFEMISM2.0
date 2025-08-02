@@ -9,11 +9,10 @@ module split_border_edges
   use mesh_types, only: type_mesh
   use plane_geometry, only: lies_on_line_segment
   use mesh_utilities, only: is_border_edge, update_triangle_circumcenter, add_triangle_to_refinement_stack_last
-  use flip_triangles, only: flip_triangles_until_Delaunay
+  use flip_triangles, only: initialise_Delaunay_check_stack, &
+    add_triangle_pair_to_Delaunay_check_stack, flip_triangles_until_Delaunay
 
   implicit none
-
-  logical :: do_debug = .false.
 
   private
 
@@ -84,9 +83,6 @@ contains
 
     ! Split the triangle ti adjacent to borderedge [vi,vj] into two new ones
     ! ======================================================================
-
-    ! DENK DROM
-    if (do_debug) call warning('splitting border edge [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
 
     ! == Find the local neighbourhood of vertices and triangles
 
@@ -275,21 +271,12 @@ contains
     ! list by flip_triangle_pairs, making sure the loop runs until all flip
     ! operations have been done.
 
-    mesh%Tri_flip_list( :,:) = 0
-    nf = 0
+    call initialise_Delaunay_check_stack( mesh)
 
-    if (tia > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t2, tia]
-    end if
-    if (tib > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t1, tib]
-    end if
+    if (tia > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t2, tia)
+    if (tib > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t1, tib)
 
-    ! Iteratively flip triangle pairs until the local Delaunay
-    ! criterion is satisfied everywhere
-    call flip_triangles_until_Delaunay( mesh, nf)
+    call flip_triangles_until_Delaunay( mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

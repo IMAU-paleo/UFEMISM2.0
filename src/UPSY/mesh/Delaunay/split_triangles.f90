@@ -5,6 +5,7 @@ module split_triangles
   use tests_main
   use assertions_basic
   use precisions, only: dp
+  use mpi_basic, only: par
   use control_resources_and_error_messaging, only: init_routine, finalise_routine, warning, crash
   use mesh_types, only: type_mesh
   use plane_geometry, only: lies_on_line_segment
@@ -12,11 +13,10 @@ module split_triangles
     update_triangle_circumcenter, add_triangle_to_refinement_stack_last
   use split_edges, only: split_edge
   use split_border_edges, only: split_border_edge
-  use flip_triangles, only: flip_triangles_until_Delaunay
+  use flip_triangles, only: initialise_Delaunay_check_stack, &
+    add_triangle_pair_to_Delaunay_check_stack, flip_triangles_until_Delaunay
 
   implicit none
-
-  logical :: do_debug = .false.
 
 contains
 
@@ -77,7 +77,7 @@ contains
     character(len=1024), parameter :: routine_name = 'split_triangle'
     logical                        :: isso
     real(dp), dimension(2)         :: p
-    integer                        :: ci, iti, n, nf, t1, t2, t3, ti, tia, tib, tic
+    integer                        :: ci, iti, n, t1, t2, t3, ti, tia, tib, tic
     real(dp), dimension(2)         :: va, vb, vc
     integer                        :: vi, via, vib, vic, vik, vj
     integer                        :: li_min, li_max
@@ -124,9 +124,6 @@ contains
 
     ! == Split the triangle ti into three new ones
     ! ============================================
-
-    ! DENK DROM
-    if (do_debug) call warning('splitting triangle {int_01}', int_01 = ti)
 
     ! == V, Tri
 
@@ -285,25 +282,13 @@ contains
     ! list by flip_triangle_pairs, making sure the loop runs until all flip
     ! operations have been done.
 
-    mesh%Tri_flip_list( :,:) = 0
-    nf = 0
+    call initialise_Delaunay_check_stack( mesh)
 
-    if (tia > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t2, tia]
-    end if
-    if (tib > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t1, tib]
-    end if
-    if (tic > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t3, tic]
-    end if
+    if (tia > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t2, tia)
+    if (tib > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t1, tib)
+    if (tic > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t3, tic)
 
-    ! Iteratively flip triangle pairs until the local Delaunay
-    ! criterion is satisfied everywhere
-    call flip_triangles_until_Delaunay( mesh, nf)
+    call flip_triangles_until_Delaunay( mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)

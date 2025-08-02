@@ -10,11 +10,10 @@ module split_edges
   use plane_geometry, only: lies_on_line_segment
   use mesh_utilities, only: is_border_edge, update_triangle_circumcenter, add_triangle_to_refinement_stack_last
   use split_border_edges, only: split_border_edge
-  use flip_triangles, only: flip_triangles_until_Delaunay
+  use flip_triangles, only: initialise_Delaunay_check_stack, &
+    add_triangle_pair_to_Delaunay_check_stack, flip_triangles_until_Delaunay
 
   implicit none
-
-  logical :: do_debug = .false.
 
   private
 
@@ -73,7 +72,7 @@ contains
 
     ! Local variables:
     character(len=256), parameter :: routine_name = 'split_edge'
-    integer                       :: ci, iti, n, n1, n2, n3, nf
+    integer                       :: ci, iti, n, n1, n2, n3
     real(dp), dimension(2)        :: p, pa, pb
     integer                       :: t1, t2, t3, t4, ti, tit, tib, titl, titr, tibl, tibr, vib, vit, vk
     integer                       :: li_min, li_max
@@ -105,9 +104,6 @@ contains
 
     ! Split the triangles t_top and t_bot adjacent to line [vi,vj] into four new ones
     ! ===============================================================================
-
-    ! DENK DROM
-    if (do_debug) call warning('splitting line [{int_01}-{int_02}}]', int_01 = vi, int_02 = vj)
 
     ! == Find the local neighbourhood of vertices and triangles
 
@@ -370,29 +366,14 @@ contains
     ! list by flip_triangle_pairs, making sure the loop runs until all flip
     ! operations have been done.
 
-    mesh%Tri_flip_list( :,:) = 0
-    nf = 0
+    call initialise_Delaunay_check_stack( mesh)
 
-    if (titl > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t1, titl]
-    end if
-    if (titr > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t2, titr]
-    end if
-    if (tibl > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t3, tibl]
-    end if
-    if (tibr > 0) then
-      nf = nf + 1
-      mesh%Tri_flip_list( nf,:) = [t4, tibr]
-    end if
+    if (titl > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t1, titl)
+    if (titr > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t2, titr)
+    if (tibl > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t3, tibl)
+    if (tibr > 0) call add_triangle_pair_to_Delaunay_check_stack( mesh, t4, tibr)
 
-    ! Iteratively flip triangle pairs until the local Delaunay
-    ! criterion is satisfied everywhere
-    call flip_triangles_until_Delaunay( mesh, nf)
+    call flip_triangles_until_Delaunay( mesh)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
