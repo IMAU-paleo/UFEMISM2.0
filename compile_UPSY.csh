@@ -106,16 +106,24 @@ cd ..
 if ($version == 'dev') then
 
   rm -f UPSY_unit_test_program_dev
+  rm -f UPSY_component_test_program_dev
   mv build/UPSY_unit_test_program UPSY_unit_test_program_dev
+  mv build/UPSY_component_test_program UPSY_component_test_program_dev
   rm -f UPSY_unit_test_program
+  rm -f UPSY_component_test_program
   cp UPSY_unit_test_program_dev UPSY_unit_test_program
+  cp UPSY_component_test_program_dev UPSY_component_test_program
 
 else if ($version == 'perf') then
 
   rm -f UPSY_unit_test_program_perf
+  rm -f UPSY_component_test_program_perf
   mv build/UPSY_unit_test_program UPSY_unit_test_program_perf
+  mv build/UPSY_component_test_program UPSY_component_test_program_perf
   rm -f UPSY_unit_test_program
+  rm -f UPSY_component_test_program
   cp UPSY_unit_test_program_perf UPSY_unit_test_program
+  cp UPSY_component_test_program_perf UPSY_component_test_program
 
 endif
 

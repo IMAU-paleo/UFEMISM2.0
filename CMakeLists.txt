@@ -23,8 +23,10 @@ add_compiler_flags( UPSY_static_library)
 set( all_programs "")
 
 # UPSY programs
-add_executable( UPSY_unit_test_program src/UPSY/UPSY_unit_test_program.f90)
+add_executable( UPSY_unit_test_program      src/UPSY/UPSY_unit_test_program.f90)
+add_executable( UPSY_component_test_program src/UPSY/UPSY_component_test_program.f90)
 list( APPEND all_programs UPSY_unit_test_program)
+list( APPEND all_programs UPSY_component_test_program)
 
 # UFEMISM programs
 add_executable( UFEMISM_program ${LADDIE_sources_raw} ${UFEMISM_sources_raw} src/UFEMISM/main/UFEMISM_program.f90)

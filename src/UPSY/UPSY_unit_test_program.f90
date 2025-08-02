@@ -26,7 +26,7 @@ program UPSY_unit_test_program
 
   ! Initialise the control and resource tracker
   call initialise_control_and_resource_tracker
-  routine_path = 'UPSY_unit_tests_program'
+  routine_path = 'UPSY_unit_test_program'
 
   ! Create the unit test output folder and file
   foldername_unit_tests_output = 'automated_testing/unit_tests/results'
