@@ -47,6 +47,7 @@ module ct_PETSc_SNES_Poisson
     'b', 'o', 'u', 'n', 'd', 'a', 'r', 'y', c_null_char]
 
   interface
+
     subroutine DMPlexSetSNESLocalFEM( dm, has_boundary, ctx, ierr)
       import :: c_bool, c_intptr_t, tDM
       type(tDM),              intent(inout) :: dm
@@ -69,12 +70,6 @@ module ct_PETSc_SNES_Poisson
       integer(c_intptr_t), value :: field_test, field_trial
       type(c_funptr),      value :: g0, g1, g2, g3
     end function petsc_ds_set_jacobian
-
-    integer(c_int) function petsc_ds_has_jacobian( ds, has_jacobian) bind(C, name='PetscDSHasJacobian')
-      import :: c_bool, c_int, c_intptr_t
-      integer(c_intptr_t), value       :: ds
-      logical(kind=c_bool), intent(out) :: has_jacobian
-    end function petsc_ds_has_jacobian
 
     integer(c_int) function petsc_ds_set_exact_solution( ds, field, function, ctx) &
       bind(C, name='PetscDSSetExactSolution')
@@ -118,19 +113,6 @@ module ct_PETSc_SNES_Poisson
       logical(kind=c_bool), intent(out) :: has_constraints
     end function petsc_section_has_constraints
 
-    integer(c_int) function petsc_section_get_storage_size( section, storage_size) &
-      bind(C, name='PetscSectionGetStorageSize')
-      import :: c_int, c_intptr_t
-      integer(c_intptr_t),   value       :: section
-      integer(c_intptr_t), intent(out) :: storage_size
-    end function petsc_section_get_storage_size
-
-    integer(c_int) function petsc_section_get_constrained_storage_size( section, constrained_storage_size) &
-      bind(C, name='PetscSectionGetConstrainedStorageSize')
-      import :: c_int, c_intptr_t
-      integer(c_intptr_t),   value       :: section
-      integer(c_intptr_t), intent(out) :: constrained_storage_size
-    end function petsc_section_get_constrained_storage_size
   end interface
 
 contains
@@ -189,14 +171,12 @@ contains
     type(tDMLabel)                :: boundary_label
     type(tPetscSection)           :: local_section
     integer                       :: ierr, snes_iterations
-    logical(kind=c_bool)          :: ds_has_jacobian, local_section_has_constraints
     integer(c_int)                :: snes_reason
     integer(c_intptr_t)           :: boundary_index
-    integer(c_intptr_t)           :: local_section_storage_size, local_section_constrained_storage_size
     integer(c_intptr_t), target, dimension(1) :: boundary_ids, unused_components
     integer(c_intptr_t)           :: no_context
     type(type_poisson_context), target :: poisson_context
-    real(dp)                      :: initial_residual_norm, jacobian_diagonal_norm, jacobian_norm, solution_norm
+    real(dp)                      :: solution_norm
     real(dp), dimension(:), allocatable, target :: solution_on_vertices
     character(len=:), allocatable :: mesh_name_cleaned
     character(len=:), allocatable :: filename
@@ -234,8 +214,6 @@ contains
     ierr = petsc_ds_set_jacobian( ds%v, 0_c_intptr_t, 0_c_intptr_t, c_null_funptr, c_null_funptr, c_null_funptr, &
       c_funloc( poisson_g3))
     CHKERRQ( ierr)
-    ierr = petsc_ds_has_jacobian( ds%v, ds_has_jacobian)
-    CHKERRQ( ierr)
     ierr = petsc_ds_set_exact_solution( ds%v, 0_c_intptr_t, c_funloc( poisson_exact_solution), c_loc( poisson_context))
     CHKERRQ( ierr)
 
@@ -257,12 +235,6 @@ contains
     PetscCall( DMPlexSetSNESLocalFEM( dm, PETSC_FALSE, no_context, ierr))
     PetscCall( DMCreateMatrix( dm, jacobian, ierr))
     PetscCall( DMGetLocalSection( dm, local_section, ierr))
-    ierr = petsc_section_has_constraints( local_section%v, local_section_has_constraints)
-    CHKERRQ( ierr)
-    ierr = petsc_section_get_storage_size( local_section%v, local_section_storage_size)
-    CHKERRQ( ierr)
-    ierr = petsc_section_get_constrained_storage_size( local_section%v, local_section_constrained_storage_size)
-    CHKERRQ( ierr)
     ierr = snes_set_jacobian( snes%v, jacobian%v, jacobian%v, c_null_funptr, c_null_ptr)
     CHKERRQ( ierr)
     call configure_PETSc_SNES_for_Poisson( snes)
@@ -271,26 +243,15 @@ contains
     PetscCall( VecSet( solution, 0._dp, ierr))
     PetscCall( VecDuplicate( solution, residual, ierr))
     PetscCall( SNESComputeFunction( snes, solution, residual, ierr))
-    PetscCall( VecNorm( residual, NORM_INFINITY, initial_residual_norm, ierr))
-    poisson_g3_call_count = 0
     PetscCall( SNESComputeJacobian( snes, solution, jacobian, jacobian, ierr))
-    PetscCall( MatNorm( jacobian, NORM_INFINITY, jacobian_norm, ierr))
     PetscCall( MatGetDiagonal( jacobian, residual, ierr))
-    PetscCall( VecNorm( residual, NORM_INFINITY, jacobian_diagonal_norm, ierr))
     PetscCall( SNESSolve( snes, PETSC_NULL_VEC, solution, ierr))
-    PetscCall( VecNorm( solution, NORM_INFINITY, solution_norm, ierr))
+    ! PetscCall( VecNorm( solution, NORM_INFINITY, solution_norm, ierr))
     PetscCall( SNESGetIterationNumber( snes, snes_iterations, ierr))
     ierr = snes_get_converged_reason( snes%v, snes_reason)
     CHKERRQ( ierr)
-    if (par%primary) write(0,*) '      PetscDS has Jacobian  = ', ds_has_jacobian
-    if (par%primary) write(0,*) '      poisson_g3 calls      = ', poisson_g3_call_count
-    if (par%primary) write(0,*) '      Local section constrained = ', local_section_has_constraints
-    if (par%primary) write(0,*) '      Local section storage size = ', local_section_storage_size
-    if (par%primary) write(0,*) '      Local section free dofs    = ', local_section_constrained_storage_size
-    if (par%primary) write(0,*) '      Initial residual norm = ', initial_residual_norm
-    if (par%primary) write(0,*) '      Jacobian matrix norm   = ', jacobian_norm
-    if (par%primary) write(0,*) '      Jacobian diagonal norm = ', jacobian_diagonal_norm
-    if (par%primary) write(0,*) '      PETSc solution norm   = ', solution_norm
+
+    ! if (par%primary) write(0,*) '      PETSc solution norm   = ', solution_norm
     if (par%primary) write(0,*) '      SNES iterations       = ', snes_iterations
     if (par%primary) write(0,*) '      SNES convergence code = ', snes_reason
     call copy_PETSc_solution_to_mesh_vertices( dm, solution, mesh, solution_on_vertices)
