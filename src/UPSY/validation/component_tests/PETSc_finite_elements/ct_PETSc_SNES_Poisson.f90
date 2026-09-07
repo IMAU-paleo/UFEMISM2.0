@@ -6,7 +6,7 @@ module ct_PETSc_SNES_Poisson
     c_null_funptr, c_null_ptr, c_ptr, c_f_pointer
   use call_stack_and_comp_time_tracking, only: init_routine, finalise_routine
   use crash_mod, only: crash, warning
-  use mpi_f08, only: MPI_ALLREDUCE, MPI_COMM_WORLD, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_INTEGER, MPI_SUM
+  use mpi_f08, only: MPI_ALLTOALL, MPI_ALLTOALLV, MPI_COMM_WORLD, MPI_DOUBLE_PRECISION, MPI_INTEGER
   use mpi_basic, only: par
   use mesh_types, only: type_mesh
   use netcdf_io_main, only: open_existing_netcdf_file_for_reading, setup_mesh_from_file, &
@@ -193,9 +193,9 @@ contains
     integer(c_intptr_t)           :: local_section_storage_size, local_section_constrained_storage_size
     integer(c_intptr_t), target, dimension(1) :: boundary_ids, unused_components
     integer(c_intptr_t)           :: no_context
+    type(type_poisson_context), target :: poisson_context
     real(dp)                      :: initial_residual_norm, jacobian_diagonal_norm, jacobian_norm, solution_norm
     real(dp), dimension(:), allocatable, target :: solution_on_vertices
-    real(dp), dimension(:), pointer :: solution_on_vertices_loc
     character(len=:), allocatable :: mesh_name_cleaned
     character(len=:), allocatable :: filename
 
@@ -291,16 +291,15 @@ contains
     if (par%primary) write(0,*) '      PETSc solution norm   = ', solution_norm
     if (par%primary) write(0,*) '      SNES iterations       = ', snes_iterations
     if (par%primary) write(0,*) '      SNES convergence code = ', snes_reason
-    call copy_PETSc_solution_to_mesh_vertices( dm, solution, mesh%nV, solution_on_vertices)
+    call copy_PETSc_solution_to_mesh_vertices( dm, solution, mesh, solution_on_vertices)
     write(0,*) 'max = ', maxval( solution_on_vertices)
 
-    solution_on_vertices_loc => solution_on_vertices( mesh%vi1:mesh%vi2)
     mesh_name_cleaned = trim( mesh%name)
     mesh_name_cleaned = strrep( mesh_name_cleaned, '"', '')
     mesh_name_cleaned = strrep( mesh_name_cleaned, '.', '_')
     mesh_name_cleaned = strrep( mesh_name_cleaned, '/', '_')
     filename = trim( mesh_name_cleaned) // '_solution'
-    call save_variable_as_netcdf_dp_1D( foldername_output, solution_on_vertices_loc, filename)
+    call save_variable_as_netcdf_dp_1D( foldername_output, solution_on_vertices, filename)
 
     ! ========================================================================
     ! NEXT STEPS
@@ -337,9 +336,9 @@ contains
 
 
     ! Clean up after yourself
-  PetscCall( VecDestroy( residual, ierr))
+    PetscCall( VecDestroy( residual, ierr))
     PetscCall( VecDestroy( solution, ierr))
-  PetscCall( MatDestroy( jacobian, ierr))
+    PetscCall( MatDestroy( jacobian, ierr))
     PetscCall( SNESDestroy( snes, ierr))
     PetscCall( PetscFEDestroy( fe, ierr))
     PetscCall( DMDestroy( dm, ierr))
@@ -369,22 +368,27 @@ contains
 
   end subroutine configure_PETSc_SNES_for_Poisson
 
-  subroutine copy_PETSc_solution_to_mesh_vertices( dm, solution, n_vertices, solution_on_vertices)
+  subroutine copy_PETSc_solution_to_mesh_vertices( dm, solution, mesh, solution_on_vertices)
 
     type(tDM),                                  intent(in)  :: dm
     type(tVec),                                 intent(in)  :: solution
-    integer,                                    intent(in)  :: n_vertices
+    type(type_mesh),                            intent(in)  :: mesh
     real(dp), dimension(:), allocatable, target, intent(out) :: solution_on_vertices
 
     type(tVec)                 :: local_solution
     type(tPetscSection)        :: local_section
     type(tDMLabel)             :: upsy_vertex_id_label
     real(dp), dimension(:), pointer :: local_solution_values
-    integer, dimension(:), allocatable :: copies_per_vertex
-    integer                    :: ierr, vi, point, local_offset, vertex_start, vertex_end
+    integer, dimension(:), allocatable :: copies_per_vertex, send_counts, receive_counts, send_displacements, &
+      receive_displacements, send_positions, send_vertex_ids, receive_vertex_ids
+    real(dp), dimension(:), allocatable :: send_values, receive_values
+    integer                    :: ierr, vi, point, local_offset, vertex_start, vertex_end, ip, destination, &
+      send_count, receive_count, send_index, receive_index
 
-    allocate( solution_on_vertices( 1:n_vertices), source = 0._dp)
-    allocate( copies_per_vertex( 1:n_vertices), source = 0)
+    allocate( solution_on_vertices( mesh%vi1:mesh%vi2), source = 0._dp)
+    allocate( copies_per_vertex( mesh%vi1:mesh%vi2), source = 0)
+    allocate( send_counts( 0:par%n-1), receive_counts( 0:par%n-1), source = 0)
+    allocate( send_displacements( 0:par%n-1), receive_displacements( 0:par%n-1), send_positions( 0:par%n-1))
 
     PetscCall( DMCreateLocalVector( dm, local_solution, ierr))
     PetscCall( DMGlobalToLocalBegin( dm, solution, INSERT_VALUES, local_solution, ierr))
@@ -392,23 +396,57 @@ contains
     PetscCall( DMGetLocalSection( dm, local_section, ierr))
     PetscCall( DMGetLabel( dm, dmplex_upsy_vertex_id_label_name, upsy_vertex_id_label, ierr))
     PetscCall( DMPlexGetDepthStratum( dm, 0, vertex_start, vertex_end, ierr))
-    PetscCall( VecGetArrayRead( local_solution, local_solution_values, ierr))
 
     do point = vertex_start, vertex_end - 1
       PetscCall( DMLabelGetValue( upsy_vertex_id_label, point, vi, ierr))
-      if (vi < 1 .or. vi > n_vertices) call crash('DMPlex vertex lacks a valid UPSY vertex ID')
+      if (vi < 1 .or. vi > mesh%nV) call crash('DMPlex vertex lacks a valid UPSY vertex ID')
+      destination = mesh%V_owning_process( vi)
+      if (destination < 0 .or. destination >= par%n) call crash('UPSY vertex has an invalid owning process')
+      send_counts( destination) = send_counts( destination) + 1
+    end do
+
+    send_displacements( 0) = 0
+    do ip = 1, par%n-1
+      send_displacements( ip) = send_displacements( ip-1) + send_counts( ip-1)
+    end do
+    send_count = sum( send_counts)
+    send_positions = send_displacements
+    allocate( send_vertex_ids( max( 1, send_count)), send_values( max( 1, send_count)))
+
+    PetscCall( VecGetArrayRead( local_solution, local_solution_values, ierr))
+    do point = vertex_start, vertex_end - 1
+      PetscCall( DMLabelGetValue( upsy_vertex_id_label, point, vi, ierr))
+      destination = mesh%V_owning_process( vi)
+      send_index = send_positions( destination) + 1
       PetscCall( PetscSectionGetOffset( local_section, point, local_offset, ierr))
-      solution_on_vertices( vi) = local_solution_values( local_offset + 1)
-      copies_per_vertex( vi) = copies_per_vertex( vi) + 1
+      send_vertex_ids( send_index) = vi
+      send_values( send_index) = local_solution_values( local_offset + 1)
+      send_positions( destination) = send_positions( destination) + 1
     end do
 
     PetscCall( VecRestoreArrayRead( local_solution, local_solution_values, ierr))
     PetscCall( VecDestroy( local_solution, ierr))
 
-    ! Shared DMPlex vertices are present on more than one rank; average their
-    ! identical local values after assembling the field in UPSY vertex order.
-    call MPI_ALLREDUCE( MPI_IN_PLACE, solution_on_vertices, n_vertices, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    call MPI_ALLREDUCE( MPI_IN_PLACE, copies_per_vertex, n_vertices, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLTOALL( send_counts, 1, MPI_INTEGER, receive_counts, 1, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    receive_displacements( 0) = 0
+    do ip = 1, par%n-1
+      receive_displacements( ip) = receive_displacements( ip-1) + receive_counts( ip-1)
+    end do
+    receive_count = sum( receive_counts)
+    allocate( receive_vertex_ids( max( 1, receive_count)), receive_values( max( 1, receive_count)))
+
+    call MPI_ALLTOALLV( send_vertex_ids, send_counts, send_displacements, MPI_INTEGER, receive_vertex_ids, receive_counts, &
+      receive_displacements, MPI_INTEGER, MPI_COMM_WORLD, ierr)
+    call MPI_ALLTOALLV( send_values, send_counts, send_displacements, MPI_DOUBLE_PRECISION, receive_values, receive_counts, &
+      receive_displacements, MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr)
+
+    do receive_index = 1, receive_count
+      vi = receive_vertex_ids( receive_index)
+      if (vi < mesh%vi1 .or. vi > mesh%vi2) call crash('DMPlex solution was sent to the wrong UPSY process')
+      solution_on_vertices( vi) = solution_on_vertices( vi) + receive_values( receive_index)
+      copies_per_vertex( vi) = copies_per_vertex( vi) + 1
+    end do
+
     if (any( copies_per_vertex == 0)) call crash('DMPlex distribution omitted an UPSY vertex')
     solution_on_vertices = solution_on_vertices / real( copies_per_vertex, dp)
 
