@@ -4,7 +4,7 @@ module petsc_dmplex
 
   use precisions, only: dp
   use CSR_matrix_mod, only: type_CSR_matrix_dp
-  use petsc, only: PetscErrorF, PETSC_COMM_WORLD, PETSC_FALSE, PETSC_TRUE, tDM, tPetscViewer, PetscViewerCreate, &
+  use petsc, only: PetscErrorF, PETSC_COMM_WORLD, PETSC_FALSE, PETSC_TRUE, tDM, tDMLabel, tPetscViewer, PetscViewerCreate, &
     PetscViewerSetType, PETSCVIEWERHDF5, PetscViewerFileSetMode, FILE_MODE_WRITE, &
     PetscViewerFileSetName, PetscViewerPushFormat, PETSC_VIEWER_HDF5_PETSC, DMView, &
     PetscViewerPopFormat, PetscViewerDestroy, tVec, tPetscSection, DMPlexCreate, &
@@ -13,7 +13,8 @@ module petsc_dmplex
     DMPlexSetConeOrientation, &
     DMGetCoordinateSection, PetscSectionSetChart, PetscSectionSetDof, PetscSectionSetUp, &
     DMGetCoordinateDM, DMCreateLocalVector, VecSetValues, INSERT_VALUES, VecAssemblyBegin, &
-    VecAssemblyEnd, DMSetCoordinatesLocal, DMPlexCreateCoordinateSpace, VecDestroy
+    VecAssemblyEnd, DMSetCoordinatesLocal, DMPlexCreateCoordinateSpace, VecDestroy, &
+    DMPlexDistribute, PETSC_NULL_SF, DMDestroy, DMCreateLabel, DMGetLabel, DMLabelSetValue
   use assertions_basic, only: assert
   use mpi_basic, only: par
   use call_stack_and_comp_time_tracking, only: init_routine, finalise_routine
@@ -26,7 +27,9 @@ module petsc_dmplex
 
   private
 
-  public :: mesh_to_dmplex, write_dmplex_to_hdf5
+  public :: mesh_to_dmplex, write_dmplex_to_hdf5, dmplex_upsy_vertex_id_label_name
+
+  character(len=*), parameter :: dmplex_upsy_vertex_id_label_name = 'upsy_vertex_id'
 
 contains
 
@@ -39,6 +42,7 @@ contains
     ! Local variables:
     character(len=*), parameter         :: routine_name = 'mesh_to_dmplex'
     integer                             :: ierr
+    type(tDM)                           :: dm_serial
     integer,  dimension(:), allocatable :: vi2p, p2vi
     integer,  dimension(:), allocatable :: ti2p, p2ti
     integer,  dimension(:), allocatable :: ei2p, p2ei
@@ -46,28 +50,37 @@ contains
     real(dp), dimension(:), allocatable :: coords_2n
     type(tVec)                          :: coords
     type(tDM)                           :: coordinate_dm
+    type(tDMLabel)                      :: upsy_vertex_id_label
     type(tPetscSection)                 :: coordinate_section
     integer,  dimension(:), allocatable :: coords_indices
+    integer                             :: fem_degree, overlap
 
     ! Add routine to call stack
     call init_routine( routine_name)
 
     ! Create a DMPlex object
-    PetscCall( DMPlexCreate( PETSC_COMM_WORLD, dm, ierr))
-    PetscCall( PetscObjectSetName( dm, 'dmplex_' // trim( mesh%name), ierr))
-    PetscCall( DMSetDimension( dm, 2, ierr))
-    PetscCall( DMSetCoordinateDim( dm, 2, ierr))
+    PetscCall( DMPlexCreate( PETSC_COMM_WORLD, dm_serial, ierr))
+    PetscCall( PetscObjectSetName( dm_serial, 'dmplex_' // trim( mesh%name), ierr))
+    PetscCall( DMSetDimension( dm_serial, 2, ierr))
+    PetscCall( DMSetCoordinateDim( dm_serial, 2, ierr))
 
     call calc_vertex_triangle_edge_point_translation_tables( mesh, np, vi2p, p2vi, ti2p, p2ti, ei2p, p2ei)
-    call set_dmplex_topology( mesh, dm, np, vi2p, p2vi, ti2p, p2ti, ei2p, p2ei)
+    call set_dmplex_topology( mesh, dm_serial, np, vi2p, p2vi, ti2p, p2ti, ei2p, p2ei)
+
+    ! Preserve application vertex IDs because DMPlexDistribute renumbers points.
+    PetscCall( DMCreateLabel( dm_serial, dmplex_upsy_vertex_id_label_name, ierr))
+    PetscCall( DMGetLabel( dm_serial, dmplex_upsy_vertex_id_label_name, upsy_vertex_id_label, ierr))
+    do vi = 1, mesh%nV
+      PetscCall( DMLabelSetValue( upsy_vertex_id_label, vi2p( vi), vi, ierr))
+    end do
 
     ! Let PETSc automatically figure out the 'supports', i.e. the backward connections (so each
     ! vertex knows which edges and faces it spans)
-    PetscCall( DMPlexSymmetrize( dm, ierr))
+    PetscCall( DMPlexSymmetrize( dm_serial, ierr))
 
     ! In order to support efficient queries, we construct fast search structures
     ! and indices for the different types of points
-    PetscCall( DMPlexStratify( dm, ierr))
+    PetscCall( DMPlexStratify( dm_serial, ierr))
 
     ! Set vertex coordinates
 
@@ -81,7 +94,7 @@ contains
 
     ! Define two coordinate degrees of freedom for each vertex. The coordinate
     ! vector must use this DMPlex-owned layout rather than a general parallel Vec.
-    PetscCall( DMGetCoordinateSection( dm, coordinate_section, ierr))
+    PetscCall( DMGetCoordinateSection( dm_serial, coordinate_section, ierr))
     PetscCall( PetscSectionSetChart( coordinate_section, 0, np, ierr))
     do vi = 1, mesh%nV
       p = vi2p( vi)
@@ -90,7 +103,7 @@ contains
     PetscCall( PetscSectionSetUp( coordinate_section, ierr))
 
     ! Create and fill the coordinate DM's local vector.
-    PetscCall( DMGetCoordinateDM( dm, coordinate_dm, ierr))
+    PetscCall( DMGetCoordinateDM( dm_serial, coordinate_dm, ierr))
     PetscCall( DMCreateLocalVector( coordinate_dm, coords, ierr))
     allocate( coords_indices( 0:n-1))
     do i = 0, n-1
@@ -99,11 +112,17 @@ contains
     PetscCall( VecSetValues( coords, n, coords_indices, coords_2n, INSERT_VALUES, ierr))
     PetscCall( VecAssemblyBegin( coords, ierr))
     PetscCall( VecAssemblyEnd( coords, ierr))
-    PetscCall( DMSetCoordinatesLocal( dm, coords, ierr))
+    PetscCall( DMSetCoordinatesLocal( dm_serial, coords, ierr))
     PetscCall( VecDestroy( coords, ierr))
 
     ! DMPlex FEM operations require a coordinate finite-element field.
-    PetscCall( DMPlexCreateCoordinateSpace( dm, 1, PETSC_FALSE, PETSC_TRUE, ierr))
+    fem_degree = 1
+    PetscCall( DMPlexCreateCoordinateSpace( dm_serial, fem_degree, PETSC_FALSE, PETSC_TRUE, ierr))
+
+    ! Distribute the mesh
+    overlap = 0
+    PetscCall( DMPlexDistribute( dm_serial, overlap, PETSC_NULL_SF, dm, ierr))
+    PetscCall( DMDestroy( dm_serial, ierr))
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)

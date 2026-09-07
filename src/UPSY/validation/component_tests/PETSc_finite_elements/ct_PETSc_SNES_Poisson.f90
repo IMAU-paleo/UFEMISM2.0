@@ -5,7 +5,8 @@ module ct_PETSc_SNES_Poisson
   use iso_c_binding, only: c_bool, c_char, c_double, c_funloc, c_funptr, c_int, c_intptr_t, c_loc, c_null_char, &
     c_null_funptr, c_null_ptr, c_ptr, c_f_pointer
   use call_stack_and_comp_time_tracking, only: init_routine, finalise_routine
-  use crash_mod, only: warning
+  use crash_mod, only: crash, warning
+  use mpi_f08, only: MPI_ALLREDUCE, MPI_COMM_WORLD, MPI_DOUBLE_PRECISION, MPI_IN_PLACE, MPI_INTEGER, MPI_SUM
   use mpi_basic, only: par
   use mesh_types, only: type_mesh
   use netcdf_io_main, only: open_existing_netcdf_file_for_reading, setup_mesh_from_file, &
@@ -20,9 +21,10 @@ module ct_PETSc_SNES_Poisson
     VecDuplicate, &
     DMGlobalToLocalBegin, DMGlobalToLocalEnd, DMGetLocalSection, PetscSectionGetOffset, VecGetArrayRead, &
     VecRestoreArrayRead, &
+    DMPlexGetDepthStratum, DMLabelGetValue, &
     INSERT_VALUES, VecSet, VecNorm, MatNorm, NORM_INFINITY, SNESComputeFunction, SNESComputeJacobian, MatGetDiagonal, &
     SNESSolve, SNESGetIterationNumber
-  use petsc_dmplex, only: mesh_to_dmplex
+  use petsc_dmplex, only: mesh_to_dmplex, dmplex_upsy_vertex_id_label_name
   use string_module, only: strrep
 
   implicit none
@@ -323,10 +325,10 @@ contains
     !    with another outer boundary, or prescribe the exact value on that
     !    boundary instead of zero.
     !
-    ! 5. This is currently a serial DMPlex experiment. Verify the behaviour
-    !    with more than one MPI rank before treating it as a parallel solve;
-    !    mesh_to_dmplex constructs the full mesh locally and may need explicit
-    !    DMPlex distribution and ownership handling.
+    ! 5. DMPlex is distributed before the solve. mesh_to_dmplex preserves the
+    !    original UPSY vertex ID in a DMLabel, and the copy-back routine
+    !    combines the local vertex values collectively in UPSY vertex order.
+    !    Recheck this mapping after changes to the DMPlex construction.
     !
     ! 6. The direct C bindings in this module work around PETSc routines whose
     !    legacy Fortran wrappers are absent from the installed PETSc 3.25.5
@@ -376,25 +378,39 @@ contains
 
     type(tVec)                 :: local_solution
     type(tPetscSection)        :: local_section
+    type(tDMLabel)             :: upsy_vertex_id_label
     real(dp), dimension(:), pointer :: local_solution_values
-    integer                    :: ierr, vi, point, local_offset
+    integer, dimension(:), allocatable :: copies_per_vertex
+    integer                    :: ierr, vi, point, local_offset, vertex_start, vertex_end
 
-    allocate( solution_on_vertices( 1:n_vertices))
+    allocate( solution_on_vertices( 1:n_vertices), source = 0._dp)
+    allocate( copies_per_vertex( 1:n_vertices), source = 0)
 
     PetscCall( DMCreateLocalVector( dm, local_solution, ierr))
     PetscCall( DMGlobalToLocalBegin( dm, solution, INSERT_VALUES, local_solution, ierr))
     PetscCall( DMGlobalToLocalEnd(   dm, solution, INSERT_VALUES, local_solution, ierr))
     PetscCall( DMGetLocalSection( dm, local_section, ierr))
+    PetscCall( DMGetLabel( dm, dmplex_upsy_vertex_id_label_name, upsy_vertex_id_label, ierr))
+    PetscCall( DMPlexGetDepthStratum( dm, 0, vertex_start, vertex_end, ierr))
     PetscCall( VecGetArrayRead( local_solution, local_solution_values, ierr))
 
-    do vi = 1, n_vertices
-      point = vi - 1
+    do point = vertex_start, vertex_end - 1
+      PetscCall( DMLabelGetValue( upsy_vertex_id_label, point, vi, ierr))
+      if (vi < 1 .or. vi > n_vertices) call crash('DMPlex vertex lacks a valid UPSY vertex ID')
       PetscCall( PetscSectionGetOffset( local_section, point, local_offset, ierr))
       solution_on_vertices( vi) = local_solution_values( local_offset + 1)
+      copies_per_vertex( vi) = copies_per_vertex( vi) + 1
     end do
 
     PetscCall( VecRestoreArrayRead( local_solution, local_solution_values, ierr))
     PetscCall( VecDestroy( local_solution, ierr))
+
+    ! Shared DMPlex vertices are present on more than one rank; average their
+    ! identical local values after assembling the field in UPSY vertex order.
+    call MPI_ALLREDUCE( MPI_IN_PLACE, solution_on_vertices, n_vertices, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE( MPI_IN_PLACE, copies_per_vertex, n_vertices, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+    if (any( copies_per_vertex == 0)) call crash('DMPlex distribution omitted an UPSY vertex')
+    solution_on_vertices = solution_on_vertices / real( copies_per_vertex, dp)
 
   end subroutine copy_PETSc_solution_to_mesh_vertices
 
