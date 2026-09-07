@@ -1,0 +1,270 @@
+# Implementation plan: SSA via PetscFE + PetscSNES
+
+A new momentum-balance solver that discretises and solves the Shallow Shelf
+Approximation entirely with PETSc (DMPlex + PetscFE for the discretisation,
+PetscSNES for the nonlinear solve), added as one more choice for
+`choice_stress_balance_approximation` **without touching any existing solver**.
+
+## 1. Guiding constraints
+
+- **Additive only.** No changes to `momentum_balance_solver_SSA`,
+  `_DIVA`, `_SSADIVA`, `_BPA`, `_SIA`, etc. The only edits to existing files are:
+  one `case` in `create_momentum_balance_solver`, one config option, and
+  (later) test-harness wiring.
+- **Same public contract.** The new class implements the same deferred
+  procedures as every other solver (`allocate`/`deallocate`/`initialise`/`run`/
+  `set_velocities_to_solver_results`/`remap` + name + restart hooks, see
+  `src/UFEMISM/ice_dynamics/momentum_balance/basic/momentum_balance_solver_basic.f90`).
+- **Downstream stays on the b-grid.** The solver's *internal* unknown is a
+  nodal (vertex, P1) velocity field, but it exposes the result as
+  `u_vav_b`/`v_vav_b` on the triangles, exactly like the existing SSA solver.
+  Mass continuity, CFL, `calc_secondary_velocities`, output and restart are
+  therefore unaffected (this is the low-risk "project nodal velocity to the
+  b-grid" option; a native FE transport scheme is out of scope here).
+- **Reuse the existing PETSc/DMPlex layer.** `mesh_to_dmplex` and the
+  `bind(C)` PetscFE/PetscDS/SNES pattern already exist and work; see
+  `src/UPSY/basic/petsc/petsc_dmplex.f90` and
+  `src/UPSY/validation/component_tests/PETSc_finite_elements/ct_PETSc_SNES_Poisson.f90`.
+
+## 2. Where it slots into the architecture
+
+| Concern | Existing mechanism | New solver |
+| --- | --- | --- |
+| Dispatch | `create_momentum_balance_solver` `select case` | add `case ('SSA_PETSc')` |
+| Config | `choice_stress_balance_approximation_config` in `model_configuration_type_and_namelist.f90` | extend the comment list of valid values; add new PETSc-FE knobs |
+| Base class | `atype_momentum_balance_solver` (via `atype_momentum_balance_solver_data` / `atype_model`) | extend **`atype_momentum_balance_solver` directly** (not `_SSADIVA`, since we do not reuse the CSR stiffness assembly) |
+| Result hand-off | `set_velocities_to_solver_results` writes `vel%u_3D_b`, strain rates, etc. | same, filled from the projected nodal solution |
+
+### Files to create
+
+```
+src/UFEMISM/ice_dynamics/momentum_balance/SSA_PETSc/
+  momentum_balance_solver_SSA_PETSc.f90        ! the concrete class
+  SSA_PETSc_weak_form.f90                       ! bind(C) pointwise residual/Jacobian functions
+  SSA_PETSc_fields.f90                          ! aux-field DM: build + fill + DMSetAuxiliaryVec
+src/UPSY/basic/petsc/petsc_fe.f90              ! new bind(C) bindings missing from PETSc 3.25.5 Fortran
+```
+
+Add the new module(s) to the relevant `CMakeLists.txt` / source list.
+
+## 3. Discretisation (recap of the design decision)
+
+- **Velocity**: continuous Lagrange **P1, 2 components**, on mesh vertices.
+  `PetscFECreateLagrange(comm, dim=2, Nc=2, isSimplex=PETSC_TRUE, k=1, qorder=-1, fe, ierr)`.
+- **Auxiliary (data) fields**, P1 on vertices, on a cloned DM, read-only in the
+  residual: ice thickness `H`, surface elevation `s` (for the driving stress
+  `-rho g H grad s`), vertically averaged flow factor `A`, basal friction
+  coefficient `beta` (already includes the sub-grid grounded fraction), and any
+  masks needed for the friction regularisation.
+- **Weak form** (single vector field, index 0):
+  - `f1[i][j]` = membrane stress tensor `2 eta H (2 eps_dot + tr(eps_dot) I)_{ij}`,
+    with `eta = 1/2 A^{-1/n} eps_eff^{(1-n)/n}` computed pointwise from `u_x`.
+  - `f0[i]` = basal drag `beta(|u|) u_i` + driving stress `rho g H (grad s)_i`
+    (driving stress taken from the aux surface-elevation gradient `a_x`).
+  - **Ice-front / calving-front** back-pressure `1/2 rho g H^2 (...) n_i`: boundary
+    residual via `PetscDSSetBdResidual` + `DMAddBoundary(DM_BC_NATURAL, ...)`.
+- **Regularisation**: keep the existing `Glens_flow_law_epsilon_sq_0` on the
+  effective strain rate; regularise `|u|` in the sliding law so Newton stays
+  differentiable near stagnation.
+
+## 4. Phased steps
+
+### Phase 0 - Scaffolding (compiles, selectable, does nothing)
+
+1. Create `momentum_balance_solver_SSA_PETSc.f90` with
+   `type_momentum_balance_solver_SSA_PETSc` extending `atype_momentum_balance_solver`.
+   Implement all deferred procedures as minimal stubs:
+   - `allocate`/`deallocate`: allocate `u_vav_b`/`v_vav_b` on the b-grid (copy the
+     field-creation calls from `allocate_shared_SSA_DIVA_variables`).
+   - `run`: `call crash('SSA_PETSc solver not implemented yet')`.
+   - `set_velocities_to_solver_results`: identical body to
+     `momentum_balance_solver_SSA_set_velocities`.
+   - `get_momentum_balance_solver_name` -> `'SSA_PETSc'`.
+   - `remap`, restart hooks: stubs / reuse SSA bodies where trivial.
+2. Add `case ('SSA_PETSc')` to `create_momentum_balance_solver`
+   (`momentum_balance_solver_main.f90`), plus the `use` line.
+3. Extend the valid-values comment on `choice_stress_balance_approximation_config`.
+4. Build; run an existing SSA test config with `choice_stress_balance_approximation = 'SSA_PETSc'`
+   and confirm it reaches the `crash` in `run`.
+
+### Phase 1 - DMPlex + PetscFE field + SNES skeleton, linear constant-viscosity SSA
+
+Target: solve the SSA with viscosity and friction **frozen to constants** and
+prescribed Dirichlet velocity on all boundaries, on one small mesh, matching a
+hand-checked or analytic result.
+
+1. In `initialise`: `call mesh_to_dmplex(self%mesh, self%dm)` and store the DM,
+   the `PetscFE`, the `PetscDS`, and a `type(tSNES)` on the solver object.
+   Build once here; destroy in `deallocate`.
+2. Attach the 2-component P1 velocity field: `PetscFECreateLagrange` ->
+   `DMSetField(dm, 0, ...)` -> `DMCreateDS` -> `DMGetDS`.
+3. `PetscDSSetConstants` with `rho_i`, `g`, `n`, `eps_sq_0`, and a scaling factor
+   (see Phase 6).
+4. Register a **constant-coefficient** `f1` (linear Laplacian-like membrane term)
+   and `f0` (`beta_const * u`, plus the driving stress from constants for now)
+   plus the analytic `g3`/`g0`; follow the `bind(C)` pattern in
+   `ct_PETSc_SNES_Poisson.f90` (`petsc_ds_set_residual`, `petsc_ds_set_jacobian`).
+5. Boundary: `DMPlexMarkBoundaryFaces` + `DMAddBoundary(DM_BC_ESSENTIAL, ...)` with
+   a Dirichlet callback returning the prescribed velocity.
+6. `SNESCreate` -> `SNESSetDM` -> `DMPlexSetSNESLocalFEM` -> `DMCreateMatrix` ->
+   `SNESSetJacobian(snes, J, J, NULL, NULL)` (DMPlex fills it) -> configure
+   (Phase 6) -> `SNESSolve`.
+7. Copy the global solution back to `u_vav_b`/`v_vav_b` on the triangles:
+   - global -> local (`DMGlobalToLocal`), read via the local `PetscSection`;
+   - reuse the `upsy_vertex_id` DMLabel + `mesh%V_owning_process` all-to-all
+     gather from `copy_PETSc_solution_to_mesh_vertices` to get a vertex-indexed
+     `u_vav_a`, then `map_a_b_2D` to the b-grid.
+8. **Check**: overlap for FE assembly. `mesh_to_dmplex` distributes with
+   `overlap = 0`. If the parallel FE residual/Jacobian is wrong on >1 rank, add
+   an `overlap = 1` variant (new optional argument to `mesh_to_dmplex`, default
+   unchanged) and use it here only.
+
+### Phase 2 - Auxiliary fields
+
+1. `SSA_PETSc_fields.f90`: clone the DM (`DMClone`) or build a second DM, attach
+   P1 aux fields (`H`, `s`, `A`, `beta`), `DMCreateDS`.
+2. A `fill_auxiliary_vec` routine that, given the current `geom`/`ice`/
+   `bed_roughness`, writes the vertex values into a local aux `Vec` (project
+   UFEMISM vertex arrays through the same id label used for read-back).
+3. `DMSetAuxiliaryVec(dm, NULL, 0, 0, auxVec)` before each solve.
+4. Switch `f0`/`f1` to read `a[]` / `a_x[]` instead of constants for `H`, `grad s`,
+   `A`, `beta`. Still linear in `u` (viscosity uses a frozen `eta` passed as a
+   fifth aux component, or recomputed from a frozen strain-rate aux field).
+
+### Phase 3 - Full nonlinear residual (Newton with FD Jacobian)
+
+1. Make `eta` a pointwise function of `u_x` in `f1` (Glen's law, using
+   `A` from `a[]`). Port the algebra from
+   `calc_effective_viscosity_Glen_2D` / `constitutive_equation`.
+2. Make basal drag `f0` a pointwise function of `u` (regularised sliding law;
+   for Phase 3 a linear or Weertman-with-fixed-exponent form is enough, then
+   generalise).
+3. Ice-front natural BC: `PetscDSSetBdResidual` + `DMAddBoundary(DM_BC_NATURAL)`
+   on an ice-front DMLabel (Phase 5 provides the label).
+4. Jacobian: start with `-snes_fd_color` (or `-snes_mf_operator`) so the residual
+   can be validated in isolation. Confirm SNES converges and the solution
+   matches the existing SSA solver on a shelf + stream test to a few percent.
+
+### Phase 4 - Analytic pointwise Jacobian + Picard option
+
+1. Implement `g0` (d f0 / d u: basal-drag linearisation), `g3` (d f1 / d u_x:
+   the frozen-viscosity term **plus** the `d eta / d eps_dot` shear-thinning
+   terms), `g1`/`g2` if any cross terms remain.
+2. Add a config switch `SSA_PETSc_nonlinear_solver = 'Newton' | 'Picard'`:
+   - `Newton`: analytic `g*` as above.
+   - `Picard`: assemble only the frozen-viscosity part as the preconditioning
+     matrix while the residual stays fully nonlinear (`SNESSetPicard`, or a
+     Newton-LS with the Picard operator as PC). Expected to be the robust
+     default far from the solution; Newton for polish.
+3. Cross-check the analytic Jacobian against `-snes_test_jacobian`.
+
+### Phase 5 - Boundary conditions from UFEMISM
+
+Map UFEMISM's BC concepts onto DMLabels + `DMAddBoundary`:
+
+1. `BC_prescr_mask_b` / `BC_prescr_u_b` / `BC_prescr_v_b` (prescribed velocity on
+   triangles): these arrive on the b-grid; convert to a vertex Dirichlet label
+   (a vertex is constrained if all/most incident constrained triangles agree),
+   or prescribe on the nearest vertices. Provide the values through the
+   Dirichlet callback context.
+2. Domain-edge choices already handled by
+   `calc_SSA_DIVA_stiffness_matrix_row_BC` (`choice_BC_u/v`: zero, infinite
+   slab, ISMIP-HOM periodic, ice-stream periodic). For the FE solver:
+   - zero / prescribed: `DM_BC_ESSENTIAL`.
+   - periodic: build the DMPlex with periodicity, or add the periodic face pairs
+     as a constraint (`find_ti_copy_*` in `mesh_utilities` gives the partner);
+     simplest first target is the non-periodic benchmarks.
+3. Ice front: derive an ice-front face DMLabel from `geom` masks
+   (`mask_cf` / floating vs open ocean) and attach the natural BC there.
+
+### Phase 6 - Scaling, solver, preconditioner
+
+1. **Nondimensionalisation**: SSA viscosity ~1e13, velocities span many orders of
+   magnitude. Carry an explicit scaling into the residual (length, velocity,
+   stress scales as `PetscDSSetConstants` entries) so the assembled system is
+   O(1). Do not rely on `-ksp_diagonal_scale` alone.
+2. **Solver config** (mirror `configure_PETSc_SNES_for_Poisson`, but move the
+   numbers into config): `SNESNEWTONLS` + line search; KSP `gmres`; PC `gamg`.
+3. **Near-null-space**: set the rigid-body modes on the operator
+   (`MatNullSpaceCreateRigidBody` from the DM coordinates -> `MatSetNearNullSpace`)
+   for acceptable AMG performance.
+4. Config knobs to add (alongside `stress_balance_PETSc_rtol/abstol`):
+   `SSA_PETSc_snes_rtol`, `SSA_PETSc_snes_abstol`, `SSA_PETSc_snes_max_it`,
+   `SSA_PETSc_nonlinear_solver`, `SSA_PETSc_velocity_element_order` (1 or 2),
+   `SSA_PETSc_pc_type`.
+
+### Phase 7 - Verification
+
+1. **Analytic**: Schoof SSA ice stream — `src/UPSY/basic/analytical_solutions/Schoof_SSA_solution.f90`;
+   compare L2 error and its order under uniform refinement (expect ~2 for P1).
+2. **Cross-solver**: run the existing SSA integrated/component tests with
+   `SSA_PETSc` and diff velocity fields against `SSA` (Halfar/dome, ISMIP-HOM,
+   MISMIP+).
+3. Add an L2-error helper via `bind(C)` to `DMComputeL2FieldDiff`
+   (not in the 3.25.5 Fortran module - see the note in `ct_PETSc_SNES_Poisson.f90`).
+
+### Phase 8 - Remap, restart, cleanup
+
+1. `remap_momentum_balance_solver`: destroy DM/DS/FE/SNES, rebuild from
+   `mesh_new`, re-init aux DM; remap `u_vav_b`/`v_vav_b` as the SSA solver does
+   (via the a-grid).
+2. Restart: reuse the SSA restart file layout (`u_vav_b`, `v_vav_b`).
+3. `deallocate`: `SNESDestroy`, `PetscFEDestroy`, `DMDestroy` (main + aux),
+   `MatDestroy`.
+4. Remove the Phase 0 `crash`; document the solver in the config-file docs and
+   the wiki page for stress-balance approximations.
+
+## 5. New PETSc Fortran bindings likely required
+
+PETSc 3.25.5's Fortran module is missing several symbols; add `bind(C)`
+interfaces (pattern: `ct_PETSc_SNES_Poisson.f90` lines 49-116) in a shared
+`src/UPSY/basic/petsc/petsc_fe.f90`:
+
+- `PetscDSSetResidual`, `PetscDSSetJacobian` (already prototyped in the test - promote to the shared module)
+- `PetscDSSetBdResidual`, `PetscDSSetBdJacobian`
+- `DMAddBoundary`, `SNESGetConvergedReason`, `SNESSetJacobian` (promote from the test)
+- `DMSetAuxiliaryVec`
+- `DMComputeL2FieldDiff` (verification)
+- `MatNullSpaceCreateRigidBody`, `MatSetNearNullSpace`
+- `DMClone` if not exposed
+- `DMProjectFunctionLocal` / `DMProjectFieldLocal` if used to fill aux fields
+
+## 6. Edits to existing files (the complete list)
+
+- `momentum_balance_solver_main.f90` - one `use`, one `case`.
+- `model_configuration_type_and_namelist.f90` - valid-values comment on
+  `choice_stress_balance_approximation_config`; new `_config` fields + their
+  second declaration + namelist block + assignment (4 spots each, per existing
+  convention).
+- Source list / `CMakeLists.txt` - register new modules.
+- `automated_testing/` - add an integrated/component test entry for the
+  `SSA_PETSc` choice (new config, reference data); optionally extend
+  `UPSY_component_test_program_PETSc_DMPLEX` with a standalone SSA-FE check.
+
+## 7. Risks / open questions
+
+- **Parallel FE assembly overlap** - confirm `overlap = 0` from
+  `mesh_to_dmplex` is sufficient for `DMPlexSetSNESLocalFEM`; add an
+  `overlap = 1` path if not.
+- **b-grid <-> vertex BC translation** - prescribed-velocity masks live on
+  triangles; the vertex Dirichlet mapping is approximate near the mask edge.
+- **Periodic benchmarks** (ISMIP-HOM) need periodic DMPlex or explicit
+  constraints; defer past first validation.
+- **Grounding line** - non-smooth `beta` and grounded fraction hurt Newton;
+  rely on Picard there, and on the existing sub-grid `fraction_gr_b` already
+  folded into the `beta` aux field.
+- **Fortran <-> C pointwise callbacks** - long signatures that must match PETSc
+  exactly; keep them all in `SSA_PETSc_weak_form.f90` and unit-test the
+  viscosity/Jacobian algebra against `constitutive_equation` in isolation.
+
+## 8. Milestone checklist
+
+- [ ] Phase 0: `SSA_PETSc` selectable, crashes in `run`.
+- [ ] Phase 1: linear constant-viscosity SSA solves, result on the b-grid.
+- [ ] Phase 2: aux fields drive `H`, `grad s`, `A`, `beta`.
+- [ ] Phase 3: nonlinear residual, SNES converges (FD Jacobian), matches `SSA`.
+- [ ] Phase 4: analytic Jacobian + Picard option.
+- [ ] Phase 5: UFEMISM BCs (prescribed, ice front; periodic later).
+- [ ] Phase 6: scaled, GAMG + rigid-body null space, config knobs.
+- [ ] Phase 7: Schoof convergence order + benchmark cross-checks.
+- [ ] Phase 8: remap, restart, cleanup, docs.
