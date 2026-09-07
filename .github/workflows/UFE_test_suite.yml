@@ -26,6 +26,12 @@ jobs:
       test_path: automated_testing/UFEMISM/integrated_test_SSA_icestream_small
       compile_script: compile_UFEMISM.csh
 
+  SSA_notime_MISMIP_mod_full:
+    uses: ./.github/workflows/UPSY_test_suite_run_and_check_test.yml
+    with:
+      test_path: automated_testing/UFEMISM/integrated_test_SSA_notime_MISMIP_mod_full
+      compile_script: compile_UFEMISM.csh
+
   ISMIP_HOM_small:
     uses: ./.github/workflows/UPSY_test_suite_run_and_check_test.yml
     with:
