@@ -18,6 +18,7 @@ endif
 
 set all_tests = ( \
   integrated_test_SSA_icestream_small \
+  integrated_test_SSA_notime_MISMIP_mod_full \
   integrated_test_ISMIP_HOM_small \
   integrated_test_Halfar_dome_small \
   integrated_test_MISMIP_mod_small \
