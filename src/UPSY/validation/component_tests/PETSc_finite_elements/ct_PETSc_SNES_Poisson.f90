@@ -33,8 +33,10 @@ module ct_PETSc_SNES_Poisson
 
   public :: ct_solve_Poisson_eq_with_PETSc_SNES
 
-  real(dp), dimension(4) :: poisson_domain
-  integer                :: poisson_g3_call_count = 0
+  type, bind(C) :: type_poisson_context
+    real(c_double), dimension(4) :: domain
+  end type type_poisson_context
+
   integer(c_int), parameter :: dm_bc_essential_value = 1_c_int
   real(dp), parameter :: poisson_snes_relative_tolerance = 1.0e-10_dp
   real(dp), parameter :: poisson_snes_absolute_tolerance = 1.0e-10_dp
@@ -208,10 +210,10 @@ contains
 
     ! The analytical solution is defined on the mesh bounding box. For a rectangular
     ! mesh its value is zero on every boundary face.
-    poisson_domain( 1) = minval( mesh%V(:,1))
-    poisson_domain( 2) = minval( mesh%V(:,2))
-    poisson_domain( 3) = maxval( mesh%V(:,1)) - poisson_domain( 1)
-    poisson_domain( 4) = maxval( mesh%V(:,2)) - poisson_domain( 2)
+    poisson_context%domain( 1) = minval( mesh%V(:,1))
+    poisson_context%domain( 2) = minval( mesh%V(:,2))
+    poisson_context%domain( 3) = maxval( mesh%V(:,1)) - poisson_context%domain( 1)
+    poisson_context%domain( 4) = maxval( mesh%V(:,2)) - poisson_context%domain( 2)
     no_context = 0_c_intptr_t
 
     ! Attach one scalar P1 field, u, to the DMPlex.
@@ -221,7 +223,7 @@ contains
     PetscCall( DMSetField( dm, 0, PETSC_NULL_DMLABEL, fe_object, ierr))
     PetscCall( DMCreateDS( dm, ierr))
     PetscCall( DMGetDS( dm, ds, ierr))
-    PetscCall( PetscDSSetConstants( ds, 4, poisson_domain, ierr))
+    PetscCall( PetscDSSetConstants( ds, 4, poisson_context%domain, ierr))
 
     ! Define Poisson weak form
     !     Strong form: -grad^2 u = f within the domain, u = 0 on the border
@@ -234,7 +236,7 @@ contains
     CHKERRQ( ierr)
     ierr = petsc_ds_has_jacobian( ds%v, ds_has_jacobian)
     CHKERRQ( ierr)
-    ierr = petsc_ds_set_exact_solution( ds%v, 0_c_intptr_t, c_funloc( poisson_exact_solution), c_null_ptr)
+    ierr = petsc_ds_set_exact_solution( ds%v, 0_c_intptr_t, c_funloc( poisson_exact_solution), c_loc( poisson_context))
     CHKERRQ( ierr)
 
     ! Mark all exterior faces and impose the manufactured solution on them. The
@@ -458,11 +460,13 @@ contains
     real(c_double),        value :: time
     type(c_ptr),           value :: x, u, ctx
     real(c_double), pointer      :: x_values(:), u_values(:)
+    type(type_poisson_context), pointer :: poisson_context
 
     call c_f_pointer( x, x_values, [int( dim)])
     call c_f_pointer( u, u_values, [int( ncomp)])
-    u_values( 1) = sin( acos( -1._c_double) * (x_values( 1) - poisson_domain( 1)) / poisson_domain( 3)) * &
-                    sin( acos( -1._c_double) * (x_values( 2) - poisson_domain( 2)) / poisson_domain( 4))
+    call c_f_pointer( ctx, poisson_context)
+    u_values( 1) = sin( acos( -1._c_double) * (x_values( 1) - poisson_context%domain( 1)) / poisson_context%domain( 3)) * &
+                    sin( acos( -1._c_double) * (x_values( 2) - poisson_context%domain( 2)) / poisson_context%domain( 4))
     poisson_exact_solution = 0_c_int
 
   end function poisson_exact_solution
@@ -525,7 +529,6 @@ contains
     real(c_double), intent(out) :: g3(*)
     integer                 :: d
 
-    poisson_g3_call_count = poisson_g3_call_count + 1
     g3( 1:dim*dim) = 0._c_double
     do d = 1, dim
       g3( (d - 1) * dim + d) = 1._c_double
