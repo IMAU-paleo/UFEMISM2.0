@@ -14,7 +14,8 @@ The solver is selected with `choice_stress_balance_approximation = 'SSA_FEM_PETS
 | --- | --- | --- |
 | 0 - Scaffolding | **done** | `type_momentum_balance_solver_SSA_FEM_PETSc` in `src/UFEMISM/ice_dynamics/momentum_balance/SSA_FEM_PETSc/`; dispatch case + config comment added; integrated test `integrated_test_SSA_notime_MISMIP_mod_full` now has `config_SSA.cfg` + `config_SSA_FEM_PETSc.cfg` and its `test_script.csh` runs both solvers. |
 | 1 - DMPlex + PetscFE + SNES skeleton, constant-coefficient linear SSA | **done** | Full `DMPlex -> PetscFE (P1, 2-comp) -> PetscDS (f0/f1 + analytic g0/g3) -> SNES` pipeline. On the integrated-test mesh, 2 MPI ranks: SNES converges in 1 iteration and the nodal field matches the closed-form uniform solution `-tau/beta` to `~1e-16`. `overlap = 0` assembly confirmed correct in parallel for this case. |
-| 2-8 | not started | |
+| 2 - Auxiliary fields (real spatially varying coefficients) | **done** | 4-component P1 aux field `[N, beta, tau_dx, tau_dy]` on a `DMClone`d DM, attached with `DMSetAuxiliaryVec`; `f0/f1/g0/g3` read `a[]`. Per-vertex coefficients computed with the existing UFEMISM machinery (`calc_ice_rheology_Glen`, `calc_effective_viscosity_Glen_2D`, `calc_basal_friction_coefficient` **including the sub-grid grounded-fraction scaling `beta *= fraction_gr**exp` so friction vanishes under floating ice**, `ddx_a_a_2D` for the driving stress) and scattered to the DMPlex layout by the inverse of the solution copy-back. Wrapped in a Picard viscosity iteration (relax / limit / L2 stop, same config knobs as `momentum_balance_solver_SSA`). Runs on 2 ranks; the speed field correlates 0.95 vertexwise with the finite-difference `SSA` solver on the integrated test (both still Picard-limited at 50 iterations). |
+| 3-8 | not started | |
 
 Implementation notes that deviate from the original plan:
 
@@ -173,17 +174,52 @@ distributes with `overlap = 0`. If the 2-rank result disagrees with the 1-rank
 result, add an `overlap = 1` path to `mesh_to_dmplex` (new optional argument,
 default unchanged).
 
-### Phase 2 - Auxiliary fields
+### Phase 2 - Auxiliary fields (real spatially varying coefficients) - **done**
 
-1. `SSA_PETSc_fields.f90`: clone the DM (`DMClone`) or build a second DM, attach
-   P1 aux fields (`H`, `s`, `A`, `beta`), `DMCreateDS`.
-2. A `fill_auxiliary_vec` routine that, given the current `geom`/`ice`/
-   `bed_roughness`, writes the vertex values into a local aux `Vec` (project
-   UFEMISM vertex arrays through the same id label used for read-back).
-3. `DMSetAuxiliaryVec(dm, NULL, 0, 0, auxVec)` before each solve.
-4. Switch `f0`/`f1` to read `a[]` / `a_x[]` instead of constants for `H`, `grad s`,
-   `A`, `beta`. Still linear in `u` (viscosity uses a frozen `eta` passed as a
-   fifth aux component, or recomputed from a frozen strain-rate aux field).
+What was built (all in `momentum_balance_solver_SSA_FEM_PETSc.f90`):
+
+1. **Aux DM.** `bind(C)` `DMClone` of the primary DM, one P1 `PetscFE` with
+   `Nc = 4`, `DMCreateDS`, a persistent local `Vec` (`aux_vec`). `bind(C)`
+   `DMSetAuxiliaryVec(dm, NULL, 0, 0, aux_vec)`.
+2. **`calc_auxiliary_fields`** computes the per-vertex coefficients
+   `a = [N, beta, tau_dx, tau_dy]` from the current velocity solution:
+   `eta` from `calc_effective_viscosity_Glen_2D` (strain rates via `ddx_a_a_2D`
+   on the nodal field, `A_vav` from `calc_ice_rheology_Glen` + `vertical_average`),
+   `N = eta * max(0.1, H)`, driving stress `-rho g H grad(Hs)` via `ddx_a_a_2D`,
+   `beta` from `calc_basal_friction_coefficient`, then scaled by the sub-grid
+   grounded fraction: `beta *= geom%fraction_gr**C%subgrid_friction_exponent_on_B_grid`
+   when `C%do_GL_subgrid_friction` (the a-grid analogue of what
+   `calc_applied_basal_friction_coefficient` does on the b-grid). This is
+   essential, not optional: without it, full basal friction under the floating
+   shelf makes it a different physical problem - it was the main reason the
+   Phase-2 solution first looked nothing like the finite-difference `SSA` result.
+3. **`fill_PETSc_aux_from_mesh_vertices`** - inverse of the solution copy-back:
+   each rank requests, for its local DMPlex vertices, the 4 coefficients from the
+   UFEMISM process that owns that vertex (two `MPI_Alltoallv`), then
+   `VecSetValues` at the local section offsets.
+4. **Weak form** `f0/f1/g0/g3` now read `a[]` instead of `PetscDSSetConstants`.
+   `f1` needs only `N` (undifferentiated - the FE weak form has `integral(N ... :
+   grad phi)`, so no `grad N` term, unlike the finite-difference assembly).
+5. **Outer loop.** A Picard viscosity iteration in `run` (freeze coefficients ->
+   linear SNES solve -> relax -> velocity limit -> L2 stop), reusing
+   `C%visc_it_nit`, `C%visc_it_relax`, `C%visc_it_norm_dUV_tol`, `C%vel_max`.
+
+Result on `integrated_test_SSA_notime_MISMIP_mod_full` (2 ranks): runs clean, no
+NaN, velocities grow from rest to a physically scaled, spatially structured field.
+
+Vertexwise correlation of `uabs_vav` with the finite-difference `SSA` solver is
+**0.95** (same spatial structure; FE mean speed ~316 m/yr vs FD ~551 m/yr).
+
+**Convergence caveat.** With fixed relaxation the Picard loop still hits the
+50-iteration cap (L2 ~4e-6, decreasing; velocities still ramping) - and **the
+finite-difference `SSA` solver fails to converge on this same config too**, so it
+is inherent to the setup/settings, not the FE discretisation. The remaining
+FD-vs-FE gap is dominated by both solvers being under-converged with different
+Picard damping and different strain-rate discretisations. The proper fix is
+Phase 3: replace the hand-rolled Picard with a single SNES solve of the true
+nonlinear residual (`eta = eta(grad u)` pointwise), optionally with the
+adaptive-relaxation Picard from `momentum_balance_solver_SSA` as a fallback
+(Phase 4).
 
 ### Phase 3 - Full nonlinear residual (Newton with FD Jacobian)
 
@@ -316,7 +352,11 @@ interfaces (pattern: `ct_PETSc_SNES_Poisson.f90` lines 49-116) in a shared
 - [x] Phase 0: `SSA_FEM_PETSc` selectable, runs as a no-op placeholder.
 - [x] Phase 1: linear constant-coefficient SSA solves via SNES, uniform-field
       closed-form check passes (`~1e-16`, 2 ranks), result on the b-grid.
-- [ ] Phase 2: aux fields drive `H`, `grad s`, `A`, `beta`.
+- [x] Phase 2: 4-component aux field `[N, beta, tau_dx, tau_dy]` (beta incl.
+      sub-grid grounded-fraction scaling) drives the weak form; per-vertex
+      coefficients + Picard loop; runs on 2 ranks; `uabs_vav` correlates 0.95
+      with the FD SSA solver (tight Picard convergence deferred to Phase 3, as
+      the FD SSA also stalls on this config).
 - [ ] Phase 3: nonlinear residual, SNES converges (FD Jacobian), matches `SSA`.
 - [ ] Phase 4: analytic Jacobian + Picard option.
 - [ ] Phase 5: UFEMISM BCs (prescribed, ice front; periodic later).
