@@ -12,25 +12,26 @@ module momentum_balance_solver_SSA_FEM_PETSc
   ! and is added alongside the existing solvers without affecting any of them.
   !
   ! Implementation is staged (see SSA_PetscFE_SNES_implementation_plan.md in the
-  ! repository root). Current state: Phase 3 - the shear-thinning viscosity is
-  ! evaluated pointwise inside the residual, so each SNES solve is a true Newton
-  ! solve of the non-linear SSA; the analytic Jacobian (frozen membrane term plus
-  ! the rank-1 d eta / d(grad u) term) is provided.
+  ! repository root). Current state: Phase 3+ - BOTH non-linearities of the SSA are
+  ! evaluated pointwise inside the residual (the shear-thinning Glen viscosity and
+  ! the velocity-dependent basal friction law), so a single Newton solve replaces
+  ! the whole viscosity/friction Picard iteration. Analytic Jacobians are provided.
   !
   ! Weak form (PETSc convention  residual = integral( f0 . phi + f1 : grad(phi) ) = 0 ),
   ! one 2-component vector field (u, v). A 5-component P1 auxiliary field carries the
-  ! velocity-independent (or frozen) data  a = [Abar, H, beta, tau_dx, tau_dy]:
+  ! velocity-independent data  a = [Abar, H, tauc_eff, tau_dx, tau_dy]:
   !
   !   eta   = 1/2 Abar^(-1/n) (eps_eff^2 + eps0)^((1-n)/(2n))   (eps_eff^2 from grad u)
   !   N     = eta * H
   !   f1[c,d] = 2 N D[c,d]     with  D = [ 2ux+vy , (uy+vx)/2 ; (uy+vx)/2 , 2vy+ux ]
-  !   f0[c]   = beta u_c + tau_d,c
+  !   beta  = tauc_eff |u|^(1/p-1) (|u|+u_t)^(-1/p)             (Zoet-Iverson, from |u|)
+  !   f0[c] = beta u_c - tau_d,c
   !
-  ! eps0 and n come from PetscDSSetConstants. beta still depends on the velocity
-  ! through the sliding law, so it is frozen per outer iteration and refreshed in a
-  ! light Picard loop around the Newton solve (the hard non-linearity, the
-  ! viscosity, is now inside Newton). beta is scaled by the sub-grid grounded
-  ! fraction so friction vanishes under floating ice.
+  ! eps0, n and the Zoet-Iverson parameters (p, u_t, delta_v, beta_max) come from
+  ! PetscDSSetConstants. tauc_eff is the till yield stress scaled by the sub-grid
+  ! grounded fraction, so friction vanishes under floating ice. The pointwise
+  ! sliding relation is SSA_FEM_PETSc_sliding_beta below (currently Zoet-Iverson
+  ! only; see the TODO there).
   !
   ! Not done yet: essential boundary conditions and the ice-front back-pressure
   ! (Phase 5); solver/preconditioner tuning and non-dimensionalisation (Phase 6).
@@ -53,10 +54,9 @@ module momentum_balance_solver_SSA_FEM_PETSc
     VecSet, VecDestroy, VecGetArrayRead, VecRestoreArrayRead, VecSetValues, VecAssemblyBegin, &
     VecAssemblyEnd, MatDestroy, INSERT_VALUES, &
     SNESCreate, SNESSetDM, SNESSetType, SNESSetTolerances, SNESGetKSP, SNESSolve, SNESDestroy, &
-    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, PCSetType, PCLU, &
-    VecDuplicate, VecCopy, VecAXPBY
+    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, PCSetType, PCLU
   use mpi_f08, only: MPI_ALLTOALL, MPI_ALLTOALLV, MPI_ALLREDUCE, MPI_COMM_WORLD, MPI_IN_PLACE, &
-    MPI_DOUBLE_PRECISION, MPI_INTEGER, MPI_MAX, MPI_SUM, MPI_LOR, MPI_LOGICAL
+    MPI_DOUBLE_PRECISION, MPI_INTEGER, MPI_MAX, MPI_LOR, MPI_LOGICAL
   use mpi_basic, only: par
   use call_stack_and_comp_time_tracking, only: init_routine, finalise_routine, crash, warning
   use model_configuration, only: C
@@ -81,12 +81,16 @@ module momentum_balance_solver_SSA_FEM_PETSc
   public :: type_momentum_balance_solver_SSA_FEM_PETSc
 
   ! Layout of the 5-component PetscFE auxiliary field
-  integer, parameter :: i_Abar  = 1   ! vertically averaged flow factor A   [Pa^-n yr^-1]
-  integer, parameter :: i_H     = 2   ! ice thickness (>= 0.1 m)            [m]
-  integer, parameter :: i_beta  = 3   ! basal friction coeff (frozen)      [Pa yr m^-1]
-  integer, parameter :: i_taudx = 4   ! driving stress, x                  [Pa]
-  integer, parameter :: i_taudy = 5   ! driving stress, y                  [Pa]
+  integer, parameter :: i_Abar  = 1   ! vertically averaged flow factor A         [Pa^-n yr^-1]
+  integer, parameter :: i_H     = 2   ! ice thickness (>= 0.1 m)                  [m]
+  integer, parameter :: i_tauc  = 3   ! till yield stress * fraction_gr**exponent [Pa]
+  integer, parameter :: i_taudx = 4   ! driving stress, x                        [Pa]
+  integer, parameter :: i_taudy = 5   ! driving stress, y                        [Pa]
   integer, parameter :: n_aux_comp = 5
+
+  ! Index of the Zoet-Iverson parameters within the PetscDS constants array
+  integer, parameter :: ic_eps0 = 1, ic_nglen = 2, ic_ZIp = 3, ic_ZIut = 4, ic_dv = 5, ic_betamax = 6
+  integer, parameter :: n_ds_constants = 6
 
   ! d D[m] / d(grad u)[k], with D and grad u in the layout
   ! (1,2,3,4) = (xx, xy, yx, yy) resp. (du/dx, du/dy, dv/dx, dv/dy).
@@ -108,7 +112,7 @@ module momentum_balance_solver_SSA_FEM_PETSc
     type(tVec)     :: sol           ! global solution vector, kept as the SNES initial guess
     type(tDM)      :: dm_aux        ! clone of dm carrying the auxiliary field
     type(tPetscFE) :: fe_aux
-    type(tVec)     :: aux_vec       ! local vector of dm_aux: [Abar, H, beta, tau_dx, tau_dy] per vertex
+    type(tVec)     :: aux_vec       ! local vector of dm_aux: [Abar, H, tauc_eff, tau_dx, tau_dy] per vertex
     logical        :: petsc_is_built = .false.
 
     ! Solution
@@ -250,8 +254,19 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    if (par%primary) write(0,'(A)') '    NOTE: the SSA_FEM_PETSc solver is at Phase 3 - non-linear Newton ' // &
-      'residual (pointwise Glen viscosity), natural boundary conditions only.'
+    if (par%primary) write(0,'(A)') '    NOTE: the SSA_FEM_PETSc solver solves the fully non-linear SSA ' // &
+      'with one Newton solve (pointwise Glen viscosity + sliding law); natural boundary conditions only.'
+
+    ! The basal friction non-linearity is evaluated pointwise in the residual, which
+    ! currently only covers the Zoet-Iverson sliding law (see SSA_FEM_PETSc_sliding_beta).
+    select case (C%choice_sliding_law)
+    case ('Zoet-Iverson', 'no_sliding')
+      ! supported
+    case default
+      call crash('SSA_FEM_PETSc evaluates the basal friction law pointwise in the residual and ' // &
+        'currently only implements "Zoet-Iverson" (got "' // trim( C%choice_sliding_law) // '"). ' // &
+        'TODO: port the other sliding laws - see SSA_FEM_PETSc_sliding_beta in this module.')
+    end select
 
     call self%build_petsc_objects()
 
@@ -280,13 +295,12 @@ contains
 
     ! Local variables:
     character(len=*), parameter                        :: routine_name = 'momentum_balance_solver_SSA_FEM_PETSc_run'
-    integer                                            :: ierr, it, snes_its, vi
-    logical                                            :: grounded_ice_exists, has_converged
-    real(dp), dimension(self%mesh%vi1:self%mesh%vi2)   :: A_flow_vav_a, u_prev, v_prev
+    integer                                            :: ierr, newton_its, vi
+    logical                                            :: grounded_ice_exists
+    real(dp), dimension(self%mesh%vi1:self%mesh%vi2)   :: A_flow_vav_a
     real(dp), dimension(self%mesh%vi1:self%mesh%vi2, n_aux_comp) :: coeffs
     real(dp), dimension(self%mesh%nz)                  :: A_prof
-    real(dp)                                           :: L2_uv, uabs, umax, res1, res2
-    type(tVec)                                         :: sol_prev
+    real(dp)                                           :: uabs, umax
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -311,60 +325,21 @@ contains
       A_flow_vav_a( vi) = vertical_average( self%mesh%zeta, A_prof)
     end do
 
-    ! Light Picard loop: only the velocity-dependent basal friction coefficient is
-    ! frozen; the viscosity non-linearity is handled by Newton inside solve_SSA_Newton.
-    self%n_visc_its = 0
-    self%n_Axb_its  = 0
-    has_converged   = .false.
-    PetscCall( VecDuplicate( self%sol, sol_prev, ierr))
-    do it = 1, C%visc_it_nit
+    ! Assemble the velocity-independent auxiliary coefficients and hand them to PETSc.
+    ! Both non-linearities of the SSA - the Glen viscosity AND the basal friction law -
+    ! are evaluated pointwise inside the residual, so a single Newton solve suffices;
+    ! there is no outer Picard iteration. The solve is warm-started from self%sol.
+    call self%calc_auxiliary_fields( ice, geom, bed_roughness, A_flow_vav_a, coeffs)
+    call fill_PETSc_aux_from_mesh_vertices( self%dm, self%dm_aux, self%aux_vec, self%mesh, coeffs)
+    ierr = dm_set_auxiliary_vec( self%dm%v, 0_c_intptr_t, 0_c_int, 0_c_int, self%aux_vec%v)
+    CHKERRQ( ierr)
 
-      u_prev = self%u_vav_a
-      v_prev = self%v_vav_a
-      PetscCall( VecCopy( self%sol, sol_prev, ierr))
+    call self%solve_SSA_Newton( newton_its)
+    self%n_visc_its = 1
+    self%n_Axb_its  = newton_its
 
-      call self%calc_auxiliary_fields( ice, geom, bed_roughness, A_flow_vav_a, coeffs)
-      call fill_PETSc_aux_from_mesh_vertices( self%dm, self%dm_aux, self%aux_vec, self%mesh, coeffs)
-      ierr = dm_set_auxiliary_vec( self%dm%v, 0_c_intptr_t, 0_c_int, 0_c_int, self%aux_vec%v)
-      CHKERRQ( ierr)
-
-      ! Newton solve of the non-linear SSA (warm-started from self%sol)
-      call self%solve_SSA_Newton( snes_its)
-      self%n_visc_its = it
-      self%n_Axb_its  = self%n_Axb_its + snes_its
-
-      ! Under-relax the outer (frozen-friction) iterate for stability
-      PetscCall( VecAXPBY( self%sol, 1._dp - C%visc_it_relax, C%visc_it_relax, sol_prev, ierr))
-      call copy_PETSc_solution_to_mesh_vertices_vec2( self%dm, self%sol, self%mesh, self%u_vav_a, self%v_vav_a)
-
-      if (any( isnan( self%u_vav_a)) .or. any( isnan( self%v_vav_a))) &
-        call crash('SSA_FEM_PETSc: NaN in the velocity solution')
-
-      ! L2-norm of the change between successive outer iterates
-      res1 = sum( (self%u_vav_a - u_prev)**2 + (self%v_vav_a - v_prev)**2)
-      res2 = sum( (self%u_vav_a + u_prev)**2 + (self%v_vav_a + v_prev)**2)
-      call MPI_ALLREDUCE( MPI_IN_PLACE, res1, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-      call MPI_ALLREDUCE( MPI_IN_PLACE, res2, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-      L2_uv = 2._dp * res1 / max( res2, 1e-8_dp)
-
-      umax = maxval( sqrt( self%u_vav_a**2 + self%v_vav_a**2))
-      call MPI_ALLREDUCE( MPI_IN_PLACE, umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-      if (par%primary) write(0,'(A,I3,A,I3,A,ES10.3,A,ES10.3)') &
-        '    SSA_FEM_PETSc outer iter. ', it, ': Newton its = ', snes_its, ', L2 = ', L2_uv, &
-        ', max speed = ', umax
-
-      if (L2_uv < C%visc_it_norm_dUV_tol) then
-        has_converged = .true.
-        exit
-      end if
-
-    end do
-
-    if (.not. has_converged .and. par%primary) &
-      call warning('SSA_FEM_PETSc: outer (friction) iteration did not converge within {int_01} iterations', &
-        int_01 = C%visc_it_nit)
-
-    PetscCall( VecDestroy( sol_prev, ierr))
+    if (any( isnan( self%u_vav_a)) .or. any( isnan( self%v_vav_a))) &
+      call crash('SSA_FEM_PETSc: NaN in the velocity solution')
 
     ! Limit velocities for the exposed result
     do vi = self%mesh%vi1, self%mesh%vi2
@@ -374,6 +349,11 @@ contains
         self%v_vav_a( vi) = self%v_vav_a( vi) * C%vel_max / uabs
       end if
     end do
+
+    umax = maxval( sqrt( self%u_vav_a**2 + self%v_vav_a**2))
+    call MPI_ALLREDUCE( MPI_IN_PLACE, umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+    if (par%primary) write(0,'(A,I0,A,ES10.3)') '    SSA_FEM_PETSc: Newton its = ', newton_its, &
+      ', max speed = ', umax
 
     ! Expose the result on the triangles
     call map_a_b_2D( self%mesh, self%u_vav_a, self%u_vav_b)
@@ -479,7 +459,7 @@ contains
     type(tPC)                      :: pc
     integer                        :: ierr
     integer(c_intptr_t)            :: no_context
-    real(dp), dimension(2)         :: ds_constants
+    real(dp), dimension(n_ds_constants) :: ds_constants
 
     call init_routine( routine_name)
 
@@ -497,11 +477,17 @@ contains
     PetscCall( DMCreateDS( self%dm, ierr))
     PetscCall( DMGetDS( self%dm, ds, ierr))
 
-    ! Uniform scalars for the pointwise functions: [eps_sq_0, Glen exponent n]
-    ds_constants = [C%Glens_flow_law_epsilon_sq_0, C%Glens_flow_law_exponent]
-    PetscCall( PetscDSSetConstants( ds, 2, ds_constants, ierr))
+    ! Uniform scalars for the pointwise functions:
+    ! [eps_sq_0, Glen n, Zoet-Iverson p, Zoet-Iverson u_t, delta_v, beta_max]
+    ds_constants( ic_eps0)    = C%Glens_flow_law_epsilon_sq_0
+    ds_constants( ic_nglen)   = C%Glens_flow_law_exponent
+    ds_constants( ic_ZIp)     = C%slid_ZI_p
+    ds_constants( ic_ZIut)    = C%slid_ZI_ut
+    ds_constants( ic_dv)      = C%slid_delta_v
+    ds_constants( ic_betamax) = C%slid_beta_max
+    PetscCall( PetscDSSetConstants( ds, n_ds_constants, ds_constants, ierr))
 
-    ! Auxiliary field: [Abar, H, beta, tau_dx, tau_dy], P1, on a clone of the primary DM
+    ! Auxiliary field: [Abar, H, tauc_eff, tau_dx, tau_dy], P1, on a clone of the primary DM
     ierr = dm_clone( self%dm%v, self%dm_aux%v)
     CHKERRQ( ierr)
     PetscCall( PetscFECreateLagrange( PETSC_COMM_SELF, 2, n_aux_comp, PETSC_TRUE, 1, -1, self%fe_aux, ierr))
@@ -620,7 +606,7 @@ contains
     character(len=*), parameter                      :: routine_name = 'calc_auxiliary_fields'
     real(dp), dimension(self%mesh%vi1:self%mesh%vi2) :: dHs_dx_a, dHs_dy_a
     integer                                         :: vi
-    real(dp)                                        :: beta
+    real(dp)                                        :: tauc
 
     call init_routine( routine_name)
 
@@ -628,20 +614,21 @@ contains
     call ddx_a_a_2D( self%mesh, geom%Hs, dHs_dx_a)
     call ddy_a_a_2D( self%mesh, geom%Hs, dHs_dy_a)
 
-    ! Basal friction coefficient from the sliding law, evaluated at the current velocity,
-    ! scaled by the sub-grid grounded fraction so that friction vanishes under floating ice
-    ! (a-grid analogue of calc_applied_basal_friction_coefficient).
+    ! Till yield stress from the sliding law (velocity-independent). Its basal_friction
+    ! _coefficient output is discarded: the friction non-linearity is evaluated pointwise
+    ! in the residual. tauc is scaled by the sub-grid grounded fraction so that friction
+    ! vanishes under floating ice (a-grid analogue of calc_applied_basal_friction_coefficient).
     call calc_basal_friction_coefficient( self%mesh, geom, bed_roughness, self%u_vav_a, self%v_vav_a, &
       ice%effective_pressure, ice%till_yield_stress, ice%basal_friction_coefficient)
 
     do vi = self%mesh%vi1, self%mesh%vi2
-      beta = ice%basal_friction_coefficient( vi)
+      tauc = ice%till_yield_stress( vi)
       if (C%do_GL_subgrid_friction) &
-        beta = beta * geom%fraction_gr( vi)**C%subgrid_friction_exponent_on_B_grid
+        tauc = tauc * geom%fraction_gr( vi)**C%subgrid_friction_exponent_on_B_grid
 
       coeffs( vi, i_Abar)  = A_flow_vav_a( vi)
       coeffs( vi, i_H)     = max( 0.1_dp, geom%Hi( vi))
-      coeffs( vi, i_beta)  = beta
+      coeffs( vi, i_tauc)  = tauc
       coeffs( vi, i_taudx) = -ice_density * grav * geom%Hi( vi) * dHs_dx_a( vi)
       coeffs( vi, i_taudy) = -ice_density * grav * geom%Hi( vi) * dHs_dy_a( vi)
     end do
@@ -884,23 +871,65 @@ contains
     eta  = 0.5_c_double * Abar**(-1._c_double/n_glen) * eps2**((1._c_double - n_glen)/(2._c_double*n_glen))
   end subroutine SSA_FEM_PETSc_strain
 
+  subroutine SSA_FEM_PETSc_sliding_beta( u, v, tauc, c_values, beta, dbeta_duabs)
+    !< Pointwise Zoet & Iverson (2020) basal friction relation: returns the friction
+    !< coefficient beta (such that tau_b = beta * u) as a function of |u|, and
+    !< d beta / d|u| (for the analytic Jacobian). tauc is the (grounded-fraction-
+    !< scaled) till yield stress; the ZI parameters p, u_t, delta_v and beta_max come
+    !< from the PetscDS constants array.
+    !<
+    !< TODO: this duplicates the kernel of
+    !<   sliding_laws.f90 :: calc_sliding_law_ZoetIverson.
+    !< It should eventually become a shared *pointwise* routine living in
+    !< sliding_laws, called both by the array-based finite-difference solvers and
+    !< from here, with the other sliding laws (Weertman, Budd, Coulomb, Tsai2015,
+    !< Schoof2005) given the same treatment. Until then, the guard in
+    !< momentum_balance_solver_SSA_FEM_PETSc_initialise restricts this solver to
+    !< the Zoet-Iverson law.
+    real(c_double), intent(in)  :: u, v, tauc
+    real(c_double), intent(in)  :: c_values(:)
+    real(c_double), intent(out) :: beta, dbeta_duabs
+    real(c_double) :: uabs, aexp, bexp, ZIp, ZIut, dv, betamax
+
+    ZIp     = c_values( ic_ZIp)
+    ZIut    = c_values( ic_ZIut)
+    dv      = c_values( ic_dv)
+    betamax = c_values( ic_betamax)
+
+    uabs = sqrt( dv**2 + u**2 + v**2)
+    aexp = 1._c_double / ZIp - 1._c_double        ! exponent on |u|
+    bexp = -1._c_double / ZIp                     ! exponent on (|u| + u_t)
+    beta = tauc * uabs**aexp * (uabs + ZIut)**bexp
+    if (beta >= betamax) then
+      beta        = betamax
+      dbeta_duabs = 0._c_double
+    else
+      dbeta_duabs = beta * (aexp / uabs + bexp / (uabs + ZIut))
+    end if
+
+  end subroutine SSA_FEM_PETSc_sliding_beta
+
   subroutine SSA_FEM_PETSc_f0( dim, nf, nfaux, uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, &
     time, x, nconstants, constants, f0) bind(C)
 
     integer(c_intptr_t), value :: dim, nf, nfaux, nconstants
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants, f0
     real(c_double), value :: time
-    real(c_double), pointer :: u_values(:), a_values(:), f0_values(:)
+    real(c_double), pointer :: u_values(:), a_values(:), c_values(:), f0_values(:)
+    real(c_double)          :: beta, dbeta_duabs
 
     call c_f_pointer( u, u_values, [2])
     call c_f_pointer( a, a_values, [n_aux_comp])
+    call c_f_pointer( constants, c_values, [int( nconstants)])
     call c_f_pointer( f0, f0_values, [2])
+
+    call SSA_FEM_PETSc_sliding_beta( u_values(1), u_values(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
 
     ! Weak form  integral( f1:grad(phi) + f0.phi ) = 0  with f1 = membrane stress M.
     ! Integrating div(M) by parts gives f0 = beta*u - tau_d, where tau_d = -rho g H grad(Hs)
     ! is the (downslope) driving stress as defined in UFEMISM.
-    f0_values( 1) = a_values( i_beta) * u_values( 1) - a_values( i_taudx)
-    f0_values( 2) = a_values( i_beta) * u_values( 2) - a_values( i_taudy)
+    f0_values( 1) = beta * u_values( 1) - a_values( i_taudx)
+    f0_values( 2) = beta * u_values( 2) - a_values( i_taudy)
 
   end subroutine SSA_FEM_PETSc_f0
 
@@ -935,14 +964,22 @@ contains
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants
     real(c_double), value :: time, u_tshift
     real(c_double), intent(out) :: g0(*)
-    real(c_double), pointer :: a_values(:)
+    real(c_double), pointer :: u_values(:), a_values(:), c_values(:)
+    real(c_double)          :: beta, dbeta_duabs, uabs, rank1
 
+    call c_f_pointer( u, u_values, [2])
     call c_f_pointer( a, a_values, [n_aux_comp])
+    call c_f_pointer( constants, c_values, [int( nconstants)])
 
-    ! d f0_c / d u_c'  =  beta * delta_{c c'}   (2x2, row-major)
-    g0( 1:4) = 0._c_double
-    g0( 1)   = a_values( i_beta)
-    g0( 4)   = a_values( i_beta)
+    call SSA_FEM_PETSc_sliding_beta( u_values(1), u_values(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
+
+    ! d(beta(|u|) u_c) / d u_c'  =  beta delta_{c c'}  +  (dbeta/d|u| / |u|) u_c u_c'
+    uabs  = sqrt( c_values( ic_dv)**2 + u_values(1)**2 + u_values(2)**2)
+    rank1 = dbeta_duabs / uabs
+    g0( 1) = beta + rank1 * u_values(1) * u_values(1)
+    g0( 2) =        rank1 * u_values(1) * u_values(2)
+    g0( 3) =        rank1 * u_values(2) * u_values(1)
+    g0( 4) = beta + rank1 * u_values(2) * u_values(2)
 
   end subroutine SSA_FEM_PETSc_g0
 
