@@ -1,0 +1,8 @@
+ -= Checksum logfile =-
+  Git commit hash        : cbc233ff0e5115edbd692833d1d0d2d237203654
+  has uncommitted changes:  F
+  PETSc version          : 3.25.5
+  NetCDF version         : 4.10.0
+  OpenMPI version        : 5.0.10
+  Compiler               : GNU Fortran (conda-forge gcc 15.3.0-4) 15.3.0
+  Compiler flags         : -fdiagnostics-color=always -Og -Wall -ffree-line-length-none -cpp -Werror=implicit-interface -fimplicit-none -g -march=native -fcheck=all -fbacktrace -finit-real=nan -finit-integer=-42 -finit-character=33
