@@ -272,6 +272,30 @@ vs FD's triangle-averaged `beta`), which Phase 5 (BCs / GL) should narrow.
 Verification still worth doing: a manufactured / Schoof case where both solvers
 converge, to confirm the FE solution is the correct one (Phase 7).
 
+**Time-evolving runs needed a much smaller timestep than with the FD `SSA`
+solver - root-caused and fixed.** Diagnosis: `calc_critical_timestep_adv`
+(the hard advective CFL) takes a global minimum over mesh edges of
+`dist/(|u_c|+|v_c|)`, with zero smoothing, so a single anomalous edge speed sets
+the timestep for the whole domain. The edge (c-grid) velocity `u_c` was produced
+by remapping the solver's b-grid output (itself already a vertex -> triangle
+remap of the FE solution) triangle -> edge - i.e. **two consecutive averaging
+remaps**, vertex -> triangle -> edge, each edge value an average of 4 vertex
+values - which added real numerical diffusion on top of whatever the momentum
+solve itself produced. Fixed with a new `map_velocities_from_a_to_c_2D`
+(`map_velocities_to_c_grid.f90`) that maps vertex -> edge **directly**, and
+critically, picks the single **upwind** vertex value per edge instead of
+averaging the two endpoints - consistent with the general finding (see
+`SSA_FEM_PETSc_weak_form_derivation.md`'s companion discussion earlier in this
+project) that mass-continuity stability comes from upwinding the advective flux,
+not from where the velocity unknown formally lives. This resolves the concern
+raised when Phase 0 started, that moving the velocity unknown off the staggered
+b-grid might by itself destabilise mass continuity - it does not, provided the
+consumer-facing remap is direct and upwinded. No DMPlex/mesh-topology change
+(e.g. building the DMPlex from the dual/Voronoi mesh) was needed or is planned;
+`PetscFECreateLagrange`'s continuous Lagrange elements only support simplices/
+tensor cells, not the general polygons of a Voronoi dual, so that path would have
+required abandoning the current PetscFE approach rather than adapting it.
+
 ### Phase 4 - Analytic pointwise Jacobian + Picard option
 
 1. Implement `g0` (d f0 / d u: basal-drag linearisation), `g3` (d f1 / d u_x:
