@@ -14,8 +14,9 @@ The solver is selected with `choice_stress_balance_approximation = 'SSA_FEM_PETS
 | --- | --- | --- |
 | 0 - Scaffolding | **done** | `type_momentum_balance_solver_SSA_FEM_PETSc` in `src/UFEMISM/ice_dynamics/momentum_balance/SSA_FEM_PETSc/`; dispatch case + config comment added; integrated test `integrated_test_SSA_notime_MISMIP_mod_full` now has `config_SSA.cfg` + `config_SSA_FEM_PETSc.cfg` and its `test_script.csh` runs both solvers. |
 | 1 - DMPlex + PetscFE + SNES skeleton, constant-coefficient linear SSA | **done** | Full `DMPlex -> PetscFE (P1, 2-comp) -> PetscDS (f0/f1 + analytic g0/g3) -> SNES` pipeline. On the integrated-test mesh, 2 MPI ranks: SNES converges in 1 iteration and the nodal field matches the closed-form uniform solution `-tau/beta` to `~1e-16`. `overlap = 0` assembly confirmed correct in parallel for this case. |
-| 2 - Auxiliary fields (real spatially varying coefficients) | **done** | 4-component P1 aux field `[N, beta, tau_dx, tau_dy]` on a `DMClone`d DM, attached with `DMSetAuxiliaryVec`; `f0/f1/g0/g3` read `a[]`. Per-vertex coefficients computed with the existing UFEMISM machinery (`calc_ice_rheology_Glen`, `calc_effective_viscosity_Glen_2D`, `calc_basal_friction_coefficient` **including the sub-grid grounded-fraction scaling `beta *= fraction_gr**exp` so friction vanishes under floating ice**, `ddx_a_a_2D` for the driving stress) and scattered to the DMPlex layout by the inverse of the solution copy-back. Wrapped in a Picard viscosity iteration (relax / limit / L2 stop, same config knobs as `momentum_balance_solver_SSA`). Runs on 2 ranks; the speed field correlates 0.95 vertexwise with the finite-difference `SSA` solver on the integrated test (both still Picard-limited at 50 iterations). |
-| 3-8 | not started | |
+| 2 - Auxiliary fields (real spatially varying coefficients) | **done** | 4-component P1 aux field on a `DMClone`d DM, attached with `DMSetAuxiliaryVec`; `f0/f1/g0/g3` read `a[]`. Per-vertex coefficients from the existing UFEMISM machinery, incl. the sub-grid grounded-fraction scaling of `beta` (friction vanishes under floating ice). Superseded by Phase 3's residual (viscosity is no longer frozen). |
+| 3 - Non-linear Newton residual + analytic Jacobian | **done** | `eta = eta(grad u)` (Glen) evaluated pointwise in `f1`; analytic Jacobian `g3` = frozen membrane term + rank-1 `d eta / d grad u` term; `g0 = beta*I`. Aux field now `[Abar, H, beta, tau_dx, tau_dy]` (5 comp), `eps0` and `n` via `PetscDSSetConstants`. Persistent warm-started solution vector; light outer Picard loop refreshes only the velocity-dependent `beta`, under-relaxed. **Fixed a sign error: `f0 = beta*u - tau_d`, not `+`** (found via anti-correlated `u_vav`). On the integrated test, 2 ranks: each Newton solve converges in 3-7 iterations; signed `u_vav`/`v_vav` correlate **+0.97** with the finite-difference `SSA` solver (speed +0.96), ~36% relative rms - both solvers still hit the outer 50-iteration cap on this stiff config. |
+| 4-8 | not started | |
 
 Implementation notes that deviate from the original plan:
 
@@ -221,19 +222,40 @@ nonlinear residual (`eta = eta(grad u)` pointwise), optionally with the
 adaptive-relaxation Picard from `momentum_balance_solver_SSA` as a fallback
 (Phase 4).
 
-### Phase 3 - Full nonlinear residual (Newton with FD Jacobian)
+### Phase 3 - Non-linear Newton residual + analytic Jacobian - **done**
 
-1. Make `eta` a pointwise function of `u_x` in `f1` (Glen's law, using
-   `A` from `a[]`). Port the algebra from
-   `calc_effective_viscosity_Glen_2D` / `constitutive_equation`.
-2. Make basal drag `f0` a pointwise function of `u` (regularised sliding law;
-   for Phase 3 a linear or Weertman-with-fixed-exponent form is enough, then
-   generalise).
-3. Ice-front natural BC: `PetscDSSetBdResidual` + `DMAddBoundary(DM_BC_NATURAL)`
-   on an ice-front DMLabel (Phase 5 provides the label).
-4. Jacobian: start with `-snes_fd_color` (or `-snes_mf_operator`) so the residual
-   can be validated in isolation. Confirm SNES converges and the solution
-   matches the existing SSA solver on a shelf + stream test to a few percent.
+(Phase 3 and the analytic-Jacobian half of Phase 4 were done together - once the
+`d eta / d grad u` term was written for the residual it was trivially also the
+Jacobian, so the FD-coloured-Jacobian intermediate step was skipped.)
+
+- **`f1`** computes `eta` pointwise from `grad u`
+  (`eps2 = ux^2 + vy^2 + ux*vy + (uy+vx)^2/4 + eps0`,
+  `eta = 1/2 Abar^(-1/n) eps2^((1-n)/2n)`), then `f1[c,d] = 2 (eta*H) D[c,d]`
+  with `D` the SSA strain tensor. `Abar`, `H` come from the aux field; `eps0`,
+  `n` from `PetscDSSetConstants`.
+- **`f0` = `beta*u - tau_d`** (basal drag minus the driving stress). The minus
+  sign matters - an earlier `+` produced a velocity field anti-correlated with
+  the FD SSA solver (right speed, flipped direction).
+- **`g3`** (analytic) = `2 N dD/d(grad u)` (the old frozen term, `N` now
+  pointwise) `+ coef * D[m] D[k]` with
+  `coef = 2 H eta ((1-n)/2n) / eps2` (rank-1 shear-thinning term). `g0 = beta*I`.
+- **Aux field** is now `[Abar, H, beta, tau_dx, tau_dy]` (5 components);
+  `fill_PETSc_aux_from_mesh_vertices` generalised to `n_aux_comp`.
+- **Outer loop** is now light: the viscosity non-linearity is inside Newton, so
+  the Picard loop only refreshes the velocity-dependent `beta` (sliding law),
+  under-relaxed by `C%visc_it_relax` on a persistent, warm-started PETSc solution
+  vector (`VecAXPBY`).
+
+Result (integrated test, 2 ranks): each Newton solve converges in **3-7
+iterations**; the outer `beta` loop stabilises (max speed flat ~1099 m/yr, L2
+~4e-6) but still hits the 50-iteration cap. Signed `u_vav`/`v_vav` correlate
+**+0.97** with the FD `SSA` solver, `uabs_vav` **+0.96**, ~36 % relative rms.
+Remaining differences: neither solver is fully converged on this stiff config;
+different strain-rate discretisation (`ddx_a_a` on P1 nodes vs FD `ddx_b_a`); no
+essential BCs / ice-front back-pressure yet (Phase 5).
+
+Still open for a later pass: tighten the outer `beta` loop (adaptive relaxation,
+or fold `beta(|u|)` into the Newton residual) - Phase 4 / Phase 6.
 
 ### Phase 4 - Analytic pointwise Jacobian + Picard option
 
@@ -357,8 +379,11 @@ interfaces (pattern: `ct_PETSc_SNES_Poisson.f90` lines 49-116) in a shared
       coefficients + Picard loop; runs on 2 ranks; `uabs_vav` correlates 0.95
       with the FD SSA solver (tight Picard convergence deferred to Phase 3, as
       the FD SSA also stalls on this config).
-- [ ] Phase 3: nonlinear residual, SNES converges (FD Jacobian), matches `SSA`.
-- [ ] Phase 4: analytic Jacobian + Picard option.
+- [x] Phase 3: non-linear residual (pointwise Glen `eta`), analytic Jacobian;
+      Newton converges in 3-7 its/solve; signed velocity correlates +0.97 with FD
+      `SSA`. (`f0` sign fixed.)
+- [~] Phase 4: analytic Jacobian **done** (with Phase 3); still to do - Picard /
+      adaptive-relaxation option and tightening the outer `beta` loop.
 - [ ] Phase 5: UFEMISM BCs (prescribed, ice front; periodic later).
 - [ ] Phase 6: scaled, GAMG + rigid-body null space, config knobs.
 - [ ] Phase 7: Schoof convergence order + benchmark cross-checks.
