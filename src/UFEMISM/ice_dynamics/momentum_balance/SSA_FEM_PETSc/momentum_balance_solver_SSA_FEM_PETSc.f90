@@ -60,8 +60,8 @@ module momentum_balance_solver_SSA_FEM_PETSc
   ! unaffected.
 
   use precisions, only: dp
-  use iso_c_binding, only: c_bool, c_double, c_int, c_intptr_t, c_ptr, c_funptr, c_funloc, &
-    c_null_funptr, c_null_ptr, c_f_pointer
+  use iso_c_binding, only: c_bool, c_char, c_double, c_int, c_intptr_t, c_ptr, c_funptr, c_funloc, &
+    c_null_funptr, c_null_ptr, c_null_char, c_f_pointer, c_loc
   use petsc, only: PetscErrorF, PETSC_COMM_SELF, PETSC_COMM_WORLD, PETSC_TRUE, PETSC_FALSE, &
     PETSC_NULL_DMLABEL, PETSC_NULL_VEC, tDM, tVec, tMat, tSNES, tKSP, tPC, tPetscObject, &
     tPetscFE, tPetscDS, tDMLabel, tPetscSection, tMatNullSpace, &
@@ -82,7 +82,7 @@ module momentum_balance_solver_SSA_FEM_PETSc
   use mpi_basic, only: par
   use call_stack_and_comp_time_tracking, only: init_routine, finalise_routine, crash, warning
   use model_configuration, only: C
-  use parameters, only: grav, ice_density
+  use parameters, only: grav, ice_density, seawater_density
   use mesh_types, only: type_mesh
   use ice_model_data, only: atype_ice_model_data
   use ice_geometry_model_data, only: atype_ice_geometry_model_data
@@ -103,13 +103,22 @@ module momentum_balance_solver_SSA_FEM_PETSc
 
   public :: type_momentum_balance_solver_SSA_FEM_PETSc
 
-  ! Layout of the 5-component PetscFE auxiliary field
+  ! Layout of the 6-component PetscFE auxiliary field
   integer, parameter :: i_Abar  = 1   ! vertically averaged flow factor A         [Pa^-n yr^-1]
   integer, parameter :: i_H     = 2   ! ice thickness (>= 0.1 m)                  [m]
   integer, parameter :: i_tauc  = 3   ! till yield stress * fraction_gr**exponent [Pa]
   integer, parameter :: i_taudx = 4   ! driving stress, x                        [Pa]
   integer, parameter :: i_taudy = 5   ! driving stress, y                        [Pa]
-  integer, parameter :: n_aux_comp = 5
+  integer, parameter :: i_Ho    = 6   ! ocean-column depth at the ice front (geom%Ho) [m]
+  integer, parameter :: n_aux_comp = 6
+
+  ! DM_BC_NATURAL's enumerator value (petscdmtypes.h), used with the manual
+  ! dm_add_boundary bind(C) interface below (its boundary_type argument is a raw
+  ! integer(c_int), not the Fortran module's DMBoundaryConditionType).
+  integer(c_int), parameter :: dm_bc_natural_value = 2_c_int
+  ! 'ice_margin' + a C null terminator, for the same interface's boundary name.
+  character(kind=c_char), dimension(11), parameter :: ice_margin_label_name = [character(kind=c_char) :: &
+    'i', 'c', 'e', '_', 'm', 'a', 'r', 'g', 'i', 'n', c_null_char]
 
   ! Index of the Zoet-Iverson parameters within the PetscDS constants array
   integer, parameter :: ic_eps0 = 1, ic_nglen = 2, ic_ZIp = 3, ic_ZIut = 4, ic_dv = 5, ic_betamax = 6
@@ -212,6 +221,49 @@ module momentum_balance_solver_SSA_FEM_PETSc
       integer(c_intptr_t), value :: field_test, field_trial
       type(c_funptr),      value :: g0, g1, g2, g3
     end function petsc_ds_set_jacobian
+
+    integer(c_int) function petsc_ds_get_boundary( ds, bd, wf, bc_type, bc_name, bc_label, nv, values, field, &
+      nc, comps, func, func_t, ctx) bind(C, name='PetscDSGetBoundary')
+      import :: c_int, c_intptr_t, c_ptr
+      integer(c_intptr_t), value       :: ds, bd
+      integer(c_intptr_t), intent(out) :: wf
+      type(c_ptr),         value       :: bc_type, bc_name, bc_label, nv, values, field, nc, comps, func, func_t, ctx
+    end function petsc_ds_get_boundary
+
+    integer(c_int) function petsc_ds_get_num_boundary( ds, numbd) bind(C, name='PetscDSGetNumBoundary')
+      import :: c_int, c_intptr_t
+      integer(c_intptr_t), value       :: ds
+      integer(c_intptr_t), intent(out) :: numbd
+    end function petsc_ds_get_num_boundary
+
+    integer(c_int) function petsc_weak_form_set_index_bd_residual( wf, label, val, field, part, i0, f0_bd, i1, f1_bd) &
+      bind(C, name='PetscWeakFormSetIndexBdResidual')
+      !< PetscWeakFormSetIndexBdResidual(wf, label, val, f, part, i0, f0, i1, f1) - 9
+      !< real arguments. 'part' is the (label, val, field, part) key itself (the
+      !< equation part, 0 if unused); 'i0'/'i1' are separate indices into the list of
+      !< f0/f1 functions already stored *at* that one key (so several residual terms
+      !< can be summed at the same key). An earlier version of this interface was
+      !< missing 'part' entirely and shifted every argument after it by one slot -
+      !< silently registering the f0 callback as an integer "index" and leaving the
+      !< real PetscBdPointFn slot NULL, so PetscFEIntegrateBdResidual_Basic's
+      !< "if (!n0 && !n1) return" saw nothing to do and never invoked the callback.
+      import :: c_funptr, c_int, c_intptr_t
+      integer(c_intptr_t), value :: wf, label
+      integer(c_intptr_t), value :: val, field, part, i0, i1
+      type(c_funptr),      value :: f0_bd, f1_bd
+    end function petsc_weak_form_set_index_bd_residual
+
+    integer(c_int) function dm_add_boundary( dm, boundary_type, name, label, nvalues, values, field, ncomponents, &
+      components, boundary_function, boundary_time_derivative, ctx, boundary_index) bind(C, name='DMAddBoundary')
+      import :: c_char, c_funptr, c_int, c_intptr_t, c_ptr
+      integer(c_intptr_t),                 value       :: dm, label
+      integer(c_int),                      value       :: boundary_type
+      integer(c_intptr_t),                 value       :: nvalues, field, ncomponents
+      character(kind=c_char), dimension(*), intent(in) :: name
+      type(c_ptr),                         value       :: values, components, ctx
+      type(c_funptr),                      value       :: boundary_function, boundary_time_derivative
+      integer(c_intptr_t),                 intent(out) :: boundary_index
+    end function dm_add_boundary
 
     integer(c_int) function snes_set_jacobian( snes, jacobian, preconditioner, function, ctx) &
       bind(C, name='SNESSetJacobian')
@@ -521,10 +573,11 @@ contains
 
   subroutine build_petsc_objects( self, geom)
     !< Build the DMPlex, the P1 vector PetscFE field, the auxiliary-field DM, the
-    !< PetscDS weak form and the SNES, restricted to the ice-covered sub-mesh (so
-    !< that its own topological exterior boundary - the ice margin - can later
-    !< carry a natural ice-front back-pressure BC). Called anew every run(), since
-    !< the ice mask (and therefore the sub-mesh) can change every timestep.
+    !< PetscDS weak form, the ice-front back-pressure natural BC and the SNES,
+    !< restricted to the ice-covered sub-mesh (so that its own topological
+    !< exterior boundary is exactly the ice margin, where that BC applies).
+    !< Called anew every run(), since the ice mask (and therefore the sub-mesh
+    !< and its margin) can change every timestep.
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FEM_PETSc), intent(inout) :: self
@@ -535,10 +588,12 @@ contains
     logical, dimension(self%mesh%nTri) :: mask_tri
     type(tPetscDS)                 :: ds
     type(tPetscObject)             :: fe_object, fe_aux_object
+    type(tDMLabel)                  :: margin_label
     type(tKSP)                     :: ksp
     type(tPC)                      :: pc
     integer                        :: ierr
-    integer(c_intptr_t)            :: no_context
+    integer(c_intptr_t)            :: no_context, boundary_index, wf
+    integer(c_intptr_t), target, dimension(1) :: margin_label_value
     real(dp), dimension(n_ds_constants) :: ds_constants
 
     call init_routine( routine_name)
@@ -586,6 +641,64 @@ contains
     CHKERRQ( ierr)
     ierr = petsc_ds_set_jacobian( ds%v, 0_c_intptr_t, 0_c_intptr_t, &
       c_funloc( SSA_FEM_PETSc_g0), c_null_funptr, c_null_funptr, c_funloc( SSA_FEM_PETSc_g3))
+    CHKERRQ( ierr)
+
+    ! Ice-front ocean back-pressure: a natural (Neumann) BC on the sub-mesh's own
+    ! topological exterior boundary, which - because self%dm only spans the
+    ! ice-covered triangles - is exactly the ice margin/calving front. Mark those
+    ! faces and register the natural boundary condition with DMAddBoundary, which
+    ! hands back its own PetscWeakForm (distinct from the DS's default one, and the
+    ! only one DMPlex's residual assembly actually reads for *this* label-keyed
+    ! boundary) - fetch it with PetscDSGetBoundary and attach the actual physics
+    ! (SSA_FEM_PETSc_f0_bd) to it directly via PetscWeakFormSetIndexBdResidual.
+    ! (PetscDSSetBdResidual, used for the domain-wide g0/g3 analogue, sets the DS's
+    ! own default weak form instead, which this label-keyed boundary does not use -
+    ! confirmed against PETSc's src/snes/tutorials/ex12.c Neumann-BC idiom.) No
+    ! boundary Jacobian: the back-pressure depends only on the aux field (H, Ho),
+    ! not on u. See "Ice-front back-pressure boundary term" in
+    ! SSA_FEM_PETSc_weak_form_derivation.md.
+    !
+    ! (Debugging note, since this cost real effort to track down: for a while
+    ! SSA_FEM_PETSc_f0_bd was never reached at all, with no error anywhere -
+    ! DMAddBoundary/PetscDSAddBoundary registered fine, PetscDSGetBoundary
+    ! confirmed the stored type/field/values were exactly right, the
+    ! 'ice_margin' label genuinely held its ~179 marked facets, and PETSc's own
+    ! DMPlexCheck* sanity checks all passed on the sub-mesh topology - so
+    ! nothing upstream was actually broken. The real bug was in the manual
+    ! PetscWeakFormSetIndexBdResidual bind(C) interface below: its true C
+    ! signature is (wf, label, val, f, part, i0, f0, i1, f1) - nine arguments,
+    ! with 'part' (the equation-part key) separate from 'i0'/'i1' (indices for
+    ! summing multiple residual terms at one key) - and an earlier version of
+    ! this interface was missing 'part', shifting every argument after it by
+    ! one slot. That silently registered the f0 callback's address as an
+    ! integer "index" instead, leaving the real PetscBdPointFn slot NULL -
+    ! which PetscFEIntegrateBdResidual_Basic's own "if (!n0 && !n1) return"
+    ! guard treats as "nothing to assemble here", with no error raised at any
+    ! level. Confirmed fixed: the callback now runs (thousands of times per
+    ! Newton solve, with physically sensible H/Ho/tau_o values) and the
+    ! solution changes accordingly. Separately, chasing this down with PETSc's
+    ! own DMPlexCheck* diagnostics also caught a second, unrelated, genuinely
+    ! pre-existing bug: mesh_to_dmplex/mesh_to_dmplex_masked's shared
+    ! DMPlexDistribute call left self%dm entirely unset on exactly 1 MPI rank
+    ! (DMPlexDistribute documents that its output dm is NULL when the
+    ! communicator has size 1) - every 1-rank run of this solver was silently
+    ! broken since Phase 1; see the size == 1 guard now in petsc_dmplex.f90.
+    PetscCall( DMCreateLabel( self%dm, 'ice_margin', ierr))
+    PetscCall( DMGetLabel( self%dm, 'ice_margin', margin_label, ierr))
+    PetscCall( DMPlexMarkBoundaryFaces( self%dm, 1, margin_label, ierr))
+    margin_label_value = [1_c_intptr_t]
+    ierr = dm_add_boundary( self%dm%v, dm_bc_natural_value, ice_margin_label_name, margin_label%v, &
+      1_c_intptr_t, c_loc( margin_label_value), 0_c_intptr_t, 0_c_intptr_t, c_null_ptr, &
+      c_null_funptr, c_null_funptr, c_null_ptr, boundary_index)
+    CHKERRQ( ierr)
+    ierr = petsc_ds_get_boundary( ds%v, boundary_index, wf, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, &
+      c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr)
+    CHKERRQ( ierr)
+    ! (wf, label, val, field, part, i0, f0, i1, f1) - part=0 (the equation part
+    ! key, matching key.part=0 used by DMPlexComputeBdResidual_Internal at
+    ! residual-assembly time); i0=0/i1=0 (the only f0/f1 term at this key).
+    ierr = petsc_weak_form_set_index_bd_residual( wf, margin_label%v, 1_c_intptr_t, 0_c_intptr_t, 0_c_intptr_t, &
+      0_c_intptr_t, c_funloc( SSA_FEM_PETSc_f0_bd), 0_c_intptr_t, c_null_funptr)
     CHKERRQ( ierr)
 
     ! SNES; DMPlex assembles the residual and Jacobian from the PetscDS weak form
@@ -714,9 +827,10 @@ contains
 
   subroutine calc_auxiliary_fields( self, ice, geom, bed_roughness, A_flow_vav_a, coeffs)
     !< Compute the auxiliary-field coefficients on the mesh vertices:
-    !< [Abar, H, beta, tau_dx, tau_dy]. All are velocity-independent except beta,
+    !< [Abar, H, beta, tau_dx, tau_dy, Ho]. All are velocity-independent except beta,
     !< which is frozen at the current velocity solution (sliding law), scaled by the
-    !< sub-grid grounded fraction.
+    !< sub-grid grounded fraction. Ho (geom%Ho) only feeds the ice-front back-pressure
+    !< boundary residual (SSA_FEM_PETSc_f0_bd); it plays no role in the domain residual.
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FEM_PETSc), intent(in   ) :: self
@@ -755,6 +869,7 @@ contains
       coeffs( vi, i_tauc)  = tauc
       coeffs( vi, i_taudx) = -ice_density * grav * geom%Hi( vi) * dHs_dx_a( vi)
       coeffs( vi, i_taudy) = -ice_density * grav * geom%Hi( vi) * dHs_dy_a( vi)
+      coeffs( vi, i_Ho)    = geom%Ho( vi)
     end do
 
     call finalise_routine( routine_name)
@@ -1104,6 +1219,42 @@ contains
     f0_values( 2) = (beta * u_phys( 2) - a_values( i_taudy)) / stress_scale
 
   end subroutine SSA_FEM_PETSc_f0
+
+  subroutine SSA_FEM_PETSc_f0_bd( dim, nf, nfaux, uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, &
+    time, x, nrm, nconstants, constants, f0) bind(C)
+    !< Ice-front ocean back-pressure: the natural (Neumann) boundary residual on the
+    !< ice-covered sub-mesh's exterior (the ice margin). Same PetscBdPointFn signature
+    !< as the interior SSA_FEM_PETSc_f0, with one extra argument: the outward unit
+    !< normal 'nrm', supplied by PETSc per boundary quadrature point.
+    !<
+    !< Robinson et al. (2020), Eq. 19: the physical BC replaces the interior weak
+    !< form's implicit natural condition M.n = 0 with M.n = tau_o.n, where
+    !< tau_o = 1/2 rho_i g H^2 - 1/2 rho_sw g Ho^2 (Ho = geom%Ho, the depth of the
+    !< ocean column in contact with the ice front). Carrying this term through the
+    !< same integration-by-parts and sign convention as the interior f0 (see
+    !< "Ice-front back-pressure boundary term" in SSA_FEM_PETSc_weak_form_derivation.md)
+    !< gives f0_bd,i = -tau_o * n_i. No boundary Jacobian: tau_o depends only on the
+    !< aux field (H, Ho), not on u.
+
+    integer(c_intptr_t), value :: dim, nf, nfaux, nconstants
+    type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, nrm, constants, f0
+    real(c_double), value :: time
+    real(c_double), pointer :: a_values(:), n_values(:), f0_values(:)
+    real(c_double)          :: H, Ho, tau_o
+
+    call c_f_pointer( a, a_values, [n_aux_comp])
+    call c_f_pointer( nrm, n_values, [2])
+    call c_f_pointer( f0, f0_values, [2])
+
+    H  = a_values( i_H)
+    Ho = a_values( i_Ho)
+    tau_o = 0.5_c_double * ice_density * grav * H**2 - 0.5_c_double * seawater_density * grav * Ho**2
+
+    ! Divide by stress_scale to match the (dimensionless) interior residual.
+    f0_values( 1) = -tau_o * n_values( 1) / stress_scale
+    f0_values( 2) = -tau_o * n_values( 2) / stress_scale
+
+  end subroutine SSA_FEM_PETSc_f0_bd
 
   subroutine SSA_FEM_PETSc_f1( dim, nf, nfaux, uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, &
     time, x, nconstants, constants, f1) bind(C)

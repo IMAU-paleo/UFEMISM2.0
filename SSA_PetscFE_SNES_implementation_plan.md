@@ -21,7 +21,7 @@ The solver is selected with `choice_stress_balance_approximation = 'SSA_FEM_PETS
 | 2 - Auxiliary fields (real spatially varying coefficients) | **done** | 4-component P1 aux field on a `DMClone`d DM, attached with `DMSetAuxiliaryVec`; `f0/f1/g0/g3` read `a[]`. Per-vertex coefficients from the existing UFEMISM machinery, incl. the sub-grid grounded-fraction scaling of `beta` (friction vanishes under floating ice). Superseded by Phase 3's residual (viscosity is no longer frozen). |
 | 3 - Fully non-linear Newton residual (viscosity **and** friction), analytic Jacobian, no outer loop | **done** | Glen `eta(grad u)` **and** the Zoet-Iverson `beta(|u|)` both evaluated pointwise in the residual, with analytic Jacobians (`g3` = frozen membrane + rank-1 `d eta / d grad u`; `g0` = `beta I` + rank-1 `d beta / d|u|`). **One Newton solve, no Picard loop.** Aux field `[Abar, H, tauc_eff, tau_dx, tau_dy]`; `eps0`, `n` and the ZI params via `PetscDSSetConstants`. Warm-started persistent solution vector. Sign fix: `f0 = beta*u - tau_d`. On the integrated test, 2 ranks, cold start: Newton converges in **10 iterations**; signed `u_vav`/`v_vav` correlate **+0.98** with the FD `SSA` solver. Magnitudes are ~1.4x the FD solver's, which itself does not converge here (still climbing toward the FE result as its Picard count is raised 50 -> 500); the residual gap is FD under-convergence + different strain-rate discretisation + grounding-line `beta` representation (Phase 5). Pointwise sliding relation is `SSA_FEM_PETSc_sliding_beta` (ZI only; TODO to merge into `sliding_laws`). |
 | 6 - Scaling, solver, preconditioner (pulled forward) | **done** | Nondimensionalisation (`u_hat = u/velocity_scale`, residual/Jacobian / `stress_scale`) - transparent (identical answer). Config-selectable `pc_type` (`lu`/`gamg`/`bjacobi`) + rigid-body near-null-space; all three converge to the identical answer on the integrated test, with `gamg` needing under half `bjacobi`'s KSP iterations (362 vs 857). New config knobs `SSA_FEM_PETSc_{pc_type,snes_rtol,snes_abstol,snes_maxits}_config`. `lu` stays the default. Done ahead of Phases 4/5 at the repo owner's request. FD-solver nondimensionalisation deferred to a separate PR (Section 9). |
-| 5 - Boundary conditions (ice-front back-pressure) | **in progress** | `mesh_to_dmplex_masked` (ice-covered sub-mesh topology) done; the *entire* PETSc build (`self%dm` and everything downstream) now runs on that sub-mesh instead of the whole mesh, rebuilt from scratch every `run()` call (ice mask/margin can move every timestep) including a re-seeded (not just zeroed) `self%sol` warm start. Verified on the integrated test, 2 ranks: Newton still converges in 10 iterations (10 KSP its, `lu`); max speed shifts from 2.120e3 to 1.193e3 m/yr, the expected result of excluding ice-free area from the discretisation, not a regression. **Still to do**: the actual back-pressure term (`DMAddBoundary(DM_BC_NATURAL)` + `PetscDSSetBdResidual`, `f0_bd,i = -tau_o,i`) on the sub-mesh's new exterior boundary - until that lands, the margin is a plain natural (zero-traction) boundary, not yet the physical condition. |
+| 5 - Boundary conditions (ice-front back-pressure) | **done** | `mesh_to_dmplex_masked` (ice-covered sub-mesh topology); the *entire* PETSc build (`self%dm` and everything downstream) runs on that sub-mesh, rebuilt from scratch every `run()` call (ice mask/margin can move every timestep) including a re-seeded `self%sol` warm start. The back-pressure term (`DMAddBoundary(DM_BC_NATURAL)` + `PetscDSGetBoundary` + `PetscWeakFormSetIndexBdResidual`, `f0_bd,i = -tau_o,i`) is registered *and now actually assembled* - fixed a real bug in the manual `PetscWeakFormSetIndexBdResidual` bind(C) interface (missing the `part` argument, which shifted every later argument by one slot and silently dropped the real callback pointer; see item 3 below for the full story). Verified on the integrated test at both 1 and 2 ranks (identical results both before and after this fix): Newton converges in 10 iterations (10 KSP its, `lu`) throughout; max speed goes 2.120e3 (whole-mesh) -> 1.193e3 (ice-only sub-mesh, BC not yet wired) -> **3.686e3 (BC actually contributing)** - a real, substantial physical change, confirming the ocean back-pressure is now genuinely active. Also fixed along the way: `mesh_to_dmplex`/`mesh_to_dmplex_masked` left `self%dm` dangling at exactly 1 MPI rank (`DMPlexDistribute` returns a `NULL` output `dm` on a size-1 communicator, undocumented-until-you-read-the-source) - every 1-rank run of this solver had been silently broken since Phase 1. |
 | 4, 7, 8 | not started (Phase 4 analytic Jacobian folded into Phase 3; outer-loop / Picard-option is now moot for the pointwise-friction path) |
 
 Implementation notes that deviate from the original plan:
@@ -400,18 +400,90 @@ Steps:
    primary `PetscDS`, the residual/Jacobian callbacks, `self%dm_aux`/
    `self%fe_aux`/`self%aux_vec`, `self%jac`, the near-null-space, `self%snes`)
    is now built from `mesh_to_dmplex_masked` (the ice-covered sub-mesh) instead
-   of the whole-mesh `mesh_to_dmplex`. **Still to do**: the back-pressure BC
-   term itself - `DMPlexMarkBoundaryFaces` + `DMAddBoundary(DM_BC_NATURAL,
-   ...)` + `PetscDSSetBdResidual` on the sub-mesh's new exterior (the ice
-   margin), with `f0_bd,i = -tau_o,i`,
-   `tau_o,i = (1/2 rho_i g H^2 - 1/2 rho_sw g Ho^2) n_i` (`n` supplied by
-   PETSc; no boundary Jacobian needed, since `tau_o` depends only on the aux
-   field, not on `u`). `Ho` matches `geom%Ho` exactly (`height_of_water_column`,
+   of the whole-mesh `mesh_to_dmplex`.
+
+   **Done**: wired the actual back-pressure term - `DMPlexMarkBoundaryFaces` +
+   `DMAddBoundary(DM_BC_NATURAL, ...)` on the sub-mesh's new exterior (the ice
+   margin), then `PetscDSGetBoundary` + `PetscWeakFormSetIndexBdResidual` to
+   attach `SSA_FEM_PETSc_f0_bd` (`f0_bd,i = -tau_o,i`,
+   `tau_o,i = (1/2 rho_i g H^2 - 1/2 rho_sw g Ho^2) n_i`, `n` supplied by
+   PETSc; no boundary Jacobian, since `tau_o` depends only on the aux field
+   `[..., Ho]` - a new 6th aux component added for this - not on `u`); matches
+   the idiom in PETSc's own `src/snes/tutorials/ex12.c`/`ex17.c`.
+
+   **This took two rounds of real debugging to get working, both worth
+   recording.** First, the callback was never reached at all, with no error
+   anywhere. Working through the registration chain against the installed
+   PETSc 3.25.5 source (`src/dm/interface/dm.c`, `src/dm/dt/interface/dtds.c`,
+   `src/dm/impls/plex/plexfem.c`, `src/snes/utils/dmplexsnes.c`) and against
+   PETSc's own runtime self-checks progressively ruled out everything upstream
+   of the callback itself:
+   - `DMAddBoundary` -> `PetscDSAddBoundary` succeeds; re-fetching with
+     `PetscDSGetBoundary` confirmed `type=DM_BC_NATURAL`, `field=0`, `Nv=1`,
+     `values(1)=1` exactly as stored; `PetscDSGetNumBoundary` reported 1
+     boundary.
+   - The `'ice_margin'` `DMLabel`'s stratum for value 1 genuinely held ~179
+     marked facets (`DMLabelGetStratumSize`), so the boundary residual's
+     `DMLabelGetStratumIS` lookup wasn't coming back empty.
+   - **PETSc's own `DMPlexCheck`/`DMPlexCheckSymmetry`/`DMPlexCheckSkeleton`/
+     `DMPlexCheckFaces`/`DMPlexCheckGeometry`/`DMPlexCheckInterfaceCones`** (the
+     repo owner's suggestion) all reported the ice-covered sub-mesh's topology
+     clean - ruling out a malformed/inconsistent DMPlex.
+
+   **That last check did catch a real, separate, pre-existing bug** (now
+   fixed): at exactly 1 MPI rank, `DMPlexCheckSymmetry` immediately SEGV'd,
+   which traced back to `mesh_to_dmplex`/`mesh_to_dmplex_masked`'s shared
+   `DMPlexDistribute` call - its own documentation states plainly that the
+   output `dm` is left `NULL` "if the mesh was not distributed", and its source
+   confirms it returns immediately, without touching its output at all, exactly
+   when the communicator has size 1. Both functions unconditionally destroyed
+   `dm_serial` (the only valid object) and handed back that untouched, garbage
+   `dm`, so **every 1-rank run of the FE solver had been operating on a
+   dangling DM handle** since Phase 1 - just never exercised, because every
+   verification step to date in this plan used 2 ranks. Fixed in
+   `petsc_dmplex.f90`: on `par%n == 1`, use `dm_serial` directly instead of
+   calling `DMPlexDistribute`.
+
+   With that fix in place the DMPlex itself was provably sound at both rank
+   counts, yet the boundary callback *still* never fired anywhere - the repo
+   owner's next suggestion (per their message, quoted for the record: *"the
+   fact that the callback is never entered is the crucial clue... I'd
+   specifically trace the value returned by PetscDSGetBoundary(...) and
+   compare its key/index with the arguments you're passing to
+   PetscWeakFormSetIndexBdResidual(...). The important distinction is between
+   the boundary-condition index and the field index."*) was to stop trusting
+   that the two calls were using a consistent key, and to read
+   `PetscFEIntegrateBdResidual_Basic`'s own source for the exact point where it
+   decides there's nothing to assemble. That source (`src/dm/dt/fe/impls/basic/
+   febasic.c`) showed the answer directly:
+   `PetscWeakFormGetBdResidual(wf, ..., &n0, &f0_func, &n1, &f1_func); if
+   (!n0 && !n1) PetscFunctionReturn(...)` - a silent, unlogged no-op whenever
+   nothing was actually stored at that key. Comparing that against
+   `PetscWeakFormSetIndexBdResidual`'s real C prototype
+   (`src/dm/dt/interface/dtweakform.c`) found the bug: its signature is
+   `(wf, label, val, f, part, i0, f0, i1, f1)` - **nine** arguments, with
+   `part` (the equation-part component of the lookup key) *separate* from
+   `i0`/`i1` (indices for summing multiple residual terms already registered at
+   one key). The manual bind(C) interface here had only eight dummy arguments,
+   missing `part` entirely - so every argument from that point on was shifted
+   one slot: our real `f0` function pointer landed in C's `i0` (integer) slot,
+   and C's real `f0` (function pointer) slot received our literal `0` instead,
+   i.e. a NULL residual function. `PetscWeakFormSetIndexBdResidual` itself
+   returned success throughout (it has no way to know the caller's argument
+   list was short), so this genuinely could not have been caught by an error
+   check anywhere - only by reading the exact PETSc version's source, as the
+   repo owner suggested. Fixed by adding the missing `part` argument to the
+   interface and the call site (both `part=0` and `i0=i1=0`, matching
+   `key.part=0` used at residual-assembly time and "this is the only term at
+   this key"). Confirmed fixed: `SSA_FEM_PETSc_f0_bd` now runs thousands of
+   times per Newton solve with physically sensible `H`/`Ho`/`tau_o` values, and
+   the solution changes accordingly - max speed goes from 1.193e3 m/yr
+   (BC not contributing) to **3.686e3 m/yr** (BC active), a real, substantial
+   physical change, at both 1 and 2 ranks identically (Newton still converges
+   in 10 iterations, 10 KSP its, `lu`, at both). `Ho` matches
+   `geom%Ho` exactly (`height_of_water_column`,
    already computed live every step - reuse it, don't recompute):
-   `Ho = min(max(SL - Hb, 0), (rho_i/rho_sw) H)`. Until this lands, the
-   sub-mesh's margin is a plain natural (zero-traction) boundary - i.e. the
-   weak form's implicit "no boundary term" default - not yet the physical
-   back-pressure condition.
+   `Ho = min(max(SL - Hb, 0), (rho_i/rho_sw) H)`.
 4. **Done**: the full rebuild moves from "once at `initialise`, again on
    `remap`" to every `run()` call, since the grounding line / calving front can
    migrate every timestep even without a full remesh - and it really is the
@@ -667,10 +739,23 @@ interfaces (pattern: `ct_PETSc_SNES_Poisson.f90` lines 49-116) in a shared
 - [x] Phase 4: analytic Jacobian done; the Picard-option item is moot for the
       pointwise-friction path (no outer loop). Adaptive relaxation only matters if
       a non-pointwise sliding law is added later.
-- [ ] Phase 5: UFEMISM BCs (prescribed, ice front; periodic later). Ice-covered
-      sub-mesh (`mesh_to_dmplex_masked`) now underlies the entire solve, rebuilt
-      every `run()` call (incl. re-seeded `self%sol` warm start); the actual
-      back-pressure BC term on its exterior (ice margin) is still to do.
+- [x] Phase 5 (ice-front back-pressure only; prescribed/periodic still to do,
+      see item 6): ice-covered sub-mesh (`mesh_to_dmplex_masked`) underlies the
+      entire solve, rebuilt every `run()` call (incl. re-seeded `self%sol` warm
+      start). The back-pressure BC term (`DMAddBoundary`/`PetscWeakFormSetIndex-
+      BdResidual`) is registered *and assembled* - fixed a missing `part`
+      argument in the manual `PetscWeakFormSetIndexBdResidual` bind(C)
+      interface that had been silently dropping the real callback pointer, no
+      error raised anywhere; found by reading `PetscFEIntegrateBdResidual_Basic`
+      and `PetscWeakFormSetIndexBdResidual`'s exact source, per the repo
+      owner's steer. Verified: `SSA_FEM_PETSc_f0_bd` now runs thousands of times
+      per solve with sensible values, and the solution changes accordingly
+      (max speed 1.193e3 -> 3.686e3 m/yr), identically at 1 and 2 ranks. Also
+      fixed a real, separate, pre-existing bug found along the way:
+      `mesh_to_dmplex`/`mesh_to_dmplex_masked` left `self%dm` dangling at
+      exactly 1 MPI rank (`DMPlexDistribute` returns a `NULL` output `dm` on a
+      size-1 communicator) - every 1-rank run of this solver was broken since
+      Phase 1, just never exercised until now.
 - [x] Phase 6: nondimensionalisation (transparent, verified), config-selectable
       `pc_type` (`lu`/`gamg`/`bjacobi`) + rigid-body near-null-space (`gamg`
       under half `bjacobi`'s KSP its), new SNES config knobs. `lu` stays the
