@@ -67,8 +67,10 @@ module momentum_balance_solver_SSA_FEM_PETSc
     tPetscFE, tPetscDS, tDMLabel, tPetscSection, tMatNullSpace, &
     PetscFECreateLagrange, PetscFEDestroy, PetscObjectSetName, DMSetField, DMCreateDS, DMGetDS, &
     PetscDSSetConstants, DMCreateMatrix, DMCreateGlobalVector, DMCreateLocalVector, &
-    DMGlobalToLocalBegin, DMGlobalToLocalEnd, DMGetLocalSection, DMGetLabel, DMDestroy, &
+    DMGlobalToLocalBegin, DMGlobalToLocalEnd, DMLocalToGlobalBegin, DMLocalToGlobalEnd, &
+    DMGetLocalSection, DMGetLabel, DMDestroy, &
     DMPlexGetDepthStratum, DMLabelGetValue, PetscSectionGetOffset, DMGetCoordinates, &
+    DMPlexMarkBoundaryFaces, DMCreateLabel, &
     VecSet, VecDestroy, VecGetArrayRead, VecRestoreArrayRead, VecSetValues, VecAssemblyBegin, &
     VecAssemblyEnd, MatDestroy, INSERT_VALUES, MatSetBlockSize, MatNullSpaceCreateRigidBody, &
     MatSetNearNullSpace, MatNullSpaceDestroy, &
@@ -91,7 +93,8 @@ module momentum_balance_solver_SSA_FEM_PETSc
   use constitutive_equation, only: calc_ice_rheology_Glen
   use mesh_zeta, only: vertical_average
   use sliding_laws, only: calc_basal_friction_coefficient
-  use petsc_dmplex, only: mesh_to_dmplex, dmplex_upsy_vertex_id_label_name
+  use petsc_dmplex, only: mesh_to_dmplex_masked, dmplex_upsy_vertex_id_label_name
+  use mpi_distributed_shared_memory, only: gather_dist_shared_to_all
   use mesh_disc_apply_operators, only: map_a_b_2D, ddx_a_a_2D, ddy_a_a_2D
 
   implicit none
@@ -167,6 +170,7 @@ module momentum_balance_solver_SSA_FEM_PETSc
       procedure, private :: destroy_petsc_objects
       procedure, private :: solve_SSA_Newton
       procedure, private :: calc_auxiliary_fields
+      procedure, private :: calc_ice_covered_triangle_mask
 
   end type type_momentum_balance_solver_SSA_FEM_PETSc
 
@@ -298,7 +302,10 @@ contains
         'TODO: port the other sliding laws - see SSA_FEM_PETSc_sliding_beta in this module.')
     end select
 
-    call self%build_petsc_objects()
+    ! The PETSc DMPlex/FE/DS/SNES machinery is built on the ice-covered sub-mesh
+    ! (see build_petsc_objects), which needs geom - not available here. It is
+    ! instead (re)built at the top of every run() call, since the ice mask (and
+    ! therefore the sub-mesh) can change every timestep.
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -341,12 +348,42 @@ contains
     if (.not. grounded_ice_exists .or. C%choice_sliding_law == 'no_sliding') then
       self%u_vav_a = 0._dp; self%v_vav_a = 0._dp
       self%u_vav_b = 0._dp; self%v_vav_b = 0._dp
-      PetscCall( VecSet( self%sol, 0._dp, ierr))
+      ! self%sol (and the rest of the PETSc machinery) may not exist yet if this
+      ! is the very first run() call and there is no ice anywhere yet.
+      if (self%petsc_is_built) then
+        PetscCall( VecSet( self%sol, 0._dp, ierr))
+      end if
       self%n_visc_its = 0
       self%n_Axb_its  = 0
       call finalise_routine( routine_name)
       return
     end if
+
+    ! The DMPlex/FE/DS/SNES machinery lives on the ice-covered sub-mesh only (so its
+    ! own topological boundary is the ice margin, for the ice-front back-pressure BC
+    ! to come). Since the ice mask can change every timestep, the whole lot is torn
+    ! down and rebuilt from scratch here, every call - see the "rebuild every
+    ! timestep" checklist in SSA_PetscFE_SNES_implementation_plan.md.
+    if (self%petsc_is_built) call self%destroy_petsc_objects()
+    call self%build_petsc_objects( geom)
+
+    ! DOF numbering is not stable across independent DMPlex rebuilds, so a fresh
+    ! self%sol always starts at zero (set inside build_petsc_objects) even though
+    ! self%u_vav_a/v_vav_a still hold the previous physical solution. Re-seed
+    ! self%sol from those to keep warm-starting Newton across timesteps (this
+    ! only affects convergence speed, not correctness).
+    block
+      real(dp), dimension(self%mesh%vi1:self%mesh%vi2, 2) :: sol_seed
+      type(tVec) :: sol_local
+      sol_seed(:,1) = self%u_vav_a / velocity_scale
+      sol_seed(:,2) = self%v_vav_a / velocity_scale
+      PetscCall( DMCreateLocalVector( self%dm, sol_local, ierr))
+      PetscCall( VecSet( sol_local, 0._dp, ierr))
+      call fill_PETSc_aux_from_mesh_vertices( self%dm, self%dm, sol_local, self%mesh, sol_seed)
+      PetscCall( DMLocalToGlobalBegin( self%dm, sol_local, INSERT_VALUES, self%sol, ierr))
+      PetscCall( DMLocalToGlobalEnd(   self%dm, sol_local, INSERT_VALUES, self%sol, ierr))
+      PetscCall( VecDestroy( sol_local, ierr))
+    end block
 
     ! Vertically averaged flow factor A - velocity-independent, computed once
     call calc_ice_rheology_Glen( self%mesh, ice, geom)
@@ -454,9 +491,12 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    ! Phase 3: rebuild everything from scratch on the new mesh (self%mesh has already
-    ! been repointed to mesh_new by remap_model). Velocities are reset to zero; a
-    ! proper remap of u_vav via the a-grid follows in a later phase.
+    ! Discard the PETSc machinery built on the old mesh (self%mesh has already
+    ! been repointed to mesh_new by remap_model). It is not rebuilt here: since
+    ! run() rebuilds it unconditionally from geom every call anyway (the ice mask
+    ! can change every timestep regardless of remapping), building it here too
+    ! would just be wasted work. Velocities are reset to zero; a proper remap of
+    ! u_vav via the a-grid follows in a later phase.
     if (self%petsc_is_built) call self%destroy_petsc_objects()
 
     call reallocate_bounds( self%u_vav_a, mesh_new%vi1, mesh_new%vi2)
@@ -465,8 +505,6 @@ contains
     call reallocate_bounds( self%v_vav_b, mesh_new%ti1, mesh_new%ti2)
     self%u_vav_a = 0._dp; self%v_vav_a = 0._dp
     self%u_vav_b = 0._dp; self%v_vav_b = 0._dp
-
-    call self%build_petsc_objects()
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -481,15 +519,20 @@ contains
 
   ! ===== PETSc object lifecycle =====
 
-  subroutine build_petsc_objects( self)
+  subroutine build_petsc_objects( self, geom)
     !< Build the DMPlex, the P1 vector PetscFE field, the auxiliary-field DM, the
-    !< PetscDS weak form and the SNES.
+    !< PetscDS weak form and the SNES, restricted to the ice-covered sub-mesh (so
+    !< that its own topological exterior boundary - the ice margin - can later
+    !< carry a natural ice-front back-pressure BC). Called anew every run(), since
+    !< the ice mask (and therefore the sub-mesh) can change every timestep.
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FEM_PETSc), intent(inout) :: self
+    class(atype_ice_geometry_model_data),               intent(in   ) :: geom
 
     ! Local variables:
     character(len=*), parameter    :: routine_name = 'build_petsc_objects'
+    logical, dimension(self%mesh%nTri) :: mask_tri
     type(tPetscDS)                 :: ds
     type(tPetscObject)             :: fe_object, fe_aux_object
     type(tKSP)                     :: ksp
@@ -502,9 +545,10 @@ contains
 
     no_context = 0_c_intptr_t
 
-    ! DMPlex from the UFEMISM mesh (creates + distributes; preserves UPSY vertex IDs
-    ! in the 'upsy_vertex_id' DMLabel)
-    call mesh_to_dmplex( self%mesh, self%dm)
+    ! DMPlex from the ice-covered subset of the UFEMISM mesh (creates + distributes;
+    ! preserves UPSY vertex IDs in the 'upsy_vertex_id' DMLabel)
+    call self%calc_ice_covered_triangle_mask( geom, mask_tri)
+    call mesh_to_dmplex_masked( self%mesh, mask_tri, self%dm)
 
     ! Primary field: one 2-component P1 Lagrange velocity
     PetscCall( PetscFECreateLagrange( PETSC_COMM_SELF, 2, 2, PETSC_TRUE, 1, -1, self%fe, ierr))
@@ -717,6 +761,44 @@ contains
 
   end subroutine calc_auxiliary_fields
 
+  subroutine calc_ice_covered_triangle_mask( self, geom, mask_tri)
+    !< Which triangles have all 3 vertices ice-covered (grounded or floating) - the
+    !< sub-mesh build_petsc_objects builds self%dm on via mesh_to_dmplex_masked.
+    !< Recomputed every run() call since the ice mask changes as the ice sheet
+    !< evolves.
+
+    ! In/output variables:
+    class(type_momentum_balance_solver_SSA_FEM_PETSc), intent(in ) :: self
+    class(atype_ice_geometry_model_data),               intent(in ) :: geom
+    logical, dimension(self%mesh%nTri),                 intent(out) :: mask_tri
+
+    ! Local variables:
+    character(len=*), parameter        :: routine_name = 'calc_ice_covered_triangle_mask'
+    logical, dimension(:), allocatable :: mask_grounded_tot, mask_floating_tot, mask_ice_a_full
+    integer                            :: ti
+
+    call init_routine( routine_name)
+
+    ! Gather the (distributed-shared-memory) "has ice" vertex masks to full,
+    ! replicated arrays - mesh connectivity (mesh%Tri) is itself fully
+    ! replicated, so the mask needs to be too (see mesh_to_dmplex_masked).
+    allocate( mask_grounded_tot( self%mesh%nV))
+    allocate( mask_floating_tot( self%mesh%nV))
+    call gather_dist_shared_to_all( self%mesh%pai_V, geom%mask_grounded_ice, mask_grounded_tot)
+    call gather_dist_shared_to_all( self%mesh%pai_V, geom%mask_floating_ice, mask_floating_tot)
+    allocate( mask_ice_a_full( self%mesh%nV))
+    mask_ice_a_full = mask_grounded_tot .or. mask_floating_tot
+
+    ! A triangle counts as ice-covered if all 3 of its vertices do (matches the
+    ! Hi > 0 rule the existing graph abstraction uses for the same classification)
+    do ti = 1, self%mesh%nTri
+      mask_tri( ti) = all( mask_ice_a_full( self%mesh%Tri( ti,:)))
+    end do
+
+    call finalise_routine( routine_name)
+
+  end subroutine calc_ice_covered_triangle_mask
+
   ! ===== Solution / coefficient transfer between UFEMISM vertex arrays and PETSc =====
 
   subroutine copy_PETSc_solution_to_mesh_vertices_vec2( dm, solution, mesh, u_a, v_a)
@@ -806,15 +888,21 @@ contains
       v_a( vi) = v_a( vi) + recv_v( k)
       ncopies( vi) = ncopies( vi) + 1
     end do
-    if (any( ncopies == 0)) call crash('DMPlex distribution omitted an UPSY vertex')
-    u_a = u_a / real( ncopies, dp)
-    v_a = v_a / real( ncopies, dp)
+    ! Vertices with ncopies == 0 are outside the ice-covered sub-mesh (self%dm
+    ! only spans the ice-covered triangles, see build_petsc_objects) - they have
+    ! no SSA solution and are left at their u_a = v_a = 0 default set above.
+    where (ncopies > 0)
+      u_a = u_a / real( ncopies, dp)
+      v_a = v_a / real( ncopies, dp)
+    end where
 
   end subroutine copy_PETSc_solution_to_mesh_vertices_vec2
 
   subroutine fill_PETSc_aux_from_mesh_vertices( dm_topo, dm_aux, aux_vec, mesh, coeffs)
-    !< Scatter the per-vertex coefficient array coeffs(vi1:vi2, 1:n_aux_comp) into the
-    !< n_aux_comp-component local auxiliary vector of dm_aux. Inverse of
+    !< Scatter the per-vertex coefficient array coeffs(vi1:vi2, 1:nc) into the
+    !< nc-component local vector aux_vec of dm_aux (nc taken from coeffs itself, so
+    !< this doubles as both the n_aux_comp-component SSA coefficient scatter and the
+    !< 2-component self%sol warm-start re-seed scatter). Inverse of
     !< copy_PETSc_solution_to_mesh_vertices_vec2: each rank requests, for its local
     !< DMPlex vertices, the coefficients from the UFEMISM process that owns that vertex.
 
@@ -823,7 +911,7 @@ contains
     type(tDM),                              intent(in   ) :: dm_aux    ! for the local section
     type(tVec),                             intent(inout) :: aux_vec
     type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%vi1:mesh%vi2, n_aux_comp), intent(in) :: coeffs
+    real(dp), dimension(mesh%vi1:, :), intent(in) :: coeffs
 
     ! Local variables:
     type(tPetscSection)                 :: aux_section
@@ -833,11 +921,12 @@ contains
     integer, dimension(:), allocatable  :: req_vi, recv_req_vi
     integer, dimension(:), allocatable  :: local_pt, local_slot
     real(dp), dimension(:), allocatable :: reply_vals, recv_reply
-    integer, dimension(n_aux_comp)      :: idxc
-    real(dp), dimension(n_aux_comp)     :: valsc
+    integer, dimension(:), allocatable  :: idxc
+    real(dp), dimension(:), allocatable :: valsc
     integer :: ierr, point, vstart, vend, vi, dest, ip, si, ns, nr, k, nlv, off, nc, j
 
-    nc = n_aux_comp
+    nc = size( coeffs, 2)
+    allocate( idxc( nc), valsc( nc))
 
     allocate( send_counts( 0:par%n-1), recv_counts( 0:par%n-1), source = 0)
     allocate( send_displ ( 0:par%n-1), recv_displ ( 0:par%n-1), send_pos( 0:par%n-1))
