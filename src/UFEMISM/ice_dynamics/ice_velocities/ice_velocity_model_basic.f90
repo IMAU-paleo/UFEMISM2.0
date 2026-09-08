@@ -10,10 +10,10 @@ module ice_velocity_model_basic
   use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, map_b_a_2D, map_b_a_3D
   use mesh_zeta, only: vertical_average
   use mpi_distributed_memory, only: gather_to_all
-  use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D
+  use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D, &
+    map_velocities_from_b_to_c_3D, map_velocities_from_a_to_c_2D
   use ice_model_data, only: atype_ice_model_data
   use parameters, only: ice_density, seawater_density, NaN
-  use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_3D
   use CSR_matrix_vector_multiplication, only: multiply_CSR_matrix_with_vector_local
   use ice_geometry_model_data, only: atype_ice_geometry_model_data
 
@@ -587,7 +587,19 @@ contains
     call init_routine( routine_name)
 
     ! Calculate vertically averaged ice velocities on the edges
-    call map_velocities_from_b_to_c_2D( self%mesh, self%u_vav_b, self%v_vav_b, u_vav_c, v_vav_c)
+
+    select case (C%choice_stress_balance_approximation)
+    case default
+    case ('none')
+      ! No need to do anything, velocities are zero anyway
+    case ('SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+      ! These solvers define velocities on the b-grid (triangles)
+      call map_velocities_from_b_to_c_2D( self%mesh, self%u_vav_b, self%v_vav_b, u_vav_c, v_vav_c)
+    case ('SSA_FEM_PETSc')
+      ! These solvers define velocities on the a-grid (vertices)
+      call map_velocities_from_a_to_c_2D( self%mesh, self%u_vav, self%v_vav, u_vav_c, v_vav_c)
+    end select
+
     call gather_to_all( u_vav_c, u_vav_c_tot)
     call gather_to_all( v_vav_c, v_vav_c_tot)
 

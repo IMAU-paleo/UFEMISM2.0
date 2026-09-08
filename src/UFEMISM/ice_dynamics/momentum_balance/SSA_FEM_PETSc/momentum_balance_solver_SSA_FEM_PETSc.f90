@@ -383,6 +383,12 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
+    ! Velocities on the vertices
+    do vi = self%mesh%vi1, self%mesh%vi2
+      vel%u_vav( vi) = self%u_vav_a( vi)
+      vel%v_vav( vi) = self%v_vav_a( vi)
+    end do
+
     ! Velocities on the triangles
     do ti = self%mesh%ti1, self%mesh%ti2
       vel%u_3D_b( ti,:) = self%u_vav_b( ti)
