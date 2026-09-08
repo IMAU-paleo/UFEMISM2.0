@@ -45,8 +45,14 @@ module momentum_balance_solver_SSA_FEM_PETSc
   ! O(1) instead of spanning ~1e-8 to ~1e10 in raw SI units. Only the copy-back to
   ! u_vav_a/v_vav_a (in solve_SSA_Newton) converts back to physical m/yr.
   !
+  ! Solver/preconditioner (Phase 6): C%SSA_FEM_PETSc_pc_type selects 'lu' (direct,
+  ! the default), 'gamg' (algebraic multigrid) or 'bjacobi'; a rigid-body
+  ! near-null-space is attached unconditionally (needed for 'gamg', harmless
+  ! otherwise). C%SSA_FEM_PETSc_snes_{rtol,abstol,maxits} configure the Newton
+  ! solve.
+  !
   ! Not done yet: essential boundary conditions and the ice-front back-pressure
-  ! (Phase 5); solver/preconditioner tuning and non-dimensionalisation (Phase 6).
+  ! (Phase 5).
   !
   ! The internal unknown is a nodal (vertex, P1) velocity field; the result is
   ! exposed on the triangles as u_vav_b / v_vav_b, exactly like the existing SSA
@@ -58,16 +64,17 @@ module momentum_balance_solver_SSA_FEM_PETSc
     c_null_funptr, c_null_ptr, c_f_pointer
   use petsc, only: PetscErrorF, PETSC_COMM_SELF, PETSC_COMM_WORLD, PETSC_TRUE, PETSC_FALSE, &
     PETSC_NULL_DMLABEL, PETSC_NULL_VEC, tDM, tVec, tMat, tSNES, tKSP, tPC, tPetscObject, &
-    tPetscFE, tPetscDS, tDMLabel, tPetscSection, &
+    tPetscFE, tPetscDS, tDMLabel, tPetscSection, tMatNullSpace, &
     PetscFECreateLagrange, PetscFEDestroy, PetscObjectSetName, DMSetField, DMCreateDS, DMGetDS, &
     PetscDSSetConstants, DMCreateMatrix, DMCreateGlobalVector, DMCreateLocalVector, &
     DMGlobalToLocalBegin, DMGlobalToLocalEnd, DMGetLocalSection, DMGetLabel, DMDestroy, &
-    DMPlexGetDepthStratum, DMLabelGetValue, PetscSectionGetOffset, &
+    DMPlexGetDepthStratum, DMLabelGetValue, PetscSectionGetOffset, DMGetCoordinates, &
     VecSet, VecDestroy, VecGetArrayRead, VecRestoreArrayRead, VecSetValues, VecAssemblyBegin, &
-    VecAssemblyEnd, MatDestroy, INSERT_VALUES, &
+    VecAssemblyEnd, MatDestroy, INSERT_VALUES, MatSetBlockSize, MatNullSpaceCreateRigidBody, &
+    MatSetNearNullSpace, MatNullSpaceDestroy, &
     SNESCreate, SNESSetDM, SNESSetType, SNESSetTolerances, SNESGetKSP, SNESSolve, SNESDestroy, &
-    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, PCSetType, PCLU, &
-    SNESGetLinearSolveIterations
+    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, KSPGMRES, PCSetType, PCLU, &
+    KSPSetTolerances, SNESGetLinearSolveIterations
   use mpi_f08, only: MPI_ALLTOALL, MPI_ALLTOALLV, MPI_ALLREDUCE, MPI_COMM_WORLD, MPI_IN_PLACE, &
     MPI_DOUBLE_PRECISION, MPI_INTEGER, MPI_MAX, MPI_LOR, MPI_LOGICAL
   use mpi_basic, only: par
@@ -376,8 +383,8 @@ contains
 
     umax = maxval( sqrt( self%u_vav_a**2 + self%v_vav_a**2))
     call MPI_ALLREDUCE( MPI_IN_PLACE, umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    if (par%primary) write(0,'(A,I0,A,ES10.3)') '    SSA_FEM_PETSc: Newton its = ', newton_its, &
-      ', max speed = ', umax
+    if (par%primary) write(0,'(A,I0,A,I0,A,ES10.3)') '    SSA_FEM_PETSc: Newton its = ', newton_its, &
+      ', cumulative KSP its = ', self%n_Axb_its, ', max speed = ', umax
 
     ! Expose the result on the triangles
     call map_a_b_2D( self%mesh, self%u_vav_a, self%u_vav_b)
@@ -547,21 +554,52 @@ contains
     PetscCall( DMCreateGlobalVector( self%dm, self%sol, ierr))
     PetscCall( VecSet( self%sol, 0._dp, ierr))
 
-    ! Solver configuration: Newton line search, direct linear solve (LU -> MUMPS on
-    ! more than one rank, as in ct_PETSc_SNES_Poisson). Tuning is Phase 6.
+    ! Solver configuration: Newton line search; KSP/PC choice from config.
     PetscCall( SNESSetType( self%snes, SNESNEWTONLS, ierr))
-    call SNESSetTolerances( self%snes, self%PETSc_abstol, self%PETSc_rtol, 1.0e-12_dp, 50, 1000, ierr)
+    call SNESSetTolerances( self%snes, C%SSA_FEM_PETSc_snes_abstol, C%SSA_FEM_PETSc_snes_rtol, &
+      1.0e-12_dp, C%SSA_FEM_PETSc_snes_maxits, 1000, ierr)
     CHKERRQ( ierr)
     PetscCall( SNESGetKSP( self%snes, ksp, ierr))
-    PetscCall( KSPSetType( ksp, KSPPREONLY, ierr))
-    PetscCall( KSPGetPC( ksp, pc, ierr))
-    PetscCall( PCSetType( pc, PCLU, ierr))
-    ! Tested (2025-09-08): swapping this for KSPGMRES + PCBJACOBI - the finite-
-    ! difference SSA solver's default (solve_matrix_equation_PETSc) - also
-    ! converges to the same answer in the same number of Newton iterations, and
-    ! non-dimensionalisation reduces its cumulative KSP iteration count on the
-    ! integrated test from 625 to 583 (~7%). LU stays the default for now;
-    ! switching the production default is Phase 6's separate solver/PC item.
+    select case (C%SSA_FEM_PETSc_pc_type)
+    case ('lu')
+      ! Direct solve (MUMPS on more than one rank, as in ct_PETSc_SNES_Poisson).
+      ! Slower at scale than an iterative solve, but does not need the near-null-space
+      ! below and has been the validated default through Phases 1-3.
+      PetscCall( KSPSetType( ksp, KSPPREONLY, ierr))
+      PetscCall( KSPGetPC( ksp, pc, ierr))
+      PetscCall( PCSetType( pc, PCLU, ierr))
+    case ('gamg')
+      ! Algebraic multigrid; needs the rigid-body near-null-space (set below) to
+      ! coarsen a vector-valued (elasticity-like) operator well.
+      PetscCall( KSPSetType( ksp, KSPGMRES, ierr))
+      call KSPSetTolerances( ksp, 1.0e-8_dp, 1.0e-12_dp, 1.0e5_dp, 10000, ierr)
+      CHKERRQ( ierr)
+      PetscCall( KSPGetPC( ksp, pc, ierr))
+      PetscCall( PCSetType( pc, 'gamg', ierr))
+    case ('bjacobi')
+      ! Matches the finite-difference SSA/DIVA solver's own default
+      ! (solve_matrix_equation_PETSc): 'gmres' + 'bjacobi'.
+      PetscCall( KSPSetType( ksp, KSPGMRES, ierr))
+      call KSPSetTolerances( ksp, 1.0e-8_dp, 1.0e-12_dp, 1.0e5_dp, 10000, ierr)
+      CHKERRQ( ierr)
+      PetscCall( KSPGetPC( ksp, pc, ierr))
+      PetscCall( PCSetType( pc, 'bjacobi', ierr))
+    case default
+      call crash('SSA_FEM_PETSc: unknown SSA_FEM_PETSc_pc_type "' // trim( C%SSA_FEM_PETSc_pc_type) // '"')
+    end select
+
+    ! Rigid-body near-null-space (2 translations + 1 rotation in 2D), from the DM's
+    ! own coordinates. Harmless for 'lu'/'bjacobi'; needed for 'gamg' to perform
+    ! acceptably on this vector-valued, elasticity-like operator.
+    block
+      type(tVec)          :: coords
+      type(tMatNullSpace)  :: nullsp
+      PetscCall( MatSetBlockSize( self%jac, 2, ierr))
+      PetscCall( DMGetCoordinates( self%dm, coords, ierr))
+      PetscCall( MatNullSpaceCreateRigidBody( coords, nullsp, ierr))
+      PetscCall( MatSetNearNullSpace( self%jac, nullsp, ierr))
+      PetscCall( MatNullSpaceDestroy( nullsp, ierr))
+    end block
 
     self%petsc_is_built = .true.
 

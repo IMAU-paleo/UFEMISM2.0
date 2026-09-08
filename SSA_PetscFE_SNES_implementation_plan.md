@@ -20,8 +20,8 @@ The solver is selected with `choice_stress_balance_approximation = 'SSA_FEM_PETS
 | 1 - DMPlex + PetscFE + SNES skeleton, constant-coefficient linear SSA | **done** | Full `DMPlex -> PetscFE (P1, 2-comp) -> PetscDS (f0/f1 + analytic g0/g3) -> SNES` pipeline. On the integrated-test mesh, 2 MPI ranks: SNES converges in 1 iteration and the nodal field matches the closed-form uniform solution `-tau/beta` to `~1e-16`. `overlap = 0` assembly confirmed correct in parallel for this case. |
 | 2 - Auxiliary fields (real spatially varying coefficients) | **done** | 4-component P1 aux field on a `DMClone`d DM, attached with `DMSetAuxiliaryVec`; `f0/f1/g0/g3` read `a[]`. Per-vertex coefficients from the existing UFEMISM machinery, incl. the sub-grid grounded-fraction scaling of `beta` (friction vanishes under floating ice). Superseded by Phase 3's residual (viscosity is no longer frozen). |
 | 3 - Fully non-linear Newton residual (viscosity **and** friction), analytic Jacobian, no outer loop | **done** | Glen `eta(grad u)` **and** the Zoet-Iverson `beta(|u|)` both evaluated pointwise in the residual, with analytic Jacobians (`g3` = frozen membrane + rank-1 `d eta / d grad u`; `g0` = `beta I` + rank-1 `d beta / d|u|`). **One Newton solve, no Picard loop.** Aux field `[Abar, H, tauc_eff, tau_dx, tau_dy]`; `eps0`, `n` and the ZI params via `PetscDSSetConstants`. Warm-started persistent solution vector. Sign fix: `f0 = beta*u - tau_d`. On the integrated test, 2 ranks, cold start: Newton converges in **10 iterations**; signed `u_vav`/`v_vav` correlate **+0.98** with the FD `SSA` solver. Magnitudes are ~1.4x the FD solver's, which itself does not converge here (still climbing toward the FE result as its Picard count is raised 50 -> 500); the residual gap is FD under-convergence + different strain-rate discretisation + grounding-line `beta` representation (Phase 5). Pointwise sliding relation is `SSA_FEM_PETSc_sliding_beta` (ZI only; TODO to merge into `sliding_laws`). |
-| 6a - Nondimensionalisation (pulled forward) | **done** | Solve for `u_hat = u/velocity_scale`, residual/Jacobian divided by `stress_scale`; transparent change of variables (identical answer, `Newton its = 10`). A/B test: KSP iterations with `GMRES+BJACOBI` (the FD solver's own default) drop 625 -> 583 (~7%) with nondim on; both configs match the LU answer exactly. See the Phase 6 section for the full writeup, and the FD-solver applicability discussion relayed to the repo owner. |
-| 4, 5, 6b-8 | not started (Phase 4 analytic Jacobian folded into Phase 3; outer-loop / Picard-option is now moot for the pointwise-friction path) |
+| 6 - Scaling, solver, preconditioner (pulled forward) | **done** | Nondimensionalisation (`u_hat = u/velocity_scale`, residual/Jacobian / `stress_scale`) - transparent (identical answer). Config-selectable `pc_type` (`lu`/`gamg`/`bjacobi`) + rigid-body near-null-space; all three converge to the identical answer on the integrated test, with `gamg` needing under half `bjacobi`'s KSP iterations (362 vs 857). New config knobs `SSA_FEM_PETSc_{pc_type,snes_rtol,snes_abstol,snes_maxits}_config`. `lu` stays the default. Done ahead of Phases 4/5 at the repo owner's request. FD-solver nondimensionalisation deferred to a separate PR (Section 9). |
+| 4, 5, 7, 8 | not started (Phase 4 analytic Jacobian folded into Phase 3; outer-loop / Picard-option is now moot for the pointwise-friction path) |
 
 Implementation notes that deviate from the original plan:
 
@@ -345,9 +345,8 @@ Map UFEMISM's BC concepts onto DMLabels + `DMAddBoundary`:
      `velocity_scale/stress_scale` (from the chain rule through
      `u = velocity_scale * u_hat`).
    - Only the copy-back to `u_vav_a`/`v_vav_a` (in `solve_SSA_Newton`) multiplies
-     back by `velocity_scale`; `self%PETSc_rtol`/`abstol` now apply to this
-     dimensionless residual, which is a real (and more sensible) behaviour
-     change even though the config values are untouched.
+     back by `velocity_scale`; the SNES tolerances (item 4 below) now apply to
+     this dimensionless residual, which is more sensible than raw SI units.
    - **Result on the integrated test, 2 ranks**: bit-for-bit reproduces the
      pre-nondim answer with direct LU (`Newton its = 10`, `max speed =
      2.120e3 m/yr`) - confirms it's a transparent change of variables, not a
@@ -363,15 +362,54 @@ Map UFEMISM's BC concepts onto DMLabels + `DMAddBoundary`:
      (that ratio is physical - shelf/fast-stream vs. slow interior - not a
      units artefact). LU stays the default in the committed code; switching it
      is left to item 2 below, a separate decision.
-2. **Solver config** (mirror `configure_PETSc_SNES_for_Poisson`, but move the
-   numbers into config): `SNESNEWTONLS` + line search; KSP `gmres`; PC `gamg`.
-3. **Near-null-space**: set the rigid-body modes on the operator
-   (`MatNullSpaceCreateRigidBody` from the DM coordinates -> `MatSetNearNullSpace`)
-   for acceptable AMG performance.
-4. Config knobs to add (alongside `stress_balance_PETSc_rtol/abstol`):
-   `SSA_PETSc_snes_rtol`, `SSA_PETSc_snes_abstol`, `SSA_PETSc_snes_max_it`,
-   `SSA_PETSc_nonlinear_solver`, `SSA_PETSc_velocity_element_order` (1 or 2),
-   `SSA_PETSc_pc_type`.
+2. **Solver config** - **done**. `SNESNEWTONLS` (unchanged) + a config-selected
+   KSP/PC (`build_petsc_objects`, `select case (C%SSA_FEM_PETSc_pc_type)`):
+   `'lu'` (`KSPPREONLY`+`PCLU`, the validated default), `'gamg'`
+   (`KSPGMRES`+`PCGAMG`), `'bjacobi'` (`KSPGMRES`+`PCBJACOBI`, matching the
+   finite-difference solver's own default). Explicit `KSPSetTolerances`
+   (`rtol=1e-8`, `abstol=1e-12`, `maxits=10000`) for the two iterative cases.
+3. **Near-null-space** - **done**. Rigid-body modes (2 translations + 1
+   rotation in 2D) built from the DM's own coordinates and attached
+   unconditionally in `build_petsc_objects`:
+   `MatSetBlockSize(jac,2)` -> `DMGetCoordinates` -> `MatNullSpaceCreateRigidBody`
+   -> `MatSetNearNullSpace` -> `MatNullSpaceDestroy`. Harmless for `'lu'`/`'bjacobi'`
+   (near-null-space is only consulted by AMG); required for `'gamg'` to coarsen
+   this vector-valued (elasticity-like) operator well.
+
+   **Result on the integrated test, 2 ranks, all three `pc_type` choices** (with
+   the explicit KSP tolerances above): all converge to the *identical* answer
+   (`Newton its = 10`, `max speed = 2.120e3 m/yr`) - only the cumulative KSP
+   iteration count differs:
+
+   | `pc_type` | cumulative KSP its |
+   | --- | --- |
+   | `lu` | 10 (one direct solve per Newton step) |
+   | `gamg` | 362 |
+   | `bjacobi` | 857 |
+
+   `gamg` needs less than half `bjacobi`'s iterations, confirming the
+   near-null-space is doing its job. `lu` stays the committed default (small
+   test meshes, zero solver-tuning risk); `gamg` is the path to scaling up
+   later, per the very first architecture discussion in this project.
+4. **Config knobs** - **done** (added to `model_configuration_type_and_namelist.f90`
+   and `config_SSA_FEM_PETSc.cfg`): `SSA_FEM_PETSc_pc_type_config` (`'lu'` |
+   `'gamg'` | `'bjacobi'`, default `'lu'`), `SSA_FEM_PETSc_snes_rtol_config`
+   (default `1e-8`), `SSA_FEM_PETSc_snes_abstol_config` (default `1e-10`),
+   `SSA_FEM_PETSc_snes_maxits_config` (default `50`). These are solver-specific,
+   distinct from the generic `stress_balance_PETSc_rtol/abstol` the
+   finite-difference solvers use, both because ours is a non-linear (SNES, not
+   plain KSP) solve and because non-dimensionalisation changed what these
+   tolerances mean for us.
+   `SSA_PETSc_nonlinear_solver` (Newton vs Picard) was already moot (Phase 4:
+   no outer loop). `SSA_PETSc_velocity_element_order` (P1 vs P2) is deferred -
+   no current need, and a bigger change (a second `PetscFECreateLagrange`
+   degree, revisit only if accuracy demands it in Phase 7).
+
+   Also added a permanent diagnostic: `run` now prints `Newton its`,
+   cumulative `KSP its` (`self%n_Axb_its`, via `SNESGetLinearSolveIterations`)
+   and `max speed` every solve, and `self%n_visc_its`/`n_Axb_its` now hold their
+   intended meanings (nonlinear vs. linear iteration counts) instead of both
+   being set from the same number.
 
 ### Phase 7 - Verification
 
@@ -455,9 +493,10 @@ interfaces (pattern: `ct_PETSc_SNES_Poisson.f90` lines 49-116) in a shared
       pointwise-friction path (no outer loop). Adaptive relaxation only matters if
       a non-pointwise sliding law is added later.
 - [ ] Phase 5: UFEMISM BCs (prescribed, ice front; periodic later).
-- [~] Phase 6: nondimensionalisation **done** (verified transparent, modest KSP
-      iteration reduction with an iterative solver); GAMG + rigid-body null
-      space + config knobs still open.
+- [x] Phase 6: nondimensionalisation (transparent, verified), config-selectable
+      `pc_type` (`lu`/`gamg`/`bjacobi`) + rigid-body near-null-space (`gamg`
+      under half `bjacobi`'s KSP its), new SNES config knobs. `lu` stays the
+      default.
 - [ ] Phase 7: Schoof convergence order + benchmark cross-checks.
 - [ ] Phase 8: remap, restart, cleanup, docs.
 
