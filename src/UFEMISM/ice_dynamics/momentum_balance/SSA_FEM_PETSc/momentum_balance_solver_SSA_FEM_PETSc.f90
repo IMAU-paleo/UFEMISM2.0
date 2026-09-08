@@ -11,8 +11,12 @@ module momentum_balance_solver_SSA_FEM_PETSc
   !   choice_stress_balance_approximation = 'SSA_FEM_PETSc'
   ! and is added alongside the existing solvers without affecting any of them.
   !
-  ! Implementation is staged (see SSA_PetscFE_SNES_implementation_plan.md in the
-  ! repository root). Current state: Phase 3+ - BOTH non-linearities of the SSA are
+  ! The full derivation of the f0/f1/g0/g3 callbacks below - from the two coupled
+  ! SSA PDEs, via the weak form, to the pointwise residual/Jacobian expressions and
+  ! their flat storage layout - is in SSA_FEM_PETSc_weak_form_derivation.md in the
+  ! repository root. Implementation progress is tracked in
+  ! SSA_PetscFE_SNES_implementation_plan.md. Current state: Phase 3+ - BOTH
+  ! non-linearities of the SSA are
   ! evaluated pointwise inside the residual (the shear-thinning Glen viscosity and
   ! the velocity-dependent basal friction law), so a single Newton solve replaces
   ! the whole viscosity/friction Picard iteration. Analytic Jacobians are provided.

@@ -8,6 +8,10 @@ PetscSNES for the nonlinear solve), added as one more choice for
 The solver is selected with `choice_stress_balance_approximation = 'SSA_FEM_PETSc'`
 (the `FEM` distinguishes it from the finite-difference-based SSA/DIVA solvers).
 
+**The mathematical derivation of the PETSc residual/Jacobian callbacks
+(`f0`, `f1`, `g0`, `g3`) from the SSA PDEs is in
+[`SSA_FEM_PETSc_weak_form_derivation.md`](SSA_FEM_PETSc_weak_form_derivation.md).**
+
 ## Progress
 
 | Phase | Status | Notes |
