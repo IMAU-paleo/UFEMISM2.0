@@ -37,6 +37,14 @@ module momentum_balance_solver_SSA_FEM_PETSc
   ! sliding relation is SSA_FEM_PETSc_sliding_beta below (currently Zoet-Iverson
   ! only; see the TODO there).
   !
+  ! Non-dimensionalisation (pulled forward from Phase 6): the PetscFE field, and
+  ! therefore self%sol, hold u_hat = u / velocity_scale (dimensionless), not the
+  ! physical velocity. f0/f1/g0/g3 convert u_hat (and grad u_hat) to physical
+  ! units, run the physics above unchanged, then divide by stress_scale (f0, f1)
+  ! or velocity_scale/stress_scale (g0, g3) so the assembled residual/Jacobian is
+  ! O(1) instead of spanning ~1e-8 to ~1e10 in raw SI units. Only the copy-back to
+  ! u_vav_a/v_vav_a (in solve_SSA_Newton) converts back to physical m/yr.
+  !
   ! Not done yet: essential boundary conditions and the ice-front back-pressure
   ! (Phase 5); solver/preconditioner tuning and non-dimensionalisation (Phase 6).
   !
@@ -58,7 +66,8 @@ module momentum_balance_solver_SSA_FEM_PETSc
     VecSet, VecDestroy, VecGetArrayRead, VecRestoreArrayRead, VecSetValues, VecAssemblyBegin, &
     VecAssemblyEnd, MatDestroy, INSERT_VALUES, &
     SNESCreate, SNESSetDM, SNESSetType, SNESSetTolerances, SNESGetKSP, SNESSolve, SNESDestroy, &
-    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, PCSetType, PCLU
+    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, PCSetType, PCLU, &
+    SNESGetLinearSolveIterations
   use mpi_f08, only: MPI_ALLTOALL, MPI_ALLTOALLV, MPI_ALLREDUCE, MPI_COMM_WORLD, MPI_IN_PLACE, &
     MPI_DOUBLE_PRECISION, MPI_INTEGER, MPI_MAX, MPI_LOR, MPI_LOGICAL
   use mpi_basic, only: par
@@ -95,6 +104,16 @@ module momentum_balance_solver_SSA_FEM_PETSc
   ! Index of the Zoet-Iverson parameters within the PetscDS constants array
   integer, parameter :: ic_eps0 = 1, ic_nglen = 2, ic_ZIp = 3, ic_ZIut = 4, ic_dv = 5, ic_betamax = 6
   integer, parameter :: n_ds_constants = 6
+
+  ! Non-dimensionalisation. The PetscFE velocity field holds the DIMENSIONLESS
+  ! u_hat = u / velocity_scale; the residual/Jacobian callbacks convert u_hat to
+  ! physical u internally, run the physics exactly as before, then divide the
+  ! result by stress_scale (f0, f1) or velocity_scale/stress_scale (g0, g3) - see
+  ! the "Non-dimensionalisation" section of SSA_FEM_PETSc_weak_form_derivation.md.
+  ! self%sol and the SNES tolerances therefore live in these units too; only the
+  ! copy back to u_vav_a/v_vav_a (in solve_SSA_Newton) converts to physical m/yr.
+  real(dp), parameter :: velocity_scale = 1.0e3_dp   ! [m yr^-1] ~ typical fast-flow speed
+  real(dp), parameter :: stress_scale   = 1.0e5_dp   ! [Pa] ~ typical driving stress
 
   ! d D[m] / d(grad u)[k], with D and grad u in the layout
   ! (1,2,3,4) = (xx, xy, yx, yy) resp. (du/dx, du/dy, dv/dx, dv/dy).
@@ -338,9 +357,10 @@ contains
     ierr = dm_set_auxiliary_vec( self%dm%v, 0_c_intptr_t, 0_c_int, 0_c_int, self%aux_vec%v)
     CHKERRQ( ierr)
 
+    ! n_visc_its: Newton (nonlinear) iterations; n_Axb_its: cumulative inner
+    ! linear-solve (KSP) iterations, set inside solve_SSA_Newton
     call self%solve_SSA_Newton( newton_its)
-    self%n_visc_its = 1
-    self%n_Axb_its  = newton_its
+    self%n_visc_its = newton_its
 
     if (any( isnan( self%u_vav_a)) .or. any( isnan( self%v_vav_a))) &
       call crash('SSA_FEM_PETSc: NaN in the velocity solution')
@@ -536,6 +556,12 @@ contains
     PetscCall( KSPSetType( ksp, KSPPREONLY, ierr))
     PetscCall( KSPGetPC( ksp, pc, ierr))
     PetscCall( PCSetType( pc, PCLU, ierr))
+    ! Tested (2025-09-08): swapping this for KSPGMRES + PCBJACOBI - the finite-
+    ! difference SSA solver's default (solve_matrix_equation_PETSc) - also
+    ! converges to the same answer in the same number of Newton iterations, and
+    ! non-dimensionalisation reduces its cumulative KSP iteration count on the
+    ! integrated test from 625 to 583 (~7%). LU stays the default for now;
+    ! switching the production default is Phase 6's separate solver/PC item.
 
     self%petsc_is_built = .true.
 
@@ -590,7 +616,13 @@ contains
     if (snes_reason < 0) &
       call crash('SSA_FEM_PETSc: SNES diverged (SNESConvergedReason = {int_01})', int_01 = int( snes_reason))
 
+    ! Cumulative inner linear-solve (KSP) iteration count for this Newton solve
+    PetscCall( SNESGetLinearSolveIterations( self%snes, self%n_Axb_its, ierr))
+
+    ! self%sol holds the dimensionless u_hat = u/velocity_scale; convert to physical m/yr
     call copy_PETSc_solution_to_mesh_vertices_vec2( self%dm, self%sol, self%mesh, self%u_vav_a, self%v_vav_a)
+    self%u_vav_a = velocity_scale * self%u_vav_a
+    self%v_vav_a = velocity_scale * self%v_vav_a
 
     call finalise_routine( routine_name)
 
@@ -925,21 +957,24 @@ contains
     integer(c_intptr_t), value :: dim, nf, nfaux, nconstants
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants, f0
     real(c_double), value :: time
-    real(c_double), pointer :: u_values(:), a_values(:), c_values(:), f0_values(:)
-    real(c_double)          :: beta, dbeta_duabs
+    real(c_double), pointer :: u_hat_values(:), a_values(:), c_values(:), f0_values(:)
+    real(c_double)          :: u_phys(2), beta, dbeta_duabs
 
-    call c_f_pointer( u, u_values, [2])
+    call c_f_pointer( u, u_hat_values, [2])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
     call c_f_pointer( f0, f0_values, [2])
 
-    call SSA_FEM_PETSc_sliding_beta( u_values(1), u_values(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
+    ! u_hat is dimensionless (self%sol); convert to physical m/yr for the physics
+    u_phys = velocity_scale * u_hat_values(1:2)
+    call SSA_FEM_PETSc_sliding_beta( u_phys(1), u_phys(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
 
     ! Weak form  integral( f1:grad(phi) + f0.phi ) = 0  with f1 = membrane stress M.
     ! Integrating div(M) by parts gives f0 = beta*u - tau_d, where tau_d = -rho g H grad(Hs)
-    ! is the (downslope) driving stress as defined in UFEMISM.
-    f0_values( 1) = beta * u_values( 1) - a_values( i_taudx)
-    f0_values( 2) = beta * u_values( 2) - a_values( i_taudy)
+    ! is the (downslope) driving stress as defined in UFEMISM. Divide by stress_scale to
+    ! keep the dimensionless residual O(1).
+    f0_values( 1) = (beta * u_phys( 1) - a_values( i_taudx)) / stress_scale
+    f0_values( 2) = (beta * u_phys( 2) - a_values( i_taudy)) / stress_scale
 
   end subroutine SSA_FEM_PETSc_f0
 
@@ -949,20 +984,22 @@ contains
     integer(c_intptr_t), value :: dim, nf, nfaux, nconstants
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants, f1
     real(c_double), value :: time
-    real(c_double), pointer :: u_x_values(:), a_values(:), c_values(:), f1_values(:)
-    real(c_double)          :: D(4), eps2, eta, N
+    real(c_double), pointer :: u_x_hat_values(:), a_values(:), c_values(:), f1_values(:)
+    real(c_double)          :: u_x_phys(4), D(4), eps2, eta, N
     integer                 :: m
 
-    call c_f_pointer( u_x, u_x_values, [4])
+    call c_f_pointer( u_x, u_x_hat_values, [4])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
     call c_f_pointer( f1, f1_values, [4])
 
-    call SSA_FEM_PETSc_strain( u_x_values, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
+    ! grad(u_hat) is dimensionless; convert to a physical velocity gradient
+    u_x_phys = velocity_scale * u_x_hat_values(1:4)
+    call SSA_FEM_PETSc_strain( u_x_phys, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
     N = eta * a_values( i_H)
 
     do m = 1, 4
-      f1_values( m) = 2._c_double * N * D( m)
+      f1_values( m) = 2._c_double * N * D( m) / stress_scale
     end do
 
   end subroutine SSA_FEM_PETSc_f1
@@ -974,22 +1011,26 @@ contains
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants
     real(c_double), value :: time, u_tshift
     real(c_double), intent(out) :: g0(*)
-    real(c_double), pointer :: u_values(:), a_values(:), c_values(:)
-    real(c_double)          :: beta, dbeta_duabs, uabs, rank1
+    real(c_double), pointer :: u_hat_values(:), a_values(:), c_values(:)
+    real(c_double)          :: u_phys(2), beta, dbeta_duabs, uabs, rank1, jac_scale
 
-    call c_f_pointer( u, u_values, [2])
+    call c_f_pointer( u, u_hat_values, [2])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
 
-    call SSA_FEM_PETSc_sliding_beta( u_values(1), u_values(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
+    u_phys = velocity_scale * u_hat_values(1:2)
+    call SSA_FEM_PETSc_sliding_beta( u_phys(1), u_phys(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
 
     ! d(beta(|u|) u_c) / d u_c'  =  beta delta_{c c'}  +  (dbeta/d|u| / |u|) u_c u_c'
-    uabs  = sqrt( c_values( ic_dv)**2 + u_values(1)**2 + u_values(2)**2)
-    rank1 = dbeta_duabs / uabs
-    g0( 1) = beta + rank1 * u_values(1) * u_values(1)
-    g0( 2) =        rank1 * u_values(1) * u_values(2)
-    g0( 3) =        rank1 * u_values(2) * u_values(1)
-    g0( 4) = beta + rank1 * u_values(2) * u_values(2)
+    ! (evaluated in physical units, then chain-ruled through u = velocity_scale*u_hat
+    ! and divided by stress_scale, since g0 = d(f0*stress_scale)/d(u_hat) / stress_scale)
+    uabs      = sqrt( c_values( ic_dv)**2 + u_phys(1)**2 + u_phys(2)**2)
+    rank1     = dbeta_duabs / uabs
+    jac_scale = velocity_scale / stress_scale
+    g0( 1) = jac_scale * (beta + rank1 * u_phys(1) * u_phys(1))
+    g0( 2) = jac_scale * (       rank1 * u_phys(1) * u_phys(2))
+    g0( 3) = jac_scale * (       rank1 * u_phys(2) * u_phys(1))
+    g0( 4) = jac_scale * (beta + rank1 * u_phys(2) * u_phys(2))
 
   end subroutine SSA_FEM_PETSc_g0
 
@@ -1000,25 +1041,30 @@ contains
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants
     real(c_double), value :: time, u_tshift
     real(c_double), intent(out) :: g3(*)
-    real(c_double), pointer :: u_x_values(:), a_values(:), c_values(:)
-    real(c_double)          :: D(4), eps2, eta, N, n_glen, p, coef
+    real(c_double), pointer :: u_x_hat_values(:), a_values(:), c_values(:)
+    real(c_double)          :: u_x_phys(4), D(4), eps2, eta, N, n_glen, p, coef, jac_scale
     integer                 :: ci, cj, di, dj, m, k, idx
 
-    call c_f_pointer( u_x, u_x_values, [4])
+    call c_f_pointer( u_x, u_x_hat_values, [4])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
 
-    call SSA_FEM_PETSc_strain( u_x_values, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
+    u_x_phys = velocity_scale * u_x_hat_values(1:4)
+    call SSA_FEM_PETSc_strain( u_x_phys, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
     N      = eta * a_values( i_H)
     n_glen = c_values(2)
     p      = (1._c_double - n_glen) / (2._c_double * n_glen)   ! d(ln eta) / d(ln eps2)
     coef   = 2._c_double * a_values( i_H) * eta * p / eps2     ! rank-1 shear-thinning weight
+    jac_scale = velocity_scale / stress_scale
 
     ! g3[c,c',d,d'] = d f1[c,d] / d(du_c'/dx_d'),  index0 = ((c*2 + c')*2 + d)*2 + d'
     !   f1[c,d]     = 2 N D(m),  m = 2c + d + 1
     !   d D(m)/d u_x(k) = dD_dgradu(m,k),  k = 2c' + d' + 1
     !   d N / d u_x(k)  = coef/(2H) * D(k)   ->   d f1[m]/d u_x[k]
     !                   = 2 N dD_dgradu(m,k) + coef * D(m) * D(k)
+    ! (all in physical units; jac_scale converts d(f1_phys)/d(grad u_phys) to
+    ! d(f1_hat)/d(grad u_hat), since u_x_phys = velocity_scale * u_x_hat and
+    ! f1_hat = f1_phys / stress_scale)
     do ci = 0, 1
       do di = 0, 1
         m = 2*ci + di + 1
@@ -1026,7 +1072,7 @@ contains
           do dj = 0, 1
             k   = 2*cj + dj + 1
             idx = ((ci*2 + cj)*2 + di)*2 + dj + 1
-            g3( idx) = 2._c_double * N * dD_dgradu( m, k) + coef * D( m) * D( k)
+            g3( idx) = jac_scale * (2._c_double * N * dD_dgradu( m, k) + coef * D( m) * D( k))
           end do
         end do
       end do

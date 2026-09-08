@@ -20,10 +20,14 @@ The solver is selected with `choice_stress_balance_approximation = 'SSA_FEM_PETS
 | 1 - DMPlex + PetscFE + SNES skeleton, constant-coefficient linear SSA | **done** | Full `DMPlex -> PetscFE (P1, 2-comp) -> PetscDS (f0/f1 + analytic g0/g3) -> SNES` pipeline. On the integrated-test mesh, 2 MPI ranks: SNES converges in 1 iteration and the nodal field matches the closed-form uniform solution `-tau/beta` to `~1e-16`. `overlap = 0` assembly confirmed correct in parallel for this case. |
 | 2 - Auxiliary fields (real spatially varying coefficients) | **done** | 4-component P1 aux field on a `DMClone`d DM, attached with `DMSetAuxiliaryVec`; `f0/f1/g0/g3` read `a[]`. Per-vertex coefficients from the existing UFEMISM machinery, incl. the sub-grid grounded-fraction scaling of `beta` (friction vanishes under floating ice). Superseded by Phase 3's residual (viscosity is no longer frozen). |
 | 3 - Fully non-linear Newton residual (viscosity **and** friction), analytic Jacobian, no outer loop | **done** | Glen `eta(grad u)` **and** the Zoet-Iverson `beta(|u|)` both evaluated pointwise in the residual, with analytic Jacobians (`g3` = frozen membrane + rank-1 `d eta / d grad u`; `g0` = `beta I` + rank-1 `d beta / d|u|`). **One Newton solve, no Picard loop.** Aux field `[Abar, H, tauc_eff, tau_dx, tau_dy]`; `eps0`, `n` and the ZI params via `PetscDSSetConstants`. Warm-started persistent solution vector. Sign fix: `f0 = beta*u - tau_d`. On the integrated test, 2 ranks, cold start: Newton converges in **10 iterations**; signed `u_vav`/`v_vav` correlate **+0.98** with the FD `SSA` solver. Magnitudes are ~1.4x the FD solver's, which itself does not converge here (still climbing toward the FE result as its Picard count is raised 50 -> 500); the residual gap is FD under-convergence + different strain-rate discretisation + grounding-line `beta` representation (Phase 5). Pointwise sliding relation is `SSA_FEM_PETSc_sliding_beta` (ZI only; TODO to merge into `sliding_laws`). |
-| 4-8 | not started (Phase 4 analytic Jacobian folded into Phase 3; outer-loop / Picard-option is now moot for the pointwise-friction path) |
+| 6a - Nondimensionalisation (pulled forward) | **done** | Solve for `u_hat = u/velocity_scale`, residual/Jacobian divided by `stress_scale`; transparent change of variables (identical answer, `Newton its = 10`). A/B test: KSP iterations with `GMRES+BJACOBI` (the FD solver's own default) drop 625 -> 583 (~7%) with nondim on; both configs match the LU answer exactly. See the Phase 6 section for the full writeup, and the FD-solver applicability discussion relayed to the repo owner. |
+| 4, 5, 6b-8 | not started (Phase 4 analytic Jacobian folded into Phase 3; outer-loop / Picard-option is now moot for the pointwise-friction path) |
 
 Implementation notes that deviate from the original plan:
 
+- **Step-plan order changed 2025-09-08**: Phase 6's nondimensionalisation is being
+  done now, before Phases 4 (BCs) and 5 (Picard/robustness options), at the repo
+  owner's request.
 - **Single module for now.** The `bind(C)` PETSc interfaces, the pointwise
   residual/Jacobian functions and the orchestration all live in
   `momentum_balance_solver_SSA_FEM_PETSc.f90`, following the proven structure of
@@ -330,10 +334,35 @@ Map UFEMISM's BC concepts onto DMLabels + `DMAddBoundary`:
 
 ### Phase 6 - Scaling, solver, preconditioner
 
-1. **Nondimensionalisation**: SSA viscosity ~1e13, velocities span many orders of
-   magnitude. Carry an explicit scaling into the residual (length, velocity,
-   stress scales as `PetscDSSetConstants` entries) so the assembled system is
-   O(1). Do not rely on `-ksp_diagonal_scale` alone.
+1. **Nondimensionalisation** - **done** (pulled forward ahead of Phases 4/5, see
+   the Progress table). Implemented as a pure change of variables around the
+   existing pointwise functions, no re-derivation needed:
+   - The PetscFE field (and `self%sol`) holds `u_hat = u / velocity_scale`
+     (`velocity_scale = 1e3 m/yr`), not physical velocity.
+   - `f0`/`f1` convert `u_hat`/`grad(u_hat)` to physical units, run the physics
+     unchanged, then divide by `stress_scale` (`= 1e5 Pa`).
+   - `g0`/`g3` get the same physical-unit treatment, then an extra factor
+     `velocity_scale/stress_scale` (from the chain rule through
+     `u = velocity_scale * u_hat`).
+   - Only the copy-back to `u_vav_a`/`v_vav_a` (in `solve_SSA_Newton`) multiplies
+     back by `velocity_scale`; `self%PETSc_rtol`/`abstol` now apply to this
+     dimensionless residual, which is a real (and more sensible) behaviour
+     change even though the config values are untouched.
+   - **Result on the integrated test, 2 ranks**: bit-for-bit reproduces the
+     pre-nondim answer with direct LU (`Newton its = 10`, `max speed =
+     2.120e3 m/yr`) - confirms it's a transparent change of variables, not a
+     physics change.
+   - **A/B experiment**: swapped `KSPPREONLY`+`PCLU` for `KSPGMRES`+`PCBJACOBI`
+     (the finite-difference `SSA` solver's own default, see
+     `solve_matrix_equation_PETSc`). Converges to the identical answer in the
+     same number of Newton iterations either way; non-dimensionalising reduces
+     the cumulative KSP iteration count from **625 to 583** (~7%) on this test.
+     A real but modest effect here - as expected, since a single global
+     constant rescaling cannot equalise the intrinsic ~1e8 ratio between the
+     membrane-stress coefficient `N` and the basal-friction coefficient `beta`
+     (that ratio is physical - shelf/fast-stream vs. slow interior - not a
+     units artefact). LU stays the default in the committed code; switching it
+     is left to item 2 below, a separate decision.
 2. **Solver config** (mirror `configure_PETSc_SNES_for_Poisson`, but move the
    numbers into config): `SNESNEWTONLS` + line search; KSP `gmres`; PC `gamg`.
 3. **Near-null-space**: set the rigid-body modes on the operator
@@ -426,6 +455,37 @@ interfaces (pattern: `ct_PETSc_SNES_Poisson.f90` lines 49-116) in a shared
       pointwise-friction path (no outer loop). Adaptive relaxation only matters if
       a non-pointwise sliding law is added later.
 - [ ] Phase 5: UFEMISM BCs (prescribed, ice front; periodic later).
-- [ ] Phase 6: scaled, GAMG + rigid-body null space, config knobs.
+- [~] Phase 6: nondimensionalisation **done** (verified transparent, modest KSP
+      iteration reduction with an iterative solver); GAMG + rigid-body null
+      space + config knobs still open.
 - [ ] Phase 7: Schoof convergence order + benchmark cross-checks.
 - [ ] Phase 8: remap, restart, cleanup, docs.
+
+## 9. Deferred follow-up work (separate PRs)
+
+- **Nondimensionalise the finite-difference `SSA`/`DIVA` solver's linear solve.**
+  `solve_matrix_equation_PETSc` (called from `solve_SSA_DIVA_linearised` via
+  `solve_matrix_equation_CSR_PETSc`) already defaults to an **iterative** KSP
+  (`gmres` + `bjacobi`), unlike `SSA_FEM_PETSc`'s direct LU - so it has been
+  exposed to the same raw-SI-unit conditioning problem (coefficients spanning
+  `~1e-8` to `~1e13`) the whole time, with no direct-solve fallback cushioning
+  it. Plausibly a bigger win there than the modest 625->583 KSP-iteration
+  reduction (~7%) measured on `SSA_FEM_PETSc` (see Phase 6), precisely because
+  it has no such cushion.
+  - **Proposed retrofit** (small, contained, no change to the row-by-row
+    assembly in `calc_SSA_DIVA_stiffness_matrix_row_free`): wrap the already-
+    assembled system in `solve_SSA_DIVA_linearised`, right around the existing
+    `solve_matrix_equation_CSR_PETSc` call - scale the RHS by `1/stress_scale`
+    before the solve, scale the returned solution by `velocity_scale` after it.
+    Same `u_hat = u/velocity_scale`, `stress_scale` idea as `SSA_FEM_PETSc`,
+    applied as a diagonal row/column rescaling around the existing black-box
+    solve rather than inside the weak form.
+  - **Verification plan**: A/B on the same integrated test as Phase 6's
+    experiment - compare `n_Axb_its` (KSP iteration count, already reported by
+    this solver) and the solution, before/after, to confirm it's transparent
+    (identical answer) and measure the iteration-count effect.
+  - **Why deferred**: touches a shared code path used by every existing
+    production config and benchmark (SSA and DIVA both go through
+    `solve_SSA_DIVA_linearised`), unlike everything else in this plan, which is
+    purely additive. Repo owner wants this as its own, separate PR - explicitly
+    requested 2025-09-08, not started.
