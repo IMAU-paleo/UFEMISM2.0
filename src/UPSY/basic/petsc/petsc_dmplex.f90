@@ -119,10 +119,20 @@ contains
     fem_degree = 1
     PetscCall( DMPlexCreateCoordinateSpace( dm_serial, fem_degree, PETSC_FALSE, PETSC_TRUE, ierr))
 
-    ! Distribute the mesh
+    ! Distribute the mesh. DMPlexDistribute leaves its output dm entirely unset
+    ! (a NULL DM, per its own documentation: "If the mesh was not distributed,
+    ! the output dmParallel will be NULL") when the communicator has size 1 -
+    ! it returns immediately without doing anything. Destroying dm_serial and
+    ! handing back that unset dm would leave every caller operating on a
+    ! dangling handle, so on a single rank there is nothing to distribute and
+    ! dm_serial itself becomes the result.
     overlap = 0
-    PetscCall( DMPlexDistribute( dm_serial, overlap, PETSC_NULL_SF, dm, ierr))
-    PetscCall( DMDestroy( dm_serial, ierr))
+    if (par%n == 1) then
+      dm = dm_serial
+    else
+      PetscCall( DMPlexDistribute( dm_serial, overlap, PETSC_NULL_SF, dm, ierr))
+      PetscCall( DMDestroy( dm_serial, ierr))
+    end if
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -383,10 +393,20 @@ contains
     fem_degree = 1
     PetscCall( DMPlexCreateCoordinateSpace( dm_serial, fem_degree, PETSC_FALSE, PETSC_TRUE, ierr))
 
-    ! Distribute the mesh
+    ! Distribute the mesh. DMPlexDistribute leaves its output dm entirely unset
+    ! (a NULL DM, per its own documentation: "If the mesh was not distributed,
+    ! the output dmParallel will be NULL") when the communicator has size 1 -
+    ! it returns immediately without doing anything. Destroying dm_serial and
+    ! handing back that unset dm would leave every caller operating on a
+    ! dangling handle, so on a single rank there is nothing to distribute and
+    ! dm_serial itself becomes the result.
     overlap = 0
-    PetscCall( DMPlexDistribute( dm_serial, overlap, PETSC_NULL_SF, dm, ierr))
-    PetscCall( DMDestroy( dm_serial, ierr))
+    if (par%n == 1) then
+      dm = dm_serial
+    else
+      PetscCall( DMPlexDistribute( dm_serial, overlap, PETSC_NULL_SF, dm, ierr))
+      PetscCall( DMDestroy( dm_serial, ierr))
+    end if
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
