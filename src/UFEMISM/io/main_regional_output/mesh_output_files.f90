@@ -683,6 +683,15 @@ contains
         class is (type_SMB_model_ITM_v2)
           call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Runoff', SMB_model%Runoff)
         end select
+      case ('Rainfall')
+        select type (SMB_model => region%SMB)
+        class default
+          call crash('Rainfall only defined for SMB model IMAU-ITM or ITM_v2')
+        class is (type_SMB_model_IMAU_ITM)
+          call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Rainfall', SMB_model%Rainfall)
+        class is (type_SMB_model_ITM_v2)
+          call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Rainfall', SMB_model%Rainfall)
+        end select
 
     ! == Basal mass balance ==
     ! ========================
@@ -1439,18 +1448,20 @@ contains
       ! Main SMB variables
       case ('SMB')
         call add_field_mesh_dp_2D( filename, ncid, 'SMB', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Surface mass balance', units = 'm yr^-1')
-      CASE ('Albedo')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Albedo', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Surface albedo', units = '0-1')
-      CASE ('FirnDepth')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly firn layer depth', units = 'm')
-      CASE ('MeltPreviousYear')
-        CALL add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Total ice melt from previous year', units = 'm')
-      CASE ('SurfaceMelt')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'SurfaceMelt', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly surface melt', units = 'm')
-      CASE ('Refreezing')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Refreezing', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly refreezing', units = 'm')
-      CASE ('Runoff')
-        CALL add_field_mesh_dp_2D_monthly( filename, ncid, 'Runoff', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly runoff', units = 'm')
+      case ('Albedo')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'Albedo', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Surface albedo', units = '0-1')
+      case ('FirnDepth')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly firn layer depth', units = 'm')
+      case ('MeltPreviousYear')
+        call add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Total ice melt from previous year', units = 'm')
+      case ('SurfaceMelt')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'SurfaceMelt', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly surface melt', units = 'm')
+      case ('Refreezing')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'Refreezing', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly refreezing', units = 'm')
+      case ('Runoff')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'Runoff', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly runoff', units = 'm')
+      case ('Rainfall')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'Rainfall', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly rainfall', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================

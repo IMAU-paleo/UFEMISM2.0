@@ -857,6 +857,17 @@ contains
           call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Runoff, d_grid_vec_partial_2D_monthly)
           call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Runoff', d_grid_vec_partial_2D_monthly)
         end select
+      case ('Rainfall')
+        select type (SMB_model => region%SMB)
+        class default
+          call crash('Rainfall only defined for SMB model IMAU-ITM or ITM_v2')
+        class is (type_SMB_model_IMAU_ITM)
+          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Rainfall, d_grid_vec_partial_2D_monthly)
+          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Rainfall', d_grid_vec_partial_2D_monthly)
+        class is (type_SMB_model_ITM_v2)
+          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Rainfall, d_grid_vec_partial_2D_monthly)
+          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Rainfall', d_grid_vec_partial_2D_monthly)
+        end select
 
 
     ! == Basal mass balance ==
@@ -1705,6 +1716,8 @@ contains
         call add_field_grid_dp_2D_monthly( filename, ncid, 'Refreezing', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly refreezing', units = 'm')
       case ('Runoff')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'Runoff', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly runoff', units = 'm')
+      case ('Rainfall')
+        call add_field_grid_dp_2D_monthly( filename, ncid, 'Rainfall', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly rainfall', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================
