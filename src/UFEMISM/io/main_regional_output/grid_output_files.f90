@@ -835,6 +835,29 @@ contains
           call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Melt, d_grid_vec_partial_2D_monthly)
           call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'SurfaceMelt', d_grid_vec_partial_2D_monthly)
         end select
+      case ('Refreezing')
+        select type (SMB_model => region%SMB)
+        class default
+          call crash('Refreezing only defined for SMB model IMAU-ITM or ITM_v2')
+        class is (type_SMB_model_IMAU_ITM)
+          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Refreezing, d_grid_vec_partial_2D_monthly)
+          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Refreezing', d_grid_vec_partial_2D_monthly)
+        class is (type_SMB_model_ITM_v2)
+          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Refreezing, d_grid_vec_partial_2D_monthly)
+          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Refreezing', d_grid_vec_partial_2D_monthly)
+        end select
+      case ('Runoff')
+        select type (SMB_model => region%SMB)
+        class default
+          call crash('Runoff only defined for SMB model IMAU-ITM or ITM_v2')
+        class is (type_SMB_model_IMAU_ITM)
+          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Runoff, d_grid_vec_partial_2D_monthly)
+          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Runoff', d_grid_vec_partial_2D_monthly)
+        class is (type_SMB_model_ITM_v2)
+          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%Runoff, d_grid_vec_partial_2D_monthly)
+          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'Runoff', d_grid_vec_partial_2D_monthly)
+        end select
+
 
     ! == Basal mass balance ==
     ! ========================
@@ -1678,6 +1701,10 @@ contains
         call add_field_grid_dp_2D( filename, ncid, 'MeltPreviousYear', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Total ice melt from previous year', units = 'm')
       case ('SurfaceMelt')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'SurfaceMelt', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly surface melt', units = 'm')
+      case ('Refreezing')
+        call add_field_grid_dp_2D_monthly( filename, ncid, 'Refreezing', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly refreezing', units = 'm')
+      case ('Runoff')
+        call add_field_grid_dp_2D_monthly( filename, ncid, 'Runoff', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly runoff', units = 'm')
 
     ! == Basal mass balance ==
     ! ========================
