@@ -654,6 +654,13 @@ contains
         class is (type_SMB_model_ITM_v2)
           call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'FirnDensity', SMB_model%FirnDensity)
         end select
+      case ('FirnAirContent')
+        select type (SMB_model => region%SMB)
+        class default
+          call crash('FirnAirContent only defined for SMB model ITM_v2')
+        class is (type_SMB_model_ITM_v2)
+          call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'FirnAirContent', SMB_model%FirnAirContent)
+        end select
       case ('MeltPreviousYear')
         select type (SMB_model => region%SMB)
         class default
@@ -1461,6 +1468,8 @@ contains
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDepth', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly firn layer depth', units = 'm')
       case ('FirnDensity')
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnDensity', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly average firn density', units = 'kg m^-3')
+      case ('FirnAirContent')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'FirnAirContent', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly firn air content', units = 'm')
       case ('MeltPreviousYear')
         call add_field_mesh_dp_2D( filename, ncid, 'MeltPreviousYear', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Total ice melt from previous year', units = 'm')
       case ('SurfaceMelt')

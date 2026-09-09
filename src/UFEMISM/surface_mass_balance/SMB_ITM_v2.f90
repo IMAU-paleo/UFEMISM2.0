@@ -36,6 +36,7 @@ module SMB_ITM_v2
       real(dp), dimension(:  ), contiguous, pointer :: MeltPreviousYear => null() !< [m.w.e.] total melt in the previous year
       real(dp), dimension(:,:), contiguous, pointer :: FirnDepth        => null() !< [m] depth of the firn layer
       real(dp), dimension(:,:), contiguous, pointer :: FirnDensity      => null() !< [kg m^-3] average firn density
+      real(dp), dimension(:,:), contiguous, pointer :: FirnAirContent   => null() !< [m] firn air content
       real(dp), dimension(:,:), contiguous, pointer :: Rainfall         => null() !< Monthly rainfall (m)
       real(dp), dimension(:,:), contiguous, pointer :: Snowfall         => null() !< Monthly snowfall (m)
       real(dp), dimension(:,:), contiguous, pointer :: AddedFirn        => null() !< Monthly added firn (m)
@@ -46,7 +47,7 @@ module SMB_ITM_v2
       real(dp), dimension(:,:), contiguous, pointer :: Albedo           => null() !< Monthly albedo
       real(dp), dimension(:  ), contiguous, pointer :: Albedo_year      => null() !< Yearly albedo
       real(dp), dimension(:,:), contiguous, pointer :: SMB_monthly      => null() !< [m] Monthly SMB
-      type(MPI_WIN) :: wMeltPreviousYear, wFirnDepth, wFirnDensity, wRainfall
+      type(MPI_WIN) :: wMeltPreviousYear, wFirnDepth, wFirnDensity, wFirnAirContent, wRainfall
       type(MPI_WIN) :: wSnowfall, wAddedFirn, wMelt, wRefreezing, wRefreezing_year
       type(MPI_WIN) :: wRunoff, wAlbedo, wAlbedo_year, wSMB_monthly
 
@@ -105,6 +106,12 @@ contains
       name      = 'FirnDensity', &
       long_name = 'Average density of the firn layer', &
       units     = 'kg m^-3')
+
+    call self%create_field( self%FirnAirContent, self%wFirnAirContent, &
+      self%mesh, Arakawa_grid%a(), third_dimension%month(), &
+      name      = 'FirnAirContent', &
+      long_name = 'Air content in the firn layer', &
+      units     = 'm')
 
     call self%create_field( self%Rainfall, self%wRainfall, &
       self%mesh, Arakawa_grid%a(), third_dimension%month(), &
@@ -187,6 +194,7 @@ contains
     nullify( self%MeltPreviousYear)
     nullify( self%FirnDepth)
     nullify( self%FirnDensity)
+    nullify( self%FirnAirContent)
     nullify( self%Rainfall)
     nullify( self%Snowfall)
     nullify( self%AddedFirn)
@@ -255,9 +263,11 @@ contains
       do vi = self%mesh%vi1, self%mesh%vi2
         if (geom%Hi( vi) > 0._dp) then
           self%FirnDepth       ( vi,:) = C%SMB_IMAUITM_initial_firn_thickness
+          self%FirnAirContent  ( vi,:) = C%SMB_IMAUITM_initial_firn_thickness * (ice_density - 830._dp)/ice_density
           self%MeltPreviousYear( vi  ) = 0._dp
         else
           self%FirnDepth       ( vi,:) = 0._dp
+          self%FirnAirContent  ( vi,:) = 0._dp
           self%MeltPreviousYear( vi  ) = 0._dp
         end if
         self%FirnDensity     ( vi,:) = 830._dp
@@ -346,7 +356,7 @@ contains
     character(len=*), parameter       :: routine_name = 'SMB_model_ITM_v2_run'
     integer                           :: vi
     integer                           :: m, mprev
-    real(dp)                          :: snowfrac, liquid_water, sup_imp_wat
+    real(dp)                          :: snowfrac, surface_snow_density
     real(dp)                          :: timeframe_init_insolation
     type(type_climate_model_snapshot) :: snapshot_dummy
 
@@ -371,6 +381,7 @@ contains
           self%AddedFirn( vi, m) = 0._dp
           self%FirnDepth( vi, m) = 0._dp
           self%FirnDensity( vi, m) = 830._dp
+          self%FirnAirContent( vi, m) = 0._dp
           self%Refreezing( vi, m) = 0._dp
           self%Runoff( vi, m) = 0._dp
           self%SMB_monthly( vi, m) = 0._dp
@@ -397,7 +408,8 @@ contains
                   exp(-15._dp * self%FirnDepth( vi,mprev)) - 0.015_dp * self%MeltPreviousYear( vi)))
 
             ! Determine ablation as a function of surface temperature 
-            ! and albedo/insolation according to Bintanja et al. (2002)
+            ! and albedo/insolation according following Bintanja et al. (2002)
+            ! Retuned to RACMO2.4p1 data
             self%Melt( vi,m) = &
               max(0._dp, &
                 (C%SMB_ITM_C_melt_temp_pos * max(0._dp, (climate%T2m( vi,m) - C%SMB_ITM_C_trans_temp))**2 &
@@ -419,57 +431,48 @@ contains
           self%Snowfall( vi, m) = climate%Precip( vi, m) *          snowfrac
           self%Rainfall( vi, m) = climate%Precip( vi, m) * (1._dp - snowfrac)
 
-          ! TODO compute monthly refreezing here
-          ! TODO compute monthly runoff and SMB here
-          ! TODO compute change in FirnDensity as well
+          ! Compute refreezing as the minimum value of 1) available liquid water
+          ! and 2) available firn air content
+
+          if (geom%Hi( vi) > 0._dp) then
+            self%Refreezing( vi, m) = min( &
+              self%Rainfall( vi, m) + self%Melt( vi, m), &
+              self%FirnAirContent( vi, m))
+          else
+            ! Ice free land
+            self%Refreezing( vi, m) = 0._dp
+          end if
+
+          ! Extract runoff and SMB
+          self%Runoff( vi, m) = self%Melt( vi, m) + self%Rainfall( vi, m) - self%Refreezing( vi, m)
+          self%SMB_monthly( vi, m) = self%Snowfall( vi, m) + self%Refreezing( vi, m) - self%Melt( vi, m)
 
           ! Add this month's snow accumulation to next month's initial snow depth.
           if (geom%Hi( vi) > 0._dp) then
-            self%AddedFirn( vi, m) = self%Snowfall( vi, m) - self%Melt( vi, m)
+
+            ! Approximate surface snow density from Veldhuijzen et al. (2023)
+            surface_snow_density = 376._dp + (sum(climate%T2m( vi, :))/12._dp - 235._dp) * 0.77 
+
             ! TODO create config parameter for max. firn depth
-            self%FirnDepth( vi, m) = & 
-              min( 100._dp, max( 0._dp, &
-                self%FirnDepth( vi, mprev) + self%AddedFirn( vi, m) ))
+            self%FirnDepth( vi, m) = min( 100._dp, max( 0.1_dp, self%FirnDepth( vi, mprev) + self%SMB_monthly( vi, m) ))
+            self%FirnDensity( vi, m) = &
+              (self%FirnDepth( vi, mprev) * self%FirnDensity( vi, mprev) + &
+               (self%Snowfall( vi, m) - self%Melt( vi, m)) * surface_snow_density + & ! Surface snow density
+               self%Refreezing( vi, m) * self%FirnDensity( vi, mprev) &
+              ) / self%FirnDepth( vi, m)
+              ! TODO add densification term
           else
             ! Ice free land
-            self%AddedFirn( vi, m) = 0._dp
             self%FirnDepth( vi, m) = 0._dp
+            self%FirnDensity( vi, m) = 830._dp
           end if
 
+          ! Define firn air content following Kuipers Munnike et al. (2015)
+          self%FirnAirContent( vi, m) = self%FirnDepth( vi, m) * (ice_density - self%FirnDensity( vi, m)) / ice_density
+
         end do
 
-        ! Refreezing according to Janssens & Huybrechts (2000)
-        ! The refreezing (=effective retention) is the minimum value of the amount of super imposed
-        ! water and the available liquid water, with a maximum value of the total precipitation.
-        ! (see also Huybrechts & de Wolde, 1999)
-
-        ! Calculate refreezing for the whole year, divide equally over the 12 months, 
-        ! then calculate resulting runoff and SMB.
-        ! This resolves the problem with refreezing where liquid water is mostly available in summer
-        ! but "refreezing potential" mostly in winter, and there is no proper meltwater retention.
-        sup_imp_wat  = self%C_refr * max( 0._dp, T0 - sum( climate%T2m( vi,:)) / 12._dp)
-        liquid_water = sum( self%Rainfall( vi,:)) + sum( self%Melt( vi,:))
-
-        ! Note: Refreezing is limited by the ability of the firn layer to store melt water. 
-        ! Currently a ten meter firn layer can store 2.5 m of water. 
-        ! However, this is based on expert judgement, NOT empirical evidence.
-        if (geom%Hi( vi) > 0._dp) then
-          self%Refreezing_year( vi) = &
-            min( min( &
-              min( sup_imp_wat, liquid_water), &
-              sum(climate%Precip( vi,:))), &
-              0.25_dp * sum( self%FirnDepth( vi,:) / 12._dp)) ! version from IMAU-ICE dev branch
-        else
-          ! Ice free land
-          self%Refreezing_year( vi) = 0._dp
-        end if
-
-        do m = 1, 12
-          self%Refreezing(  vi,m) = self%Refreezing_year( vi) / 12._dp
-          self%Runoff(      vi,m) = self%Melt( vi,m) + self%Rainfall( vi,m) - self%Refreezing( vi,m)
-          self%SMB_monthly( vi,m) = self%Snowfall( vi,m) + self%Refreezing( vi,m) - self%Melt( vi,m)
-        end do
-
+        ! Integrate SMB over the full year
         self%SMB( vi) = sum( self%SMB_monthly( vi,:))
 
         ! Calculate total melt over this year, to be used for determining next year's albedo
@@ -508,6 +511,7 @@ contains
     call self%remap_field( mesh_new, 'MeltPreviousYear', self%MeltPreviousYear )
     call self%remap_field( mesh_new, 'FirnDepth'       , self%FirnDepth        )
     call self%remap_field( mesh_new, 'FirnDensity'     , self%FirnDensity      )
+    call self%remap_field( mesh_new, 'FirnAirContent'  , self%FirnAirContent   )
     call self%remap_field( mesh_new, 'Rainfall'        , self%Rainfall         )
     call self%remap_field( mesh_new, 'Snowfall'        , self%Snowfall         )
     call self%remap_field( mesh_new, 'AddedFirn'       , self%AddedFirn        )
