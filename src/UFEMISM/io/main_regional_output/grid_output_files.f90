@@ -539,16 +539,61 @@ contains
         call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, region%ice%vel%w_3D, d_grid_vec_partial_3D)
         call write_to_field_multopt_grid_dp_3D( grid, filename, ncid, 'w_3D', d_grid_vec_partial_3D)
 
-      ! Vertically integrated
+      ! Vertically averaged
       case ('u_vav')
-        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%u_vav_b, d_grid_vec_partial_2D)
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%u_vav_b, d_grid_vec_partial_2D)
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%u_vav, d_grid_vec_partial_2D)
+        end select
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_vav', d_grid_vec_partial_2D)
       case ('v_vav')
-        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%v_vav_b, d_grid_vec_partial_2D)
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%v_vav_b, d_grid_vec_partial_2D)
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%v_vav, d_grid_vec_partial_2D)
+        end select
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_vav', d_grid_vec_partial_2D)
+      case ('u_vav_a')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%u_vav, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_vav_a', d_grid_vec_partial_2D)
+      case ('v_vav_a')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%v_vav, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_vav_a', d_grid_vec_partial_2D)
+      case ('u_vav_b')
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%u_vav_b, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'u_vav_b', d_grid_vec_partial_2D)
+      case ('v_vav_b')
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%v_vav_b, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'v_vav_b', d_grid_vec_partial_2D)
       case ('uabs_vav')
-        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%uabs_vav_b, d_grid_vec_partial_2D)
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%uabs_vav_b, d_grid_vec_partial_2D)
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%uabs_vav, d_grid_vec_partial_2D)
+        end select
         call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_vav', d_grid_vec_partial_2D)
+      case ('uabs_vav_a')
+        call map_from_mesh_vertices_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%uabs_vav, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_vav_a', d_grid_vec_partial_2D)
+      case ('uabs_vav_b')
+        call map_from_mesh_triangles_to_xy_grid_2D( region%mesh, grid, C%output_dir, region%ice%vel%uabs_vav_b, d_grid_vec_partial_2D)
+        call write_to_field_multopt_grid_dp_2D( grid, filename, ncid, 'uabs_vav_b', d_grid_vec_partial_2D)
 
       ! Surface
       case ('u_surf')
@@ -1448,19 +1493,52 @@ contains
       case ('w_3D')
         call add_field_grid_dp_3D( filename, ncid, 'w_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the z-direction', units = 'm yr^-1')
 
-      ! Vertically integrated
+      ! Vertically averaged
       case ('u_vav')
-        call add_field_grid_dp_2D( filename, ncid, 'u_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the x-direction', units = 'm yr^-1')
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call add_field_grid_dp_2D( filename, ncid, 'u_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the x-direction on the mesh triangles', units = 'm yr^-1')
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call add_field_grid_dp_2D( filename, ncid, 'u_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the x-direction on the mesh vertices', units = 'm yr^-1')
+        end select
       case ('v_vav')
-        call add_field_grid_dp_2D( filename, ncid, 'v_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the y-direction', units = 'm yr^-1')
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call add_field_grid_dp_2D( filename, ncid, 'v_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the y-direction on the mesh triangles', units = 'm yr^-1')
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call add_field_grid_dp_2D( filename, ncid, 'v_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the y-direction on the mesh vertices', units = 'm yr^-1')
+        end select
+      case ('u_vav_a')
+        call add_field_grid_dp_2D( filename, ncid, 'u_vav_a', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the x-direction on the mesh vertices', units = 'm yr^-1')
+      case ('v_vav_a')
+        call add_field_grid_dp_2D( filename, ncid, 'v_vav_a', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the y-direction on the mesh vertices', units = 'm yr^-1')
       case ('u_vav_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
+        call add_field_grid_dp_2D( filename, ncid, 'u_vav_b', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the x-direction on the mesh triangles', units = 'm yr^-1')
       case ('v_vav_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
+        call add_field_grid_dp_2D( filename, ncid, 'v_vav_b', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice velocity in the y-direction on the mesh triangles', units = 'm yr^-1')
       case ('uabs_vav')
-        call add_field_grid_dp_2D( filename, ncid, 'uabs_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged absolute ice velocity', units = 'm yr^-1')
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call add_field_grid_dp_2D( filename, ncid, 'uabs_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice speed on the mesh triangles', units = 'm yr^-1')
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call add_field_grid_dp_2D( filename, ncid, 'uabs_vav', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice speed on the mesh vertices', units = 'm yr^-1')
+        end select
+      case ('uabs_vav_a')
+        call add_field_grid_dp_2D( filename, ncid, 'uabs_vav_a', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice speed on the mesh vertices', units = 'm yr^-1')
       case ('uabs_vav_b')
-        ! notE: mapping from mesh triangles to square grid is not (yet) available!
+        call add_field_grid_dp_2D( filename, ncid, 'uabs_vav_b', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Vertically averaged ice speed on the mesh triangles', units = 'm yr^-1')
 
       ! Surface
       case ('u_surf')
