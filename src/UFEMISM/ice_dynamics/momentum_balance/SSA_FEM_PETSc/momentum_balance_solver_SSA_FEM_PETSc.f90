@@ -37,8 +37,22 @@ module momentum_balance_solver_SSA_FEM_PETSc
   ! sliding relation is SSA_FEM_PETSc_sliding_beta below (currently Zoet-Iverson
   ! only; see the TODO there).
   !
+  ! Non-dimensionalisation (pulled forward from Phase 6): the PetscFE field, and
+  ! therefore self%sol, hold u_hat = u / velocity_scale (dimensionless), not the
+  ! physical velocity. f0/f1/g0/g3 convert u_hat (and grad u_hat) to physical
+  ! units, run the physics above unchanged, then divide by stress_scale (f0, f1)
+  ! or velocity_scale/stress_scale (g0, g3) so the assembled residual/Jacobian is
+  ! O(1) instead of spanning ~1e-8 to ~1e10 in raw SI units. Only the copy-back to
+  ! u_vav_a/v_vav_a (in solve_SSA_Newton) converts back to physical m/yr.
+  !
+  ! Solver/preconditioner (Phase 6): C%SSA_FEM_PETSc_pc_type selects 'lu' (direct,
+  ! the default), 'gamg' (algebraic multigrid) or 'bjacobi'; a rigid-body
+  ! near-null-space is attached unconditionally (needed for 'gamg', harmless
+  ! otherwise). C%SSA_FEM_PETSc_snes_{rtol,abstol,maxits} configure the Newton
+  ! solve.
+  !
   ! Not done yet: essential boundary conditions and the ice-front back-pressure
-  ! (Phase 5); solver/preconditioner tuning and non-dimensionalisation (Phase 6).
+  ! (Phase 5).
   !
   ! The internal unknown is a nodal (vertex, P1) velocity field; the result is
   ! exposed on the triangles as u_vav_b / v_vav_b, exactly like the existing SSA
@@ -46,25 +60,29 @@ module momentum_balance_solver_SSA_FEM_PETSc
   ! unaffected.
 
   use precisions, only: dp
-  use iso_c_binding, only: c_bool, c_double, c_int, c_intptr_t, c_ptr, c_funptr, c_funloc, &
-    c_null_funptr, c_null_ptr, c_f_pointer
+  use iso_c_binding, only: c_bool, c_char, c_double, c_int, c_intptr_t, c_ptr, c_funptr, c_funloc, &
+    c_null_funptr, c_null_ptr, c_null_char, c_f_pointer, c_loc
   use petsc, only: PetscErrorF, PETSC_COMM_SELF, PETSC_COMM_WORLD, PETSC_TRUE, PETSC_FALSE, &
     PETSC_NULL_DMLABEL, PETSC_NULL_VEC, tDM, tVec, tMat, tSNES, tKSP, tPC, tPetscObject, &
-    tPetscFE, tPetscDS, tDMLabel, tPetscSection, &
+    tPetscFE, tPetscDS, tDMLabel, tPetscSection, tMatNullSpace, &
     PetscFECreateLagrange, PetscFEDestroy, PetscObjectSetName, DMSetField, DMCreateDS, DMGetDS, &
     PetscDSSetConstants, DMCreateMatrix, DMCreateGlobalVector, DMCreateLocalVector, &
-    DMGlobalToLocalBegin, DMGlobalToLocalEnd, DMGetLocalSection, DMGetLabel, DMDestroy, &
-    DMPlexGetDepthStratum, DMLabelGetValue, PetscSectionGetOffset, &
+    DMGlobalToLocalBegin, DMGlobalToLocalEnd, DMLocalToGlobalBegin, DMLocalToGlobalEnd, &
+    DMGetLocalSection, DMGetLabel, DMDestroy, &
+    DMPlexGetDepthStratum, DMLabelGetValue, PetscSectionGetOffset, DMGetCoordinates, &
+    DMPlexMarkBoundaryFaces, DMCreateLabel, &
     VecSet, VecDestroy, VecGetArrayRead, VecRestoreArrayRead, VecSetValues, VecAssemblyBegin, &
-    VecAssemblyEnd, MatDestroy, INSERT_VALUES, &
+    VecAssemblyEnd, MatDestroy, INSERT_VALUES, MatSetBlockSize, MatNullSpaceCreateRigidBody, &
+    MatSetNearNullSpace, MatNullSpaceDestroy, &
     SNESCreate, SNESSetDM, SNESSetType, SNESSetTolerances, SNESGetKSP, SNESSolve, SNESDestroy, &
-    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, PCSetType, PCLU
+    SNESGetIterationNumber, SNESNEWTONLS, KSPSetType, KSPGetPC, KSPPREONLY, KSPGMRES, PCSetType, PCLU, &
+    KSPSetTolerances, SNESGetLinearSolveIterations
   use mpi_f08, only: MPI_ALLTOALL, MPI_ALLTOALLV, MPI_ALLREDUCE, MPI_COMM_WORLD, MPI_IN_PLACE, &
     MPI_DOUBLE_PRECISION, MPI_INTEGER, MPI_MAX, MPI_LOR, MPI_LOGICAL
   use mpi_basic, only: par
   use call_stack_and_comp_time_tracking, only: init_routine, finalise_routine, crash, warning
   use model_configuration, only: C
-  use parameters, only: grav, ice_density
+  use parameters, only: grav, ice_density, seawater_density
   use mesh_types, only: type_mesh
   use ice_model_data, only: atype_ice_model_data
   use ice_geometry_model_data, only: atype_ice_geometry_model_data
@@ -75,7 +93,8 @@ module momentum_balance_solver_SSA_FEM_PETSc
   use constitutive_equation, only: calc_ice_rheology_Glen
   use mesh_zeta, only: vertical_average
   use sliding_laws, only: calc_basal_friction_coefficient
-  use petsc_dmplex, only: mesh_to_dmplex, dmplex_upsy_vertex_id_label_name
+  use petsc_dmplex, only: mesh_to_dmplex_masked, dmplex_upsy_vertex_id_label_name
+  use mpi_distributed_shared_memory, only: gather_dist_shared_to_all
   use mesh_disc_apply_operators, only: map_a_b_2D, ddx_a_a_2D, ddy_a_a_2D
 
   implicit none
@@ -84,17 +103,36 @@ module momentum_balance_solver_SSA_FEM_PETSc
 
   public :: type_momentum_balance_solver_SSA_FEM_PETSc
 
-  ! Layout of the 5-component PetscFE auxiliary field
+  ! Layout of the 6-component PetscFE auxiliary field
   integer, parameter :: i_Abar  = 1   ! vertically averaged flow factor A         [Pa^-n yr^-1]
   integer, parameter :: i_H     = 2   ! ice thickness (>= 0.1 m)                  [m]
   integer, parameter :: i_tauc  = 3   ! till yield stress * fraction_gr**exponent [Pa]
   integer, parameter :: i_taudx = 4   ! driving stress, x                        [Pa]
   integer, parameter :: i_taudy = 5   ! driving stress, y                        [Pa]
-  integer, parameter :: n_aux_comp = 5
+  integer, parameter :: i_Ho    = 6   ! ocean-column depth at the ice front (geom%Ho) [m]
+  integer, parameter :: n_aux_comp = 6
+
+  ! DM_BC_NATURAL's enumerator value (petscdmtypes.h), used with the manual
+  ! dm_add_boundary bind(C) interface below (its boundary_type argument is a raw
+  ! integer(c_int), not the Fortran module's DMBoundaryConditionType).
+  integer(c_int), parameter :: dm_bc_natural_value = 2_c_int
+  ! 'ice_margin' + a C null terminator, for the same interface's boundary name.
+  character(kind=c_char), dimension(11), parameter :: ice_margin_label_name = [character(kind=c_char) :: &
+    'i', 'c', 'e', '_', 'm', 'a', 'r', 'g', 'i', 'n', c_null_char]
 
   ! Index of the Zoet-Iverson parameters within the PetscDS constants array
   integer, parameter :: ic_eps0 = 1, ic_nglen = 2, ic_ZIp = 3, ic_ZIut = 4, ic_dv = 5, ic_betamax = 6
   integer, parameter :: n_ds_constants = 6
+
+  ! Non-dimensionalisation. The PetscFE velocity field holds the DIMENSIONLESS
+  ! u_hat = u / velocity_scale; the residual/Jacobian callbacks convert u_hat to
+  ! physical u internally, run the physics exactly as before, then divide the
+  ! result by stress_scale (f0, f1) or velocity_scale/stress_scale (g0, g3) - see
+  ! the "Non-dimensionalisation" section of SSA_FEM_PETSc_weak_form_derivation.md.
+  ! self%sol and the SNES tolerances therefore live in these units too; only the
+  ! copy back to u_vav_a/v_vav_a (in solve_SSA_Newton) converts to physical m/yr.
+  real(dp), parameter :: velocity_scale = 1.0e3_dp   ! [m yr^-1] ~ typical fast-flow speed
+  real(dp), parameter :: stress_scale   = 1.0e5_dp   ! [Pa] ~ typical driving stress
 
   ! d D[m] / d(grad u)[k], with D and grad u in the layout
   ! (1,2,3,4) = (xx, xy, yx, yy) resp. (du/dx, du/dy, dv/dx, dv/dy).
@@ -141,6 +179,7 @@ module momentum_balance_solver_SSA_FEM_PETSc
       procedure, private :: destroy_petsc_objects
       procedure, private :: solve_SSA_Newton
       procedure, private :: calc_auxiliary_fields
+      procedure, private :: calc_ice_covered_triangle_mask
 
   end type type_momentum_balance_solver_SSA_FEM_PETSc
 
@@ -182,6 +221,49 @@ module momentum_balance_solver_SSA_FEM_PETSc
       integer(c_intptr_t), value :: field_test, field_trial
       type(c_funptr),      value :: g0, g1, g2, g3
     end function petsc_ds_set_jacobian
+
+    integer(c_int) function petsc_ds_get_boundary( ds, bd, wf, bc_type, bc_name, bc_label, nv, values, field, &
+      nc, comps, func, func_t, ctx) bind(C, name='PetscDSGetBoundary')
+      import :: c_int, c_intptr_t, c_ptr
+      integer(c_intptr_t), value       :: ds, bd
+      integer(c_intptr_t), intent(out) :: wf
+      type(c_ptr),         value       :: bc_type, bc_name, bc_label, nv, values, field, nc, comps, func, func_t, ctx
+    end function petsc_ds_get_boundary
+
+    integer(c_int) function petsc_ds_get_num_boundary( ds, numbd) bind(C, name='PetscDSGetNumBoundary')
+      import :: c_int, c_intptr_t
+      integer(c_intptr_t), value       :: ds
+      integer(c_intptr_t), intent(out) :: numbd
+    end function petsc_ds_get_num_boundary
+
+    integer(c_int) function petsc_weak_form_set_index_bd_residual( wf, label, val, field, part, i0, f0_bd, i1, f1_bd) &
+      bind(C, name='PetscWeakFormSetIndexBdResidual')
+      !< PetscWeakFormSetIndexBdResidual(wf, label, val, f, part, i0, f0, i1, f1) - 9
+      !< real arguments. 'part' is the (label, val, field, part) key itself (the
+      !< equation part, 0 if unused); 'i0'/'i1' are separate indices into the list of
+      !< f0/f1 functions already stored *at* that one key (so several residual terms
+      !< can be summed at the same key). An earlier version of this interface was
+      !< missing 'part' entirely and shifted every argument after it by one slot -
+      !< silently registering the f0 callback as an integer "index" and leaving the
+      !< real PetscBdPointFn slot NULL, so PetscFEIntegrateBdResidual_Basic's
+      !< "if (!n0 && !n1) return" saw nothing to do and never invoked the callback.
+      import :: c_funptr, c_int, c_intptr_t
+      integer(c_intptr_t), value :: wf, label
+      integer(c_intptr_t), value :: val, field, part, i0, i1
+      type(c_funptr),      value :: f0_bd, f1_bd
+    end function petsc_weak_form_set_index_bd_residual
+
+    integer(c_int) function dm_add_boundary( dm, boundary_type, name, label, nvalues, values, field, ncomponents, &
+      components, boundary_function, boundary_time_derivative, ctx, boundary_index) bind(C, name='DMAddBoundary')
+      import :: c_char, c_funptr, c_int, c_intptr_t, c_ptr
+      integer(c_intptr_t),                 value       :: dm, label
+      integer(c_int),                      value       :: boundary_type
+      integer(c_intptr_t),                 value       :: nvalues, field, ncomponents
+      character(kind=c_char), dimension(*), intent(in) :: name
+      type(c_ptr),                         value       :: values, components, ctx
+      type(c_funptr),                      value       :: boundary_function, boundary_time_derivative
+      integer(c_intptr_t),                 intent(out) :: boundary_index
+    end function dm_add_boundary
 
     integer(c_int) function snes_set_jacobian( snes, jacobian, preconditioner, function, ctx) &
       bind(C, name='SNESSetJacobian')
@@ -272,7 +354,10 @@ contains
         'TODO: port the other sliding laws - see SSA_FEM_PETSc_sliding_beta in this module.')
     end select
 
-    call self%build_petsc_objects()
+    ! The PETSc DMPlex/FE/DS/SNES machinery is built on the ice-covered sub-mesh
+    ! (see build_petsc_objects), which needs geom - not available here. It is
+    ! instead (re)built at the top of every run() call, since the ice mask (and
+    ! therefore the sub-mesh) can change every timestep.
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -315,12 +400,42 @@ contains
     if (.not. grounded_ice_exists .or. C%choice_sliding_law == 'no_sliding') then
       self%u_vav_a = 0._dp; self%v_vav_a = 0._dp
       self%u_vav_b = 0._dp; self%v_vav_b = 0._dp
-      PetscCall( VecSet( self%sol, 0._dp, ierr))
+      ! self%sol (and the rest of the PETSc machinery) may not exist yet if this
+      ! is the very first run() call and there is no ice anywhere yet.
+      if (self%petsc_is_built) then
+        PetscCall( VecSet( self%sol, 0._dp, ierr))
+      end if
       self%n_visc_its = 0
       self%n_Axb_its  = 0
       call finalise_routine( routine_name)
       return
     end if
+
+    ! The DMPlex/FE/DS/SNES machinery lives on the ice-covered sub-mesh only (so its
+    ! own topological boundary is the ice margin, for the ice-front back-pressure BC
+    ! to come). Since the ice mask can change every timestep, the whole lot is torn
+    ! down and rebuilt from scratch here, every call - see the "rebuild every
+    ! timestep" checklist in SSA_PetscFE_SNES_implementation_plan.md.
+    if (self%petsc_is_built) call self%destroy_petsc_objects()
+    call self%build_petsc_objects( geom)
+
+    ! DOF numbering is not stable across independent DMPlex rebuilds, so a fresh
+    ! self%sol always starts at zero (set inside build_petsc_objects) even though
+    ! self%u_vav_a/v_vav_a still hold the previous physical solution. Re-seed
+    ! self%sol from those to keep warm-starting Newton across timesteps (this
+    ! only affects convergence speed, not correctness).
+    block
+      real(dp), dimension(self%mesh%vi1:self%mesh%vi2, 2) :: sol_seed
+      type(tVec) :: sol_local
+      sol_seed(:,1) = self%u_vav_a / velocity_scale
+      sol_seed(:,2) = self%v_vav_a / velocity_scale
+      PetscCall( DMCreateLocalVector( self%dm, sol_local, ierr))
+      PetscCall( VecSet( sol_local, 0._dp, ierr))
+      call fill_PETSc_aux_from_mesh_vertices( self%dm, self%dm, sol_local, self%mesh, sol_seed)
+      PetscCall( DMLocalToGlobalBegin( self%dm, sol_local, INSERT_VALUES, self%sol, ierr))
+      PetscCall( DMLocalToGlobalEnd(   self%dm, sol_local, INSERT_VALUES, self%sol, ierr))
+      PetscCall( VecDestroy( sol_local, ierr))
+    end block
 
     ! Vertically averaged flow factor A - velocity-independent, computed once
     call calc_ice_rheology_Glen( self%mesh, ice, geom)
@@ -338,9 +453,10 @@ contains
     ierr = dm_set_auxiliary_vec( self%dm%v, 0_c_intptr_t, 0_c_int, 0_c_int, self%aux_vec%v)
     CHKERRQ( ierr)
 
+    ! n_visc_its: Newton (nonlinear) iterations; n_Axb_its: cumulative inner
+    ! linear-solve (KSP) iterations, set inside solve_SSA_Newton
     call self%solve_SSA_Newton( newton_its)
-    self%n_visc_its = 1
-    self%n_Axb_its  = newton_its
+    self%n_visc_its = newton_its
 
     if (any( isnan( self%u_vav_a)) .or. any( isnan( self%v_vav_a))) &
       call crash('SSA_FEM_PETSc: NaN in the velocity solution')
@@ -356,8 +472,8 @@ contains
 
     umax = maxval( sqrt( self%u_vav_a**2 + self%v_vav_a**2))
     call MPI_ALLREDUCE( MPI_IN_PLACE, umax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
-    if (par%primary) write(0,'(A,I0,A,ES10.3)') '    SSA_FEM_PETSc: Newton its = ', newton_its, &
-      ', max speed = ', umax
+    if (par%primary) write(0,'(A,I0,A,I0,A,ES10.3)') '    SSA_FEM_PETSc: Newton its = ', newton_its, &
+      ', cumulative KSP its = ', self%n_Axb_its, ', max speed = ', umax
 
     ! Expose the result on the triangles
     call map_a_b_2D( self%mesh, self%u_vav_a, self%u_vav_b)
@@ -382,6 +498,12 @@ contains
 
     ! Add routine to call stack
     call init_routine( routine_name)
+
+    ! Velocities on the vertices
+    do vi = self%mesh%vi1, self%mesh%vi2
+      vel%u_vav( vi) = self%u_vav_a( vi)
+      vel%v_vav( vi) = self%v_vav_a( vi)
+    end do
 
     ! Velocities on the triangles
     do ti = self%mesh%ti1, self%mesh%ti2
@@ -421,9 +543,12 @@ contains
     ! Add routine to call stack
     call init_routine( routine_name)
 
-    ! Phase 3: rebuild everything from scratch on the new mesh (self%mesh has already
-    ! been repointed to mesh_new by remap_model). Velocities are reset to zero; a
-    ! proper remap of u_vav via the a-grid follows in a later phase.
+    ! Discard the PETSc machinery built on the old mesh (self%mesh has already
+    ! been repointed to mesh_new by remap_model). It is not rebuilt here: since
+    ! run() rebuilds it unconditionally from geom every call anyway (the ice mask
+    ! can change every timestep regardless of remapping), building it here too
+    ! would just be wasted work. Velocities are reset to zero; a proper remap of
+    ! u_vav via the a-grid follows in a later phase.
     if (self%petsc_is_built) call self%destroy_petsc_objects()
 
     call reallocate_bounds( self%u_vav_a, mesh_new%vi1, mesh_new%vi2)
@@ -432,8 +557,6 @@ contains
     call reallocate_bounds( self%v_vav_b, mesh_new%ti1, mesh_new%ti2)
     self%u_vav_a = 0._dp; self%v_vav_a = 0._dp
     self%u_vav_b = 0._dp; self%v_vav_b = 0._dp
-
-    call self%build_petsc_objects()
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -448,30 +571,39 @@ contains
 
   ! ===== PETSc object lifecycle =====
 
-  subroutine build_petsc_objects( self)
+  subroutine build_petsc_objects( self, geom)
     !< Build the DMPlex, the P1 vector PetscFE field, the auxiliary-field DM, the
-    !< PetscDS weak form and the SNES.
+    !< PetscDS weak form, the ice-front back-pressure natural BC and the SNES,
+    !< restricted to the ice-covered sub-mesh (so that its own topological
+    !< exterior boundary is exactly the ice margin, where that BC applies).
+    !< Called anew every run(), since the ice mask (and therefore the sub-mesh
+    !< and its margin) can change every timestep.
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FEM_PETSc), intent(inout) :: self
+    class(atype_ice_geometry_model_data),               intent(in   ) :: geom
 
     ! Local variables:
     character(len=*), parameter    :: routine_name = 'build_petsc_objects'
+    logical, dimension(self%mesh%nTri) :: mask_tri
     type(tPetscDS)                 :: ds
     type(tPetscObject)             :: fe_object, fe_aux_object
+    type(tDMLabel)                  :: margin_label
     type(tKSP)                     :: ksp
     type(tPC)                      :: pc
     integer                        :: ierr
-    integer(c_intptr_t)            :: no_context
+    integer(c_intptr_t)            :: no_context, boundary_index, wf
+    integer(c_intptr_t), target, dimension(1) :: margin_label_value
     real(dp), dimension(n_ds_constants) :: ds_constants
 
     call init_routine( routine_name)
 
     no_context = 0_c_intptr_t
 
-    ! DMPlex from the UFEMISM mesh (creates + distributes; preserves UPSY vertex IDs
-    ! in the 'upsy_vertex_id' DMLabel)
-    call mesh_to_dmplex( self%mesh, self%dm)
+    ! DMPlex from the ice-covered subset of the UFEMISM mesh (creates + distributes;
+    ! preserves UPSY vertex IDs in the 'upsy_vertex_id' DMLabel)
+    call self%calc_ice_covered_triangle_mask( geom, mask_tri)
+    call mesh_to_dmplex_masked( self%mesh, mask_tri, self%dm)
 
     ! Primary field: one 2-component P1 Lagrange velocity
     PetscCall( PetscFECreateLagrange( PETSC_COMM_SELF, 2, 2, PETSC_TRUE, 1, -1, self%fe, ierr))
@@ -511,6 +643,64 @@ contains
       c_funloc( SSA_FEM_PETSc_g0), c_null_funptr, c_null_funptr, c_funloc( SSA_FEM_PETSc_g3))
     CHKERRQ( ierr)
 
+    ! Ice-front ocean back-pressure: a natural (Neumann) BC on the sub-mesh's own
+    ! topological exterior boundary, which - because self%dm only spans the
+    ! ice-covered triangles - is exactly the ice margin/calving front. Mark those
+    ! faces and register the natural boundary condition with DMAddBoundary, which
+    ! hands back its own PetscWeakForm (distinct from the DS's default one, and the
+    ! only one DMPlex's residual assembly actually reads for *this* label-keyed
+    ! boundary) - fetch it with PetscDSGetBoundary and attach the actual physics
+    ! (SSA_FEM_PETSc_f0_bd) to it directly via PetscWeakFormSetIndexBdResidual.
+    ! (PetscDSSetBdResidual, used for the domain-wide g0/g3 analogue, sets the DS's
+    ! own default weak form instead, which this label-keyed boundary does not use -
+    ! confirmed against PETSc's src/snes/tutorials/ex12.c Neumann-BC idiom.) No
+    ! boundary Jacobian: the back-pressure depends only on the aux field (H, Ho),
+    ! not on u. See "Ice-front back-pressure boundary term" in
+    ! SSA_FEM_PETSc_weak_form_derivation.md.
+    !
+    ! (Debugging note, since this cost real effort to track down: for a while
+    ! SSA_FEM_PETSc_f0_bd was never reached at all, with no error anywhere -
+    ! DMAddBoundary/PetscDSAddBoundary registered fine, PetscDSGetBoundary
+    ! confirmed the stored type/field/values were exactly right, the
+    ! 'ice_margin' label genuinely held its ~179 marked facets, and PETSc's own
+    ! DMPlexCheck* sanity checks all passed on the sub-mesh topology - so
+    ! nothing upstream was actually broken. The real bug was in the manual
+    ! PetscWeakFormSetIndexBdResidual bind(C) interface below: its true C
+    ! signature is (wf, label, val, f, part, i0, f0, i1, f1) - nine arguments,
+    ! with 'part' (the equation-part key) separate from 'i0'/'i1' (indices for
+    ! summing multiple residual terms at one key) - and an earlier version of
+    ! this interface was missing 'part', shifting every argument after it by
+    ! one slot. That silently registered the f0 callback's address as an
+    ! integer "index" instead, leaving the real PetscBdPointFn slot NULL -
+    ! which PetscFEIntegrateBdResidual_Basic's own "if (!n0 && !n1) return"
+    ! guard treats as "nothing to assemble here", with no error raised at any
+    ! level. Confirmed fixed: the callback now runs (thousands of times per
+    ! Newton solve, with physically sensible H/Ho/tau_o values) and the
+    ! solution changes accordingly. Separately, chasing this down with PETSc's
+    ! own DMPlexCheck* diagnostics also caught a second, unrelated, genuinely
+    ! pre-existing bug: mesh_to_dmplex/mesh_to_dmplex_masked's shared
+    ! DMPlexDistribute call left self%dm entirely unset on exactly 1 MPI rank
+    ! (DMPlexDistribute documents that its output dm is NULL when the
+    ! communicator has size 1) - every 1-rank run of this solver was silently
+    ! broken since Phase 1; see the size == 1 guard now in petsc_dmplex.f90.
+    PetscCall( DMCreateLabel( self%dm, 'ice_margin', ierr))
+    PetscCall( DMGetLabel( self%dm, 'ice_margin', margin_label, ierr))
+    PetscCall( DMPlexMarkBoundaryFaces( self%dm, 1, margin_label, ierr))
+    margin_label_value = [1_c_intptr_t]
+    ierr = dm_add_boundary( self%dm%v, dm_bc_natural_value, ice_margin_label_name, margin_label%v, &
+      1_c_intptr_t, c_loc( margin_label_value), 0_c_intptr_t, 0_c_intptr_t, c_null_ptr, &
+      c_null_funptr, c_null_funptr, c_null_ptr, boundary_index)
+    CHKERRQ( ierr)
+    ierr = petsc_ds_get_boundary( ds%v, boundary_index, wf, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, &
+      c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr, c_null_ptr)
+    CHKERRQ( ierr)
+    ! (wf, label, val, field, part, i0, f0, i1, f1) - part=0 (the equation part
+    ! key, matching key.part=0 used by DMPlexComputeBdResidual_Internal at
+    ! residual-assembly time); i0=0/i1=0 (the only f0/f1 term at this key).
+    ierr = petsc_weak_form_set_index_bd_residual( wf, margin_label%v, 1_c_intptr_t, 0_c_intptr_t, 0_c_intptr_t, &
+      0_c_intptr_t, c_funloc( SSA_FEM_PETSc_f0_bd), 0_c_intptr_t, c_null_funptr)
+    CHKERRQ( ierr)
+
     ! SNES; DMPlex assembles the residual and Jacobian from the PetscDS weak form
     PetscCall( SNESCreate( PETSC_COMM_WORLD, self%snes, ierr))
     PetscCall( SNESSetDM( self%snes, self%dm, ierr))
@@ -521,15 +711,52 @@ contains
     PetscCall( DMCreateGlobalVector( self%dm, self%sol, ierr))
     PetscCall( VecSet( self%sol, 0._dp, ierr))
 
-    ! Solver configuration: Newton line search, direct linear solve (LU -> MUMPS on
-    ! more than one rank, as in ct_PETSc_SNES_Poisson). Tuning is Phase 6.
+    ! Solver configuration: Newton line search; KSP/PC choice from config.
     PetscCall( SNESSetType( self%snes, SNESNEWTONLS, ierr))
-    call SNESSetTolerances( self%snes, self%PETSc_abstol, self%PETSc_rtol, 1.0e-12_dp, 50, 1000, ierr)
+    call SNESSetTolerances( self%snes, C%SSA_FEM_PETSc_snes_abstol, C%SSA_FEM_PETSc_snes_rtol, &
+      1.0e-12_dp, C%SSA_FEM_PETSc_snes_maxits, 1000, ierr)
     CHKERRQ( ierr)
     PetscCall( SNESGetKSP( self%snes, ksp, ierr))
-    PetscCall( KSPSetType( ksp, KSPPREONLY, ierr))
-    PetscCall( KSPGetPC( ksp, pc, ierr))
-    PetscCall( PCSetType( pc, PCLU, ierr))
+    select case (C%SSA_FEM_PETSc_pc_type)
+    case ('lu')
+      ! Direct solve (MUMPS on more than one rank, as in ct_PETSc_SNES_Poisson).
+      ! Slower at scale than an iterative solve, but does not need the near-null-space
+      ! below and has been the validated default through Phases 1-3.
+      PetscCall( KSPSetType( ksp, KSPPREONLY, ierr))
+      PetscCall( KSPGetPC( ksp, pc, ierr))
+      PetscCall( PCSetType( pc, PCLU, ierr))
+    case ('gamg')
+      ! Algebraic multigrid; needs the rigid-body near-null-space (set below) to
+      ! coarsen a vector-valued (elasticity-like) operator well.
+      PetscCall( KSPSetType( ksp, KSPGMRES, ierr))
+      call KSPSetTolerances( ksp, 1.0e-8_dp, 1.0e-12_dp, 1.0e5_dp, 10000, ierr)
+      CHKERRQ( ierr)
+      PetscCall( KSPGetPC( ksp, pc, ierr))
+      PetscCall( PCSetType( pc, 'gamg', ierr))
+    case ('bjacobi')
+      ! Matches the finite-difference SSA/DIVA solver's own default
+      ! (solve_matrix_equation_PETSc): 'gmres' + 'bjacobi'.
+      PetscCall( KSPSetType( ksp, KSPGMRES, ierr))
+      call KSPSetTolerances( ksp, 1.0e-8_dp, 1.0e-12_dp, 1.0e5_dp, 10000, ierr)
+      CHKERRQ( ierr)
+      PetscCall( KSPGetPC( ksp, pc, ierr))
+      PetscCall( PCSetType( pc, 'bjacobi', ierr))
+    case default
+      call crash('SSA_FEM_PETSc: unknown SSA_FEM_PETSc_pc_type "' // trim( C%SSA_FEM_PETSc_pc_type) // '"')
+    end select
+
+    ! Rigid-body near-null-space (2 translations + 1 rotation in 2D), from the DM's
+    ! own coordinates. Harmless for 'lu'/'bjacobi'; needed for 'gamg' to perform
+    ! acceptably on this vector-valued, elasticity-like operator.
+    block
+      type(tVec)          :: coords
+      type(tMatNullSpace)  :: nullsp
+      PetscCall( MatSetBlockSize( self%jac, 2, ierr))
+      PetscCall( DMGetCoordinates( self%dm, coords, ierr))
+      PetscCall( MatNullSpaceCreateRigidBody( coords, nullsp, ierr))
+      PetscCall( MatSetNearNullSpace( self%jac, nullsp, ierr))
+      PetscCall( MatNullSpaceDestroy( nullsp, ierr))
+    end block
 
     self%petsc_is_built = .true.
 
@@ -584,7 +811,13 @@ contains
     if (snes_reason < 0) &
       call crash('SSA_FEM_PETSc: SNES diverged (SNESConvergedReason = {int_01})', int_01 = int( snes_reason))
 
+    ! Cumulative inner linear-solve (KSP) iteration count for this Newton solve
+    PetscCall( SNESGetLinearSolveIterations( self%snes, self%n_Axb_its, ierr))
+
+    ! self%sol holds the dimensionless u_hat = u/velocity_scale; convert to physical m/yr
     call copy_PETSc_solution_to_mesh_vertices_vec2( self%dm, self%sol, self%mesh, self%u_vav_a, self%v_vav_a)
+    self%u_vav_a = velocity_scale * self%u_vav_a
+    self%v_vav_a = velocity_scale * self%v_vav_a
 
     call finalise_routine( routine_name)
 
@@ -594,9 +827,10 @@ contains
 
   subroutine calc_auxiliary_fields( self, ice, geom, bed_roughness, A_flow_vav_a, coeffs)
     !< Compute the auxiliary-field coefficients on the mesh vertices:
-    !< [Abar, H, beta, tau_dx, tau_dy]. All are velocity-independent except beta,
+    !< [Abar, H, beta, tau_dx, tau_dy, Ho]. All are velocity-independent except beta,
     !< which is frozen at the current velocity solution (sliding law), scaled by the
-    !< sub-grid grounded fraction.
+    !< sub-grid grounded fraction. Ho (geom%Ho) only feeds the ice-front back-pressure
+    !< boundary residual (SSA_FEM_PETSc_f0_bd); it plays no role in the domain residual.
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FEM_PETSc), intent(in   ) :: self
@@ -635,11 +869,50 @@ contains
       coeffs( vi, i_tauc)  = tauc
       coeffs( vi, i_taudx) = -ice_density * grav * geom%Hi( vi) * dHs_dx_a( vi)
       coeffs( vi, i_taudy) = -ice_density * grav * geom%Hi( vi) * dHs_dy_a( vi)
+      coeffs( vi, i_Ho)    = geom%Ho( vi)
     end do
 
     call finalise_routine( routine_name)
 
   end subroutine calc_auxiliary_fields
+
+  subroutine calc_ice_covered_triangle_mask( self, geom, mask_tri)
+    !< Which triangles have all 3 vertices ice-covered (grounded or floating) - the
+    !< sub-mesh build_petsc_objects builds self%dm on via mesh_to_dmplex_masked.
+    !< Recomputed every run() call since the ice mask changes as the ice sheet
+    !< evolves.
+
+    ! In/output variables:
+    class(type_momentum_balance_solver_SSA_FEM_PETSc), intent(in ) :: self
+    class(atype_ice_geometry_model_data),               intent(in ) :: geom
+    logical, dimension(self%mesh%nTri),                 intent(out) :: mask_tri
+
+    ! Local variables:
+    character(len=*), parameter        :: routine_name = 'calc_ice_covered_triangle_mask'
+    logical, dimension(:), allocatable :: mask_grounded_tot, mask_floating_tot, mask_ice_a_full
+    integer                            :: ti
+
+    call init_routine( routine_name)
+
+    ! Gather the (distributed-shared-memory) "has ice" vertex masks to full,
+    ! replicated arrays - mesh connectivity (mesh%Tri) is itself fully
+    ! replicated, so the mask needs to be too (see mesh_to_dmplex_masked).
+    allocate( mask_grounded_tot( self%mesh%nV))
+    allocate( mask_floating_tot( self%mesh%nV))
+    call gather_dist_shared_to_all( self%mesh%pai_V, geom%mask_grounded_ice, mask_grounded_tot)
+    call gather_dist_shared_to_all( self%mesh%pai_V, geom%mask_floating_ice, mask_floating_tot)
+    allocate( mask_ice_a_full( self%mesh%nV))
+    mask_ice_a_full = mask_grounded_tot .or. mask_floating_tot
+
+    ! A triangle counts as ice-covered if all 3 of its vertices do (matches the
+    ! Hi > 0 rule the existing graph abstraction uses for the same classification)
+    do ti = 1, self%mesh%nTri
+      mask_tri( ti) = all( mask_ice_a_full( self%mesh%Tri( ti,:)))
+    end do
+
+    call finalise_routine( routine_name)
+
+  end subroutine calc_ice_covered_triangle_mask
 
   ! ===== Solution / coefficient transfer between UFEMISM vertex arrays and PETSc =====
 
@@ -730,15 +1003,21 @@ contains
       v_a( vi) = v_a( vi) + recv_v( k)
       ncopies( vi) = ncopies( vi) + 1
     end do
-    if (any( ncopies == 0)) call crash('DMPlex distribution omitted an UPSY vertex')
-    u_a = u_a / real( ncopies, dp)
-    v_a = v_a / real( ncopies, dp)
+    ! Vertices with ncopies == 0 are outside the ice-covered sub-mesh (self%dm
+    ! only spans the ice-covered triangles, see build_petsc_objects) - they have
+    ! no SSA solution and are left at their u_a = v_a = 0 default set above.
+    where (ncopies > 0)
+      u_a = u_a / real( ncopies, dp)
+      v_a = v_a / real( ncopies, dp)
+    end where
 
   end subroutine copy_PETSc_solution_to_mesh_vertices_vec2
 
   subroutine fill_PETSc_aux_from_mesh_vertices( dm_topo, dm_aux, aux_vec, mesh, coeffs)
-    !< Scatter the per-vertex coefficient array coeffs(vi1:vi2, 1:n_aux_comp) into the
-    !< n_aux_comp-component local auxiliary vector of dm_aux. Inverse of
+    !< Scatter the per-vertex coefficient array coeffs(vi1:vi2, 1:nc) into the
+    !< nc-component local vector aux_vec of dm_aux (nc taken from coeffs itself, so
+    !< this doubles as both the n_aux_comp-component SSA coefficient scatter and the
+    !< 2-component self%sol warm-start re-seed scatter). Inverse of
     !< copy_PETSc_solution_to_mesh_vertices_vec2: each rank requests, for its local
     !< DMPlex vertices, the coefficients from the UFEMISM process that owns that vertex.
 
@@ -747,7 +1026,7 @@ contains
     type(tDM),                              intent(in   ) :: dm_aux    ! for the local section
     type(tVec),                             intent(inout) :: aux_vec
     type(type_mesh),                        intent(in   ) :: mesh
-    real(dp), dimension(mesh%vi1:mesh%vi2, n_aux_comp), intent(in) :: coeffs
+    real(dp), dimension(mesh%vi1:, :), intent(in) :: coeffs
 
     ! Local variables:
     type(tPetscSection)                 :: aux_section
@@ -757,11 +1036,12 @@ contains
     integer, dimension(:), allocatable  :: req_vi, recv_req_vi
     integer, dimension(:), allocatable  :: local_pt, local_slot
     real(dp), dimension(:), allocatable :: reply_vals, recv_reply
-    integer, dimension(n_aux_comp)      :: idxc
-    real(dp), dimension(n_aux_comp)     :: valsc
+    integer, dimension(:), allocatable  :: idxc
+    real(dp), dimension(:), allocatable :: valsc
     integer :: ierr, point, vstart, vend, vi, dest, ip, si, ns, nr, k, nlv, off, nc, j
 
-    nc = n_aux_comp
+    nc = size( coeffs, 2)
+    allocate( idxc( nc), valsc( nc))
 
     allocate( send_counts( 0:par%n-1), recv_counts( 0:par%n-1), source = 0)
     allocate( send_displ ( 0:par%n-1), recv_displ ( 0:par%n-1), send_pos( 0:par%n-1))
@@ -919,23 +1199,62 @@ contains
     integer(c_intptr_t), value :: dim, nf, nfaux, nconstants
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants, f0
     real(c_double), value :: time
-    real(c_double), pointer :: u_values(:), a_values(:), c_values(:), f0_values(:)
-    real(c_double)          :: beta, dbeta_duabs
+    real(c_double), pointer :: u_hat_values(:), a_values(:), c_values(:), f0_values(:)
+    real(c_double)          :: u_phys(2), beta, dbeta_duabs
 
-    call c_f_pointer( u, u_values, [2])
+    call c_f_pointer( u, u_hat_values, [2])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
     call c_f_pointer( f0, f0_values, [2])
 
-    call SSA_FEM_PETSc_sliding_beta( u_values(1), u_values(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
+    ! u_hat is dimensionless (self%sol); convert to physical m/yr for the physics
+    u_phys = velocity_scale * u_hat_values(1:2)
+    call SSA_FEM_PETSc_sliding_beta( u_phys(1), u_phys(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
 
     ! Weak form  integral( f1:grad(phi) + f0.phi ) = 0  with f1 = membrane stress M.
     ! Integrating div(M) by parts gives f0 = beta*u - tau_d, where tau_d = -rho g H grad(Hs)
-    ! is the (downslope) driving stress as defined in UFEMISM.
-    f0_values( 1) = beta * u_values( 1) - a_values( i_taudx)
-    f0_values( 2) = beta * u_values( 2) - a_values( i_taudy)
+    ! is the (downslope) driving stress as defined in UFEMISM. Divide by stress_scale to
+    ! keep the dimensionless residual O(1).
+    f0_values( 1) = (beta * u_phys( 1) - a_values( i_taudx)) / stress_scale
+    f0_values( 2) = (beta * u_phys( 2) - a_values( i_taudy)) / stress_scale
 
   end subroutine SSA_FEM_PETSc_f0
+
+  subroutine SSA_FEM_PETSc_f0_bd( dim, nf, nfaux, uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, &
+    time, x, nrm, nconstants, constants, f0) bind(C)
+    !< Ice-front ocean back-pressure: the natural (Neumann) boundary residual on the
+    !< ice-covered sub-mesh's exterior (the ice margin). Same PetscBdPointFn signature
+    !< as the interior SSA_FEM_PETSc_f0, with one extra argument: the outward unit
+    !< normal 'nrm', supplied by PETSc per boundary quadrature point.
+    !<
+    !< Robinson et al. (2020), Eq. 19: the physical BC replaces the interior weak
+    !< form's implicit natural condition M.n = 0 with M.n = tau_o.n, where
+    !< tau_o = 1/2 rho_i g H^2 - 1/2 rho_sw g Ho^2 (Ho = geom%Ho, the depth of the
+    !< ocean column in contact with the ice front). Carrying this term through the
+    !< same integration-by-parts and sign convention as the interior f0 (see
+    !< "Ice-front back-pressure boundary term" in SSA_FEM_PETSc_weak_form_derivation.md)
+    !< gives f0_bd,i = -tau_o * n_i. No boundary Jacobian: tau_o depends only on the
+    !< aux field (H, Ho), not on u.
+
+    integer(c_intptr_t), value :: dim, nf, nfaux, nconstants
+    type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, nrm, constants, f0
+    real(c_double), value :: time
+    real(c_double), pointer :: a_values(:), n_values(:), f0_values(:)
+    real(c_double)          :: H, Ho, tau_o
+
+    call c_f_pointer( a, a_values, [n_aux_comp])
+    call c_f_pointer( nrm, n_values, [2])
+    call c_f_pointer( f0, f0_values, [2])
+
+    H  = a_values( i_H)
+    Ho = a_values( i_Ho)
+    tau_o = 0.5_c_double * ice_density * grav * H**2 - 0.5_c_double * seawater_density * grav * Ho**2
+
+    ! Divide by stress_scale to match the (dimensionless) interior residual.
+    f0_values( 1) = -tau_o * n_values( 1) / stress_scale
+    f0_values( 2) = -tau_o * n_values( 2) / stress_scale
+
+  end subroutine SSA_FEM_PETSc_f0_bd
 
   subroutine SSA_FEM_PETSc_f1( dim, nf, nfaux, uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, &
     time, x, nconstants, constants, f1) bind(C)
@@ -943,20 +1262,22 @@ contains
     integer(c_intptr_t), value :: dim, nf, nfaux, nconstants
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants, f1
     real(c_double), value :: time
-    real(c_double), pointer :: u_x_values(:), a_values(:), c_values(:), f1_values(:)
-    real(c_double)          :: D(4), eps2, eta, N
+    real(c_double), pointer :: u_x_hat_values(:), a_values(:), c_values(:), f1_values(:)
+    real(c_double)          :: u_x_phys(4), D(4), eps2, eta, N
     integer                 :: m
 
-    call c_f_pointer( u_x, u_x_values, [4])
+    call c_f_pointer( u_x, u_x_hat_values, [4])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
     call c_f_pointer( f1, f1_values, [4])
 
-    call SSA_FEM_PETSc_strain( u_x_values, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
+    ! grad(u_hat) is dimensionless; convert to a physical velocity gradient
+    u_x_phys = velocity_scale * u_x_hat_values(1:4)
+    call SSA_FEM_PETSc_strain( u_x_phys, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
     N = eta * a_values( i_H)
 
     do m = 1, 4
-      f1_values( m) = 2._c_double * N * D( m)
+      f1_values( m) = 2._c_double * N * D( m) / stress_scale
     end do
 
   end subroutine SSA_FEM_PETSc_f1
@@ -968,22 +1289,26 @@ contains
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants
     real(c_double), value :: time, u_tshift
     real(c_double), intent(out) :: g0(*)
-    real(c_double), pointer :: u_values(:), a_values(:), c_values(:)
-    real(c_double)          :: beta, dbeta_duabs, uabs, rank1
+    real(c_double), pointer :: u_hat_values(:), a_values(:), c_values(:)
+    real(c_double)          :: u_phys(2), beta, dbeta_duabs, uabs, rank1, jac_scale
 
-    call c_f_pointer( u, u_values, [2])
+    call c_f_pointer( u, u_hat_values, [2])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
 
-    call SSA_FEM_PETSc_sliding_beta( u_values(1), u_values(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
+    u_phys = velocity_scale * u_hat_values(1:2)
+    call SSA_FEM_PETSc_sliding_beta( u_phys(1), u_phys(2), a_values( i_tauc), c_values, beta, dbeta_duabs)
 
     ! d(beta(|u|) u_c) / d u_c'  =  beta delta_{c c'}  +  (dbeta/d|u| / |u|) u_c u_c'
-    uabs  = sqrt( c_values( ic_dv)**2 + u_values(1)**2 + u_values(2)**2)
-    rank1 = dbeta_duabs / uabs
-    g0( 1) = beta + rank1 * u_values(1) * u_values(1)
-    g0( 2) =        rank1 * u_values(1) * u_values(2)
-    g0( 3) =        rank1 * u_values(2) * u_values(1)
-    g0( 4) = beta + rank1 * u_values(2) * u_values(2)
+    ! (evaluated in physical units, then chain-ruled through u = velocity_scale*u_hat
+    ! and divided by stress_scale, since g0 = d(f0*stress_scale)/d(u_hat) / stress_scale)
+    uabs      = sqrt( c_values( ic_dv)**2 + u_phys(1)**2 + u_phys(2)**2)
+    rank1     = dbeta_duabs / uabs
+    jac_scale = velocity_scale / stress_scale
+    g0( 1) = jac_scale * (beta + rank1 * u_phys(1) * u_phys(1))
+    g0( 2) = jac_scale * (       rank1 * u_phys(1) * u_phys(2))
+    g0( 3) = jac_scale * (       rank1 * u_phys(2) * u_phys(1))
+    g0( 4) = jac_scale * (beta + rank1 * u_phys(2) * u_phys(2))
 
   end subroutine SSA_FEM_PETSc_g0
 
@@ -994,25 +1319,30 @@ contains
     type(c_ptr),    value :: uoff, uoff_x, u, u_t, u_x, aoff, aoff_x, a, a_t, a_x, x, constants
     real(c_double), value :: time, u_tshift
     real(c_double), intent(out) :: g3(*)
-    real(c_double), pointer :: u_x_values(:), a_values(:), c_values(:)
-    real(c_double)          :: D(4), eps2, eta, N, n_glen, p, coef
+    real(c_double), pointer :: u_x_hat_values(:), a_values(:), c_values(:)
+    real(c_double)          :: u_x_phys(4), D(4), eps2, eta, N, n_glen, p, coef, jac_scale
     integer                 :: ci, cj, di, dj, m, k, idx
 
-    call c_f_pointer( u_x, u_x_values, [4])
+    call c_f_pointer( u_x, u_x_hat_values, [4])
     call c_f_pointer( a, a_values, [n_aux_comp])
     call c_f_pointer( constants, c_values, [int( nconstants)])
 
-    call SSA_FEM_PETSc_strain( u_x_values, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
+    u_x_phys = velocity_scale * u_x_hat_values(1:4)
+    call SSA_FEM_PETSc_strain( u_x_phys, c_values(1), c_values(2), a_values( i_Abar), D, eps2, eta)
     N      = eta * a_values( i_H)
     n_glen = c_values(2)
     p      = (1._c_double - n_glen) / (2._c_double * n_glen)   ! d(ln eta) / d(ln eps2)
     coef   = 2._c_double * a_values( i_H) * eta * p / eps2     ! rank-1 shear-thinning weight
+    jac_scale = velocity_scale / stress_scale
 
     ! g3[c,c',d,d'] = d f1[c,d] / d(du_c'/dx_d'),  index0 = ((c*2 + c')*2 + d)*2 + d'
     !   f1[c,d]     = 2 N D(m),  m = 2c + d + 1
     !   d D(m)/d u_x(k) = dD_dgradu(m,k),  k = 2c' + d' + 1
     !   d N / d u_x(k)  = coef/(2H) * D(k)   ->   d f1[m]/d u_x[k]
     !                   = 2 N dD_dgradu(m,k) + coef * D(m) * D(k)
+    ! (all in physical units; jac_scale converts d(f1_phys)/d(grad u_phys) to
+    ! d(f1_hat)/d(grad u_hat), since u_x_phys = velocity_scale * u_x_hat and
+    ! f1_hat = f1_phys / stress_scale)
     do ci = 0, 1
       do di = 0, 1
         m = 2*ci + di + 1
@@ -1020,7 +1350,7 @@ contains
           do dj = 0, 1
             k   = 2*cj + dj + 1
             idx = ((ci*2 + cj)*2 + di)*2 + dj + 1
-            g3( idx) = 2._c_double * N * dD_dgradu( m, k) + coef * D( m) * D( k)
+            g3( idx) = jac_scale * (2._c_double * N * dD_dgradu( m, k) + coef * D( m) * D( k))
           end do
         end do
       end do

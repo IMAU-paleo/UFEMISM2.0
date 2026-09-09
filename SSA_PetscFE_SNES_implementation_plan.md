@@ -20,10 +20,15 @@ The solver is selected with `choice_stress_balance_approximation = 'SSA_FEM_PETS
 | 1 - DMPlex + PetscFE + SNES skeleton, constant-coefficient linear SSA | **done** | Full `DMPlex -> PetscFE (P1, 2-comp) -> PetscDS (f0/f1 + analytic g0/g3) -> SNES` pipeline. On the integrated-test mesh, 2 MPI ranks: SNES converges in 1 iteration and the nodal field matches the closed-form uniform solution `-tau/beta` to `~1e-16`. `overlap = 0` assembly confirmed correct in parallel for this case. |
 | 2 - Auxiliary fields (real spatially varying coefficients) | **done** | 4-component P1 aux field on a `DMClone`d DM, attached with `DMSetAuxiliaryVec`; `f0/f1/g0/g3` read `a[]`. Per-vertex coefficients from the existing UFEMISM machinery, incl. the sub-grid grounded-fraction scaling of `beta` (friction vanishes under floating ice). Superseded by Phase 3's residual (viscosity is no longer frozen). |
 | 3 - Fully non-linear Newton residual (viscosity **and** friction), analytic Jacobian, no outer loop | **done** | Glen `eta(grad u)` **and** the Zoet-Iverson `beta(|u|)` both evaluated pointwise in the residual, with analytic Jacobians (`g3` = frozen membrane + rank-1 `d eta / d grad u`; `g0` = `beta I` + rank-1 `d beta / d|u|`). **One Newton solve, no Picard loop.** Aux field `[Abar, H, tauc_eff, tau_dx, tau_dy]`; `eps0`, `n` and the ZI params via `PetscDSSetConstants`. Warm-started persistent solution vector. Sign fix: `f0 = beta*u - tau_d`. On the integrated test, 2 ranks, cold start: Newton converges in **10 iterations**; signed `u_vav`/`v_vav` correlate **+0.98** with the FD `SSA` solver. Magnitudes are ~1.4x the FD solver's, which itself does not converge here (still climbing toward the FE result as its Picard count is raised 50 -> 500); the residual gap is FD under-convergence + different strain-rate discretisation + grounding-line `beta` representation (Phase 5). Pointwise sliding relation is `SSA_FEM_PETSc_sliding_beta` (ZI only; TODO to merge into `sliding_laws`). |
-| 4-8 | not started (Phase 4 analytic Jacobian folded into Phase 3; outer-loop / Picard-option is now moot for the pointwise-friction path) |
+| 6 - Scaling, solver, preconditioner (pulled forward) | **done** | Nondimensionalisation (`u_hat = u/velocity_scale`, residual/Jacobian / `stress_scale`) - transparent (identical answer). Config-selectable `pc_type` (`lu`/`gamg`/`bjacobi`) + rigid-body near-null-space; all three converge to the identical answer on the integrated test, with `gamg` needing under half `bjacobi`'s KSP iterations (362 vs 857). New config knobs `SSA_FEM_PETSc_{pc_type,snes_rtol,snes_abstol,snes_maxits}_config`. `lu` stays the default. Done ahead of Phases 4/5 at the repo owner's request. FD-solver nondimensionalisation deferred to a separate PR (Section 9). |
+| 5 - Boundary conditions (ice-front back-pressure) | **done** | `mesh_to_dmplex_masked` (ice-covered sub-mesh topology); the *entire* PETSc build (`self%dm` and everything downstream) runs on that sub-mesh, rebuilt from scratch every `run()` call (ice mask/margin can move every timestep) including a re-seeded `self%sol` warm start. The back-pressure term (`DMAddBoundary(DM_BC_NATURAL)` + `PetscDSGetBoundary` + `PetscWeakFormSetIndexBdResidual`, `f0_bd,i = -tau_o,i`) is registered *and now actually assembled* - fixed a real bug in the manual `PetscWeakFormSetIndexBdResidual` bind(C) interface (missing the `part` argument, which shifted every later argument by one slot and silently dropped the real callback pointer; see item 3 below for the full story). Verified on the integrated test at both 1 and 2 ranks (identical results both before and after this fix): Newton converges in 10 iterations (10 KSP its, `lu`) throughout; max speed goes 2.120e3 (whole-mesh) -> 1.193e3 (ice-only sub-mesh, BC not yet wired) -> **3.686e3 (BC actually contributing)** - a real, substantial physical change, confirming the ocean back-pressure is now genuinely active. Also fixed along the way: `mesh_to_dmplex`/`mesh_to_dmplex_masked` left `self%dm` dangling at exactly 1 MPI rank (`DMPlexDistribute` returns a `NULL` output `dm` on a size-1 communicator, undocumented-until-you-read-the-source) - every 1-rank run of this solver had been silently broken since Phase 1. |
+| 4, 7, 8 | not started (Phase 4 analytic Jacobian folded into Phase 3; outer-loop / Picard-option is now moot for the pointwise-friction path) |
 
 Implementation notes that deviate from the original plan:
 
+- **Step-plan order changed 2025-09-08**: Phase 6's nondimensionalisation is being
+  done now, before Phases 4 (BCs) and 5 (Picard/robustness options), at the repo
+  owner's request.
 - **Single module for now.** The `bind(C)` PETSc interfaces, the pointwise
   residual/Jacobian functions and the orchestration all live in
   `momentum_balance_solver_SSA_FEM_PETSc.f90`, following the proven structure of
@@ -272,6 +277,30 @@ vs FD's triangle-averaged `beta`), which Phase 5 (BCs / GL) should narrow.
 Verification still worth doing: a manufactured / Schoof case where both solvers
 converge, to confirm the FE solution is the correct one (Phase 7).
 
+**Time-evolving runs needed a much smaller timestep than with the FD `SSA`
+solver - root-caused and fixed.** Diagnosis: `calc_critical_timestep_adv`
+(the hard advective CFL) takes a global minimum over mesh edges of
+`dist/(|u_c|+|v_c|)`, with zero smoothing, so a single anomalous edge speed sets
+the timestep for the whole domain. The edge (c-grid) velocity `u_c` was produced
+by remapping the solver's b-grid output (itself already a vertex -> triangle
+remap of the FE solution) triangle -> edge - i.e. **two consecutive averaging
+remaps**, vertex -> triangle -> edge, each edge value an average of 4 vertex
+values - which added real numerical diffusion on top of whatever the momentum
+solve itself produced. Fixed with a new `map_velocities_from_a_to_c_2D`
+(`map_velocities_to_c_grid.f90`) that maps vertex -> edge **directly**, and
+critically, picks the single **upwind** vertex value per edge instead of
+averaging the two endpoints - consistent with the general finding (see
+`SSA_FEM_PETSc_weak_form_derivation.md`'s companion discussion earlier in this
+project) that mass-continuity stability comes from upwinding the advective flux,
+not from where the velocity unknown formally lives. This resolves the concern
+raised when Phase 0 started, that moving the velocity unknown off the staggered
+b-grid might by itself destabilise mass continuity - it does not, provided the
+consumer-facing remap is direct and upwinded. No DMPlex/mesh-topology change
+(e.g. building the DMPlex from the dual/Voronoi mesh) was needed or is planned;
+`PetscFECreateLagrange`'s continuous Lagrange elements only support simplices/
+tensor cells, not the general polygons of a Voronoi dual, so that path would have
+required abandoning the current PetscFE approach rather than adapting it.
+
 ### Phase 4 - Analytic pointwise Jacobian + Picard option
 
 1. Implement `g0` (d f0 / d u: basal-drag linearisation), `g3` (d f1 / d u_x:
@@ -287,38 +316,347 @@ converge, to confirm the FE solution is the correct one (Phase 7).
 
 ### Phase 5 - Boundary conditions from UFEMISM
 
-Map UFEMISM's BC concepts onto DMLabels + `DMAddBoundary`:
+Starting with the ice-front ocean back-pressure (the repo owner's priority - the
+finite-difference solver doesn't have this at all); `zero`/`periodic`/etc.
+domain-edge BCs come later.
 
-1. `BC_prescr_mask_b` / `BC_prescr_u_b` / `BC_prescr_v_b` (prescribed velocity on
-   triangles): these arrive on the b-grid; convert to a vertex Dirichlet label
-   (a vertex is constrained if all/most incident constrained triangles agree),
-   or prescribe on the nearest vertices. Provide the values through the
-   Dirichlet callback context.
-2. Domain-edge choices already handled by
-   `calc_SSA_DIVA_stiffness_matrix_row_BC` (`choice_BC_u/v`: zero, infinite
-   slab, ISMIP-HOM periodic, ice-stream periodic). For the FE solver:
+#### Ice-front ocean back-pressure - design (in progress)
+
+**The problem.** UFEMISM's mesh spans the *entire* fixed config rectangle
+(confirmed: `xmin/xmax/ymin/ymax`, open ocean explicitly included, mesh extent
+asserted unchanged across remeshing) - the calving front is an *interior*
+curve of that mesh, not its outer edge. `DMAddBoundary`/`PetscDSSetBdResidual`
+are built around the DMPlex's *topological* exterior boundary (faces with
+support size 1); checked directly against installed-PETSc source references
+that the boundary-residual assembly reads a face's `support[0]` only, so
+feeding it a label of genuinely interior faces (two neighbouring cells, ice and
+open ocean) would silently use whichever cell happens to be `support[0]` -
+arbitrary, unsafe, not something to build physics on. This is also why the
+existing FD solver's `choice_BC_u/v_*` only ever fire on `mesh%TriBI/VBI`
+(border-of-the-config-rectangle) triangles/vertices, never at the margin, and
+why there is currently no calving-front treatment anywhere in the momentum
+balance (confirmed by reading `solve_linearised_SSA_DIVA_infinite_slab.f90`
+and `momentum_balance_solver_SSADIVA.f90`).
+
+**Rejected alternatives:**
+- Feeding `DMAddBoundary` an interior-face label directly - unsafe (`support[0]`
+  ambiguity above).
+- A hand-rolled nodal force added post-hoc into the assembled residual - works
+  in principle (the term has zero Jacobian, being a function of `H`/`Ho` only)
+  but sidesteps PETSc's normal machinery entirely and needs its own geometry
+  (margin edges, ad hoc normal/length weighting) invented from scratch.
+- Reusing UFEMISM's existing `graph`/`is_border`/`border_nhat` abstraction
+  (`src/UPSY/mesh/graph/`) - **rejected by the repo owner**: that graph *is*
+  UFEMISM's own in-house implementation of "a mesh built from only the
+  ice-covered vertices", i.e. it duplicates exactly the PETSc-native mechanism
+  below, in a non-DMPlex data structure we'd rather not depend on.
+
+**Chosen approach: a genuine ice-covered sub-DMPlex, built directly (not via
+`DMPlexFilter`).** Restrict the solver's DMPlex to ice-covered cells so the
+calving front becomes the sub-mesh's *real* topological exterior boundary,
+where the standard `DMPlexMarkBoundaryFaces` + `DMAddBoundary(DM_BC_NATURAL)` +
+`PetscDSSetBdResidual` pipeline applies exactly as designed (outward normals
+supplied automatically by PETSc's boundary pointwise-function arguments - no
+manual normal/length geometry needed at all). `DMPlexFilter` (confirmed
+available with a Fortran binding) was the first idea, but the repo owner
+redirected to something cleaner: **`mesh_to_dmplex_masked`, a copy of
+`mesh_to_dmplex` that takes a triangle mask and builds the restricted topology
+directly**, rather than building the full DMPlex first and filtering it down.
+This reuses the exact same, already-proven cone/chart construction as
+`mesh_to_dmplex` (just skipping non-masked triangles/their unused
+vertices/edges) instead of depending on `DMPlexFilter`'s less-well-documented
+behaviour (halo/ownership-transfer handling, coordinate transfer).
+
+Steps:
+1. **`mesh_to_dmplex_masked( mesh, mask_tri, dm)` - done**, in the shared
+   `src/UPSY/basic/petsc/petsc_dmplex.f90` (alongside `mesh_to_dmplex`, publicly
+   exported). Given a triangle mask, it: marks which vertices/edges are touched
+   by at least one masked triangle; builds point-translation tables and the
+   chart/cone topology using *only* masked triangles and the edges/vertices
+   they touch (so an edge bordering exactly one masked triangle - its other
+   neighbour excluded, or on the parent mesh's own outer border - becomes a
+   genuine exterior face of the sub-mesh); sets the same `upsy_vertex_id` label
+   (restricted to included vertices) and coordinates (restricted likewise); then
+   distributes exactly as before. `mask_tri` must be identical on every
+   process, since mesh connectivity (`mesh%V`, `mesh%Tri`, `mesh%TriE`,
+   `mesh%EV`) is itself fully replicated on every rank.
+2. **Verified end-to-end on the integrated test**, first with a temporary
+   diagnostic helper (`verify_ice_covered_dmplex`, since superseded - built the
+   ice mask, called `mesh_to_dmplex_masked`, marked boundary faces, reported
+   counts, then discarded the sub-mesh without using it in the actual solve).
+   The ice mask: a triangle counts as ice-covered if all 3 vertices have
+   `mask_grounded_ice .or. mask_floating_ice` (matches the existing graph
+   abstraction's `Hi > 0` rule); gathered from the "dist-shared" mask fields via
+   `gather_dist_shared_to_all( mesh%pai_V, ...)` - **not** `gather_to_all`,
+   which is for plainly-distributed (non-shared-memory) fields and errors on
+   these (`combined sizes of d_partial dont match size of d_tot`).
+   Result on the MISMIP_mod test, 2 ranks: **8581 / 10805 triangles
+   ice-covered; 179 margin (exterior) faces per rank** - a plausible calving-
+   front perimeter for this ice sheet, and no crash. That mask logic is now the
+   permanent `calc_ice_covered_triangle_mask` helper, and the sub-mesh it
+   builds is what the actual solve runs on (item 4 below) - it's no longer
+   just a diagnostic.
+3. **Done**: `self%dm` (and everything downstream of it - `self%fe`, the
+   primary `PetscDS`, the residual/Jacobian callbacks, `self%dm_aux`/
+   `self%fe_aux`/`self%aux_vec`, `self%jac`, the near-null-space, `self%snes`)
+   is now built from `mesh_to_dmplex_masked` (the ice-covered sub-mesh) instead
+   of the whole-mesh `mesh_to_dmplex`.
+
+   **Done**: wired the actual back-pressure term - `DMPlexMarkBoundaryFaces` +
+   `DMAddBoundary(DM_BC_NATURAL, ...)` on the sub-mesh's new exterior (the ice
+   margin), then `PetscDSGetBoundary` + `PetscWeakFormSetIndexBdResidual` to
+   attach `SSA_FEM_PETSc_f0_bd` (`f0_bd,i = -tau_o,i`,
+   `tau_o,i = (1/2 rho_i g H^2 - 1/2 rho_sw g Ho^2) n_i`, `n` supplied by
+   PETSc; no boundary Jacobian, since `tau_o` depends only on the aux field
+   `[..., Ho]` - a new 6th aux component added for this - not on `u`); matches
+   the idiom in PETSc's own `src/snes/tutorials/ex12.c`/`ex17.c`.
+
+   **This took two rounds of real debugging to get working, both worth
+   recording.** First, the callback was never reached at all, with no error
+   anywhere. Working through the registration chain against the installed
+   PETSc 3.25.5 source (`src/dm/interface/dm.c`, `src/dm/dt/interface/dtds.c`,
+   `src/dm/impls/plex/plexfem.c`, `src/snes/utils/dmplexsnes.c`) and against
+   PETSc's own runtime self-checks progressively ruled out everything upstream
+   of the callback itself:
+   - `DMAddBoundary` -> `PetscDSAddBoundary` succeeds; re-fetching with
+     `PetscDSGetBoundary` confirmed `type=DM_BC_NATURAL`, `field=0`, `Nv=1`,
+     `values(1)=1` exactly as stored; `PetscDSGetNumBoundary` reported 1
+     boundary.
+   - The `'ice_margin'` `DMLabel`'s stratum for value 1 genuinely held ~179
+     marked facets (`DMLabelGetStratumSize`), so the boundary residual's
+     `DMLabelGetStratumIS` lookup wasn't coming back empty.
+   - **PETSc's own `DMPlexCheck`/`DMPlexCheckSymmetry`/`DMPlexCheckSkeleton`/
+     `DMPlexCheckFaces`/`DMPlexCheckGeometry`/`DMPlexCheckInterfaceCones`** (the
+     repo owner's suggestion) all reported the ice-covered sub-mesh's topology
+     clean - ruling out a malformed/inconsistent DMPlex.
+
+   **That last check did catch a real, separate, pre-existing bug** (now
+   fixed): at exactly 1 MPI rank, `DMPlexCheckSymmetry` immediately SEGV'd,
+   which traced back to `mesh_to_dmplex`/`mesh_to_dmplex_masked`'s shared
+   `DMPlexDistribute` call - its own documentation states plainly that the
+   output `dm` is left `NULL` "if the mesh was not distributed", and its source
+   confirms it returns immediately, without touching its output at all, exactly
+   when the communicator has size 1. Both functions unconditionally destroyed
+   `dm_serial` (the only valid object) and handed back that untouched, garbage
+   `dm`, so **every 1-rank run of the FE solver had been operating on a
+   dangling DM handle** since Phase 1 - just never exercised, because every
+   verification step to date in this plan used 2 ranks. Fixed in
+   `petsc_dmplex.f90`: on `par%n == 1`, use `dm_serial` directly instead of
+   calling `DMPlexDistribute`.
+
+   With that fix in place the DMPlex itself was provably sound at both rank
+   counts, yet the boundary callback *still* never fired anywhere - the repo
+   owner's next suggestion (per their message, quoted for the record: *"the
+   fact that the callback is never entered is the crucial clue... I'd
+   specifically trace the value returned by PetscDSGetBoundary(...) and
+   compare its key/index with the arguments you're passing to
+   PetscWeakFormSetIndexBdResidual(...). The important distinction is between
+   the boundary-condition index and the field index."*) was to stop trusting
+   that the two calls were using a consistent key, and to read
+   `PetscFEIntegrateBdResidual_Basic`'s own source for the exact point where it
+   decides there's nothing to assemble. That source (`src/dm/dt/fe/impls/basic/
+   febasic.c`) showed the answer directly:
+   `PetscWeakFormGetBdResidual(wf, ..., &n0, &f0_func, &n1, &f1_func); if
+   (!n0 && !n1) PetscFunctionReturn(...)` - a silent, unlogged no-op whenever
+   nothing was actually stored at that key. Comparing that against
+   `PetscWeakFormSetIndexBdResidual`'s real C prototype
+   (`src/dm/dt/interface/dtweakform.c`) found the bug: its signature is
+   `(wf, label, val, f, part, i0, f0, i1, f1)` - **nine** arguments, with
+   `part` (the equation-part component of the lookup key) *separate* from
+   `i0`/`i1` (indices for summing multiple residual terms already registered at
+   one key). The manual bind(C) interface here had only eight dummy arguments,
+   missing `part` entirely - so every argument from that point on was shifted
+   one slot: our real `f0` function pointer landed in C's `i0` (integer) slot,
+   and C's real `f0` (function pointer) slot received our literal `0` instead,
+   i.e. a NULL residual function. `PetscWeakFormSetIndexBdResidual` itself
+   returned success throughout (it has no way to know the caller's argument
+   list was short), so this genuinely could not have been caught by an error
+   check anywhere - only by reading the exact PETSc version's source, as the
+   repo owner suggested. Fixed by adding the missing `part` argument to the
+   interface and the call site (both `part=0` and `i0=i1=0`, matching
+   `key.part=0` used at residual-assembly time and "this is the only term at
+   this key"). Confirmed fixed: `SSA_FEM_PETSc_f0_bd` now runs thousands of
+   times per Newton solve with physically sensible `H`/`Ho`/`tau_o` values, and
+   the solution changes accordingly - max speed goes from 1.193e3 m/yr
+   (BC not contributing) to **3.686e3 m/yr** (BC active), a real, substantial
+   physical change, at both 1 and 2 ranks identically (Newton still converges
+   in 10 iterations, 10 KSP its, `lu`, at both). `Ho` matches
+   `geom%Ho` exactly (`height_of_water_column`,
+   already computed live every step - reuse it, don't recompute):
+   `Ho = min(max(SL - Hb, 0), (rho_i/rho_sw) H)`.
+4. **Done**: the full rebuild moves from "once at `initialise`, again on
+   `remap`" to every `run()` call, since the grounding line / calving front can
+   migrate every timestep even without a full remesh - and it really is the
+   *full* rebuild, not just `self%dm`. Implemented exactly as the checklist
+   below describes; `initialise` no longer builds anything (it doesn't have
+   `geom`), `remap` only destroys + reallocates the plain arrays, and `run`
+   unconditionally does `destroy_petsc_objects` (if built) + `build_petsc_objects(
+   geom)` right after the "no grounded ice" early return (which itself now
+   guards its `VecSet(self%sol, ...)` behind `self%petsc_is_built`, since
+   `self%sol` may not exist yet on a first call with no ice anywhere). Checklist,
+   all now implemented inside `build_petsc_objects( self, geom)`:
+     1. ice mask -> `self%dm` (`mesh_to_dmplex_masked`, via the extracted
+        `calc_ice_covered_triangle_mask` helper);
+     2. `self%fe` + `DMSetField` + `DMCreateDS` -> a brand new `PetscDS`;
+     3. `PetscDSSetConstants` re-set on the new DS;
+     4. residual/Jacobian callbacks (`petsc_ds_set_residual`/`_jacobian`)
+        re-registered on the new DS;
+     5. the ice-margin boundary face label + `DMAddBoundary`/
+        `PetscDSSetBdResidual` - deferred along with the BC term itself (item 3
+        above);
+     6. `self%dm_aux` (clone of the *new* `self%dm`) + `self%fe_aux` +
+        `DMSetField` + `DMCreateDS` + `self%aux_vec`;
+     7. `self%jac` - new sparsity pattern (`DMCreateMatrix` on the new `dm`);
+     8. the rigid-body near-null-space - tied to the new `jac` and the new
+        `dm`'s coordinates;
+     9. `self%snes` itself - `SNESSetDM`, `DMPlexSetSNESLocalFEM`,
+        `SNESSetJacobian`, KSP/PC type, KSP/SNES tolerances all reapplied to
+        fresh objects (the existing `destroy_petsc_objects` ->
+        `build_petsc_objects` cycle, just triggered every `run()` instead of
+        only at `initialise`/`remap`);
+     10. `self%sol` - a new `DMCreateGlobalVector` on the new `dm`, **re-seeded,
+         not just zeroed**: DOF numbering from `mesh_to_dmplex_masked`/
+         `DMPlexDistribute` is not guaranteed stable across independent
+         rebuilds, so the old `self%sol` would be the wrong layout for the new
+         DM. `run()` scatters the previous *physical* solution
+         (`self%u_vav_a`/`v_vav_a`, converted back to dimensionless units) into
+         the new `self%sol` right after the rebuild, reusing
+         `fill_PETSc_aux_from_mesh_vertices` (now generalised to an arbitrary
+         component count via `size(coeffs, 2)`, rather than the hard-coded
+         `n_aux_comp`) with `dm_topo = dm_aux = self%dm` and a temporary local
+         vector scattered in via `DMLocalToGlobalBegin`/`End`.
+
+   Also updated as part of this: `copy_PETSc_solution_to_mesh_vertices_vec2` no
+   longer crashes when `ncopies == 0` (a vertex outside the ice-covered
+   sub-mesh) - such vertices are simply left at their `u = v = 0` default
+   instead, matching the "no grounded ice" convention already used elsewhere.
+
+   Verified on the integrated test, 2 ranks: builds and runs cleanly, Newton
+   converges in the same **10 iterations** as before (10 cumulative KSP its,
+   `lu`); max speed is now **1.193e3 m/yr** (was 2.120e3 on the whole-mesh
+   solve) - expected to shift, since the domain, and therefore the discrete
+   problem being solved, has genuinely changed (ice-free area, and its
+   zero-thickness/zero-stress contribution, is now excluded rather than padded
+   in with the `max(0.1, Hi)` floor, and the ice margin is a real, if still
+   physically-incomplete, boundary rather than an artefact of the whole-mesh
+   discretisation) - not a regression, but the expected result of switching
+   discretisations ahead of adding the actual back-pressure term (item 3).
+
+   This is a real performance cost (rebuilding DMPlex+FE+DS+SNES every
+   timestep) to revisit in Phase 6 tuning once correctness is established -
+   e.g. detecting an unchanged ice mask and skipping the rebuild, or keeping
+   `self%fe`/`self%fe_aux` across rebuilds (they are reference-element
+   objects, not mesh-sized, so in principle they don't need recreating, only
+   re-attaching via `DMSetField` to each new `dm`/`dm_aux`) - not attempted
+   in the first, correctness-first pass.
+
+   Not yet done: the `max(0.1, Hi)` thickness floor is still applied inside
+   `calc_auxiliary_fields` even though every vertex in the sub-mesh now has
+   real ice - harmless (the floor never binds there) but could be dropped as a
+   cleanup once the BC work (item 3) lands. `BC_prescr_mask_b`/
+   `BC_prescr_u_b`/`BC_prescr_v_b` (prescribed velocity on triangles) and the
+   domain-edge `choice_BC_u/v_*` options are unaffected by this change and
+   remain future work (item 6 below).
+
+Formula, config option and reference already exist in the repo, unused -
+match them exactly rather than reinventing:
+- `C%BC_ice_front` (`'infinite_slab'` | `'ocean_pressure'`,
+  `model_configuration_type_and_namelist.f90:326`) is declared and copied to
+  `C%BC_ice_front` but **never read anywhere** - wire into this option, don't
+  add a new one.
+- The exact formula, sign convention and citation (**Robinson et al., 2020, Eq.
+  19**) are fully written out in the dead code
+  `solve_linearised_SSA_DIVA_ocean_pressure.f90:443-466` and
+  `DIVA_solver_ocean_pressure.f90:616-675` (both commented out, for the
+  graph-based DIVA path) - use these as the reference derivation, and note in
+  code comments that this FE implementation is the first *live* one.
+
+6. Domain-edge choices (`choice_BC_u/v`: `zero`, `infinite slab`,
+   `periodic_ISMIP-HOM`) and prescribed-velocity masks - unchanged from the
+   original plan, still future work:
    - zero / prescribed: `DM_BC_ESSENTIAL`.
    - periodic: build the DMPlex with periodicity, or add the periodic face pairs
      as a constraint (`find_ti_copy_*` in `mesh_utilities` gives the partner);
      simplest first target is the non-periodic benchmarks.
-3. Ice front: derive an ice-front face DMLabel from `geom` masks
-   (`mask_cf` / floating vs open ocean) and attach the natural BC there.
 
 ### Phase 6 - Scaling, solver, preconditioner
 
-1. **Nondimensionalisation**: SSA viscosity ~1e13, velocities span many orders of
-   magnitude. Carry an explicit scaling into the residual (length, velocity,
-   stress scales as `PetscDSSetConstants` entries) so the assembled system is
-   O(1). Do not rely on `-ksp_diagonal_scale` alone.
-2. **Solver config** (mirror `configure_PETSc_SNES_for_Poisson`, but move the
-   numbers into config): `SNESNEWTONLS` + line search; KSP `gmres`; PC `gamg`.
-3. **Near-null-space**: set the rigid-body modes on the operator
-   (`MatNullSpaceCreateRigidBody` from the DM coordinates -> `MatSetNearNullSpace`)
-   for acceptable AMG performance.
-4. Config knobs to add (alongside `stress_balance_PETSc_rtol/abstol`):
-   `SSA_PETSc_snes_rtol`, `SSA_PETSc_snes_abstol`, `SSA_PETSc_snes_max_it`,
-   `SSA_PETSc_nonlinear_solver`, `SSA_PETSc_velocity_element_order` (1 or 2),
-   `SSA_PETSc_pc_type`.
+1. **Nondimensionalisation** - **done** (pulled forward ahead of Phases 4/5, see
+   the Progress table). Implemented as a pure change of variables around the
+   existing pointwise functions, no re-derivation needed:
+   - The PetscFE field (and `self%sol`) holds `u_hat = u / velocity_scale`
+     (`velocity_scale = 1e3 m/yr`), not physical velocity.
+   - `f0`/`f1` convert `u_hat`/`grad(u_hat)` to physical units, run the physics
+     unchanged, then divide by `stress_scale` (`= 1e5 Pa`).
+   - `g0`/`g3` get the same physical-unit treatment, then an extra factor
+     `velocity_scale/stress_scale` (from the chain rule through
+     `u = velocity_scale * u_hat`).
+   - Only the copy-back to `u_vav_a`/`v_vav_a` (in `solve_SSA_Newton`) multiplies
+     back by `velocity_scale`; the SNES tolerances (item 4 below) now apply to
+     this dimensionless residual, which is more sensible than raw SI units.
+   - **Result on the integrated test, 2 ranks**: bit-for-bit reproduces the
+     pre-nondim answer with direct LU (`Newton its = 10`, `max speed =
+     2.120e3 m/yr`) - confirms it's a transparent change of variables, not a
+     physics change.
+   - **A/B experiment**: swapped `KSPPREONLY`+`PCLU` for `KSPGMRES`+`PCBJACOBI`
+     (the finite-difference `SSA` solver's own default, see
+     `solve_matrix_equation_PETSc`). Converges to the identical answer in the
+     same number of Newton iterations either way; non-dimensionalising reduces
+     the cumulative KSP iteration count from **625 to 583** (~7%) on this test.
+     A real but modest effect here - as expected, since a single global
+     constant rescaling cannot equalise the intrinsic ~1e8 ratio between the
+     membrane-stress coefficient `N` and the basal-friction coefficient `beta`
+     (that ratio is physical - shelf/fast-stream vs. slow interior - not a
+     units artefact). LU stays the default in the committed code; switching it
+     is left to item 2 below, a separate decision.
+2. **Solver config** - **done**. `SNESNEWTONLS` (unchanged) + a config-selected
+   KSP/PC (`build_petsc_objects`, `select case (C%SSA_FEM_PETSc_pc_type)`):
+   `'lu'` (`KSPPREONLY`+`PCLU`, the validated default), `'gamg'`
+   (`KSPGMRES`+`PCGAMG`), `'bjacobi'` (`KSPGMRES`+`PCBJACOBI`, matching the
+   finite-difference solver's own default). Explicit `KSPSetTolerances`
+   (`rtol=1e-8`, `abstol=1e-12`, `maxits=10000`) for the two iterative cases.
+3. **Near-null-space** - **done**. Rigid-body modes (2 translations + 1
+   rotation in 2D) built from the DM's own coordinates and attached
+   unconditionally in `build_petsc_objects`:
+   `MatSetBlockSize(jac,2)` -> `DMGetCoordinates` -> `MatNullSpaceCreateRigidBody`
+   -> `MatSetNearNullSpace` -> `MatNullSpaceDestroy`. Harmless for `'lu'`/`'bjacobi'`
+   (near-null-space is only consulted by AMG); required for `'gamg'` to coarsen
+   this vector-valued (elasticity-like) operator well.
+
+   **Result on the integrated test, 2 ranks, all three `pc_type` choices** (with
+   the explicit KSP tolerances above): all converge to the *identical* answer
+   (`Newton its = 10`, `max speed = 2.120e3 m/yr`) - only the cumulative KSP
+   iteration count differs:
+
+   | `pc_type` | cumulative KSP its |
+   | --- | --- |
+   | `lu` | 10 (one direct solve per Newton step) |
+   | `gamg` | 362 |
+   | `bjacobi` | 857 |
+
+   `gamg` needs less than half `bjacobi`'s iterations, confirming the
+   near-null-space is doing its job. `lu` stays the committed default (small
+   test meshes, zero solver-tuning risk); `gamg` is the path to scaling up
+   later, per the very first architecture discussion in this project.
+4. **Config knobs** - **done** (added to `model_configuration_type_and_namelist.f90`
+   and `config_SSA_FEM_PETSc.cfg`): `SSA_FEM_PETSc_pc_type_config` (`'lu'` |
+   `'gamg'` | `'bjacobi'`, default `'lu'`), `SSA_FEM_PETSc_snes_rtol_config`
+   (default `1e-8`), `SSA_FEM_PETSc_snes_abstol_config` (default `1e-10`),
+   `SSA_FEM_PETSc_snes_maxits_config` (default `50`). These are solver-specific,
+   distinct from the generic `stress_balance_PETSc_rtol/abstol` the
+   finite-difference solvers use, both because ours is a non-linear (SNES, not
+   plain KSP) solve and because non-dimensionalisation changed what these
+   tolerances mean for us.
+   `SSA_PETSc_nonlinear_solver` (Newton vs Picard) was already moot (Phase 4:
+   no outer loop). `SSA_PETSc_velocity_element_order` (P1 vs P2) is deferred -
+   no current need, and a bigger change (a second `PetscFECreateLagrange`
+   degree, revisit only if accuracy demands it in Phase 7).
+
+   Also added a permanent diagnostic: `run` now prints `Newton its`,
+   cumulative `KSP its` (`self%n_Axb_its`, via `SNESGetLinearSolveIterations`)
+   and `max speed` every solve, and `self%n_visc_its`/`n_Axb_its` now hold their
+   intended meanings (nonlinear vs. linear iteration counts) instead of both
+   being set from the same number.
 
 ### Phase 7 - Verification
 
@@ -401,7 +739,55 @@ interfaces (pattern: `ct_PETSc_SNES_Poisson.f90` lines 49-116) in a shared
 - [x] Phase 4: analytic Jacobian done; the Picard-option item is moot for the
       pointwise-friction path (no outer loop). Adaptive relaxation only matters if
       a non-pointwise sliding law is added later.
-- [ ] Phase 5: UFEMISM BCs (prescribed, ice front; periodic later).
-- [ ] Phase 6: scaled, GAMG + rigid-body null space, config knobs.
+- [x] Phase 5 (ice-front back-pressure only; prescribed/periodic still to do,
+      see item 6): ice-covered sub-mesh (`mesh_to_dmplex_masked`) underlies the
+      entire solve, rebuilt every `run()` call (incl. re-seeded `self%sol` warm
+      start). The back-pressure BC term (`DMAddBoundary`/`PetscWeakFormSetIndex-
+      BdResidual`) is registered *and assembled* - fixed a missing `part`
+      argument in the manual `PetscWeakFormSetIndexBdResidual` bind(C)
+      interface that had been silently dropping the real callback pointer, no
+      error raised anywhere; found by reading `PetscFEIntegrateBdResidual_Basic`
+      and `PetscWeakFormSetIndexBdResidual`'s exact source, per the repo
+      owner's steer. Verified: `SSA_FEM_PETSc_f0_bd` now runs thousands of times
+      per solve with sensible values, and the solution changes accordingly
+      (max speed 1.193e3 -> 3.686e3 m/yr), identically at 1 and 2 ranks. Also
+      fixed a real, separate, pre-existing bug found along the way:
+      `mesh_to_dmplex`/`mesh_to_dmplex_masked` left `self%dm` dangling at
+      exactly 1 MPI rank (`DMPlexDistribute` returns a `NULL` output `dm` on a
+      size-1 communicator) - every 1-rank run of this solver was broken since
+      Phase 1, just never exercised until now.
+- [x] Phase 6: nondimensionalisation (transparent, verified), config-selectable
+      `pc_type` (`lu`/`gamg`/`bjacobi`) + rigid-body near-null-space (`gamg`
+      under half `bjacobi`'s KSP its), new SNES config knobs. `lu` stays the
+      default.
 - [ ] Phase 7: Schoof convergence order + benchmark cross-checks.
 - [ ] Phase 8: remap, restart, cleanup, docs.
+
+## 9. Deferred follow-up work (separate PRs)
+
+- **Nondimensionalise the finite-difference `SSA`/`DIVA` solver's linear solve.**
+  `solve_matrix_equation_PETSc` (called from `solve_SSA_DIVA_linearised` via
+  `solve_matrix_equation_CSR_PETSc`) already defaults to an **iterative** KSP
+  (`gmres` + `bjacobi`), unlike `SSA_FEM_PETSc`'s direct LU - so it has been
+  exposed to the same raw-SI-unit conditioning problem (coefficients spanning
+  `~1e-8` to `~1e13`) the whole time, with no direct-solve fallback cushioning
+  it. Plausibly a bigger win there than the modest 625->583 KSP-iteration
+  reduction (~7%) measured on `SSA_FEM_PETSc` (see Phase 6), precisely because
+  it has no such cushion.
+  - **Proposed retrofit** (small, contained, no change to the row-by-row
+    assembly in `calc_SSA_DIVA_stiffness_matrix_row_free`): wrap the already-
+    assembled system in `solve_SSA_DIVA_linearised`, right around the existing
+    `solve_matrix_equation_CSR_PETSc` call - scale the RHS by `1/stress_scale`
+    before the solve, scale the returned solution by `velocity_scale` after it.
+    Same `u_hat = u/velocity_scale`, `stress_scale` idea as `SSA_FEM_PETSc`,
+    applied as a diagonal row/column rescaling around the existing black-box
+    solve rather than inside the weak form.
+  - **Verification plan**: A/B on the same integrated test as Phase 6's
+    experiment - compare `n_Axb_its` (KSP iteration count, already reported by
+    this solver) and the solution, before/after, to confirm it's transparent
+    (identical answer) and measure the iteration-count effect.
+  - **Why deferred**: touches a shared code path used by every existing
+    production config and benchmark (SSA and DIVA both go through
+    `solve_SSA_DIVA_linearised`), unlike everything else in this plan, which is
+    purely additive. Repo owner wants this as its own, separate PR - explicitly
+    requested 2025-09-08, not started.
