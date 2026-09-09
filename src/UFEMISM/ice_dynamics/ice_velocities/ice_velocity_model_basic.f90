@@ -8,7 +8,8 @@ module ice_velocity_model_basic
   use Arakawa_grid_mod, only: Arakawa_grid
   use fields_dimensions, only: third_dimension
   use model_configuration, only: C
-  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, map_b_a_2D, map_b_a_3D
+  use mesh_disc_apply_operators, only: ddx_a_a_2D, ddy_a_a_2D, map_b_a_2D, map_b_a_3D, &
+    map_a_b_2D, map_a_b_3D
   use mesh_zeta, only: vertical_average
   use mpi_distributed_memory, only: gather_to_all
   use map_velocities_to_c_grid, only: map_velocities_from_b_to_c_2D, &
@@ -506,6 +507,115 @@ contains
 
     ! Local variables:
     character(len=*), parameter       :: routine_name = 'calc_secondary_velocities'
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    select case (C%choice_stress_balance_approximation)
+    case default
+      call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+    case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+      ! These solvers define velocities on the b-grid (triangles)
+      call calc_secondary_velocities_from_3D_b( self, ice, geom, BMB)
+    case ('SSA_FEM_PETSc')
+      ! These solvers define velocities on the a-grid (vertices)
+      call calc_secondary_velocities_from_3D_a( self, ice, geom, BMB)
+    end select
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_secondary_velocities
+
+  subroutine calc_secondary_velocities_from_3D_a( self, ice, geom, BMB)
+    !< Calculate all secondary ice velocities (surface, base, vertical average)
+    !< from the 3-D velocities on the a-grid
+
+    ! In/output variables:
+    class(atype_ice_velocity_model),                  intent(inout) :: self
+    class(atype_ice_model_data),                      intent(in   ) :: ice
+    class(atype_ice_geometry_model_data),             intent(in   ) :: geom
+    real(dp), dimension(self%mesh%vi1:self%mesh%vi2), intent(in   ) :: BMB
+
+    ! Local variables:
+    character(len=*), parameter       :: routine_name = 'calc_secondary_velocities_from_3D_a'
+    integer                           :: vi,ti
+    real(dp), dimension(self%mesh%nz) :: u_prof, v_prof
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    do vi = self%mesh%vi1, self%mesh%vi2
+
+      ! Surface
+      self%u_surf   ( vi) = self%u_3D( vi,1)
+      self%v_surf   ( vi) = self%v_3D( vi,1)
+      self%uabs_surf( vi) = hypot( self%u_surf( vi), self%v_surf( vi))
+
+      ! Base
+      self%u_base   ( vi) = self%u_3D( vi,C%nz)
+      self%v_base   ( vi) = self%v_3D( vi,C%nz)
+      self%uabs_base( vi) = hypot( self%u_base( vi), self%v_base( vi))
+
+      ! Vertical average
+      u_prof = self%u_3D( vi,:)
+      v_prof = self%v_3D( vi,:)
+      self%u_vav   ( vi) = vertical_average( self%mesh%zeta, u_prof)
+      self%v_vav   ( vi) = vertical_average( self%mesh%zeta, v_prof)
+      self%uabs_vav( vi) = hypot( self%u_vav( vi), self%v_vav( vi))
+
+    end do
+
+    ! == Calculate velocities on the b-grid
+
+    ! 3-D
+    call map_a_b_3D( self%mesh, self%u_3D  , self%u_3D_b  )
+    call map_a_b_3D( self%mesh, self%v_3D  , self%v_3D_b  )
+
+    ! Surface
+    call map_a_b_2D( self%mesh, self%u_surf, self%u_surf_b)
+    call map_a_b_2D( self%mesh, self%v_surf, self%v_surf_b)
+
+    ! Base
+    call map_a_b_2D( self%mesh, self%u_base, self%u_base_b)
+    call map_a_b_2D( self%mesh, self%v_base, self%v_base_b)
+
+    ! Vertical average
+    call map_a_b_2D( self%mesh, self%u_vav , self%u_vav_b )
+    call map_a_b_2D( self%mesh, self%v_vav , self%v_vav_b )
+
+    ! Absolute
+    do ti = self%mesh%ti1, self%mesh%ti2
+      self%uabs_surf_b( ti) = hypot( self%u_surf_b( ti), self%v_surf_b( ti))
+      self%uabs_base_b( ti) = hypot( self%u_base_b( ti), self%v_base_b( ti))
+      self%uabs_vav_b ( ti) = hypot( self%u_vav_b ( ti), self%v_vav_b ( ti))
+    end do
+
+    call self%calc_u_vav_perp()
+    call self%calc_vertical_velocities( ice, geom, BMB)
+
+    ! Slide/shear ratio
+    do vi = self%mesh%vi1, self%mesh%vi2
+      self%R_shear( vi) = (self%uabs_base( vi) + 0.1_dp) / (self%uabs_surf( vi) + 0.1_dp)
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_secondary_velocities_from_3D_a
+
+  subroutine calc_secondary_velocities_from_3D_b( self, ice, geom, BMB)
+    !< Calculate all secondary ice velocities (surface, base, vertical average)
+    !< from the 3-D velocities on the b-grid
+
+    ! In/output variables:
+    class(atype_ice_velocity_model),                  intent(inout) :: self
+    class(atype_ice_model_data),                      intent(in   ) :: ice
+    class(atype_ice_geometry_model_data),             intent(in   ) :: geom
+    real(dp), dimension(self%mesh%vi1:self%mesh%vi2), intent(in   ) :: BMB
+
+    ! Local variables:
+    character(len=*), parameter       :: routine_name = 'calc_secondary_velocities_from_3D_b'
     integer                           :: vi,ti
     real(dp), dimension(self%mesh%nz) :: u_prof, v_prof
 
@@ -533,7 +643,7 @@ contains
 
     end do
 
-    ! == Calculate velocities on the a-grid (needed to calculate the vertical velocity w, and for writing to output)
+    ! == Calculate velocities on the a-grid
 
     ! 3-D
     call map_b_a_3D( self%mesh, self%u_3D_b  , self%u_3D  )
@@ -569,7 +679,7 @@ contains
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine calc_secondary_velocities
+  end subroutine calc_secondary_velocities_from_3D_b
 
   subroutine calc_u_vav_perp( self)
     !< Calculate the vertically averaged ice velocity component
@@ -592,9 +702,7 @@ contains
     select case (C%choice_stress_balance_approximation)
     case default
       call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
-    case ('none')
-      ! No need to do anything, velocities are zero anyway
-    case ('SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+    case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
       ! These solvers define velocities on the b-grid (triangles)
       call map_velocities_from_b_to_c_2D( self%mesh, self%u_vav_b, self%v_vav_b, u_vav_c, v_vav_c)
     case ('SSA_FEM_PETSc')
