@@ -365,13 +365,35 @@ contains
 
       ! 3-D
       case ('u_3D')
-        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'u_3D', region%ice%vel%u_3D_b)
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'u_3D', region%ice%vel%u_3D_b)
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'u_3D', region%ice%vel%u_3D)
+        end select
       case ('v_3D')
-        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'v_3D', region%ice%vel%v_3D_b)
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'v_3D', region%ice%vel%v_3D_b)
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'v_3D', region%ice%vel%v_3D)
+        end select
+      case ('u_3D_a')
+        call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'u_3D_a', region%ice%vel%u_3D)
+      case ('v_3D_a')
+        call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'v_3D_a', region%ice%vel%v_3D)
       case ('u_3D_b')
-        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
+        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'u_3D_b', region%ice%vel%u_3D_b)
       case ('v_3D_b')
-        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
+        call write_to_field_multopt_mesh_dp_3D_b( region%mesh, filename, ncid, 'v_3D_b', region%ice%vel%v_3D_b)
       case ('w_3D')
         call write_to_field_multopt_mesh_dp_3D( region%mesh, filename, ncid, 'w_3D', region%ice%vel%w_3D)
 
@@ -1142,13 +1164,35 @@ contains
 
       ! 3-D
       case ('u_3D')
-        call add_field_mesh_dp_3D_b( filename, ncid, 'u_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the x-direction', units = 'm yr^-1')
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call add_field_mesh_dp_3D_b( filename, ncid, 'u_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the x-direction on the mesh triangles', units = 'm yr^-1')
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call add_field_mesh_dp_3D( filename, ncid, 'u_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the x-direction on the mesh vertices', units = 'm yr^-1')
+        end select
       case ('v_3D')
-        call add_field_mesh_dp_3D_b( filename, ncid, 'v_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the y-direction', units = 'm yr^-1')
+        select case (C%choice_stress_balance_approximation)
+        case default
+          call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
+        case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+          ! These solvers define velocities on the b-grid (triangles)
+          call add_field_mesh_dp_3D_b( filename, ncid, 'v_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the y-direction on the mesh triangles', units = 'm yr^-1')
+        case ('SSA_FEM_PETSc')
+          ! These solvers define velocities on the a-grid (vertices)
+          call add_field_mesh_dp_3D( filename, ncid, 'v_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the y-direction on the mesh vertices', units = 'm yr^-1')
+        end select
+      case ('u_3D_a')
+        call add_field_mesh_dp_3D( filename, ncid, 'u_3D_a', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the x-direction on the mesh vertices', units = 'm yr^-1')
+      case ('v_3D_a')
+        call add_field_mesh_dp_3D( filename, ncid, 'v_3D_a', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the y-direction on the mesh vertices', units = 'm yr^-1')
       case ('u_3D_b')
-        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
+        call add_field_mesh_dp_3D_b( filename, ncid, 'u_3D_b', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the x-direction on the mesh triangles', units = 'm yr^-1')
       case ('v_3D_b')
-        call crash( trim(choice_output_field)//' no longer an option; horizontal velocities are always returned on the b-grid')
+        call add_field_mesh_dp_3D_b( filename, ncid, 'v_3D_b', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the y-direction on the mesh triangles', units = 'm yr^-1')
       case ('w_3D')
         call add_field_mesh_dp_3D( filename, ncid, 'w_3D', precision = C%output_precision, do_compress = C%do_compress_output, long_name = '3-D ice velocity in the z-direction', units = 'm yr^-1')
 
