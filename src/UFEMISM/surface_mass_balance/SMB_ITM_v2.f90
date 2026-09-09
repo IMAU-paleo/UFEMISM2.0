@@ -35,6 +35,7 @@ module SMB_ITM_v2
       ! Main data fields
       real(dp), dimension(:  ), contiguous, pointer :: MeltPreviousYear => null() !< [m.w.e.] total melt in the previous year
       real(dp), dimension(:,:), contiguous, pointer :: FirnDepth        => null() !< [m] depth of the firn layer
+      real(dp), dimension(:,:), contiguous, pointer :: FirnDensity      => null() !< [kg m^-3] average firn density
       real(dp), dimension(:,:), contiguous, pointer :: Rainfall         => null() !< Monthly rainfall (m)
       real(dp), dimension(:,:), contiguous, pointer :: Snowfall         => null() !< Monthly snowfall (m)
       real(dp), dimension(:,:), contiguous, pointer :: AddedFirn        => null() !< Monthly added firn (m)
@@ -45,7 +46,7 @@ module SMB_ITM_v2
       real(dp), dimension(:,:), contiguous, pointer :: Albedo           => null() !< Monthly albedo
       real(dp), dimension(:  ), contiguous, pointer :: Albedo_year      => null() !< Yearly albedo
       real(dp), dimension(:,:), contiguous, pointer :: SMB_monthly      => null() !< [m] Monthly SMB
-      type(MPI_WIN) :: wMeltPreviousYear, wFirnDepth, wRainfall
+      type(MPI_WIN) :: wMeltPreviousYear, wFirnDepth, wFirnDensity, wRainfall
       type(MPI_WIN) :: wSnowfall, wAddedFirn, wMelt, wRefreezing, wRefreezing_year
       type(MPI_WIN) :: wRunoff, wAlbedo, wAlbedo_year, wSMB_monthly
 
@@ -98,6 +99,12 @@ contains
       name      = 'FirnDepth', &
       long_name = 'Depth of the firn layer', &
       units     = 'm')
+
+    call self%create_field( self%FirnDensity, self%wFirnDensity, &
+      self%mesh, Arakawa_grid%a(), third_dimension%month(), &
+      name      = 'FirnDensity', &
+      long_name = 'Average density of the firn layer', &
+      units     = 'kg m^-3')
 
     call self%create_field( self%Rainfall, self%wRainfall, &
       self%mesh, Arakawa_grid%a(), third_dimension%month(), &
@@ -179,6 +186,7 @@ contains
 
     nullify( self%MeltPreviousYear)
     nullify( self%FirnDepth)
+    nullify( self%FirnDensity)
     nullify( self%Rainfall)
     nullify( self%Snowfall)
     nullify( self%AddedFirn)
@@ -252,6 +260,7 @@ contains
           self%FirnDepth       ( vi,:) = 0._dp
           self%MeltPreviousYear( vi  ) = 0._dp
         end if
+        self%FirnDensity     ( vi,:) = 830._dp
       end do
 
     case ('read_from_file')
@@ -306,10 +315,12 @@ contains
     if (timeframe_restart_firn == 1E9_dp) THEN
       ! Assume the file has no time dimension
       call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, C%output_dir, self%FirnDepth)
+      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDensity', mesh, C%output_dir, self%FirnDensity)
       call read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, C%output_dir, self%MeltPreviousYear)
     else
       ! Assume the file has a time dimension, and read the specified timeframe
       call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, C%output_dir, self%FirnDepth, time_to_read = timeframe_restart_firn)
+      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDensity', mesh, C%output_dir, self%FirnDensity, time_to_read = timeframe_restart_firn)
       call read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, C%output_dir, self%MeltPreviousYear, time_to_read = timeframe_restart_firn)
     end if
 
@@ -359,6 +370,7 @@ contains
           self%Rainfall( vi, m) = 0._dp
           self%AddedFirn( vi, m) = 0._dp
           self%FirnDepth( vi, m) = 0._dp
+          self%FirnDensity( vi, m) = 830._dp
           self%Refreezing( vi, m) = 0._dp
           self%Runoff( vi, m) = 0._dp
           self%SMB_monthly( vi, m) = 0._dp
@@ -406,6 +418,10 @@ contains
           ! Exctract snowfall and rainfall from snowfraction and total precipitation
           self%Snowfall( vi, m) = climate%Precip( vi, m) *          snowfrac
           self%Rainfall( vi, m) = climate%Precip( vi, m) * (1._dp - snowfrac)
+
+          ! TODO compute monthly refreezing here
+          ! TODO compute monthly runoff and SMB here
+          ! TODO compute change in FirnDensity as well
 
           ! Add this month's snow accumulation to next month's initial snow depth.
           if (geom%Hi( vi) > 0._dp) then
@@ -491,6 +507,7 @@ contains
 
     call self%remap_field( mesh_new, 'MeltPreviousYear', self%MeltPreviousYear )
     call self%remap_field( mesh_new, 'FirnDepth'       , self%FirnDepth        )
+    call self%remap_field( mesh_new, 'FirnDensity'     , self%FirnDensity      )
     call self%remap_field( mesh_new, 'Rainfall'        , self%Rainfall         )
     call self%remap_field( mesh_new, 'Snowfall'        , self%Snowfall         )
     call self%remap_field( mesh_new, 'AddedFirn'       , self%AddedFirn        )
