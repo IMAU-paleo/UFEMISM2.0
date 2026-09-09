@@ -905,8 +905,10 @@ module model_configuration_type_and_namelist
     real(dp)            :: SMB_IMAUITM_albedo_ice_config                = 0.5_dp
     real(dp)            :: SMB_IMAUITM_albedo_snow_config               = 0.85_dp
 
-    real(dp)            :: SMB_ITM_C_melt_temp_config                   = 1.861E-3_dp                         ! [mwe yr^-1 K^-1] Melt sensitivity to positive (T2m-T0)
-    real(dp)            :: SMB_ITM_C_melt_insol_config                  = 4.494E-6_dp                      ! [mwe yr^-1 (Wm^-2)^-1] Melt sensitivity to insolation
+    real(dp)            :: SMB_ITM_C_trans_temp_config                  = 270.78_dp                         ! [K] Transition temperature between suppressed and enhanced surface melting
+    real(dp)            :: SMB_ITM_C_melt_temp_pos_config               = 1.491E-4_dp                         ! [mwe yr^-1 K^-2] Quadratic melt sensitivity to max(0,T2m-T0)
+    real(dp)            :: SMB_ITM_C_melt_temp_neg_config               = 5.42E-4_dp                         ! [mwe yr^-1 K^-1] Linear melt sensitivity to min(0,T2m-T0)
+    real(dp)            :: SMB_ITM_C_melt_insol_config                  = 2.483E-5_dp                      ! [mwe yr^-1 (Wm^-2)^-1] Melt sensitivity to insolation
 
     ! Settings for the snapshot_plus_anomalies SMB model
     character(len=1024) :: SMB_snp_p_anml_filename_snapshot_T2m_config  = ''                               ! File containing the T2m snapshot (e.g. from a RACMO historical simulation)
@@ -2169,7 +2171,9 @@ module model_configuration_type_and_namelist
     real(dp)            :: SMB_IMAUITM_albedo_soil
     real(dp)            :: SMB_IMAUITM_albedo_ice
     real(dp)            :: SMB_IMAUITM_albedo_snow
-    real(dp)            :: SMB_ITM_C_melt_temp
+    real(dp)            :: SMB_ITM_C_trans_temp
+    real(dp)            :: SMB_ITM_C_melt_temp_pos
+    real(dp)            :: SMB_ITM_C_melt_temp_neg
     real(dp)            :: SMB_ITM_C_melt_insol
 
     ! Settings for the snapshot_plus_anomalies SMB model
@@ -3160,7 +3164,9 @@ contains
       SMB_IMAUITM_albedo_soil_config                              , &
       SMB_IMAUITM_albedo_ice_config                               , &
       SMB_IMAUITM_albedo_snow_config                              , &
-      SMB_ITM_C_melt_temp_config                                  , &
+      SMB_ITM_C_trans_temp_config                                 , &
+      SMB_ITM_C_melt_temp_pos_config                              , &
+      SMB_ITM_C_melt_temp_neg_config                              , &
       SMB_ITM_C_melt_insol_config                                 , &
       SMB_snp_p_anml_filename_snapshot_T2m_config                 , &
       SMB_snp_p_anml_filename_snapshot_SMB_config                 , &
@@ -4328,7 +4334,9 @@ contains
     C%SMB_IMAUITM_albedo_soil                                = SMB_IMAUITM_albedo_soil_config
     C%SMB_IMAUITM_albedo_ice                                 = SMB_IMAUITM_albedo_ice_config
     C%SMB_IMAUITM_albedo_snow                                = SMB_IMAUITM_albedo_snow_config
-    C%SMB_ITM_C_melt_temp                                    = SMB_ITM_C_melt_temp_config
+    C%SMB_ITM_C_trans_temp                                   = SMB_ITM_C_trans_temp_config
+    C%SMB_ITM_C_melt_temp_pos                                = SMB_ITM_C_melt_temp_pos_config
+    C%SMB_ITM_C_melt_temp_neg                                = SMB_ITM_C_melt_temp_neg_config
     C%SMB_ITM_C_melt_insol                                   = SMB_ITM_C_melt_insol_config
 
     ! Settings for the snapshot_plus_anomalies SMB model
