@@ -909,6 +909,8 @@ module model_configuration_type_and_namelist
     real(dp)            :: SMB_ITM_C_melt_temp_pos_config               = 1.491E-4_dp                         ! [mwe yr^-1 K^-2] Quadratic melt sensitivity to max(0,T2m-T0)
     real(dp)            :: SMB_ITM_C_melt_temp_neg_config               = 5.42E-4_dp                         ! [mwe yr^-1 K^-1] Linear melt sensitivity to min(0,T2m-T0)
     real(dp)            :: SMB_ITM_C_melt_insol_config                  = 2.483E-5_dp                      ! [mwe yr^-1 (Wm^-2)^-1] Melt sensitivity to insolation
+    real(dp)            :: SMB_ITM_initial_firn_air_content_config      = 1._dp                            ! [m] Initial firn air content for ITM when using uniform
+    real(dp)            :: SMB_ITM_C_densification_rate_config          = 0.01_dp                          ! [m^-1] Rate at which firn air content decreases due to densification
 
     ! Settings for the snapshot_plus_anomalies SMB model
     character(len=1024) :: SMB_snp_p_anml_filename_snapshot_T2m_config  = ''                               ! File containing the T2m snapshot (e.g. from a RACMO historical simulation)
@@ -2175,6 +2177,8 @@ module model_configuration_type_and_namelist
     real(dp)            :: SMB_ITM_C_melt_temp_pos
     real(dp)            :: SMB_ITM_C_melt_temp_neg
     real(dp)            :: SMB_ITM_C_melt_insol
+    real(dp)            :: SMB_ITM_initial_firn_air_content
+    real(dp)            :: SMB_ITM_C_densification_rate
 
     ! Settings for the snapshot_plus_anomalies SMB model
     character(len=1024) :: SMB_snp_p_anml_filename_snapshot_T2m
@@ -3168,6 +3172,8 @@ contains
       SMB_ITM_C_melt_temp_pos_config                              , &
       SMB_ITM_C_melt_temp_neg_config                              , &
       SMB_ITM_C_melt_insol_config                                 , &
+      SMB_ITM_initial_firn_air_content_config                     , &
+      SMB_ITM_C_densification_rate_config                         , &
       SMB_snp_p_anml_filename_snapshot_T2m_config                 , &
       SMB_snp_p_anml_filename_snapshot_SMB_config                 , &
       SMB_snp_p_anml_filename_anomalies_config                    , &
@@ -4338,6 +4344,8 @@ contains
     C%SMB_ITM_C_melt_temp_pos                                = SMB_ITM_C_melt_temp_pos_config
     C%SMB_ITM_C_melt_temp_neg                                = SMB_ITM_C_melt_temp_neg_config
     C%SMB_ITM_C_melt_insol                                   = SMB_ITM_C_melt_insol_config
+    C%SMB_ITM_initial_firn_air_content                       = SMB_ITM_initial_firn_air_content_config
+    C%SMB_ITM_C_densification_rate                           = SMB_ITM_C_densification_rate_config
 
     ! Settings for the snapshot_plus_anomalies SMB model
     C%SMB_snp_p_anml_filename_snapshot_T2m                   = SMB_snp_p_anml_filename_snapshot_T2m_config

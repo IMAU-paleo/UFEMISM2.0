@@ -34,8 +34,6 @@ module SMB_ITM_v2
 
       ! Main data fields
       real(dp), dimension(:  ), contiguous, pointer :: MeltPreviousYear => null() !< [m.w.e.] total melt in the previous year
-      real(dp), dimension(:,:), contiguous, pointer :: FirnDepth        => null() !< [m] depth of the firn layer
-      real(dp), dimension(:,:), contiguous, pointer :: FirnDensity      => null() !< [kg m^-3] average firn density
       real(dp), dimension(:,:), contiguous, pointer :: FirnAirContent   => null() !< [m] firn air content
       real(dp), dimension(:,:), contiguous, pointer :: Rainfall         => null() !< Monthly rainfall (m)
       real(dp), dimension(:,:), contiguous, pointer :: Snowfall         => null() !< Monthly snowfall (m)
@@ -47,7 +45,7 @@ module SMB_ITM_v2
       real(dp), dimension(:,:), contiguous, pointer :: Albedo           => null() !< Monthly albedo
       real(dp), dimension(:  ), contiguous, pointer :: Albedo_year      => null() !< Yearly albedo
       real(dp), dimension(:,:), contiguous, pointer :: SMB_monthly      => null() !< [m] Monthly SMB
-      type(MPI_WIN) :: wMeltPreviousYear, wFirnDepth, wFirnDensity, wFirnAirContent, wRainfall
+      type(MPI_WIN) :: wMeltPreviousYear, wFirnAirContent, wRainfall
       type(MPI_WIN) :: wSnowfall, wAddedFirn, wMelt, wRefreezing, wRefreezing_year
       type(MPI_WIN) :: wRunoff, wAlbedo, wAlbedo_year, wSMB_monthly
 
@@ -94,18 +92,6 @@ contains
       name      = 'MeltPreviousYear', &
       long_name = 'Total melt in the previous year', &
       units     = 'm.w.e.')
-
-    call self%create_field( self%FirnDepth, self%wFirnDepth, &
-      self%mesh, Arakawa_grid%a(), third_dimension%month(), &
-      name      = 'FirnDepth', &
-      long_name = 'Depth of the firn layer', &
-      units     = 'm')
-
-    call self%create_field( self%FirnDensity, self%wFirnDensity, &
-      self%mesh, Arakawa_grid%a(), third_dimension%month(), &
-      name      = 'FirnDensity', &
-      long_name = 'Average density of the firn layer', &
-      units     = 'kg m^-3')
 
     call self%create_field( self%FirnAirContent, self%wFirnAirContent, &
       self%mesh, Arakawa_grid%a(), third_dimension%month(), &
@@ -192,8 +178,6 @@ contains
     ! Deallocate all the stuff that is specific to SMB model ITM_v2
 
     nullify( self%MeltPreviousYear)
-    nullify( self%FirnDepth)
-    nullify( self%FirnDensity)
     nullify( self%FirnAirContent)
     nullify( self%Rainfall)
     nullify( self%Snowfall)
@@ -262,15 +246,12 @@ contains
 
       do vi = self%mesh%vi1, self%mesh%vi2
         if (geom%Hi( vi) > 0._dp) then
-          self%FirnDepth       ( vi,:) = C%SMB_IMAUITM_initial_firn_thickness
-          self%FirnAirContent  ( vi,:) = C%SMB_IMAUITM_initial_firn_thickness * (ice_density - 830._dp)/ice_density
+          self%FirnAirContent  ( vi,:) = C%SMB_ITM_initial_firn_air_content
           self%MeltPreviousYear( vi  ) = 0._dp
         else
-          self%FirnDepth       ( vi,:) = 0._dp
           self%FirnAirContent  ( vi,:) = 0._dp
           self%MeltPreviousYear( vi  ) = 0._dp
         end if
-        self%FirnDensity     ( vi,:) = 830._dp
       end do
 
     case ('read_from_file')
@@ -324,13 +305,11 @@ contains
     ! Read firn layer from then
     if (timeframe_restart_firn == 1E9_dp) THEN
       ! Assume the file has no time dimension
-      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, C%output_dir, self%FirnDepth)
-      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDensity', mesh, C%output_dir, self%FirnDensity)
+      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnAirContent', mesh, C%output_dir, self%FirnAirContent)
       call read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, C%output_dir, self%MeltPreviousYear)
     else
       ! Assume the file has a time dimension, and read the specified timeframe
-      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDepth', mesh, C%output_dir, self%FirnDepth, time_to_read = timeframe_restart_firn)
-      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnDensity', mesh, C%output_dir, self%FirnDensity, time_to_read = timeframe_restart_firn)
+      call read_field_from_file_2D_monthly( filename_restart_firn, 'FirnAirContent', mesh, C%output_dir, self%FirnAirContent, time_to_read = timeframe_restart_firn)
       call read_field_from_file_2D( filename_restart_firn, 'MeltPreviousYear', mesh, C%output_dir, self%MeltPreviousYear, time_to_read = timeframe_restart_firn)
     end if
 
@@ -356,7 +335,7 @@ contains
     character(len=*), parameter       :: routine_name = 'SMB_model_ITM_v2_run'
     integer                           :: vi
     integer                           :: m, mprev
-    real(dp)                          :: snowfrac, surface_snow_density
+    real(dp)                          :: snowfrac, surface_snow_density, firn_density
     real(dp)                          :: timeframe_init_insolation
     type(type_climate_model_snapshot) :: snapshot_dummy
 
@@ -370,7 +349,7 @@ contains
       if (geom%mask_icefree_ocean( vi)) then
         ! Set everything to zero for ocean. No SMB allowed here.
         ! NOTE for advancing calving fronts, advection or extrapolation
-        ! of the FirnDepth should be added.
+        ! of the FirnAirContent should be added.
         self%Refreezing_year( vi) = 0._dp
         self%SMB( vi) = 0._dp
         do m = 1, 12
@@ -379,8 +358,6 @@ contains
           self%Snowfall( vi, m) = 0._dp
           self%Rainfall( vi, m) = 0._dp
           self%AddedFirn( vi, m) = 0._dp
-          self%FirnDepth( vi, m) = 0._dp
-          self%FirnDensity( vi, m) = 830._dp
           self%FirnAirContent( vi, m) = 0._dp
           self%Refreezing( vi, m) = 0._dp
           self%Runoff( vi, m) = 0._dp
@@ -405,7 +382,7 @@ contains
               min( self%albedo_snow, &
               max( self%albedo_ice, &
                 self%albedo_snow - (self%albedo_snow - self%albedo_ice) * &
-                  exp(-15._dp * self%FirnDepth( vi,mprev)) - 0.015_dp * self%MeltPreviousYear( vi)))
+                  exp(-15._dp * self%FirnAirContent( vi,mprev)) - 0.015_dp * self%MeltPreviousYear( vi)))
 
             ! Determine ablation as a function of surface temperature 
             ! and albedo/insolation according following Bintanja et al. (2002)
@@ -453,22 +430,21 @@ contains
             ! Approximate surface snow density from Veldhuijzen et al. (2023)
             surface_snow_density = 376._dp + (sum(climate%T2m( vi, :))/12._dp - 235._dp) * 0.77 
 
-            ! TODO create config parameter for max. firn depth
-            self%FirnDepth( vi, m) = min( 100._dp, max( 0.1_dp, self%FirnDepth( vi, mprev) + self%SMB_monthly( vi, m) ))
-            self%FirnDensity( vi, m) = &
-              (self%FirnDepth( vi, mprev) * self%FirnDensity( vi, mprev) + &
-               (self%Snowfall( vi, m) - self%Melt( vi, m)) * surface_snow_density + & ! Surface snow density
-               self%Refreezing( vi, m) * self%FirnDensity( vi, mprev) &
-              ) / self%FirnDepth( vi, m)
-              ! TODO add densification term
+            ! Integrate firn air content over month:
+            ! 1) Snowfall - melt adds a layer of firn at surface_snow_density, with all terms in mwe
+            ! so added layer of firn = (S-M) * rho_fw/rho_ss (thickness of snowpack).
+            ! Converted to FAC by multiplying with (rho_i-rho_ss)/rho_i (e.g., Kuipers Munnike et al., 2015)
+            ! 2) Densification reduces FAC, the rate scales with long-term accumulation following Arthern et al. (2010),
+            ! By summing the snowfall each month, we get an effective 1-year smoothing in this term
+            self%FirnAirContent( vi, m) = max( 0._dp, &
+              self%FirnAirContent( vi, mprev) &
+              + (self%Snowfall( vi, m) - self%Melt( vi, m)) * freshwater_density / surface_snow_density &
+                * (ice_density - surface_snow_density)/ice_density &
+              - C%SMB_ITM_C_densification_rate * sum(self%Snowfall( vi, :)) * self%FirnAirContent( vi, mprev))
           else
             ! Ice free land
-            self%FirnDepth( vi, m) = 0._dp
-            self%FirnDensity( vi, m) = 830._dp
+            self%FirnAirContent( vi, m) = 0._dp
           end if
-
-          ! Define firn air content following Kuipers Munnike et al. (2015)
-          self%FirnAirContent( vi, m) = self%FirnDepth( vi, m) * (ice_density - self%FirnDensity( vi, m)) / ice_density
 
         end do
 
@@ -509,8 +485,6 @@ contains
     ! Remap all the stuff that is specific to SMB model ITM_v2
 
     call self%remap_field( mesh_new, 'MeltPreviousYear', self%MeltPreviousYear )
-    call self%remap_field( mesh_new, 'FirnDepth'       , self%FirnDepth        )
-    call self%remap_field( mesh_new, 'FirnDensity'     , self%FirnDensity      )
     call self%remap_field( mesh_new, 'FirnAirContent'  , self%FirnAirContent   )
     call self%remap_field( mesh_new, 'Rainfall'        , self%Rainfall         )
     call self%remap_field( mesh_new, 'Snowfall'        , self%Snowfall         )

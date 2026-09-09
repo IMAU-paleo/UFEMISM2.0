@@ -805,21 +805,10 @@ contains
       case ('FirnDepth')
         select type (SMB_model => region%SMB)
         class default
-          call crash('FirnDepth only defined for SMB model IMAU-ITM or ITM_v2')
+          call crash('FirnDepth only defined for SMB model IMAU-ITM')
         class is (type_SMB_model_IMAU_ITM)
           call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%FirnDepth, d_grid_vec_partial_2D_monthly)
           call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'FirnDepth', d_grid_vec_partial_2D_monthly)
-        class is (type_SMB_model_ITM_v2)
-          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%FirnDepth, d_grid_vec_partial_2D_monthly)
-          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'FirnDepth', d_grid_vec_partial_2D_monthly)
-        end select
-      case ('FirnDensity')
-        select type (SMB_model => region%SMB)
-        class default
-          call crash('FirnDensity only defined for SMB model ITM_v2')
-        class is (type_SMB_model_ITM_v2)
-          call map_from_mesh_vertices_to_xy_grid_3D( region%mesh, grid, C%output_dir, SMB_model%FirnDensity, d_grid_vec_partial_2D_monthly)
-          call write_to_field_multopt_grid_dp_2D_monthly( grid, filename, ncid, 'FirnDensity', d_grid_vec_partial_2D_monthly)
         end select
       case ('FirnAirContent')
         select type (SMB_model => region%SMB)
@@ -1724,8 +1713,6 @@ contains
         call add_field_grid_dp_2D_monthly( filename, ncid, 'Albedo', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Surface albedo', units = '0-1')
       case ('FirnDepth')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'FirnDepth', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly firn layer depth', units = 'm')
-      case ('FirnDensity')
-        call add_field_grid_dp_2D_monthly( filename, ncid, 'FirnDensity', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly average firn density', units = 'kg m^-3')
       case ('FirnAirContent')
         call add_field_grid_dp_2D_monthly( filename, ncid, 'FirnAirContent', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly firn air content', units = 'm')
       case ('MeltPreviousYear')
