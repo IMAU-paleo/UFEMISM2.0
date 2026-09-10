@@ -50,10 +50,10 @@ module momentum_balance_solver_SSA
       procedure, public :: create_restart_file_old            => create_restart_file_old_SSA
       procedure, public :: write_to_restart_file_old          => write_to_restart_file_old_SSA
 
-      procedure, private :: initialise_SSA_velocities_from_file
-      procedure, private :: calc_vertically_averaged_flow_parameter
-      procedure, private :: calc_effective_viscosity
-      procedure, private :: calc_applied_basal_friction_coefficient
+      procedure, public :: initialise_SSA_velocities_from_file
+      procedure, public :: calc_vertically_averaged_flow_parameter
+      procedure, public :: calc_effective_viscosity
+      procedure, public :: calc_applied_basal_friction_coefficient
 
   end type type_momentum_balance_solver_SSA
 

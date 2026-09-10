@@ -270,7 +270,7 @@ module model_configuration_type_and_namelist
   ! ==========================
 
     ! General
-    character(len=1024) :: choice_stress_balance_approximation_config   = 'DIVA'                           ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA", "SSA_FEM_PETSc" (finite-element SSA solved with PetscFE/PetscSNES)
+    character(len=1024) :: choice_stress_balance_approximation_config   = 'DIVA'                           ! Choice of stress balance approximation: "none" (= no flow, though geometry can still change due to mass balance), "SIA", "SSA", "SIA/SSA", "DIVA", "BPA", "SSA_FD_SNES" (finite-difference SSA solved with PetscSNES), "SSA_FEM_PETSc" (finite-element SSA solved with PetscFE/PetscSNES)
     character(len=1024) :: choice_hybrid_SIASSA_scheme_config           = 'add'                            ! Choice of scheme for combining SIA and SSA velocities in the hybrid approach
     logical             :: do_include_SSADIVA_crossterms_config         = .true.                           ! Whether or not to include the gradients of the effective viscosity (the "cross-terms") in the solution of the SSA/DIVA
 
