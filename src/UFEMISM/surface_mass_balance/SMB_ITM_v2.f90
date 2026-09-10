@@ -14,7 +14,7 @@ module SMB_ITM_v2
   use ice_geometry_model_data, only: atype_ice_geometry_model_data
   use climate_model_types, only: type_climate_model, type_climate_model_snapshot
   use netcdf_io_main, only: read_field_from_file_2D, read_field_from_file_2D_monthly
-  use parameters, only: freshwater_density, ice_density, T0, L_fusion, sec_per_year
+  use parameters, only: freshwater_density, ice_density, T0, L_fusion, sec_per_year, R_gas, grav
   use climate_model_utilities, only: get_insolation_at_time
   use climate_realistic, only: initialise_insolation_forcing
   use reference_geometry_types, only: type_reference_geometry
@@ -335,9 +335,11 @@ contains
     character(len=*), parameter       :: routine_name = 'SMB_model_ITM_v2_run'
     integer                           :: vi
     integer                           :: m, mprev
-    real(dp)                          :: snowfrac, surface_snow_density, firn_density
+    real(dp)                          :: snowfrac, surface_snow_density, temp_exponent
     real(dp)                          :: timeframe_init_insolation
     type(type_climate_model_snapshot) :: snapshot_dummy
+    real(dp)                          :: Ec = 60000._dp ! [J/mol] Creep activation energy for densification
+    real(dp)                          :: Eg = 42400._dp ! [J/mol] Grain growth activation energy
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -430,17 +432,22 @@ contains
             ! Approximate surface snow density from Veldhuijzen et al. (2023)
             surface_snow_density = 376._dp + (sum(climate%T2m( vi, :))/12._dp - 235._dp) * 0.77 
 
+            ! Compute the temperature-dependent exponent in Arthern et al. (2010),
+            ! As used in Veldhuijzen et al. (2023)
+            temp_exponent = exp(-Ec/(R_gas*climate%T2m( vi, m) + Eg/(R_gas*ice%Ti( vi, 0)))) 
+
             ! Integrate firn air content over month:
             ! 1) Snowfall - melt adds a layer of firn at surface_snow_density, with all terms in mwe
             ! so added layer of firn = (S-M) * rho_fw/rho_ss (thickness of snowpack).
             ! Converted to FAC by multiplying with (rho_i-rho_ss)/rho_i (e.g., Kuipers Munnike et al., 2015)
-            ! 2) Densification reduces FAC, the rate scales with long-term accumulation following Arthern et al. (2010),
-            ! By summing the snowfall each month, we get an effective 1-year smoothing in this term
+            ! 2) Densification reduces FAC, following Arthern et al. (2010), and its rate scales with
+            ! long-term accumulation (here taken as average monthly SMB, and with the temp_exponent
             self%FirnAirContent( vi, m) = max( 0._dp, &
               self%FirnAirContent( vi, mprev) &
               + (self%Snowfall( vi, m) - self%Melt( vi, m)) * freshwater_density / surface_snow_density &
                 * (ice_density - surface_snow_density)/ice_density &
-              - C%SMB_ITM_C_densification_rate * sum(self%Snowfall( vi, :)) * self%FirnAirContent( vi, mprev))
+              - C%SMB_ITM_C_densification_rate * grav * max(0._dp, sum(self%SMB_monthly( vi, :))/12._dp) &
+                * freshwater_density * temp_exponent * self%FirnAirContent( vi, mprev))
           else
             ! Ice free land
             self%FirnAirContent( vi, m) = 0._dp

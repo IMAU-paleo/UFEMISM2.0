@@ -910,7 +910,7 @@ module model_configuration_type_and_namelist
     real(dp)            :: SMB_ITM_C_melt_temp_neg_config               = 5.42E-4_dp                         ! [mwe yr^-1 K^-1] Linear melt sensitivity to min(0,T2m-T0)
     real(dp)            :: SMB_ITM_C_melt_insol_config                  = 2.483E-5_dp                      ! [mwe yr^-1 (Wm^-2)^-1] Melt sensitivity to insolation
     real(dp)            :: SMB_ITM_initial_firn_air_content_config      = 1._dp                            ! [m] Initial firn air content for ITM when using uniform
-    real(dp)            :: SMB_ITM_C_densification_rate_config          = 0.01_dp                          ! [m^-1] Rate at which firn air content decreases due to densification
+    real(dp)            :: SMB_ITM_C_densification_rate_config          = 0.05_dp                          ! [m s^2 kg^-1] Constant determining the rate at which firn air content decreases due to densification. Empirical values between 0.03 and 0.07
 
     ! Settings for the snapshot_plus_anomalies SMB model
     character(len=1024) :: SMB_snp_p_anml_filename_snapshot_T2m_config  = ''                               ! File containing the T2m snapshot (e.g. from a RACMO historical simulation)
