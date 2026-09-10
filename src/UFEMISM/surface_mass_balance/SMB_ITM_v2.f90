@@ -438,7 +438,7 @@ contains
 
             ! Compute the temperature-dependent exponent in Arthern et al. (2010),
             ! As used in Veldhuijzen et al. (2023)
-            temp_exponent = exp(-Ec/(R_gas*climate%T2m( vi, m)) + Eg/(R_gas*climate%T2m( vi, m))) 
+            temp_exponent = exp(-Ec/(R_gas*climate%T2m( vi, m)) + Eg/(R_gas*ice%Ti(vi, 1)))
 
             ! Integrate firn air content over month:
             ! 1) Snowfall - melt adds a layer of firn at surface_snow_density, with all terms in mwe
