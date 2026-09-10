@@ -341,6 +341,8 @@ contains
     real(dp)                          :: Ec = 60000._dp ! [J/mol] Creep activation energy for densification
     real(dp)                          :: Eg = 42400._dp ! [J/mol] Grain growth activation energy
     real(dp)                          :: fac_temp
+    real(dp)                          :: fac_scale_albedo = 5._dp ! [m] Exponential decay scale of albedo with fac
+    real(dp)                          :: melt_scale_albedo = .015_dp ! [??] Linear scaling with melt (previous year)
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -378,6 +380,7 @@ contains
           if (mprev==0) mprev = 12
 
           if (geom%Hi( vi) > 0._dp) then
+
             ! Determine monthly albedo based on the firn depth of the previous month
             ! and the melt over the previous year. For ice-covered cells, this albedo 
             ! is always bounded between albedo_snow and albedo_ice.
@@ -385,7 +388,7 @@ contains
               min( self%albedo_snow, &
               max( self%albedo_ice, &
                 self%albedo_snow - (self%albedo_snow - self%albedo_ice) * &
-                  exp(-15._dp * self%FirnAirContent( vi,mprev)) - 0.015_dp * self%MeltPreviousYear( vi)))
+                  exp(-self%FirnAirContent( vi,mprev)/fac_scale_albedo) - melt_scale_albedo * self%MeltPreviousYear( vi)))
 
             ! Determine ablation as a function of surface temperature 
             ! and albedo/insolation according following Bintanja et al. (2002)
