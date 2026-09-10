@@ -71,6 +71,7 @@ module momentum_balance_solver_SSADIVA
       procedure, public :: calc_L2_norm_uv
 
       procedure, public :: solve_SSA_DIVA_linearised
+      procedure, public :: assemble_SSA_DIVA_linearised_matrix_eq
       procedure, public :: calc_SSA_DIVA_stiffness_matrix_row_free
       procedure, public :: calc_SSA_DIVA_sans_stiffness_matrix_row_free
       procedure, public :: calc_SSA_DIVA_stiffness_matrix_row_BC
@@ -88,6 +89,20 @@ module momentum_balance_solver_SSADIVA
       real(dp), dimension(self%mesh%ti1:self%mesh%ti2),   intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
       real(dp), dimension(self%mesh%ti1:self%mesh%ti2),   intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
     end subroutine solve_SSA_DIVA_linearised
+
+    module subroutine assemble_SSA_DIVA_linearised_matrix_eq( self, u_ii_term, &
+      BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, &
+      A_CSR, bb, uv_buv)
+      class(atype_momentum_balance_solver_SSADIVA),     intent(in   ) :: self
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: u_ii_term             ! Term to add to the diagonal; either the basal friction coefficient in the SSA, or beta_eff in the DIVA
+      integer,  dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+      type(type_CSR_matrix_dp),                         intent(inout) :: A_CSR
+      real(dp), dimension(:), allocatable,              intent(inout) :: bb
+      real(dp), dimension(:), allocatable,              intent(inout) :: uv_buv
+
+    end subroutine assemble_SSA_DIVA_linearised_matrix_eq
 
     module subroutine calc_SSA_DIVA_stiffness_matrix_row_free( self, u_ii_term, A_CSR, bb, row_tiuv)
       class(atype_momentum_balance_solver_SSADIVA), intent(in   ) :: self

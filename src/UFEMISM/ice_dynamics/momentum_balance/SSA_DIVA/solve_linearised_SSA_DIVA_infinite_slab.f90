@@ -6,21 +6,19 @@ contains
     !< Solve the linearised SSA
 
     ! In/output variables:
-    class(atype_momentum_balance_solver_SSADIVA), intent(inout) :: self
-    real(dp), dimension(self%mesh%ti1:self%mesh%ti2),   intent(in   ) :: u_ii_term             ! Term to add to the diagonal; either the basal friction coefficient in the SSA, or beta_eff in the DIVA
-    integer,                                            intent(  out) :: n_Axb_its             ! Number of iterations used in the iterative solver
-    integer,  dimension(self%mesh%ti1:self%mesh%ti2),   intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
-    real(dp), dimension(self%mesh%ti1:self%mesh%ti2),   intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
-    real(dp), dimension(self%mesh%ti1:self%mesh%ti2),   intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+    class(atype_momentum_balance_solver_SSADIVA),     intent(inout) :: self
+    real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: u_ii_term             ! Term to add to the diagonal; either the basal friction coefficient in the SSA, or beta_eff in the DIVA
+    integer,                                          intent(  out) :: n_Axb_its             ! Number of iterations used in the iterative solver
+    integer,  dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+    real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
 
     ! Local variables:
     character(len=*), parameter         :: routine_name = 'solve_SSA_DIVA_linearised'
-    integer                             :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
     type(type_CSR_matrix_dp)            :: A_CSR
     real(dp), dimension(:), allocatable :: bb
     real(dp), dimension(:), allocatable :: uv_buv
-    integer                             :: row_tiuv,ti,uv
-    character(len=:), allocatable       :: choice_BC_u, choice_BC_v
+    integer                             :: row_tiuv,ti
 
     ! Add routine to path
     call init_routine( routine_name)
@@ -28,6 +26,56 @@ contains
     ! Store the previous solution
     call gather_dist_shared_to_all( self%mesh%pai_Tri, self%u_vav_b, self%u_vav_b_prev)
     call gather_dist_shared_to_all( self%mesh%pai_Tri, self%v_vav_b, self%v_vav_b_prev)
+
+    ! Assemble the matrix equation
+    call assemble_SSA_DIVA_linearised_matrix_eq( self, u_ii_term, &
+      BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, &
+      A_CSR, bb, uv_buv)
+
+    ! Use PETSc to solve the matrix equation
+    call solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, self%PETSc_rtol, self%PETSc_abstol, n_Axb_its, &
+      PETSc_KSPtype = C%stress_balance_PETSc_KSPtype, PETSc_PCtype = C%stress_balance_PETSc_PCtype)
+
+    ! Disentangle the u and v components of the velocity solution
+    do ti = self%mesh%ti1, self%mesh%ti2
+
+      ! u
+      row_tiuv = self%mesh%tiuv2n( ti,1)
+      self%u_vav_b( ti) = uv_buv( row_tiuv)
+
+      ! v
+      row_tiuv = self%mesh%tiuv2n( ti,2)
+      self%v_vav_b( ti) = uv_buv( row_tiuv)
+
+    end do
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine solve_SSA_DIVA_linearised
+
+  subroutine assemble_SSA_DIVA_linearised_matrix_eq( self, u_ii_term, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, &
+    A_CSR, bb, uv_buv)
+    !< Assemble the matrix equation representing the linearised SSA/DIVA
+
+    ! In/output variables:
+    class(atype_momentum_balance_solver_SSADIVA),     intent(in   ) :: self
+    real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: u_ii_term             ! Term to add to the diagonal; either the basal friction coefficient in the SSA, or beta_eff in the DIVA
+    integer,  dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_mask_b      ! Mask of triangles where velocity is prescribed
+    real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_u_b         ! Prescribed velocities in the x-direction
+    real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_v_b         ! Prescribed velocities in the y-direction
+    type(type_CSR_matrix_dp),                         intent(inout) :: A_CSR
+    real(dp), dimension(:), allocatable,              intent(inout) :: bb
+    real(dp), dimension(:), allocatable,              intent(inout) :: uv_buv
+
+    ! Local variables:
+    character(len=*), parameter         :: routine_name = 'assemble_SSA_DIVA_linearised_matrix_eq'
+    integer                             :: ncols, ncols_loc, nrows, nrows_loc, nnz_est_proc
+    integer                             :: row_tiuv,ti,uv
+    character(len=:), allocatable       :: choice_BC_u, choice_BC_v
+
+    ! Add routine to path
+    call init_routine( routine_name)
 
     ! == Initialise the stiffness matrix using the native UFEMISM CSR-matrix format
     ! =============================================================================
@@ -124,30 +172,10 @@ contains
 
     call A_CSR%finalise()
 
-    ! == Solve the matrix equation
-    ! ============================
-
-    ! Use PETSc to solve the matrix equation
-    call solve_matrix_equation_CSR_PETSc( A_CSR, bb, uv_buv, self%PETSc_rtol, self%PETSc_abstol, n_Axb_its, &
-      PETSc_KSPtype = C%stress_balance_PETSc_KSPtype, PETSc_PCtype = C%stress_balance_PETSc_PCtype)
-
-    ! Disentangle the u and v components of the velocity solution
-    do ti = self%mesh%ti1, self%mesh%ti2
-
-      ! u
-      row_tiuv = self%mesh%tiuv2n( ti,1)
-      self%u_vav_b( ti) = uv_buv( row_tiuv)
-
-      ! v
-      row_tiuv = self%mesh%tiuv2n( ti,2)
-      self%v_vav_b( ti) = uv_buv( row_tiuv)
-
-    end do
-
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  end subroutine solve_SSA_DIVA_linearised
+  end subroutine assemble_SSA_DIVA_linearised_matrix_eq
 
   subroutine calc_SSA_DIVA_stiffness_matrix_row_free( self, u_ii_term, A_CSR, bb, row_tiuv)
     !< Add coefficients to this matrix row to represent the linearised SSA
