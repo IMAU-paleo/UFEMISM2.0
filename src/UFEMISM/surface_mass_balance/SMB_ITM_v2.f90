@@ -460,19 +460,15 @@ contains
 
         end do
 
-        ! Integrate SMB over the full year
-        self%SMB( vi) = sum( self%SMB_monthly( vi,:))
-
         ! Calculate total melt over this year, to be used for determining next year's albedo
         self%MeltPreviousYear( vi) = sum( self%Melt( vi,:))
+
+        ! Integrate SMB over the full year and convert from water to ice equivalent
+        self%SMB( vi) = sum(self%SMB_monthly( vi, :)) * freshwater_density / ice_density
 
       end if
 
     end do
-
-    ! Convert final SMB from water to ice equivalent
-    self%SMB_monthly( self%mesh%vi1:self%mesh%vi2,:) = self%SMB_monthly(  self%mesh%vi1:self%mesh%vi2,:) * freshwater_density / ice_density
-    self%SMB(         self%mesh%vi1:self%mesh%vi2  ) = self%SMB(          self%mesh%vi1:self%mesh%vi2  ) * freshwater_density / ice_density
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
