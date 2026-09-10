@@ -388,7 +388,7 @@ contains
               min( self%albedo_snow, &
               max( self%albedo_ice, &
                 self%albedo_snow - (self%albedo_snow - self%albedo_ice) * &
-                  exp(-self%FirnAirContent( vi,mprev)/fac_scale_albedo) - melt_scale_albedo * self%MeltPreviousYear( vi)))
+                  exp(-self%FirnAirContent( vi,mprev)/fac_scale_albedo) - melt_scale_albedo * self%Melt( vi, mprev)))
 
             ! Determine ablation as a function of surface temperature 
             ! and albedo/insolation according following Bintanja et al. (2002)
