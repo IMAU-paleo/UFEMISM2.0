@@ -437,7 +437,7 @@ contains
 
           ! Compute sublimation based on a quadratic fit to wind speed,
           ! Exceeding a temperature-dependent threshold, as fitted to RACMO2.4p1
-          wind_threshold = 86.5_dp - 0.331_dp * climate%T2m( vi, mi)
+          wind_threshold = 86.5_dp - 0.331_dp * climate%T2m( vi, m)
           wind_speed = hypot(climate%Wind_LR( vi, m), climate%Wind_DU( vi, m))
           self%Sublimation( vi, m) = C%SMB_ITM_C_sublimation * max(0._dp, wind_speed - wind_threshold)**2
 
