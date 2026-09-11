@@ -906,11 +906,11 @@ module model_configuration_type_and_namelist
     real(dp)            :: SMB_IMAUITM_albedo_snow_config               = 0.85_dp
 
     real(dp)            :: SMB_ITM_C_trans_temp_config                  = 270.78_dp                         ! [K] Transition temperature between suppressed and enhanced surface melting
-    real(dp)            :: SMB_ITM_C_melt_temp_pos_config               = 1.491E-4_dp                         ! [mwe yr^-1 K^-2] Quadratic melt sensitivity to max(0,T2m-T0)
-    real(dp)            :: SMB_ITM_C_melt_temp_neg_config               = 5.42E-4_dp                         ! [mwe yr^-1 K^-1] Linear melt sensitivity to min(0,T2m-T0)
-    real(dp)            :: SMB_ITM_C_melt_insol_config                  = 2.483E-5_dp                      ! [mwe yr^-1 (Wm^-2)^-1] Melt sensitivity to insolation
+    real(dp)            :: SMB_ITM_C_melt_temp_pos_config               = 1.25E-2_dp                         ! [mwe K^-2] Quadratic melt sensitivity to max(0,T2m-T0)
+    real(dp)            :: SMB_ITM_C_melt_temp_neg_config               = 4.52E-2_dp                         ! [mwe K^-1] Linear melt sensitivity to min(0,T2m-T0)
+    real(dp)            :: SMB_ITM_C_melt_insol_config                  = 0.75E-3_dp                      ! [mwe (Wm^-2)^-1] Melt sensitivity to insolation
     real(dp)            :: SMB_ITM_initial_firn_air_content_config      = 1._dp                            ! [m] Initial firn air content for ITM when using uniform
-    real(dp)            :: SMB_ITM_C_densification_rate_config          = 0.05_dp                          ! [m s^2 kg^-1] Constant determining the rate at which firn air content decreases due to densification. Empirical values between 0.03 and 0.07
+    real(dp)            :: SMB_ITM_C_densification_rate_config          = 0.023_dp                          ! [m s^2 kg^-1] Constant determining the rate at which firn air content decreases due to densification. Empirical values between 0.03 and 0.07
     real(dp)            :: SMB_ITM_C_sublimation_config                 = 2.3E-4_dp                        ! [s] Constant scaling the quadratic dependence of sublimation on wind speed above a temp-dependent threshold
 
     ! Settings for the snapshot_plus_anomalies SMB model
