@@ -407,8 +407,7 @@ contains
               max(0._dp, &
                 (C%SMB_ITM_C_melt_temp_pos * max(0._dp, (climate%T2m( vi,m) - C%SMB_ITM_C_trans_temp))**2 &
                 + C%SMB_ITM_C_melt_temp_neg * min(0._dp, (climate%T2m( vi,m) - C%SMB_ITM_C_trans_temp)) &
-                + C%SMB_ITM_C_melt_insol * (1.0_dp - self%Albedo( vi,m)) * climate%Q_TOA( vi,m))) &
-                / 12._dp
+                + C%SMB_ITM_C_melt_insol * (1.0_dp - self%Albedo( vi,m)) * climate%Q_TOA( vi,m)))
           else
             ! Ice free land
             self%Albedo( vi, m) = self%albedo_soil
