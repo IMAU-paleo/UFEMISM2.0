@@ -6,6 +6,7 @@ module momentum_balance_solver_main
   use momentum_balance_solver_none, only: type_momentum_balance_solver_none
   use momentum_balance_solver_SIA, only: type_momentum_balance_solver_SIA
   use momentum_balance_solver_SSA, only: type_momentum_balance_solver_SSA
+  use momentum_balance_solver_SSA_FD_SNES, only: type_momentum_balance_solver_SSA_FD_SNES
   use momentum_balance_solver_SSA_FEM_PETSc, only: type_momentum_balance_solver_SSA_FEM_PETSc
   use momentum_balance_solver_SIASSA, only: type_momentum_balance_solver_SIASSA
   use momentum_balance_solver_DIVA, only: type_momentum_balance_solver_DIVA
@@ -42,6 +43,8 @@ contains
       allocate( type_momentum_balance_solver_SIA :: momentum_balance_solver)
     case ('SSA')
       allocate( type_momentum_balance_solver_SSA :: momentum_balance_solver)
+    case ('SSA_FD_SNES')
+      allocate( type_momentum_balance_solver_SSA_FD_SNES :: momentum_balance_solver)
     case ('SSA_FEM_PETSc')
       allocate( type_momentum_balance_solver_SSA_FEM_PETSc :: momentum_balance_solver)
     case ('SIA/SSA')

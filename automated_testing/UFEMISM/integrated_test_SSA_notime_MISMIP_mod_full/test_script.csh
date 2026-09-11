@@ -2,7 +2,7 @@
 
 set test_dir = automated_testing/UFEMISM/integrated_test_SSA_notime_MISMIP_mod_full
 
-set solvers = (SSA SSA_FEM_PETSc)
+set solvers = (SSA SSA_FD_SNES SSA_FEM_PETSc)
 
 rm -rf $test_dir/results*
 mkdir $test_dir/results

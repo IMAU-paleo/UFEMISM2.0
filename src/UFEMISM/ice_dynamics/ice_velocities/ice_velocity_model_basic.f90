@@ -514,7 +514,7 @@ contains
     select case (C%choice_stress_balance_approximation)
     case default
       call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
-    case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+    case ('none','SIA','SSA','SSA_FD_SNES','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
       ! These solvers define velocities on the b-grid (triangles)
       call calc_secondary_velocities_from_3D_b( self, ice, geom, BMB)
     case ('SSA_FEM_PETSc')
@@ -702,7 +702,7 @@ contains
     select case (C%choice_stress_balance_approximation)
     case default
       call crash('invalid choice_stress_balance_approximation ' // trim( C%choice_stress_balance_approximation))
-    case ('none','SIA','SSA','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
+    case ('none','SIA','SSA','SSA_FD_SNES','SIA/SSA','DIVA','BPA','hybrid DIVA/BPA')
       ! These solvers define velocities on the b-grid (triangles)
       call map_velocities_from_b_to_c_2D( self%mesh, self%u_vav_b, self%v_vav_b, u_vav_c, v_vav_c)
     case ('SSA_FEM_PETSc')
