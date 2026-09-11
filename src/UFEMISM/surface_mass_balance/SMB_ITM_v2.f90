@@ -45,9 +45,10 @@ module SMB_ITM_v2
       real(dp), dimension(:,:), contiguous, pointer :: Albedo           => null() !< Monthly albedo
       real(dp), dimension(:  ), contiguous, pointer :: Albedo_year      => null() !< Yearly albedo
       real(dp), dimension(:,:), contiguous, pointer :: SMB_monthly      => null() !< [m] Monthly SMB
+      real(dp), dimension(:,:), contiguous, pointer :: Sublimation      => null() !< [m.w.e.] Monthly sublimation
       type(MPI_WIN) :: wMeltPreviousYear, wFirnAirContent, wRainfall
       type(MPI_WIN) :: wSnowfall, wAddedFirn, wMelt, wRefreezing, wRefreezing_year
-      type(MPI_WIN) :: wRunoff, wAlbedo, wAlbedo_year, wSMB_monthly
+      type(MPI_WIN) :: wRunoff, wAlbedo, wAlbedo_year, wSMB_monthly, wSublimation
 
       ! Tuning parameters for the ITM_v2 SMB model (different for each region, set from config)
       real(dp)  :: C_refr
@@ -159,6 +160,12 @@ contains
       long_name = 'Monthly SMB', &
       units     = '-')
 
+    call self%create_field( self%Sublimation, self%wSublimation, &
+      self%mesh, Arakawa_grid%a(), third_dimension%month(), &
+      name      = 'Sublimation', &
+      long_name = 'Monthly Sublimation', &
+      units     = 'm.w.e.')
+
     ! Finalise routine path
     call finalise_routine( routine_name)
 
@@ -189,6 +196,7 @@ contains
     nullify( self%Albedo)
     nullify( self%Albedo_year)
     nullify( self%SMB_monthly)
+    nullify( self%Sublimation)
 
     ! Remove routine from call stack
     call finalise_routine( routine_name)
@@ -343,6 +351,8 @@ contains
     real(dp)                          :: fac_temp
     real(dp)                          :: fac_scale_albedo = 5._dp ! [m] Exponential decay scale of albedo with fac
     real(dp)                          :: melt_scale_albedo = .015_dp ! [??] Linear scaling with melt (previous year)
+    real(dp)                          :: wind_threshold ! [m/s] Wind threshold in sublimation formulation
+    real(dp)                          :: wind_speed     ! [m/s] Absolute wind speed
 
     ! Add routine to call stack
     call init_routine( routine_name)
@@ -426,15 +436,22 @@ contains
             self%Refreezing( vi, m) = 0._dp
           end if
 
+          ! Compute sublimation based on a quadratic fit to wind speed,
+          ! Exceeding a temperature-dependent threshold, as fitted to RACMO2.4p1
+          wind_threshold = 86.5_dp - 0.331_dp * climate%T2m( vi, mi)
+          wind_speed = hypot(climate%Wind_LR( vi, m), climate%Wind_DU( vi, m))
+          self%Sublimation( vi, m) = C%SMB_ITM_C_sublimation * max(0._dp, wind_speed - wind_threshold)**2
+
           ! Extract runoff and SMB
           self%Runoff( vi, m) = self%Melt( vi, m) + self%Rainfall( vi, m) - self%Refreezing( vi, m)
-          self%SMB_monthly( vi, m) = self%Snowfall( vi, m) + self%Refreezing( vi, m) - self%Melt( vi, m)
+          self%SMB_monthly( vi, m) = &
+            self%Snowfall( vi, m) + self%Refreezing( vi, m) - self%Melt( vi, m) - self%Sublimation( vi, m)
 
           ! Add this month's snow accumulation to next month's initial snow depth.
           if (geom%Hi( vi) > 0._dp) then
 
             ! Approximate surface snow density from Veldhuijzen et al. (2023)
-            surface_snow_density = 376._dp + (sum(climate%T2m( vi, :))/12._dp - 235._dp) * 0.77 
+            surface_snow_density = 376._dp + (sum(climate%T2m( vi, :))/12._dp - 235._dp) * 0.77_dp
 
             ! Compute the temperature-dependent exponent in Arthern et al. (2010),
             ! As used in Veldhuijzen et al. (2023)
@@ -504,6 +521,7 @@ contains
     call self%remap_field( mesh_new, 'Albedo'          , self%Albedo           )
     call self%remap_field( mesh_new, 'Albedo_year'     , self%Albedo_year      )
     call self%remap_field( mesh_new, 'SMB_monthly'     , self%SMB_monthly      )
+    call self%remap_field( mesh_new, 'Sublimation'     , self%Sublimation      )
 
     ! Finalise routine path
     call finalise_routine( routine_name)

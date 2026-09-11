@@ -50,9 +50,9 @@ module climate_snapshot_lapse
       type(MPI_WIN) :: wQ_TOA
 
       ! Wind
-      real(dp), dimension(:,:), contiguous, pointer :: U10m            => null()   ! [m s^-1]     10m wind velocity in x-direction
-      real(dp), dimension(:,:), contiguous, pointer :: V10m            => null()   ! [m s^-1]     10m wind velocity in y-direction
-      type(MPI_WIN) :: wU10m, wV10m
+      real(dp), dimension(:,:), contiguous, pointer :: Wind_LR         => null()   ! [m s^-1]     10m wind velocity in x-direction
+      real(dp), dimension(:,:), contiguous, pointer :: Wind_DU         => null()   ! [m s^-1]     10m wind velocity in y-direction
+      type(MPI_WIN) :: wWind_LR, wWind_DU
 
       ! Region-specific info
       character(len=1024)                           :: filename_climate_snapshot
@@ -120,16 +120,16 @@ contains
       units     = 'W m^-2', &
       remap_method = 'reallocate')
 
-    call self%create_field( self%U10m, self%wU10m, &
+    call self%create_field( self%Wind_LR, self%wWind_LR, &
       self%mesh, Arakawa_grid%a(), third_dimension%month(), &
-      name      = 'U10m', &
+      name      = 'Wind_LR', &
       long_name = 'Monthly 10m wind velocity in x-direction', &
       units     = 'm s^-1', &
       remap_method = 'reallocate')
 
-    call self%create_field( self%V10m, self%wV10m, &
+    call self%create_field( self%Wind_DU, self%wWind_DU, &
       self%mesh, Arakawa_grid%a(), third_dimension%month(), &
-      name      = 'V10m', &
+      name      = 'Wind_DU', &
       long_name = 'Monthly 10m wind velocity in y-direction', &
       units     = 'm s^-1', &
       remap_method = 'reallocate')
@@ -227,8 +227,8 @@ contains
     call read_field_from_file_2D(         filename_climate_snapshot, 'Hs'    , self%mesh, C%output_dir, self%Hs_baseline)
     call read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m'   , self%mesh, C%output_dir, self%T2m_baseline)
     call read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', self%mesh, C%output_dir, self%Precip_baseline)
-    call read_field_from_file_2D_monthly( filename_climate_snapshot, 'uas'   , self%mesh, C%output_dir, self%U10m)
-    call read_field_from_file_2D_monthly( filename_climate_snapshot, 'vas'   , self%mesh, C%output_dir, self%V10m)
+    call read_field_from_file_2D_monthly( filename_climate_snapshot, 'uas'   , self%mesh, C%output_dir, self%Wind_LR)
+    call read_field_from_file_2D_monthly( filename_climate_snapshot, 'vas'   , self%mesh, C%output_dir, self%Wind_DU)
 
     call self%apply_geometry_downscaling_corrections( geom)
 

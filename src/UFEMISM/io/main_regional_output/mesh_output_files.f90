@@ -697,6 +697,13 @@ contains
         class is (type_SMB_model_ITM_v2)
           call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Rainfall', SMB_model%Rainfall)
         end select
+      case ('Sublimation')
+        select type (SMB_model => region%SMB)
+        class default
+          call crash('Sublimation only defined for SMB model ITM_v2')
+        class is (type_SMB_model_ITM_v2)
+          call write_to_field_multopt_mesh_dp_2D_monthly( region%mesh, filename, ncid, 'Sublimation', SMB_model%Sublimation)
+        end select
 
     ! == Basal mass balance ==
     ! ========================
@@ -1469,6 +1476,8 @@ contains
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'Runoff', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly runoff', units = 'm')
       case ('Rainfall')
         call add_field_mesh_dp_2D_monthly( filename, ncid, 'Rainfall', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly rainfall', units = 'm')
+      case ('Sublimation')
+        call add_field_mesh_dp_2D_monthly( filename, ncid, 'Sublimation', precision = C%output_precision, do_compress = C%do_compress_output, long_name = 'Monthly sublimation', units = 'm.w.e.')
 
     ! == Basal mass balance ==
     ! ========================

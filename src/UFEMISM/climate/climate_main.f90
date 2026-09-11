@@ -227,7 +227,9 @@ CONTAINS
     case ('snapshot_lapse')
       call climate%snapshot_lapse%allocate( region_name, mesh)
       call climate%snapshot_lapse%initialise( geom, refgeo_PD, refgeo_init, region_name)
-      climate%Q_TOA ( mesh%vi1:mesh%vi2,:) = climate%snapshot_lapse%Q_TOA ( mesh%vi1:mesh%vi2,:)
+      climate%Q_TOA   ( mesh%vi1:mesh%vi2,:) = climate%snapshot_lapse%Q_TOA   ( mesh%vi1:mesh%vi2,:)
+      climate%Wind_LR ( mesh%vi1:mesh%vi2,:) = climate%snapshot_lapse%Wind_LR ( mesh%vi1:mesh%vi2,:)
+      climate%Wind_DU ( mesh%vi1:mesh%vi2,:) = climate%snapshot_lapse%Wind_DU ( mesh%vi1:mesh%vi2,:)
     end select
 
     call checksum( mesh%pai_V, climate%T2m   , 'climate%T2m')
