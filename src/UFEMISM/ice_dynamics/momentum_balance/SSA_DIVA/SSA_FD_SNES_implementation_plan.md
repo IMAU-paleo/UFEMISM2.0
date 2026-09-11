@@ -318,10 +318,61 @@ Re-validated the same way as before (both diffs against the untouched
 **Left as-is / not migrated**: `momentum_balance_solver_SSADIVA.f90`'s BC-row
 routine (`calc_SSA_DIVA_stiffness_matrix_row_BC`) and the shared Picard
 iteration (`solve_SSA_DIVA_linearised`) - both still native CSR/`tiuv2n`,
-untouched. `M_ddx_b_a_tot` / `M_ddy_b_a_tot` / `M_map_b_a_tot` (the
-2-hop-stencil gathers) are also untouched - `assemble_SSA_coeff_jacobian_petsc_native`
-still needs them for the same reason as before (`M_map_a_b`/`M_ddx_a_b`/`M_ddy_a_b`
-are a→b, not the b→a direction the Jacobian's second stencil hop needs).
+untouched.
+
+## Jacobian coefficient-derivative term as chained matrix products — DONE
+
+`assemble_SSA_coeff_jacobian_petsc_native` previously accumulated the Jacobian's
+coefficient-derivative term entry by entry (`MatSetValues(...,ADD_VALUES)`
+inside the same 2-hop-stencil loop nest the CSR version used, just with
+`ADD_VALUES` replacing the dense-row accumulator). Both non-linear terms are,
+however, genuine chained matrix products, and PETSc has machinery for exactly
+that (`MatMatMult`, plus the same `MatDiagonalScale`/`MatAXPY` combination used
+for the Picard operator's blocks):
+
+- **Viscosity term** (Glen shear-thinning, `dN/du`): define
+  `G_u = diag(gxx)*M_ddx_b_a + diag(gsh)*M_ddy_b_a` and
+  `G_v = diag(gsh)*M_ddx_b_a + diag(gyy)*M_ddy_b_a` (these *are* `dN_a/du` and
+  `dN_a/dv`, nV x nTri), and
+  `Row_u = diag(coef_map_u)*M_map_a_b + diag(coef_ddx_u)*M_ddx_a_b + diag(coef_ddy_u)*M_ddy_a_b`
+  (and `Row_v` with the `_v` coefficients, nTri x nV) — `coef_map/ddx/ddy_{u,v}`
+  are the current-velocity-derivative brackets (`uxx`, `uyy`, `vxy`, ...),
+  themselves obtained as plain `MatMult`s of the shared b->b operators
+  (`M2_ddx_b_b` etc.) against the current velocity, no per-row loop needed. The
+  four viscosity blocks are then `Row_u*G_u`, `Row_u*G_v`, `Row_v*G_u`,
+  `Row_v*G_v` - actual `MatMatMult` calls.
+- **Sliding term** (Zoet-Iverson, `dbeta_b/du`): `S_u = diag(sbu)*M_map_b_a`,
+  `S_v = diag(sbv)*M_map_b_a` (nV x nTri); `Beta_deriv_u = M_map_a_b*S_u`,
+  `Beta_deriv_v = M_map_a_b*S_v` (nTri x nTri, `= dbeta_b/du`, `dbeta_b/dv`);
+  the four sliding blocks are `diag(spre_{u,v})*Beta_deriv_{u,v}`.
+
+Each of the four final blocks (`Auu_j = Row_u*G_u + diag(spre_u)*Beta_deriv_u`,
+etc.) is then read back via `MatGetRow` and re-targeted into the native
+numbering exactly like the Picard operator's blocks - structurally the two are
+now the same shape (four `nTri x nTri` blocks translated the same way),
+they're just built differently.
+
+**Bonus**: since `MatMatMult`/`MatMult` handle the distributed communication
+themselves, this also eliminated the last full-local-copy gathers in this
+solver - `M_ddx_b_a_tot` / `M_ddy_b_a_tot` / `M_map_b_a_tot` and the
+`gather_CSR_to_all` helper that built them, plus the `gather_dist_shared_to_all`
+calls that built full-local `u_tot`/`v_tot` copies for the old 2-hop stencil
+loop. All removed - the new routine converts the mesh's own distributed
+`M_ddx_b_a`/`M_ddy_b_a`/`M_map_b_a` directly via `mat_CSR2petsc`, and the
+per-vertex `gxx`/`gsh`/`gyy`/`sbu`/`sbv` factors go straight from their local
+`vi1:vi2` arrays into PETSc `Vec`s via `vec_double2petsc` - no gather step at
+all.
+
+**Validated**: entry-by-entry diff (`MatGetRow` on both) against the
+entry-by-entry version, at a fixed post-warm-start state: max abs difference
+`3.5e-10` against a max entry magnitude of `1.5e6` - a *relative* difference of
+`2.4e-16`, i.e. exactly double-precision machine epsilon (expected: `MatMatMult`
+accumulates products in a different order and through more chained
+multiplications than the direct nested-loop sum, so a larger absolute
+roundoff than the Picard block comparisons' `~1e-13` is normal - both are
+"exact" in the sense that matters). Full `MISMIP_mod` sweep (1/2/4 MPI ranks,
+plus `SSA`/`SSA_FEM_PETSc` unaffected) all passing, `SNESConvergedReason=3`
+throughout.
 
 ## Design decisions
 
