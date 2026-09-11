@@ -349,8 +349,8 @@ contains
     real(dp)                          :: Ec = 60000._dp ! [J/mol] Creep activation energy for densification
     real(dp)                          :: Eg = 42400._dp ! [J/mol] Grain growth activation energy
     real(dp)                          :: fac_temp
-    real(dp)                          :: fac_scale_albedo = 5._dp ! [m] Exponential decay scale of albedo with fac
-    real(dp)                          :: melt_scale_albedo = .015_dp ! [??] Linear scaling with melt (previous year)
+    real(dp)                          :: fac_scale_albedo = 0.5_dp ! [m] Exponential decay scale of albedo with fac
+    real(dp)                          :: melt_scale_albedo = .30_dp ! [month m^-1] Linear scaling with melt
     real(dp)                          :: wind_threshold ! [m/s] Wind threshold in sublimation formulation
     real(dp)                          :: wind_speed     ! [m/s] Absolute wind speed
 
