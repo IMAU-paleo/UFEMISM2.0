@@ -49,6 +49,11 @@ module climate_snapshot_lapse
       real(dp), dimension(:,:), contiguous, pointer :: Q_TOA           => null()
       type(MPI_WIN) :: wQ_TOA
 
+      ! Wind
+      real(dp), dimension(:,:), contiguous, pointer :: U10m            => null()   ! [m s^-1]     10m wind velocity in x-direction
+      real(dp), dimension(:,:), contiguous, pointer :: V10m            => null()   ! [m s^-1]     10m wind velocity in y-direction
+      type(MPI_WIN) :: wU10m, wV10m
+
       ! Region-specific info
       character(len=1024)                           :: filename_climate_snapshot
       logical                                       :: do_lapse_rate_corrections
@@ -113,6 +118,20 @@ contains
       name      = 'Q_TOA', &
       long_name = 'Monthly insolation', &
       units     = 'W m^-2', &
+      remap_method = 'reallocate')
+
+    call self%create_field( self%U10m, self%wU10m, &
+      self%mesh, Arakawa_grid%a(), third_dimension%month(), &
+      name      = 'U10m', &
+      long_name = 'Monthly 10m wind velocity in x-direction', &
+      units     = 'm s^-1', &
+      remap_method = 'reallocate')
+
+    call self%create_field( self%V10m, self%wV10m, &
+      self%mesh, Arakawa_grid%a(), third_dimension%month(), &
+      name      = 'V10m', &
+      long_name = 'Monthly 10m wind velocity in y-direction', &
+      units     = 'm s^-1', &
       remap_method = 'reallocate')
 
     ! Remove routine from call stack
@@ -208,6 +227,8 @@ contains
     call read_field_from_file_2D(         filename_climate_snapshot, 'Hs'    , self%mesh, C%output_dir, self%Hs_baseline)
     call read_field_from_file_2D_monthly( filename_climate_snapshot, 'T2m'   , self%mesh, C%output_dir, self%T2m_baseline)
     call read_field_from_file_2D_monthly( filename_climate_snapshot, 'Precip', self%mesh, C%output_dir, self%Precip_baseline)
+    call read_field_from_file_2D_monthly( filename_climate_snapshot, 'uas'   , self%mesh, C%output_dir, self%U10m)
+    call read_field_from_file_2D_monthly( filename_climate_snapshot, 'vas'   , self%mesh, C%output_dir, self%V10m)
 
     call self%apply_geometry_downscaling_corrections( geom)
 
