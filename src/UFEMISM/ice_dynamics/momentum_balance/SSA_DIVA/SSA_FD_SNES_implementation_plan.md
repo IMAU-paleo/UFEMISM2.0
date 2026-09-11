@@ -374,6 +374,140 @@ roundoff than the Picard block comparisons' `~1e-13` is normal - both are
 plus `SSA`/`SSA_FEM_PETSc` unaffected) all passing, `SNESConvergedReason=3`
 throughout.
 
+## Picard operator: MatZeroRows instead of per-row branching — DONE
+
+`assemble_SSA_FD_SNES_stiffness_matrix_petsc_native` used to branch per (ti,uv)
+row - `is_BC` ? read from the boundary-rows scratch CSR : read from the four
+blocks via `MatGetRow` - inside a single assembly pass. Restructured into two
+clean passes instead, using `MatZeroRows` (the standard PETSc idiom for
+overriding boundary rows) in between:
+
+1. Insert *every* row's content straight from the four blocks, unconditionally
+   (including boundary/Dirichlet rows - cheaper to insert-then-overwrite than
+   to branch), then `MatAssemblyBegin`/`End` (required before `MatZeroRows` can
+   be called).
+2. Build the list of this rank's own boundary/Dirichlet rows (native numbering)
+   and call `MatZeroRows` on them - `MatZeroRows`'s own `diag` parameter is set
+   to `0` and unused for anything else, since most boundary conditions here
+   aren't a simple Dirichlet diag=1 row (periodic wrap, "infinite"
+   extrapolation, icestream mirroring all touch off-diagonal entries too), so
+   the real content still has to be inserted separately, exactly as before via
+   `assemble_SSA_FD_SNES_BC_rows_CSR` + `MatSetValues`. A second
+   `MatAssemblyBegin`/`End` finishes it.
+
+Net effect: the per-row `is_BC` branch is gone from the hot loop; boundary
+rows are now inserted once, structurally separated from the free-row pass,
+rather than interleaved with it row by row.
+
+**Validated**: same entry-by-entry diff against the untouched
+`assemble_SSA_DIVA_linearised_matrix_eq` as before - `1.1e-13` (roundoff, same
+magnitude as the pre-`MatZeroRows` version). Full 1/2/4-rank sweep passing,
+`SNESConvergedReason=3` throughout.
+
+## Jacobian coefficient-derivative term: the same MatZeroRows treatment — DONE
+
+The `MatZeroRows` idea above was actually aimed at
+`assemble_SSA_coeff_jacobian_petsc_native` (the Jacobian's coefficient-
+derivative term), not the Picard operator - applied there too, once
+clarified. That routine's final translation loop used to `cycle` past
+boundary/Dirichlet rows (leaving them with no entries, since this term is
+genuinely zero there - `calc_SSA_DIVA_stiffness_matrix_row_BC` has no
+coefficient-derivative contribution at all). Restructured the same way as the
+Picard operator: insert every row unconditionally from the four blocks, then
+`MatZeroRows` the boundary/Dirichlet rows (`diag = 0`). Simpler than the
+Picard case - no second insertion pass is needed afterwards, since there is no
+correct non-zero content to put back; `MatZeroRows` alone reproduces the old
+"leave empty" behaviour.
+
+**Validated**: with the entry-by-entry CSR reference already retired for this
+routine, checked directly instead - after `MatZeroRows`, every boundary/
+Dirichlet row of the coefficient-derivative term has max abs value exactly
+`0.0`, confirmed across every Newton iteration of a full `SNESConvergedReason=3`
+`MISMIP_mod` solve. Full 1/2/4-rank sweep passing.
+
+## Jacobian: MatCreateNest instead of a manual per-row translation loop — DONE
+
+The "insert every row unconditionally from the four blocks" step above (both
+here and in the Picard operator) was itself still a hand-written
+`MatGetRow`/`MatSetValues` loop over every `(ti, uv)`. For
+`assemble_SSA_coeff_jacobian_petsc_native`, replaced with PETSc's own
+block-matrix construction: `MatCreateNest` assembles the four blocks
+(`Auu_j`, `Auv_j`, `Avu_j`, `Avv_j`) directly into one matrix, given two
+`IS`s (`ISCreateGeneral`) that tell it exactly which native row/column each
+block's own local row/column maps to - built directly from
+`final_row_u_tot`/`final_row_v_tot`, the same arrays the manual loop used to
+do the relabelling by hand, so this is exactly that relabelling, just
+expressed as PETSc's own index-set machinery instead of a loop.
+`MatConvert(nest, MATAIJ, MAT_INITIAL_MATRIX, ...)` immediately flattens the
+result to a plain `Mat` - a raw `MATNEST` can't be `MatAXPY`'d against the
+Picard operator or handed to `PCLU`, so it never leaves this routine. The
+subsequent `MatZeroRows` boundary-row handling is unchanged (it doesn't care
+how `J` was built).
+
+(This reuses the `MatCreateNest` idea considered - and shelved - much earlier
+when first discussing whether to go fully native: it was rejected *then* as
+the top-level representation for the whole solve, because its automatic index
+sets produce a "block-grouped" global layout incompatible with this solver's
+chosen per-rank-grouped native numbering, and `PCLU` doesn't run on a raw
+`MATNEST` at all. Neither objection applies here: the `IS`s are supplied
+explicitly - built to *equal* the native numbering, not PETSc's default one -
+and the nest is immediately converted to `MATAIJ` before it's used for
+anything else.)
+
+**Validated**: for every free row, diffed `MatGetRow` on the resulting `J`
+against `MatGetRow` on the original blocks (columns translated through
+`final_row_u_tot`/`final_row_v_tot`, same as the check above) - max abs
+difference exactly `0.0` (not just roundoff: `MatConvert` off a `MATNEST` copies
+values directly, no new floating-point arithmetic is introduced), confirmed
+across every Newton iteration. Full 1/2/4-rank sweep passing,
+`SNESConvergedReason=3` throughout.
+
+## Picard operator: boundary content moves into the blocks, then MatCreateNest — DONE
+
+Applied the same idea to `assemble_SSA_FD_SNES_stiffness_matrix_petsc_native`,
+but restructured further: rather than building one flat native matrix and
+overriding boundary rows there (the `MatZeroRows` version from a few steps
+back), the boundary content now goes directly into the four *blocks*
+themselves - Auu (still just `nTri x nTri`, plain triangle indices, no native
+numbering involved at all) for u-rows, Avv for v-rows - and `MatCreateNest`
+combines the four now-complete blocks in one step, rather than a manual
+`MatGetRow`/`MatSetValues` loop first and a separate boundary-override pass
+after.
+
+This works because every boundary condition `calc_SSA_DIVA_stiffness_matrix_row_BC`
+currently implements (Dirichlet, "infinite", "zero", the two periodic/icestream
+mirror cases) only ever makes a u-row depend on u-columns and a v-row on
+v-columns, never on each other - confirmed by inspection of that routine
+(every case's neighbour lookup uses `tiuv2n(tj, uv)` with the *same* `uv` as
+the row) and now also enforced at runtime (`crash` if a boundary row's
+scratch-CSR entry ever decodes to a different `uv`, so a future change to that
+routine that broke the assumption would fail loudly rather than silently drop
+entries). So per boundary triangle: `MatZeroRows` clears that triangle's row
+in *all four* blocks (all four, because the free-row formula's block-diagonal
+combination leaves nonzero content in every block, including the ones that
+should end up empty at a boundary row); the real content is then inserted
+only into Auu/Avv, from the same scratch CSR
+(`assemble_SSA_FD_SNES_BC_rows_CSR`, unchanged) as before, decoded back to
+plain triangle-index columns; Auv/Avu are left zeroed.
+
+Once all four blocks are complete (free rows from the block-diagonal
+combination, boundary rows from the step above), they're combined exactly
+like the Jacobian's blocks: two `IS`s from `final_row_u_tot`/`final_row_v_tot`,
+`MatCreateNest`, `MatConvert(...,MATAIJ,...)` to flatten. No manual per-row
+translation loop at all any more.
+
+As the user noted when proposing this, it also isolates the boundary-content
+computation more cleanly than before: inserting into Auu/Avv only needs plain
+triangle-indexed columns (no native-numbering translation, since these blocks
+were never in that numbering to begin with), which should make a *future*
+rewrite of `calc_SSA_DIVA_stiffness_matrix_row_BC` itself more self-contained
+- not attempted now.
+
+**Validated**: same entry-by-entry diff against the untouched
+`assemble_SSA_DIVA_linearised_matrix_eq` as every previous pass - `1.1e-13`
+(roundoff, same magnitude as before). Full 1/2/4-rank sweep passing,
+`SNESConvergedReason=3` throughout.
+
 ## Design decisions
 
 - **Separate solver class.** New type

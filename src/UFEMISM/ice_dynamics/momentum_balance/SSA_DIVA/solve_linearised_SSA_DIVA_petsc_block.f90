@@ -32,9 +32,10 @@ submodule(momentum_balance_solver_SSADIVA) solve_linearised_SSA_DIVA_petsc_block
   ! NOTE: tMat is already host-associated from the parent module's "use petsc, only:
   ! tMat" (needed there for the interface block above) - re-importing it here would
   ! conflict with that binding, so it is deliberately left out of this list.
-  use petsc, only: tVec, PETSC_NULL_VEC, MAT_COPY_VALUES, DIFFERENT_NONZERO_PATTERN, ADD_VALUES, &
+  use petsc, only: tVec, tIS, PETSC_NULL_VEC, MAT_COPY_VALUES, DIFFERENT_NONZERO_PATTERN, ADD_VALUES, &
     MatDuplicate, MatDiagonalScale, MatDiagonalSet, MatAXPY, MatScale, MatDestroy, VecDestroy, &
-    MatGetRow, MatRestoreRow
+    MatGetRow, MatRestoreRow, MatZeroRows, &
+    ISCreateGeneral, ISDestroy, PETSC_COPY_VALUES, MatCreateNest, MatConvert, MAT_INITIAL_MATRIX
   use petsc_basic, only: mat_CSR2petsc, vec_double2petsc
 
   implicit none
@@ -92,17 +93,27 @@ contains
     !< current-velocity vector, fully natively: a PETSc Mat in this solver's native
     !< row/column numbering (compute_native_row_mapping), no CSR anywhere for the
     !< free (interior) rows - those come straight out of
-    !< build_SSA_DIVA_stiffness_blocks_petsc's native Mats via MatGetRow. Boundary/
-    !< Dirichlet rows are not expressible as a block-diagonal-scaled combination
-    !< (genuinely row-local special cases - periodic wrap, "infinite" extrapolation,
-    !< icestream mirroring), so those still go through the existing
-    !< calc_SSA_DIVA_stiffness_matrix_row_BC via a small scratch CSR matrix
-    !< (BC/Dirichlet rows only; free rows left empty in it), whose few entries are
-    !< then re-targeted into the native numbering the same way as the free rows.
-    !< MatSetValues (unlike mat_CSR2petsc's MatCreateMPIAIJWithArrays) does not
-    !< require sorted columns, so - unlike the CSR assembly above - the u- and
-    !< v-column entries of a row do not need merging, just two separate
-    !< MatSetValues calls.
+    !< build_SSA_DIVA_stiffness_blocks_petsc's native Mats.
+    !<
+    !< Boundary/Dirichlet rows are not expressible as a block-diagonal-scaled
+    !< combination (genuinely row-local special cases - periodic wrap, "infinite"
+    !< extrapolation, icestream mirroring), so they are overridden *within each
+    !< block*, before the blocks are combined: MatZeroRows clears whatever the
+    !< free-row formula put in a boundary triangle's row of all four blocks, then
+    !< the correct content - from the existing calc_SSA_DIVA_stiffness_matrix_row_BC
+    !< via a small scratch CSR matrix (BC/Dirichlet rows only) - is inserted into
+    !< Auu (for u-rows) and Avv (for v-rows) only: every boundary condition
+    !< currently implemented only ever makes u depend on u and v depend on v (never
+    !< on each other), so Auv/Avu are simply left zeroed at these rows.
+    !<
+    !< The four blocks - each still just an nTri x nTri matrix indexed by plain
+    !< triangle number, no native-numbering translation needed for any of the
+    !< above - are then combined into the final native-numbered matrix directly via
+    !< PETSc's own block-matrix machinery (MatCreateNest, given index sets built
+    !< from final_row_u_tot/final_row_v_tot that tell it exactly which native row/
+    !< column each block's own local row/column maps to) and MatConvert (a raw
+    !< MATNEST can't be MatAXPY'd against the Jacobian's coefficient-derivative
+    !< term or handed to PCLU, so it never leaves this routine).
 
     ! In/output variables:
     class(atype_momentum_balance_solver_SSADIVA),     intent(in   ) :: self
@@ -116,16 +127,14 @@ contains
 
     ! Local variables:
     character(len=*), parameter         :: routine_name = 'assemble_SSA_FD_SNES_stiffness_matrix_petsc_native'
-    type(tMat)                          :: Auu, Auv, Avu, Avv
+    type(tMat)                          :: Auu, Auv, Avu, Avv, A_nest
+    type(tIS)                           :: is_u, is_v
     type(type_CSR_matrix_dp)            :: A_BC_CSR
     real(dp), dimension(:), allocatable :: bb_BC
     integer                             :: nTri_loc, ierr
-    integer                             :: ti, uv, k, row_native, tj, uvj, nnz_bc
+    integer                             :: ti, uv, k, tj, uvj, nnz_bc, n_BC_tris
     logical                             :: is_BC
-    integer                             :: nnz_u, nnz_v
-    integer,  dimension(:), pointer     :: cols_u_p, cols_v_p
-    real(dp), dimension(:), pointer     :: vals_u_p, vals_v_p
-    integer,  dimension(:), allocatable :: col_native, ind_bc
+    integer,  dimension(:), allocatable :: ind_bc, BC_tris0, col_plain
     real(dp), dimension(:), allocatable :: val_bc
 
     ! Add routine to path
@@ -135,92 +144,117 @@ contains
 
     nTri_loc = self%mesh%nTri_loc
 
-    call MatCreate( PETSC_COMM_WORLD, A, ierr)
-    call MatSetSizes( A, 2*nTri_loc, 2*nTri_loc, 2*self%mesh%nTri, 2*self%mesh%nTri, ierr)
-    call MatSetType( A, MATAIJ, ierr)
-    call MatSetUp( A, ierr)
-    call MatSetOption( A, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
+    ! The boundary-condition columns (e.g. "infinite"'s TriC mesh neighbours) need
+    ! not already be present in the free-row formula's sparsity pattern
+    call MatSetOption( Auu, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
+    call MatSetOption( Auv, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
+    call MatSetOption( Avu, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
+    call MatSetOption( Avv, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
 
-    allocate( bb(     2*nTri_loc))
-    allocate( uv_buv( 2*nTri_loc))
+    ! == Zero the boundary/Dirichlet rows in all four blocks (own triangle-indexed
+    !    row space - the same triangle list for all four, since BC status is
+    !    per-triangle, not per-component)
+    ! ========================================================================
 
-    allocate( col_native( self%mesh%nC_mem*2))
-    allocate( ind_bc( self%mesh%nC_mem*2), val_bc( self%mesh%nC_mem*2))
+    allocate( BC_tris0( nTri_loc))
+    n_BC_tris = 0
+    do ti = self%mesh%ti1, self%mesh%ti2
+      if (BC_prescr_mask_b( ti) == 1 .or. self%mesh%TriBI( ti) > 0) then
+        n_BC_tris = n_BC_tris + 1
+        BC_tris0( n_BC_tris) = ti - 1
+      end if
+    end do
+
+    if (n_BC_tris > 0) then
+      call MatZeroRows( Auu, n_BC_tris, BC_tris0( 1:n_BC_tris), 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, ierr)
+      call MatZeroRows( Auv, n_BC_tris, BC_tris0( 1:n_BC_tris), 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, ierr)
+      call MatZeroRows( Avu, n_BC_tris, BC_tris0( 1:n_BC_tris), 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, ierr)
+      call MatZeroRows( Avv, n_BC_tris, BC_tris0( 1:n_BC_tris), 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, ierr)
+    end if
+
+    ! == Insert the real boundary content into Auu / Avv, and bb (free-row and
+    !    boundary-row values, in one pass over ti)
+    ! ========================================================================
 
     ! Boundary/Dirichlet rows only (tiuv2n-numbered scratch - unavoidable, see
     ! above); free rows are left empty in it and never read from it below.
     call assemble_SSA_FD_SNES_BC_rows_CSR( self, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, &
       A_BC_CSR, bb_BC)
 
+    allocate( bb(     2*nTri_loc))
+    allocate( uv_buv( 2*nTri_loc))
+    allocate( ind_bc( self%mesh%nC_mem*2), val_bc( self%mesh%nC_mem*2), col_plain( self%mesh%nC_mem*2))
+
     do ti = self%mesh%ti1, self%mesh%ti2
 
       is_BC = (BC_prescr_mask_b( ti) == 1 .or. self%mesh%TriBI( ti) > 0)
 
-      do uv = 1, 2
+      if (is_BC) then
 
-        row_native = merge( self%final_row_u_tot( ti), self%final_row_v_tot( ti), uv == 1)
-
-        if (is_BC) then
+        do uv = 1, 2
 
           call A_BC_CSR%read_single_row( self%mesh%tiuv2n( ti, uv), ind_bc, val_bc, nnz_bc)
           do k = 1, nnz_bc
             tj  = self%mesh%n2tiuv( ind_bc( k), 1)
             uvj = self%mesh%n2tiuv( ind_bc( k), 2)
-            col_native( k) = merge( self%final_row_u_tot( tj), self%final_row_v_tot( tj), uvj == 1)
+            if (uvj /= uv) call crash('assemble_SSA_FD_SNES_stiffness_matrix_petsc_native: boundary ' // &
+              'row for triangle {int_01} has a cross-component entry (u depending on v, or vice ' // &
+              'versa) - this routine assumes u only ever depends on u and v only ever depends on v', &
+              int_01 = ti)
+            col_plain( k) = tj - 1
           end do
-          if (nnz_bc > 0) then
-            call MatSetValues( A, 1, [row_native], nnz_bc, col_native( 1:nnz_bc), val_bc( 1:nnz_bc), &
-              INSERT_VALUES, ierr)
-          end if
-          bb( merge( ti - self%mesh%ti1 + 1, nTri_loc + ti - self%mesh%ti1 + 1, uv == 1)) = &
-            bb_BC( self%mesh%tiuv2n( ti, uv))
-
-        else
 
           if (uv == 1) then
-            call MatGetRow( Auu, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-            call MatGetRow( Auv, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
+            if (nnz_bc > 0) call MatSetValues( Auu, 1, [ti-1], nnz_bc, col_plain( 1:nnz_bc), &
+              val_bc( 1:nnz_bc), INSERT_VALUES, ierr)
+            bb( ti - self%mesh%ti1 + 1) = bb_BC( self%mesh%tiuv2n( ti,1))
           else
-            call MatGetRow( Avu, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-            call MatGetRow( Avv, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
-          end if
-          do k = 1, nnz_u
-            col_native( k) = self%final_row_u_tot( cols_u_p( k) + 1)
-          end do
-          if (nnz_u > 0) call MatSetValues( A, 1, [row_native], nnz_u, col_native( 1:nnz_u), vals_u_p, &
-            INSERT_VALUES, ierr)
-          do k = 1, nnz_v
-            col_native( k) = self%final_row_v_tot( cols_v_p( k) + 1)
-          end do
-          if (nnz_v > 0) call MatSetValues( A, 1, [row_native], nnz_v, col_native( 1:nnz_v), vals_v_p, &
-            INSERT_VALUES, ierr)
-          if (uv == 1) then
-            call MatRestoreRow( Auu, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-            call MatRestoreRow( Auv, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
-            bb( ti - self%mesh%ti1 + 1) = -self%tau_dx_b( ti)
-          else
-            call MatRestoreRow( Avu, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-            call MatRestoreRow( Avv, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
-            bb( nTri_loc + ti - self%mesh%ti1 + 1) = -self%tau_dy_b( ti)
+            if (nnz_bc > 0) call MatSetValues( Avv, 1, [ti-1], nnz_bc, col_plain( 1:nnz_bc), &
+              val_bc( 1:nnz_bc), INSERT_VALUES, ierr)
+            bb( nTri_loc + ti - self%mesh%ti1 + 1) = bb_BC( self%mesh%tiuv2n( ti,2))
           end if
 
-        end if
+        end do
 
-      end do
+      else
+
+        bb( ti - self%mesh%ti1 + 1)          = -self%tau_dx_b( ti)
+        bb( nTri_loc + ti - self%mesh%ti1 + 1) = -self%tau_dy_b( ti)
+
+      end if
 
       uv_buv( ti - self%mesh%ti1 + 1)          = self%u_vav_b( ti)
       uv_buv( nTri_loc + ti - self%mesh%ti1 + 1) = self%v_vav_b( ti)
 
     end do
 
-    call MatAssemblyBegin( A, MAT_FINAL_ASSEMBLY, ierr)
-    call MatAssemblyEnd(   A, MAT_FINAL_ASSEMBLY, ierr)
+    call A_BC_CSR%deallocate()
 
+    call MatAssemblyBegin( Auu, MAT_FINAL_ASSEMBLY, ierr); call MatAssemblyEnd( Auu, MAT_FINAL_ASSEMBLY, ierr)
+    call MatAssemblyBegin( Auv, MAT_FINAL_ASSEMBLY, ierr); call MatAssemblyEnd( Auv, MAT_FINAL_ASSEMBLY, ierr)
+    call MatAssemblyBegin( Avu, MAT_FINAL_ASSEMBLY, ierr); call MatAssemblyEnd( Avu, MAT_FINAL_ASSEMBLY, ierr)
+    call MatAssemblyBegin( Avv, MAT_FINAL_ASSEMBLY, ierr); call MatAssemblyEnd( Avv, MAT_FINAL_ASSEMBLY, ierr)
+
+    ! == Combine the four (now complete) blocks into the final native-numbered
+    !    matrix via PETSc's own block-matrix machinery
+    ! ========================================================================
+
+    call ISCreateGeneral( PETSC_COMM_WORLD, nTri_loc, self%final_row_u_tot( self%mesh%ti1:self%mesh%ti2), &
+      PETSC_COPY_VALUES, is_u, ierr)
+    call ISCreateGeneral( PETSC_COMM_WORLD, nTri_loc, self%final_row_v_tot( self%mesh%ti1:self%mesh%ti2), &
+      PETSC_COPY_VALUES, is_v, ierr)
+
+    call MatCreateNest( PETSC_COMM_WORLD, 2, [is_u, is_v], 2, [is_u, is_v], &
+      [Auu, Auv, Avu, Avv], A_nest, ierr)
+    call MatConvert( A_nest, MATAIJ, MAT_INITIAL_MATRIX, A, ierr)
+
+    call MatDestroy( A_nest, ierr)
+    call ISDestroy( is_u, ierr)
+    call ISDestroy( is_v, ierr)
     call MatDestroy( Auu, ierr)
     call MatDestroy( Auv, ierr)
     call MatDestroy( Avu, ierr)
     call MatDestroy( Avv, ierr)
-    call A_BC_CSR%deallocate()
 
     ! Finalise routine path
     call finalise_routine( routine_name)

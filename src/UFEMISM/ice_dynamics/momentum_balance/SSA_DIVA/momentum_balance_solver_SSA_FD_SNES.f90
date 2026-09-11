@@ -88,15 +88,16 @@ module momentum_balance_solver_SSA_FD_SNES
   use mpi_basic, only: par
   use mpi_f08, only: MPI_ALLREDUCE, MPI_IN_PLACE, MPI_LOR, MPI_LOGICAL, MPI_COMM_WORLD
   use petsc, only: PETSC_COMM_WORLD, PETSC_NULL_VEC, PETSC_DEFAULT_REAL, PETSC_FALSE, &
-    tSNES, tVec, tMat, tKSP, tPC, &
+    tSNES, tVec, tMat, tKSP, tPC, tIS, &
     SNESCreate, SNESDestroy, SNESSetType, SNESNEWTONLS, SNESSetTolerances, SNESGetKSP, &
     SNESSolve, SNESGetIterationNumber, SNESGetLinearSolveIterations, SNESGetFunctionNorm, &
     KSPSetType, KSPGetPC, PCSetType, KSPSetTolerances, KSPPREONLY, PCLU, &
     VecDuplicate, VecCopy, VecDestroy, MatDestroy, MatCopy, MatAXPY, MatScale, DIFFERENT_NONZERO_PATTERN, &
     MatCreate, MatSetSizes, MatSetType, MATAIJ, MatSetUp, MatSetOption, MAT_NEW_NONZERO_ALLOCATION_ERR, &
     MatSetValues, INSERT_VALUES, ADD_VALUES, MatAssemblyBegin, MatAssemblyEnd, MAT_FINAL_ASSEMBLY, &
-    MatGetRow, MatRestoreRow, MatMatMult, MAT_INITIAL_MATRIX, &
-    MatDuplicate, MatDiagonalScale, MAT_COPY_VALUES, PETSC_NULL_VEC
+    MatGetRow, MatRestoreRow, MatMatMult, MAT_INITIAL_MATRIX, MatZeroRows, &
+    MatDuplicate, MatDiagonalScale, MAT_COPY_VALUES, PETSC_NULL_VEC, &
+    ISCreateGeneral, ISDestroy, PETSC_COPY_VALUES, MatCreateNest, MatConvert
   use petsc_basic, only: mat_CSR2petsc, vec_double2petsc, vec_petsc2double, &
     multiply_PETSc_matrix_with_vector_1D, solve_matrix_equation_PETSc
   use mesh_disc_apply_operators, only: map_b_a_2D
@@ -592,8 +593,12 @@ contains
     !< converts the mesh's own distributed M_ddx_b_a / M_ddy_b_a / M_map_b_a
     !< directly. The four resulting blocks are read back via MatGetRow and
     !< re-targeted into the native numbering exactly like the Picard operator's
-    !< blocks (assemble_SSA_FD_SNES_stiffness_matrix_petsc_native); boundary/
-    !< Dirichlet rows are simply skipped (left with no entries), same as before.
+    !< blocks (assemble_SSA_FD_SNES_stiffness_matrix_petsc_native): every row is
+    !< inserted unconditionally, then MatZeroRows clears the boundary/Dirichlet
+    !< rows again - this term is genuinely zero there (unlike the Picard operator,
+    !< no correct content needs inserting afterwards, since
+    !< calc_SSA_DIVA_stiffness_matrix_row_BC's boundary conditions have no
+    !< coefficient-derivative term at all).
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
@@ -612,12 +617,8 @@ contains
     type(tVec) :: spre_u_vec, spre_v_vec
     type(tMat) :: G_u, G_v, Row_u, Row_v, S_u, S_v, Beta_deriv_u, Beta_deriv_v
     type(tMat) :: Auu_j, Auv_j, Avu_j, Avv_j
-    integer    :: ierr, nTri_loc, ti, uv, k, row_native
-    logical    :: is_BC
-    integer,  dimension(:), pointer     :: cols_u_p, cols_v_p
-    real(dp), dimension(:), pointer     :: vals_u_p, vals_v_p
-    integer                             :: nnz_u, nnz_v
-    integer,  dimension(:), allocatable :: col_native
+    integer    :: ierr, nTri_loc, ti, n_BC_rows
+    integer,  dimension(:), allocatable :: BC_rows_native
     real(dp), dimension(:), allocatable :: u_loc, v_loc
     real(dp), dimension(:), allocatable :: uxx, uyy, uxy, ux1, uy1, vxx, vyy, vxy, vx1, vy1
     real(dp), dimension(:), allocatable :: coef_map_u, coef_ddx_u, coef_ddy_u
@@ -779,57 +780,48 @@ contains
     call MatMatMult( Row_v, G_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Avv_j, ierr)
     call add_diag_scaled( Avv_j, Beta_deriv_v, spre_v_vec)
 
-    ! == Re-target the four blocks into the native numbering, exactly like the
-    !    Picard operator (assemble_SSA_FD_SNES_stiffness_matrix_petsc_native);
-    !    boundary/Dirichlet rows are skipped (left with no entries)
-    call MatCreate( PETSC_COMM_WORLD, J, ierr)
-    call MatSetSizes( J, 2*nTri_loc, 2*nTri_loc, 2*self%mesh%nTri, 2*self%mesh%nTri, ierr)
-    call MatSetType( J, MATAIJ, ierr)
-    call MatSetUp( J, ierr)
-    call MatSetOption( J, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
+    ! == Re-target the four blocks into the native numbering: build them into a
+    !    single matrix directly with PETSc's own block-matrix machinery
+    !    (MatCreateNest), instead of a manual MatGetRow/MatSetValues loop. The
+    !    row/column index sets tell the nest exactly which native row/column
+    !    each block's own local row/column maps to - i.e. the same relabelling
+    !    the manual loop used to do by hand - so the result already has this
+    !    term's native numbering; MatConvert then flattens it to a plain AIJ
+    !    matrix (a MATNEST can't be MatAXPY'd against the Picard operator, or
+    !    handed to PCLU, so it never leaves this routine). Boundary/Dirichlet
+    !    rows are then zeroed exactly as before - this term is genuinely zero
+    !    there (calc_SSA_DIVA_stiffness_matrix_row_BC has no coefficient-
+    !    derivative term at all), so no second insertion pass is needed.
+    block
+      type(tIS)  :: is_u, is_v
+      type(tMat) :: J_nest
 
-    allocate( col_native( self%mesh%nC_mem * self%mesh%nC_mem * 4))
+      call ISCreateGeneral( PETSC_COMM_WORLD, nTri_loc, self%final_row_u_tot( self%mesh%ti1:self%mesh%ti2), &
+        PETSC_COPY_VALUES, is_u, ierr)
+      call ISCreateGeneral( PETSC_COMM_WORLD, nTri_loc, self%final_row_v_tot( self%mesh%ti1:self%mesh%ti2), &
+        PETSC_COPY_VALUES, is_v, ierr)
 
+      call MatCreateNest( PETSC_COMM_WORLD, 2, [is_u, is_v], 2, [is_u, is_v], &
+        [Auu_j, Auv_j, Avu_j, Avv_j], J_nest, ierr)
+      call MatConvert( J_nest, MATAIJ, MAT_INITIAL_MATRIX, J, ierr)
+
+      call MatDestroy( J_nest, ierr)
+      call ISDestroy( is_u, ierr)
+      call ISDestroy( is_v, ierr)
+    end block
+
+    ! Zero the boundary/Dirichlet rows (this rank's own)
+    allocate( BC_rows_native( 2 * nTri_loc))
+    n_BC_rows = 0
     do ti = self%mesh%ti1, self%mesh%ti2
-
-      is_BC = (self%BC_prescr_mask_b_applied( ti) == 1 .or. self%mesh%TriBI( ti) > 0)
-      if (is_BC) cycle
-
-      do uv = 1, 2
-
-        row_native = merge( self%final_row_u_tot( ti), self%final_row_v_tot( ti), uv == 1)
-
-        if (uv == 1) then
-          call MatGetRow( Auu_j, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-          call MatGetRow( Auv_j, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
-        else
-          call MatGetRow( Avu_j, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-          call MatGetRow( Avv_j, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
-        end if
-        do k = 1, nnz_u
-          col_native( k) = self%final_row_u_tot( cols_u_p( k) + 1)
-        end do
-        if (nnz_u > 0) call MatSetValues( J, 1, [row_native], nnz_u, col_native( 1:nnz_u), vals_u_p, &
-          INSERT_VALUES, ierr)
-        do k = 1, nnz_v
-          col_native( k) = self%final_row_v_tot( cols_v_p( k) + 1)
-        end do
-        if (nnz_v > 0) call MatSetValues( J, 1, [row_native], nnz_v, col_native( 1:nnz_v), vals_v_p, &
-          INSERT_VALUES, ierr)
-        if (uv == 1) then
-          call MatRestoreRow( Auu_j, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-          call MatRestoreRow( Auv_j, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
-        else
-          call MatRestoreRow( Avu_j, ti-1, nnz_u, cols_u_p, vals_u_p, ierr)
-          call MatRestoreRow( Avv_j, ti-1, nnz_v, cols_v_p, vals_v_p, ierr)
-        end if
-
-      end do
-
+      if (self%BC_prescr_mask_b_applied( ti) == 1 .or. self%mesh%TriBI( ti) > 0) then
+        n_BC_rows = n_BC_rows + 1; BC_rows_native( n_BC_rows) = self%final_row_u_tot( ti)
+        n_BC_rows = n_BC_rows + 1; BC_rows_native( n_BC_rows) = self%final_row_v_tot( ti)
+      end if
     end do
-
-    call MatAssemblyBegin( J, MAT_FINAL_ASSEMBLY, ierr)
-    call MatAssemblyEnd(   J, MAT_FINAL_ASSEMBLY, ierr)
+    if (n_BC_rows > 0) then
+      call MatZeroRows( J, n_BC_rows, BC_rows_native( 1:n_BC_rows), 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, ierr)
+    end if
 
     ! Clean up
     call MatDestroy( D2x, ierr); call MatDestroy( D2y, ierr); call MatDestroy( D2xy, ierr)
