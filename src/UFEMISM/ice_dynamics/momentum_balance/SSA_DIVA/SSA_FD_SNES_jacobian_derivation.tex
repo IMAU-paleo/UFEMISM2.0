@@ -1,0 +1,325 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=2.7cm]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{microtype}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\ti}{t_i}
+\newcommand{\tk}{t_k}
+\newcommand{\va}{v_a}
+\newcommand{\pd}[2]{\dfrac{\partial #1}{\partial #2}}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+
+\title{Analytic Jacobian of the finite-difference SSA residual\\[2pt]
+\large Companion to \code{momentum\_\allowbreak balance\_\allowbreak solver\_\allowbreak SSA\_\allowbreak FD\_\allowbreak SNES.f90}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+\vspace{-2.5em}
+
+\paragraph{Status.} Implemented and validated. Both the viscosity term
+(Section~\ref{sec:visc}) and the sliding term (Section~\ref{sec:sliding}) are
+assembled by \code{assemble\_\allowbreak SSA\_\allowbreak coeff\_\allowbreak jacobian\_\allowbreak CSR}, and added to the
+Picard operator in \code{build\_\allowbreak SSA\_\allowbreak FD\_\allowbreak SNES\_\allowbreak jacobian\_\allowbreak petsc}. A central
+finite-difference check of $Jv$ against $\big(F(u+hv)-F(u-hv)\big)/2h$ at a
+non-zero base velocity gives a relative error of $\sim 8\times10^{-6}$
+(Section~\ref{sec:validation}). Newton then converges quadratically on
+MISMIP\_\allowbreak mod (residual history e.g.\ $12.5 \to 8.6 \to 4.8 \to 2.0 \to 0.57 \to
+0.095 \to 0.0046$ in $\lVert \hat F\rVert$), where Tier~1/2 and the
+50-iteration finite-difference Picard solver do not. The converged velocity
+agrees with the Picard solver (run to 2000 iterations) to $\sim 5\%$ RMS, with
+larger localised differences near the grounding line -- both solvers bottom
+out at the noise floor of the non-smooth $\eta$ / friction / $\max(0.1,H)$
+clamps. See \code{SSA\_\allowbreak FD\_\allowbreak SNES\_\allowbreak implementation\_\allowbreak plan.md} for the surrounding
+context (Tiers~1--2, why they do not work, and the run log).
+
+\tableofcontents
+
+\section{Notation}
+\label{sec:notation}
+
+The SSA is discretised on two staggered entities of the mesh: the
+\emph{a-grid} (mesh vertices) and the \emph{b-grid} (mesh triangles). Table
+\ref{tab:notation} fixes the symbols used below and their corresponding
+Fortran identifiers (all \code{type\_\allowbreak CSR\_\allowbreak matrix\_\allowbreak dp} sparse operators, or
+plain fields, on \code{self\%mesh} / \code{self} unless noted).
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{@{}lp{5.0cm}p{5.9cm}@{}}
+\toprule
+Symbol & Fortran & Meaning \\
+\midrule
+$u,v$ & \code{u\_\allowbreak vav\_\allowbreak b}, \code{v\_\allowbreak vav\_\allowbreak b} & vertically-averaged velocity, b-grid (the unknowns) \\
+$u_a,v_a$ & (local) & $u,v$ mapped to the a-grid \\
+$\eta_a$ & \code{eta\_\allowbreak vav\_\allowbreak a} & effective viscosity, a-grid (after its min/max clamp) \\
+$N_a = \bar H\,\eta_a$ & \code{N\_\allowbreak a} & viscosity--thickness product, a-grid \\
+$N, N_x, N_y$ & \code{N\_\allowbreak b}, \code{dN\_\allowbreak dx\_\allowbreak b}, \code{dN\_\allowbreak dy\_\allowbreak b} & $N_a$ mapped to b-grid, and its gradient there \\
+$\beta_b$ & \code{basal\_\allowbreak friction\_\allowbreak coefficient\_\allowbreak b} & applied basal friction coefficient, b-grid \\
+$\tau_{d,x},\tau_{d,y}$ & \code{tau\_\allowbreak dx\_\allowbreak b}, \code{tau\_\allowbreak dy\_\allowbreak b} & driving stress, b-grid \\
+$D_x, D_y$ & \code{M2\_\allowbreak ddx\_\allowbreak b\_\allowbreak b}, \code{M2\_\allowbreak ddy\_\allowbreak b\_\allowbreak b} & first-derivative operators, b$\to$b \\
+$D_{xx}, D_{xy}, D_{yy}$ & \code{M2\_\allowbreak d2dx2\_\allowbreak b\_\allowbreak b}, \code{M2\_\allowbreak d2dxdy\_\allowbreak b\_\allowbreak b}, \code{M2\_\allowbreak d2dy2\_\allowbreak b\_\allowbreak b} & second-derivative operators, b$\to$b \\
+$P_{a\to b}, P_{x,a\to b}, P_{y,a\to b}$ & \code{M\_\allowbreak map\_\allowbreak a\_\allowbreak b}, \code{M\_\allowbreak ddx\_\allowbreak a\_\allowbreak b}, \code{M\_\allowbreak ddy\_\allowbreak a\_\allowbreak b} & map / d/dx / d/dy, a$\to$b \\
+$P_{b\to a}, P_{x,b\to a}, P_{y,b\to a}$ & \code{M\_\allowbreak map\_\allowbreak b\_\allowbreak a}, \code{M\_\allowbreak ddx\_\allowbreak b\_\allowbreak a}, \code{M\_\allowbreak ddy\_\allowbreak b\_\allowbreak a} & map / d/dx / d/dy, b$\to$a \\
+\bottomrule
+\end{tabular}
+\caption{Symbol $\leftrightarrow$ code correspondence.}
+\label{tab:notation}
+\end{table}
+
+A subscript operator applied to a field and evaluated at a mesh entity means
+the matrix--vector product read at that row/entry, e.g.\
+$u_x(\ti) := (D_x u)(\ti)$, and $P_{a\to b}(\ti,\va)$ is entry $(\ti,\va)$ of
+that sparse operator (read via \code{\%read\_\allowbreak single\_\allowbreak row}). $\ti,\tk$ index
+triangles (b-grid), $\va$ indexes vertices (a-grid).
+
+\section{The residual}
+\label{sec:residual}
+
+The SSA reads, in strong form,
+\begin{align}
+\frac{\partial}{\partial x}\Big[2N\big(2u_x+v_y\big)\Big] + \frac{\partial}{\partial y}\Big[N\big(u_y+v_x\big)\Big] - \beta_b\, u &= -\tau_{d,x}, \\
+\frac{\partial}{\partial y}\Big[2N\big(2v_y+u_x\big)\Big] + \frac{\partial}{\partial x}\Big[N\big(v_x+u_y\big)\Big] - \beta_b\, v &= -\tau_{d,y}.
+\end{align}
+Expanded with the product rule and discretised with the b$\to$b operators of
+Table~\ref{tab:notation} -- exactly as
+\code{calc\_\allowbreak SSA\_\allowbreak DIVA\_\allowbreak stiffness\_\allowbreak matrix\_\allowbreak row\_\allowbreak free} does -- the residual on
+triangle $\ti$ is
+\begin{align}
+F_x(\ti) &= 4N\,u_{xx} + 4N_x\,u_x + N\,u_{yy} + N_y\,u_y - \beta_b\,u
+  + 3N\,v_{xy} + 2N_x\,v_y + N_y\,v_x + \tau_{d,x}, \label{eq:Fx}\\
+F_y(\ti) &= 4N\,v_{yy} + 4N_y\,v_y + N\,v_{xx} + N_x\,v_x - \beta_b\,v
+  + 3N\,u_{xy} + 2N_y\,u_x + N_x\,u_y + \tau_{d,y}, \label{eq:Fy}
+\end{align}
+where every term on the right is evaluated at $\ti$ (i.e.\ $N \equiv N(\ti)$,
+$u_{xx}\equiv(D_{xx}u)(\ti)$, and so on), and $F_y$ is obtained from $F_x$ by
+$x\leftrightarrow y$, $u\leftrightarrow v$.
+
+\section{Picard part (frozen coefficients)}
+\label{sec:picard}
+
+$\partial F_x(\ti)/\partial u(\tk)$ and $/\partial v(\tk)$, treating
+$N,N_x,N_y,\beta_b$ as constants, is exactly what
+\code{assemble\_\allowbreak SSA\_\allowbreak DIVA\_\allowbreak linearised\_\allowbreak matrix\_\allowbreak eq} /
+\code{calc\_\allowbreak SSA\_\allowbreak DIVA\_\allowbreak stiffness\_\allowbreak matrix\_\allowbreak row\_\allowbreak free} already assembles -- this
+is the Picard operator $A(u)$. This section is unchanged by the Jacobian work;
+it is included only to fix notation for Sections~\ref{sec:visc} and
+\ref{sec:sliding}, which add to it.
+
+\section{Viscosity-derivative term}
+\label{sec:visc}
+
+$N$ depends on $u,v$ through the effective strain rate, so
+\eqref{eq:Fx}--\eqref{eq:Fy} contribute an additional term to the Jacobian
+beyond the Picard part. Writing $w\in\{u,v\}$ for either unknown field,
+\begin{align}
+\pd{F_x(\ti)}{w(\tk)} \mathrel{+}= {}&
+  \big[4u_{xx}+u_{yy}+3v_{xy}\big]\,\pd{N(\ti)}{w(\tk)}
+  + \big[4u_x+2v_y\big]\,\pd{N_x(\ti)}{w(\tk)}
+  + \big[u_y+v_x\big]\,\pd{N_y(\ti)}{w(\tk)}, \label{eq:visc_Fx}\\[4pt]
+\pd{F_y(\ti)}{w(\tk)} \mathrel{+}= {}&
+  \big[4v_{yy}+v_{xx}+3u_{xy}\big]\,\pd{N(\ti)}{w(\tk)}
+  + \big[4v_y+2u_x\big]\,\pd{N_y(\ti)}{w(\tk)}
+  + \big[v_x+u_y\big]\,\pd{N_x(\ti)}{w(\tk)}, \label{eq:visc_Fy}
+\end{align}
+with the bracketed factors -- the current velocity's derivatives at $\ti$ --
+evaluated once per Jacobian assembly, and $\partial N/\partial w$ etc.\ common
+to both equations, derived below.
+
+\subsection{$\partial N/\partial w$ at a triangle}
+
+$N,N_x,N_y$ on the b-grid are the a$\to$b image of $N_a$, so
+\begin{align}
+\pd{N(\ti)}{w(\tk)} &= \sum_{\va} P_{a\to b}(\ti,\va)\,\pd{N_a(\va)}{w(\tk)}, \label{eq:dN}\\
+\pd{N_x(\ti)}{w(\tk)} &= \sum_{\va} P_{x,a\to b}(\ti,\va)\,\pd{N_a(\va)}{w(\tk)}, \\
+\pd{N_y(\ti)}{w(\tk)} &= \sum_{\va} P_{y,a\to b}(\ti,\va)\,\pd{N_a(\va)}{w(\tk)}.
+\end{align}
+
+\subsection{$\partial N_a/\partial w$ at a vertex}
+
+$N_a(\va) = \bar H(\va)\,\eta_a(\va)$ with $\bar H(\va) = \max\big(0.1,
+H_i(\va)\big)$ (thickness-independent of $u,v$), and $\eta_a = \eta(E)$ with
+$E$ the regularised effective strain-rate invariant,
+\begin{align}
+E(\va) &= u_x^2 + v_y^2 + u_x v_y + \tfrac14\big(u_y+v_x\big)^2 + \varepsilon_0, \\
+\eta &= \tfrac12 A^{-1/n} E^{m}, \qquad m = \frac{1-n}{2n}, \\
+\pd{\eta}{E} &= \frac{m\,\eta}{E},
+\end{align}
+with $n=$~\code{C\%Glens\_\allowbreak flow\_\allowbreak law\_\allowbreak exponent} and
+$\varepsilon_0=$~\code{C\%Glens\_\allowbreak flow\_\allowbreak law\_\allowbreak epsilon\_\allowbreak sq\_\allowbreak 0} (fixed -- no
+adaptive inflation, see \code{update\_\allowbreak SSA\_\allowbreak coefficients\_\allowbreak from\_\allowbreak velocity}), and
+strain rates evaluated at $\va$ on the a-grid. The strain-rate sensitivities
+of $E$ are
+\begin{equation}
+\pd{E}{u_x} = 2u_x+v_y, \qquad
+\pd{E}{v_y} = 2v_y+u_x, \qquad
+\pd{E}{u_y} = \pd{E}{v_x} = \tfrac12\big(u_y+v_x\big).
+\end{equation}
+The a-grid strain rates come from the b-grid velocity via
+$u_x(\va) = (D_{x,b\to a}u)(\va)$, $u_y(\va)=(D_{y,b\to a}u)(\va)$, and
+likewise for $v_x,v_y$, so
+\begin{align}
+\pd{N_a(\va)}{u(\tk)} &= \bar H(\va)\,\pd{\eta}{E}\bigg|_{\va}
+  \Big[(2u_x+v_y)\big|_{\va}\,P_{x,b\to a}(\va,\tk) + \tfrac12(u_y+v_x)\big|_{\va}\,P_{y,b\to a}(\va,\tk)\Big], \\
+\pd{N_a(\va)}{v(\tk)} &= \bar H(\va)\,\pd{\eta}{E}\bigg|_{\va}
+  \Big[(2v_y+u_x)\big|_{\va}\,P_{y,b\to a}(\va,\tk) + \tfrac12(u_y+v_x)\big|_{\va}\,P_{x,b\to a}(\va,\tk)\Big].
+\end{align}
+Define, once per Jacobian assembly, the per-vertex scalars (on the a-grid,
+gathered to all so that halo vertices in the $\sum_{\va} P_{a\to b}(\ti,\va)$
+sums are available on every rank):
+\begin{equation}
+c(\va) = \bar H(\va)\,\pd{\eta}{E}\bigg|_{\va}
+\quad\text{(0 where the $\eta$ clamp is active -- Section~\ref{sec:clamp})},
+\end{equation}
+\begin{equation}
+g_{xx}(\va) = c(\va)\,(2u_x+v_y)\big|_{\va}, \qquad
+g_{sh}(\va) = c(\va)\,\tfrac12(u_y+v_x)\big|_{\va}, \qquad
+g_{yy}(\va) = c(\va)\,(2v_y+u_x)\big|_{\va},
+\end{equation}
+so that
+\begin{align}
+\pd{N_a(\va)}{u(\tk)} &= g_{xx}(\va)\,P_{x,b\to a}(\va,\tk) + g_{sh}(\va)\,P_{y,b\to a}(\va,\tk), \label{eq:dNa}\\
+\pd{N_a(\va)}{v(\tk)} &= g_{yy}(\va)\,P_{y,b\to a}(\va,\tk) + g_{sh}(\va)\,P_{x,b\to a}(\va,\tk).
+\end{align}
+
+\subsection{Clamp consistency}
+\label{sec:clamp}
+
+\code{calc\_\allowbreak effective\_\allowbreak viscosity} clamps $\eta_a \leftarrow \min\big(\max(\eta_a,
+\eta_{\min}), \eta_{\max}\big)$ with $\eta_{\min}=$~\code{C\%visc\_\allowbreak eff\_\allowbreak min}
+and $\eta_{\max}$ recomputed as in that routine (with the fixed
+$\varepsilon_0$). Where a bound is active, $\partial\eta/\partial E = 0$ by
+construction of the clamp, so $c(\va)$ is set to $0$ when
+$\eta_a(\va)\le\eta_{\min}$ or $\eta_a(\va)\ge\eta_{\max}$, keeping the
+Jacobian consistent with the clamped $N$ used in the residual.
+
+\section{Sliding-law term}
+\label{sec:sliding}
+
+The residual carries $-\beta_b(\ti)\,w(\ti)$ on the diagonal ($w=u$ for
+\eqref{eq:Fx}, $w=v$ for \eqref{eq:Fy}), with $\beta_b$ frozen in the Picard
+part. Since $\beta_b$ also depends on $u,v$, there is a second coefficient
+derivative to add:
+\begin{equation}
+\pd{F_x(\ti)}{w(\tk)} \mathrel{+}= -u(\ti)\,\pd{\beta_b(\ti)}{w(\tk)}, \qquad
+\pd{F_y(\ti)}{w(\tk)} \mathrel{+}= -v(\ti)\,\pd{\beta_b(\ti)}{w(\tk)}.
+\label{eq:sliding_add}
+\end{equation}
+
+\subsection{Chain}
+
+\code{calc\_\allowbreak applied\_\allowbreak basal\_\allowbreak friction\_\allowbreak coefficient} maps $u,v \to u_a,v_a$
+($P_{b\to a}$), evaluates the sliding law on the a-grid to get $\beta_a$, maps
+$\beta_a\to\beta_b$ ($P_{a\to b}$), then scales by the sub-grid grounded
+fraction $\mathrm{fr}(\ti) = f_{\mathrm{gr},b}(\ti)^{\,p}$ (when
+\code{C\%do\_\allowbreak GL\_\allowbreak subgrid\_\allowbreak friction}, with $p=$~\code{C\%subgrid\_\allowbreak friction\_\allowbreak }
+\code{exponent\_\allowbreak on\_\allowbreak B\_\allowbreak grid}). Hence
+\begin{equation}
+\pd{\beta_b(\ti)}{w(\tk)} = \mathrm{fr}(\ti)\sum_{\va} P_{a\to b}(\ti,\va)\,\pd{\beta_a(\va)}{w(\tk)}.
+\label{eq:dbeta_b}
+\end{equation}
+
+\subsection{Zoet--Iverson sliding law}
+
+Only this law's derivative is implemented
+(\code{calc\_\allowbreak sliding\_\allowbreak law\_\allowbreak ZoetIverson}); other laws make
+\code{assemble\_\allowbreak SSA\_\allowbreak coeff\_\allowbreak jacobian\_\allowbreak CSR} \code{crash}. With
+$q = 1/q_{\mathrm{ZI}}$, $u_t = u_{t,\mathrm{ZI}}$, $\delta_v$ the velocity
+regularisation, and $\tau_c(\va) = $~\code{till\_\allowbreak yield\_\allowbreak stress}$(\va)$
+(independent of $u,v$; $q_{\mathrm{ZI}}=$~\code{C\%slid\_\allowbreak ZI\_\allowbreak p},
+$u_{t,\mathrm{ZI}}=$~\code{C\%slid\_\allowbreak ZI\_\allowbreak ut},
+$\delta_v=$~\code{C\%slid\_\allowbreak delta\_\allowbreak v}),
+\begin{align}
+|u|(\va) &= \sqrt{\delta_v^2 + u_a(\va)^2 + v_a(\va)^2}, \\
+\beta_a(\va) &= \tau_c(\va)\,|u|^{\,q-1}\,(|u|+u_t)^{-q}, \\
+\pd{\beta_a}{|u|}\bigg|_{\va} &= \tau_c(\va)\,|u|^{\,q-2}\,(|u|+u_t)^{-q-1}\,
+  \Big[(q-1)\,u_t - |u|\Big]. \label{eq:dbeta_dabs}
+\end{align}
+Since $u_a(\va) = (P_{b\to a}u)(\va)$,
+\begin{align}
+\pd{\beta_a(\va)}{u(\tk)} &= \pd{\beta_a}{|u|}\bigg|_{\va}\,\frac{u_a(\va)}{|u|(\va)}\,P_{b\to a}(\va,\tk), \label{eq:dbeta_a}\\
+\pd{\beta_a(\va)}{v(\tk)} &= \pd{\beta_a}{|u|}\bigg|_{\va}\,\frac{v_a(\va)}{|u|(\va)}\,P_{b\to a}(\va,\tk).
+\end{align}
+Define, once per assembly on owned vertices then gathered,
+\begin{equation}
+s_u(\va) = \pd{\beta_a}{|u|}\bigg|_{\va}\frac{u_a(\va)}{|u|(\va)}, \qquad
+s_v(\va) = \pd{\beta_a}{|u|}\bigg|_{\va}\frac{v_a(\va)}{|u|(\va)},
+\end{equation}
+so that \eqref{eq:dbeta_a} reads $\partial\beta_a(\va)/\partial u(\tk) =
+s_u(\va)\,P_{b\to a}(\va,\tk)$, $\partial\beta_a(\va)/\partial v(\tk) =
+s_v(\va)\,P_{b\to a}(\va,\tk)$.
+
+\subsection{Why the sliding term matters}
+
+Near $u=0$, $\partial\beta_a/\partial|u|$ in \eqref{eq:dbeta_dabs} is large and
+velocity-weakening (its sign is fixed by $(q-1)u_t - |u| < 0$ for the
+parameters used): omitting \eqref{eq:sliding_add} leaves Newton directions
+badly wrong once the velocity develops away from zero, even though the
+viscosity term alone is correct. With it, Newton is quadratic
+(Section~\ref{sec:validation}). It is also why the solve is warm-started from
+a few relaxed Picard iterations rather than from $u=0$: at exactly $u=0$ this
+term is finite (as $u_a/|u|\to0$) but the sliding law is nearly
+non-differentiable in its immediate neighbourhood, and Newton cannot get
+started there.
+
+\section{Validation}
+\label{sec:validation}
+
+Check $Jv$ against a central finite difference of the residual for a probe
+direction $v$,
+\begin{equation}
+r = \frac{F(u+hv) - F(u-hv)}{2h},
+\end{equation}
+in the non-dimensional variables the SNES sees ($\hat u = u/u_0$, $\hat F =
+F/F_0$ with $u_0=$~\code{velocity\_\allowbreak scale}, $F_0=$~\code{stress\_\allowbreak scale}), at a
+\textbf{non-zero} base velocity. At $u=0$ both the viscosity
+(Section~\ref{sec:visc}) and sliding (Section~\ref{sec:sliding}) derivatives
+vanish identically while the finite difference still sees their onset over the
+probe step, so the check is meaningless exactly at $u=0$. Away from it, with
+$h=10^{-5}$,
+\begin{equation}
+\frac{\lVert Jv - r\rVert}{\lVert r\rVert} \approx 8\times10^{-6}.
+\end{equation}
+
+\section{Assembly notes (as implemented)}
+\label{sec:assembly}
+
+\begin{itemize}[leftmargin=1.4em]
+\item \textbf{Stencil.} Row $\ti$ couples to $\tk$ via two hops ($\ti\to\va$
+  through $P_{\cdot,a\to b}$, $\va\to\tk$ through $P_{\cdot,b\to a}$), a
+  $\sim$2-ring of triangles -- wider than the Picard operator. \code{nnz\_\allowbreak est}
+  is sized at \code{nTri\_\allowbreak loc * 2 * 250}.
+\item \textbf{No duplicate CSR entries.} The coefficient-derivative CSR
+  (\code{Jc\_\allowbreak CSR}, holding \eqref{eq:visc_Fx}--\eqref{eq:visc_Fy} together
+  with \eqref{eq:sliding_add}) is built with a dense per-row accumulator
+  (\code{rowbuf} + \code{hit} + \code{touch} list), emitting one
+  \code{add\_\allowbreak entry} per touched column in ascending order (the
+  \code{add\_\allowbreak entry} contract requires all of row $i$ before row $i+1$). It is
+  converted to PETSc separately from the Picard operator and the two are
+  combined with \code{MatAXPY}, so no CSR ever receives two entries for the
+  same $(\text{row},\text{col})$.
+\item \textbf{Distribution.} $P_{x,b\to a}$, $P_{y,b\to a}$, $P_{b\to a}$
+  (\code{M\_\allowbreak ddx\_\allowbreak b\_\allowbreak a}, \code{M\_\allowbreak ddy\_\allowbreak b\_\allowbreak a}, \code{M\_\allowbreak map\_\allowbreak b\_\allowbreak a}) are gathered
+  to full local copies once per solve (\code{gather\_\allowbreak CSR\_\allowbreak to\_\allowbreak all} =
+  \code{gather\_\allowbreak to\_\allowbreak primary} + \code{MPI\_\allowbreak BCAST}), so
+  \code{\%read\_\allowbreak single\_\allowbreak row} works for the halo vertices $\va$ that appear in
+  the $\sum_{\va} P_{a\to b}(\ti,\va)$ sums but may not be owned by this rank.
+  $u,v$ and the per-vertex $g_{xx},g_{sh},g_{yy},s_u,s_v$ factors are gathered
+  as plain fields (mesh sizes here are small, so full copies per rank are
+  cheap).
+\item \textbf{Boundary / Dirichlet rows.} Rows where the Picard assembly
+  writes a domain-border stencil or a Dirichlet identity get no
+  coefficient-derivative term -- they are not the momentum residual.
+\end{itemize}
+
+\end{document}

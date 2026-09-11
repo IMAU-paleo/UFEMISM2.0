@@ -26,14 +26,108 @@ and no `visc_it_relax` / `Glens_flow_law_epsilon_sq_0` babysitting.
 | --- | --- | --- |
 | Prereq 1 — extract assembly | done | `assemble_SSA_DIVA_linearised_matrix_eq` on `atype_momentum_balance_solver_SSADIVA` (commit "Extract SSA/DIVA matrix assembly") |
 | Prereq 2 — expose SSA helpers | done | `calc_effective_viscosity`, `calc_applied_basal_friction_coefficient`, `calc_vertically_averaged_flow_parameter`, `initialise_SSA_velocities_from_file` are now `public` |
-| Step 0 — config plumbing | not started | only the `choice_stress_balance_approximation` doc comment has been updated so far |
+| Step 0 — config plumbing | done | `SSA_FD_SNES_snes_rtol` (1E-6), `_snes_abstol` (1E-4), `_snes_maxits` (50), `_use_EW` (`.true.`) added to `model_configuration_type_and_namelist.f90` (declaration + type + namelist group + assignment). Inner KSP/PC reuse `stress_balance_PETSc_*`. Not yet consumed (Step 5). |
 | Step 1 — new module + registration | done | `momentum_balance_solver_SSA_FD_SNES.f90` (type `extends type_momentum_balance_solver_SSA`); `run` is a `crash` stub; registered in `create_momentum_balance_solver`; 46 output-file `select case` lists gained `'SSA_FD_SNES'` in the b-grid group. `allocate`/`deallocate`/`initialise`/`remap` are inherited unchanged (no PETSc state yet — deferred to Step 6). |
 | Step 2 — `update_SSA_coefficients_from_velocity` | done | private method on the new type: `calc_horizontal_strain_rates` + `calc_effective_viscosity` (fixed `eps0`) + `calc_applied_basal_friction_coefficient`; no `apply_velocity_limits` / `relax_viscosity_iterations`. Not called yet (the `run` stub still crashes). |
-| Step 3 — residual callback | not started | |
-| Step 4 — Jacobian callback | not started | |
-| Step 5 — SNES driver (`run`) | not started | |
-| Step 6 — persistent state & lifecycle | not started | |
-| Step 7 — PETSc `bind(C)` interfaces | not started | |
+| Step 3 — residual callback | done (compiles; runtime-untested) | `SSA_FD_SNES_form_function`, `bind(C)`: unpack `x` → `u_vav_b`/`v_vav_b`, `update_SSA_coefficients_from_velocity`, `assemble_SSA_DIVA_linearised_matrix_eq`, `f = A·x − b` via `multiply_PETSc_matrix_with_vector_1D` + `VecCopy`. |
+| Step 4 — Jacobian callback | done (compiles; runtime-untested) | `SSA_FD_SNES_form_jacobian`, `bind(C)`: same assembly, then `mat_CSR2petsc` → `MatCopy(…, DIFFERENT_NONZERO_PATTERN)` into the registered `A_petsc`. `pmat` == `amat`. The "assemble once per SNES step + cache" optimisation is **not** done. |
+| Step 5 — SNES driver | done (compiles; runtime-untested) | `run` is now thin (early-out + BC prep into `self` components) and calls `solve_SSA_FD_SNES` (separate routine so its dummies can be `target`). Prime assembly → `A_petsc`/`sol`, `SNESCreate`, register callbacks, `SNESNEWTONLS`, KSP/PC from `stress_balance_PETSc_*`, EW, `SNESSolve`, disentangle, `apply_velocity_limits`, destroy. `crash` on `SNESConvergedReason < 0`. |
+| Step 6 — persistent state & lifecycle | simplified — not needed | PETSc objects (`snes`, `A_petsc`, `sol`, `res_vec`) are created and destroyed **within each solve**, so `allocate`/`deallocate`/`initialise`/`remap` are **not** overridden. Only new non-PETSc state: the `p_ice`/`p_geom`/`p_bed_roughness` context pointers and `BC_prescr_*_applied` arrays. Making the objects persistent (rebuilt on remap) is a later optimisation. |
+| Step 7 — PETSc `bind(C)` interfaces | done | `bind(C)` interfaces for `SNESSetFunction`, `SNESSetJacobian`, `SNESKSPSetUseEW`, `SNESGetConvergedReason` (link-resolved against libpetsc). Callbacks are `bind(C)` functions taking raw `c_intptr_t` handles, wrapped into `tVec`/`tMat` via `%v`. `self` reaches the callbacks through the module pointer `SSA_FD_SNES_active_solver` (a polymorphic `self` can't go through `c_loc`), set around `SNESSolve`. |
+
+## Run findings (MISMIP_mod, `integrated_test_SSA_notime_MISMIP_mod_full`, 2 ranks)
+
+1. **Interop is correct.** `||F(u0)||` computed directly from Fortran arrays and
+   via PETSc calling the `bind(C)` residual callback match to all digits
+   (1.96025E+06). Raw-handle marshalling, `c_funloc` callbacks and the
+   vector/matrix partitioning all work.
+2. **Tier 1 (Picard operator as the Jacobian) does not converge.** It is
+   mathematically undamped Picard: with `NEWTONLS` + `bt` it fails the line
+   search after ~30 iterations; with `basic` line search + damping 0.2 (i.e.
+   relaxed Picard) the residual falls ~5 orders over ~370 iterations and then
+   **limit-cycles**. This is the same behaviour the hand-rolled viscosity
+   iteration shows without its adaptive relaxation / `eps0` inflation.
+3. **Non-dimensionalisation is required** and is now implemented (the SNES
+   unknown is `u_hat = u / velocity_scale`, the residual is `f_hat = (A u - b) /
+   stress_scale`, `velocity_scale = 1e3`, `stress_scale = 1e5`, same as the FEM
+   solver). This brings `||F_hat(u0)||` to ~19.6 and makes the residual decrease
+   monotonically.
+4. **Tier 2 (JFNK) converges only at Picard rate and then stalls.** The
+   assembled Picard operator is an excellent *preconditioner* (the Krylov solve
+   needs ~1 iteration when the KSP tolerance is loose), so each SNES step is
+   essentially a Picard step: `||F_hat||` falls 19.6 -> ~1 over ~15 iterations,
+   then the line search fails (~1.3 orders of reduction). Trying to resolve the
+   matrix-free true Jacobian accurately instead (Eisenstat-Walker off, tight
+   `ksp_rtol`, GMRES restart 200, exact block-LU preconditioner) **fails**: GMRES
+   cannot drive the linear residual below ~1e-4 in 200+ iterations. The
+   matrix-free `J*v` is too noisy - the residual re-assembles the viscosity /
+   friction coefficients and applies mesh operators each evaluation, and the
+   `eta` and `max(0.1,H)` clamps make it non-smooth, so finite-difference
+   Jacobian-vector products have only a few correct digits.
+
+**Conclusion.** JFNK is not viable here because the FD residual is not smooth /
+clean enough for matrix-free differencing. Real Newton convergence needs an
+**analytic Jacobian** (Tier 3) - at minimum the viscosity shear-thinning term
+`d(N)/d(u)` - which is exactly what the FEM solver assembles and why it
+converges. **Tier 3 is the chosen direction.**
+
+## Tier 3 status — WORKING
+
+Implemented and validated on MISMIP_mod (`integrated_test_SSA_notime_MISMIP_mod_full`,
+solver `SSA_FD_SNES`, 2 ranks).
+
+- **Analytic Jacobian** `dF_hat/du_hat` = the frozen-coefficient ("Picard")
+  operator `A(u)` **plus** the coefficient-derivative term `d/du[A(u)] u`:
+  - the Glen shear-thinning term `dN/du` (chain `u_b -> strain rates on a -> eta
+    on a -> N on a and b`);
+  - the sliding-law term `d beta_b/du` (Zoet-Iverson only; the assembly `crash`es
+    for other laws).
+  Assembled in `assemble_SSA_coeff_jacobian_CSR`, added to the Picard operator
+  with `MatAXPY` in `build_SSA_FD_SNES_jacobian_petsc`, then scaled by
+  `velocity_scale/stress_scale`. Full derivation + assembly notes in
+  `SSA_FD_SNES_jacobian_derivation.tex` (a standalone LaTeX document; build with
+  `pdflatex SSA_FD_SNES_jacobian_derivation.tex`, run twice for the
+  cross-references and table of contents).
+- **Jacobian verified**: central finite-difference check `J v` vs
+  `(F(u+hv)-F(u-hv))/2h` at a non-zero base velocity gives rel. error ~8e-6.
+- **Convergence**: Newton is quadratic - e.g. `||F_hat||` 12.5 -> 8.6 -> 4.8 ->
+  2.0 -> 0.57 -> 0.095 -> 0.005, then it bottoms out at the ~1e-3 noise floor of
+  the non-smooth `eta`/friction/`max(0.1,H)` clamps, where the line search
+  reports failure (reason -6). The solve converges (`SNESConvergedReason = 3`) in
+  ~7-14 Newton iterations; where it stops on -6 instead, the solution is accepted
+  if `||F_hat|| < SSA_FD_SNES_resid_floor` (1e-1).
+- **Solution check**: agrees with the FD Picard solver run to convergence
+  (`visc_it_nit = 2000`; it does *not* converge in the default 50) to ~4-5% RMS
+  on the velocity, with larger localised differences near the grounding line -
+  consistent with both hitting the clamp noise floor. The `SSA_FEM_PETSc` solver
+  is not a usable reference on this config (natural BCs only -> a different
+  problem, ~120% different).
+
+### Supporting machinery added
+
+- **Direct LU inner solve** (`KSPPREONLY` + `PCLU`): the analytic Jacobian is too
+  stiff for the FD solver's gmres+bjacobi, which returns poor Newton directions.
+  Matches the FEM solver's default.
+- **Picard warm start**: 5 heavily-relaxed Picard iterations before the SNES
+  solve, to move off `u = 0` where the velocity-weakening sliding law is nearly
+  non-differentiable and Newton cannot start.
+- **`gather_CSR_to_all`**: `M_ddx_b_a` / `M_ddy_b_a` / `M_map_b_a` are broadcast
+  to full local copies once per solve so the 2-hop Jacobian stencil can read
+  operator rows for vertices this rank does not own.
+- **Config** `SSA_FD_SNES_snes_rtol` / `_abstol` defaults changed to `1e-3`
+  (the reachable range given the noise floor); `_use_EW` is now unused (direct
+  solve).
+
+### Follow-ups (not blocking)
+
+- Other sliding laws (`Weertman`, `Coulomb`, `Budd`, ...) need their own
+  `d beta_a/d|u|` in `assemble_SSA_coeff_jacobian_CSR`.
+- Investigate the ~5% grounding-line discrepancy vs converged Picard (likely the
+  clamp noise floor, but worth confirming with a smoother test case).
+- Persistent PETSc objects / operator gathers across solves (rebuilt every solve
+  now); a config knob for the warm-start iteration count and the LU vs iterative
+  choice.
+- DIVA (deferred - see the scope note).
 
 **Scope note.** SSA only for now. The residual / Jacobian / driver could be
 hoisted to `atype_momentum_balance_solver_SSADIVA` and parameterised by two
@@ -124,22 +218,25 @@ residual for those rows automatically — `F_i = (A u - b)_i` already encodes
 
 ## Implementation steps
 
-### Step 0 — Config plumbing
+### Step 0 — Config plumbing — DONE
 
 In
 [`model_configuration_type_and_namelist.f90`](src/UPSY/basic/model_configuration/model_configuration_type_and_namelist.f90),
-following the `SSA_FEM_PETSc_*` block (around line 316):
+directly after the `SSA_FEM_PETSc_*` block:
 
-- Extend the `choice_stress_balance_approximation` comment to list
-  `'SSA_FD_SNES'`.
-- Add `_config` fields + type fields + namelist entries + assignment:
+- `choice_stress_balance_approximation` doc comment lists `'SSA_FD_SNES'` (done
+  in Step 1).
+- New `_config` fields + type fields + namelist entries + assignment for:
   - `SSA_FD_SNES_snes_rtol`   (default `1E-6_dp`) — relative residual reduction
-  - `SSA_FD_SNES_snes_abstol` (default `1E-4_dp`)
+  - `SSA_FD_SNES_snes_abstol` (default `1E-4_dp`) — on the raw (dimensional)
+    residual norm, so rtol drives convergence in practice
   - `SSA_FD_SNES_snes_maxits` (default `50`)
   - `SSA_FD_SNES_use_EW`      (logical, default `.true.`) — Eisenstat–Walker
     inexact-Newton on the inner KSP
 - The inner KSP/PC reuse `stress_balance_PETSc_KSPtype` / `_PCtype` /
-  `_rtol` / `_abstol` — no new fields needed there.
+  `_rtol` / `_abstol` — no new fields there.
+- Existing `.cfg` files need no change: unspecified namelist variables take the
+  `_config` defaults.
 
 ### Step 1 — New module + registration — DONE
 
@@ -370,7 +467,7 @@ existing `snes_set_jacobian` one, and make the callbacks `bind(C)` with
 
 | File | Change |
 | --- | --- |
-| `src/UPSY/basic/model_configuration/model_configuration_type_and_namelist.f90` | new `SSA_FD_SNES_*` config fields + namelist + assignment; extend `choice_stress_balance_approximation` doc |
+| `src/UPSY/basic/model_configuration/model_configuration_type_and_namelist.f90` | new `SSA_FD_SNES_*` config fields + namelist + assignment; extend `choice_stress_balance_approximation` doc — **done** |
 | `src/UFEMISM/ice_dynamics/momentum_balance/SSA_DIVA/momentum_balance_solver_SSADIVA.f90` | new public `assemble_SSA_DIVA_linearised_matrix_eq` (extracted) — **done** |
 | `src/UFEMISM/ice_dynamics/momentum_balance/SSA_DIVA/solve_linearised_SSA_DIVA_infinite_slab.f90` | split assembly out of `solve_SSA_DIVA_linearised` |
 | `src/UFEMISM/ice_dynamics/momentum_balance/SSA_DIVA/momentum_balance_solver_SSA.f90` | make three coefficient helpers `public` |

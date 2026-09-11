@@ -322,6 +322,17 @@ module model_configuration_type_and_namelist
     real(dp)            :: SSA_FEM_PETSc_snes_abstol_config       = 1E-10_dp                         ! SNES solver - stop criterion, absolute (dimensionless) residual norm
     integer             :: SSA_FEM_PETSc_snes_maxits_config       = 50                                ! Maximum number of Newton iterations per solve
 
+    ! SSA_FD_SNES solver (PetscSNES + the in-house finite-difference SSA discretisation).
+    ! "Tier 1" defect-correction Newton: PetscSNES wraps a KSP around the same linear
+    ! system the SSA solver assembles per viscosity iteration (see
+    ! SSA_FD_SNES_implementation_plan.md). The inner KSP/PC reuse the
+    ! stress_balance_PETSc_* settings above; the tolerances below apply to the raw
+    ! (dimensional) residual norm, so convergence is driven mainly by the relative rtol.
+    real(dp)            :: SSA_FD_SNES_snes_rtol_config           = 1E-3_dp                          ! SNES solver - stop criterion, relative reduction of the (non-dimensional) residual norm
+    real(dp)            :: SSA_FD_SNES_snes_abstol_config         = 1E-3_dp                          ! SNES solver - stop criterion, absolute (non-dimensional) residual norm
+    integer             :: SSA_FD_SNES_snes_maxits_config         = 50                                ! Maximum number of Newton iterations per solve
+    logical             :: SSA_FD_SNES_use_EW_config              = .true.                           ! Use Eisenstat-Walker inexact-Newton tolerancing on the inner KSP
+
     ! Boundary conditions
     character(len=1024) :: BC_ice_front_config                          = 'infinite_slab'                  ! Boundary conditions to the momentum balance at the ice front: "infinite_slab", "ocean_pressure"
     character(len=1024) :: BC_u_west_config                             = 'infinite'                       ! Boundary conditions to the x-component of the momentum balance at the domain border: "infinite", "zero", "periodic_ISMIP-HOM"
@@ -1587,6 +1598,10 @@ module model_configuration_type_and_namelist
     real(dp)            :: SSA_FEM_PETSc_snes_rtol
     real(dp)            :: SSA_FEM_PETSc_snes_abstol
     integer             :: SSA_FEM_PETSc_snes_maxits
+    real(dp)            :: SSA_FD_SNES_snes_rtol
+    real(dp)            :: SSA_FD_SNES_snes_abstol
+    integer             :: SSA_FD_SNES_snes_maxits
+    logical             :: SSA_FD_SNES_use_EW
 
     ! Boundary conditions
     character(len=1024) :: BC_ice_front
@@ -2783,6 +2798,10 @@ contains
       SSA_FEM_PETSc_snes_rtol_config                              , &
       SSA_FEM_PETSc_snes_abstol_config                            , &
       SSA_FEM_PETSc_snes_maxits_config                            , &
+      SSA_FD_SNES_snes_rtol_config                                , &
+      SSA_FD_SNES_snes_abstol_config                              , &
+      SSA_FD_SNES_snes_maxits_config                              , &
+      SSA_FD_SNES_use_EW_config                                   , &
       BC_ice_front_config                                         , &
       BC_u_west_config                                            , &
       BC_u_east_config                                            , &
@@ -3754,6 +3773,10 @@ contains
     C%SSA_FEM_PETSc_snes_rtol                                = SSA_FEM_PETSc_snes_rtol_config
     C%SSA_FEM_PETSc_snes_abstol                              = SSA_FEM_PETSc_snes_abstol_config
     C%SSA_FEM_PETSc_snes_maxits                               = SSA_FEM_PETSc_snes_maxits_config
+    C%SSA_FD_SNES_snes_rtol                                  = SSA_FD_SNES_snes_rtol_config
+    C%SSA_FD_SNES_snes_abstol                                = SSA_FD_SNES_snes_abstol_config
+    C%SSA_FD_SNES_snes_maxits                                = SSA_FD_SNES_snes_maxits_config
+    C%SSA_FD_SNES_use_EW                                     = SSA_FD_SNES_use_EW_config
 
     ! Boundary conditions
     C%BC_ice_front                                           = BC_ice_front_config
