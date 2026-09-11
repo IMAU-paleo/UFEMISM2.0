@@ -28,7 +28,7 @@ module petsc_basic
   public :: vec_double2petsc, vec_petsc2double
   public :: mat_petsc2CSR, mat_CSR2petsc
   public :: multiply_PETSc_matrix_with_vector_1D, multiply_PETSc_matrix_with_vector_2D
-  public :: solve_matrix_equation_CSR_PETSc
+  public :: solve_matrix_equation_CSR_PETSc, solve_matrix_equation_PETSc
 
   ! Interfaces for procedures defined in submodules
   interface
@@ -75,6 +75,17 @@ module petsc_basic
       character(len=*), optional,          intent(in   ) :: PETSc_KSPtype
       character(len=*), optional,          intent(in   ) :: PETSc_PCtype
     end subroutine solve_matrix_equation_CSR_PETSc
+
+    module subroutine solve_matrix_equation_PETSc( A, bb, xx, rtol, abstol, &
+      n_Axb_its,  PETSc_KSPtype, PETSc_PCtype)
+      type(tMat),                          intent(in   ) :: A
+      real(dp), dimension(:),              intent(in   ) :: bb
+      real(dp), dimension(:),              intent(inout) :: xx
+      real(dp),                            intent(in   ) :: rtol, abstol
+      integer,                             intent(out)   :: n_Axb_its
+      character(len=*), optional,          intent(in   ) :: PETSc_KSPtype
+      character(len=*), optional,          intent(in   ) :: PETSc_PCtype
+    end subroutine solve_matrix_equation_PETSc
 
   end interface
 

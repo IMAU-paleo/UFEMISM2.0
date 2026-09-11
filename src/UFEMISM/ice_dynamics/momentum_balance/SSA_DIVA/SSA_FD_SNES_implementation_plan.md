@@ -137,6 +137,435 @@ system, the unknown vector and the boundary conditions are already shared. This
 is deliberately deferred to a later iteration; until then the SNES machinery
 lives on the concrete `type_momentum_balance_solver_SSA_FD_SNES`.
 
+## PETSc block-matrix assembly (Picard operator) — DONE, SNES-only
+
+Every free-row combination in `calc_SSA_DIVA_stiffness_matrix_row_free` is the
+same linear combination, for every triangle, of the same five shared b->b FD
+operators (`M2_ddx_b_b`, `M2_ddy_b_b`, `M2_d2dx2_b_b`, `M2_d2dxdy_b_b`,
+`M2_d2dy2_b_b`), with only the per-triangle scalar coefficients (`N`, `dN/dx`,
+`dN/dy`, `beta_b`) varying. That means the stiffness matrix's four 2x2 blocks
+(x-stress/y-stress rows vs x-velocity/y-velocity columns) can each be built
+directly as `sum_k coefficient_k * diag(field_k) * shared_operator_k` via
+PETSc's `MatDiagonalScale` + `MatAXPY`, instead of re-deriving that sum by hand
+for every row.
+
+**New file**: `solve_linearised_SSA_DIVA_petsc_block.f90`, a new submodule of
+`momentum_balance_solver_SSADIVA` (same module the existing row-by-row assembly
+lives in), adding `assemble_SSA_DIVA_linearised_matrix_eq_petsc_block` as a new
+type-bound procedure alongside (not replacing) `assemble_SSA_DIVA_linearised_matrix_eq`.
+Same signature, same output layout (`A_CSR`, `bb`, `uv_buv` in the `tiuv2n`
+row/column ordering) - a drop-in replacement. Internals:
+
+1. `build_SSA_DIVA_stiffness_blocks_petsc` converts the five shared operators to
+   PETSc `Mat`s (`mat_CSR2petsc`, fresh every call - no caching, matching the
+   rest of this solver) and combines them per block via `MatDuplicate` +
+   `MatDiagonalScale` + `MatScale` + `MatAXPY`, using `self%N_b` / `dN_dx_b` /
+   `dN_dy_b` and `u_ii_term` (beta_b or beta_eff) as the diagonal fields
+   (`vec_double2petsc`). The `-beta_b` diagonal term is added via
+   `MatDiagonalSet(..., ADD_VALUES)`. Supports both
+   `C%do_include_SSADIVA_crossterms` branches (full and "sans"). Returns the
+   four resulting `nTri x nTri` blocks as native PETSc `Mat`s (caller destroys
+   them) - shared by the CSR assembler below and the fully-native pipeline
+   further down this file.
+2. `assemble_SSA_DIVA_linearised_matrix_eq_petsc_block` does the same row loop
+   as the existing routine (BC/Dirichlet rows still go through
+   `calc_SSA_DIVA_stiffness_matrix_row_BC`, unchanged), but for free rows reads
+   the pre-assembled blocks directly via PETSc's `MatGetRow` - no CSR involved
+   for the blocks themselves, since the FD operators were already converted to
+   PETSc `Mat`s to build them (`mat_petsc2CSR` was used here in an earlier pass
+   of this work and has since been removed) - merging the u-/v-column entries
+   into one column-sorted row (`merge_uv_row`; both blocks' rows are already
+   triangle-sorted per `MatGetRow`'s contract, so a straight merge suffices)
+   instead of recomputing the combination. This routine's own *output*
+   (`A_CSR`) is still `type_CSR_matrix_dp` - that is its contract, for
+   compatibility with `assemble_SSA_DIVA_linearised_matrix_eq`'s callers.
+
+**Validated** (against the untouched `assemble_SSA_DIVA_linearised_matrix_eq`):
+entry-by-entry diff of `A_CSR`/`bb` at a fixed post-warm-start state, max abs
+difference `2.27e-13` (floating-point roundoff from the different summation
+order, as expected).
+
+**Status**: `assemble_SSA_DIVA_linearised_matrix_eq_petsc_block` remains as a
+CSR/`tiuv2n`-layout drop-in replacement for `assemble_SSA_DIVA_linearised_matrix_eq`
+(same signature) - not currently called by anything (the SNES solver moved on
+to the fully-native pipeline below, which uses `build_SSA_DIVA_stiffness_blocks_petsc`
+directly), but left in place because it is still the natural one-line swap for
+`solve_SSA_DIVA_linearised` (used by the plain `SSA`/`DIVA` Picard solvers) if
+that swap is done later, as originally planned - that has *not* been done; the
+old `SSA`/`DIVA`/`SSA_FEM_PETSc` solvers remain completely unmodified.
+
+## Fully native PETSc pipeline (Picard + Jacobian + SNES vectors) — DONE, SNES-only
+
+Building on the block assembly above, the SNES solver no longer uses the
+in-house `tiuv2n`/`n2tiuv` interleaved-CSR numbering *at all*, for anything:
+not the Picard operator, not the Jacobian's coefficient-derivative term, not
+the SNES's own residual/Jacobian/solution vectors, not even its warm-start
+Picard iterations. Every PETSc object this solver builds now uses a "native"
+numbering: for triangle `ti`, its u- and v-component rows/columns sit in this
+rank's own contiguous u-block then v-block (ranks concatenated in rank order) -
+i.e. exactly what `vec_double2petsc`/`mat_CSR2petsc` already produce from a
+local array/matrix sized `2*nTri_loc` with u then v, just not literally
+per-triangle-interleaved. (A pure "all ranks' u-rows, then all ranks' v-rows"
+global layout was considered and rejected: PETSc's per-rank row ownership must
+be contiguous, and only a `MatCreateNest`-style structure - with its own
+`PCLU`/preconditioner compatibility questions - can represent that; the
+per-rank-grouped layout needs none of that and is a plain `MatCreateAIJ`.)
+
+**`compute_native_row_mapping( nTri, nTri_loc, final_row_u_tot, final_row_v_tot)`**
+(`momentum_balance_solver_SSA_FD_SNES.f90`): for every triangle `1..nTri`,
+computes its native 0-based row/column index. Needs only one
+`MPI_ALLGATHER` of a single integer (`nTri_loc`) per rank - the mapping is a
+pure function of the per-rank triangle counts, no per-triangle communication.
+Every rank computes the full `nTri`-sized result; rebuilt once per solve
+alongside the existing `M_ddx_b_a_tot` etc. gathers, stored on `self`.
+
+**`assemble_SSA_FD_SNES_stiffness_matrix_petsc_native`**: does *not* go through
+`assemble_SSA_DIVA_linearised_matrix_eq_petsc_block`'s CSR output at all - that
+would just be the same "PETSc Mat -> CSR -> PETSc Mat" round-trip one level up.
+Instead it calls `build_SSA_DIVA_stiffness_blocks_petsc` directly for the four
+native blocks and reads free rows straight out of them via `MatGetRow`,
+re-targeting into the native numbering via `MatSetValues` (two calls per row,
+one for the u-block columns and one for the v-block columns - `MatSetValues`,
+unlike `mat_CSR2petsc`'s `MatCreateMPIAIJWithArrays`, does not require sorted
+columns, so unlike the CSR assembler above there is no merge step at all).
+Boundary/Dirichlet rows are assembled once into a small scratch CSR matrix
+(`assemble_SSA_FD_SNES_BC_rows_CSR`, free rows left empty in it) via the
+existing, unmodified `calc_SSA_DIVA_stiffness_matrix_row_BC` - genuinely
+row-local logic (periodic wrap, "infinite" extrapolation, icestream
+mirroring) that isn't expressible as a block-diagonal-scaled combination, so
+this is the one remaining (small, boundary-rows-only) use of
+`type_CSR_matrix_dp` in the whole native pipeline - then re-targeted into the
+native numbering the same way. Builds a plain `MatCreateAIJ`-type `Mat`
+(`MAT_NEW_NONZERO_ALLOCATION_ERR = PETSC_FALSE` so arbitrary insertion order is
+fine). `bb`/`uv_buv` become flat local arrays (`2*nTri_loc`: this rank's
+u-values then v-values), no `tiuv2n` needed to build or read them.
+
+**`solve_SSA_DIVA_linearised_petsc_native`**: assembles via the routine above,
+solves via `solve_matrix_equation_PETSc` (newly exposed from `petsc_basic` -
+it already existed as the native-`Mat` half of `solve_matrix_equation_CSR_PETSc`,
+just wasn't public), unpacks straight into `self%u_vav_b`/`v_vav_b` via
+contiguous-half indexing. Replaces the inherited `solve_SSA_DIVA_linearised`
+call in this solver's warm-start Picard loop (only there - `solve_SSA_DIVA_linearised`
+itself, and the `SSA`/`DIVA` solvers that use it, are unmodified).
+
+**`assemble_SSA_coeff_jacobian_petsc_native`**: replaces (deleted, along with
+`sort_int_ascending`) the old `assemble_SSA_coeff_jacobian_CSR`. Identical
+maths (Glen shear-thinning `dN/du`, Zoet-Iverson `dbeta_b/du`; see the
+derivation doc), restructured from `do row = Jc_CSR%i1,Jc_CSR%i2` + decode into
+`do ti = ti1,ti2; do uv = 1,2` (the decode was doing exactly this already), and
+targeting a native `Mat` directly via `MatSetValues(...,ADD_VALUES)` for every
+contribution as it's computed. This is a genuine simplification, not just a
+port: the old version's dense-row accumulator (`rowbuf`/`hit`/`touch`) plus
+`sort_int_ascending` existed *only* because `type_CSR_matrix_dp%add_entry`
+doesn't merge duplicate `(row,col)` entries; `MatSetValues(...,ADD_VALUES)`
+does that merging inside PETSc's own `MatAssemblyEnd`, so all three (accumulator,
+touch-list, sort) are simply gone.
+
+`build_SSA_FD_SNES_jacobian_petsc` now `MatAXPY`s the two native Mats directly
+(no `mat_CSR2petsc` conversion on either side any more). `SSA_FD_SNES_form_function`
+and `SSA_FD_SNES_form_jacobian` unpack the SNES iterate `x` via contiguous-half
+indexing instead of a `tiuv2n` loop. `solve_SSA_FD_SNES`'s final unpack does the
+same.
+
+**Validated**:
+- Entry-by-entry diff (`MatGetRow` vs `CSR%read_single_row`, columns translated
+  through `n2tiuv`/`final_row_*_tot`) of both the native Picard operator and the
+  native Jacobian coefficient-derivative term against their old CSR/`tiuv2n`
+  counterparts, at a fixed post-warm-start state: max abs difference `0.0`
+  (exact) for both - including a check that the native Jacobian term carries no
+  *extra* entries beyond what the CSR version has.
+- `MISMIP_mod` integrated test (`config_SSA_FD_SNES.cfg`) at 1, 2, and 4 MPI
+  ranks: all converge genuinely (`SNESConvergedReason=3`), confirming
+  `compute_native_row_mapping`'s per-rank concatenation is correct at multiple
+  process counts (the part of this change with no CSR-based reference to diff
+  against, since the whole point is a different parallel layout).
+- Old `SSA` and `SSA_FEM_PETSc` solvers still run cleanly and are unmodified.
+
+### Follow-up cleanup: no CSR round-trip for the four blocks either
+
+The first pass above still round-tripped the four blocks through
+`type_CSR_matrix_dp` twice: once inside `assemble_SSA_DIVA_linearised_matrix_eq_petsc_block`
+(`mat_petsc2CSR` on each block, immediately re-read via `read_single_row`), and
+again in `assemble_SSA_FD_SNES_stiffness_matrix_petsc_native`, which called
+that CSR-producing routine and read *its* CSR output back out via
+`read_single_row` too - pointless once the FD operators are already PETSc
+`Mat`s. Fixed in both places:
+
+- `assemble_SSA_DIVA_linearised_matrix_eq_petsc_block` now reads the four
+  blocks directly via `MatGetRow` (no `mat_petsc2CSR`); its own *output*
+  remains `type_CSR_matrix_dp`, since that is its contract with callers
+  (`solve_SSA_DIVA_linearised`, if swapped in later).
+- `assemble_SSA_FD_SNES_stiffness_matrix_petsc_native` no longer calls
+  `assemble_SSA_DIVA_linearised_matrix_eq_petsc_block` at all. It calls
+  `build_SSA_DIVA_stiffness_blocks_petsc` directly and reads free rows via
+  `MatGetRow`; boundary/Dirichlet rows go through a new, small helper
+  (`assemble_SSA_FD_SNES_BC_rows_CSR`) that assembles *only* those rows into a
+  CSR scratch matrix via the existing `calc_SSA_DIVA_stiffness_matrix_row_BC`
+  (free rows left empty in it) - the one remaining, unavoidable use of
+  `type_CSR_matrix_dp` in the native pipeline, since that boundary-condition
+  logic (periodic wrap, "infinite" extrapolation, icestream mirroring) is
+  genuinely row-local and not expressible as a block-diagonal-scaled
+  combination.
+- Since `MatSetValues` (unlike `mat_CSR2petsc`'s `MatCreateMPIAIJWithArrays`)
+  does not require sorted columns, the native routine no longer needs a
+  merge-sort step for free rows either - it just issues two `MatSetValues`
+  calls per row (u-block columns, then v-block columns).
+
+Re-validated the same way as before (both diffs against the untouched
+`assemble_SSA_DIVA_linearised_matrix_eq` again `0.0`/roundoff), plus the full
+1/2/4-rank + all-three-solvers sweep, all passing.
+
+**Left as-is / not migrated**: `momentum_balance_solver_SSADIVA.f90`'s BC-row
+routine (`calc_SSA_DIVA_stiffness_matrix_row_BC`) and the shared Picard
+iteration (`solve_SSA_DIVA_linearised`) - both still native CSR/`tiuv2n`,
+untouched.
+
+## Jacobian coefficient-derivative term as chained matrix products — DONE
+
+`assemble_SSA_coeff_jacobian_petsc_native` previously accumulated the Jacobian's
+coefficient-derivative term entry by entry (`MatSetValues(...,ADD_VALUES)`
+inside the same 2-hop-stencil loop nest the CSR version used, just with
+`ADD_VALUES` replacing the dense-row accumulator). Both non-linear terms are,
+however, genuine chained matrix products, and PETSc has machinery for exactly
+that (`MatMatMult`, plus the same `MatDiagonalScale`/`MatAXPY` combination used
+for the Picard operator's blocks):
+
+- **Viscosity term** (Glen shear-thinning, `dN/du`): define
+  `G_u = diag(gxx)*M_ddx_b_a + diag(gsh)*M_ddy_b_a` and
+  `G_v = diag(gsh)*M_ddx_b_a + diag(gyy)*M_ddy_b_a` (these *are* `dN_a/du` and
+  `dN_a/dv`, nV x nTri), and
+  `Row_u = diag(coef_map_u)*M_map_a_b + diag(coef_ddx_u)*M_ddx_a_b + diag(coef_ddy_u)*M_ddy_a_b`
+  (and `Row_v` with the `_v` coefficients, nTri x nV) — `coef_map/ddx/ddy_{u,v}`
+  are the current-velocity-derivative brackets (`uxx`, `uyy`, `vxy`, ...),
+  themselves obtained as plain `MatMult`s of the shared b->b operators
+  (`M2_ddx_b_b` etc.) against the current velocity, no per-row loop needed. The
+  four viscosity blocks are then `Row_u*G_u`, `Row_u*G_v`, `Row_v*G_u`,
+  `Row_v*G_v` - actual `MatMatMult` calls.
+- **Sliding term** (Zoet-Iverson, `dbeta_b/du`): `S_u = diag(sbu)*M_map_b_a`,
+  `S_v = diag(sbv)*M_map_b_a` (nV x nTri); `Beta_deriv_u = M_map_a_b*S_u`,
+  `Beta_deriv_v = M_map_a_b*S_v` (nTri x nTri, `= dbeta_b/du`, `dbeta_b/dv`);
+  the four sliding blocks are `diag(spre_{u,v})*Beta_deriv_{u,v}`.
+
+Each of the four final blocks (`Auu_j = Row_u*G_u + diag(spre_u)*Beta_deriv_u`,
+etc.) is then read back via `MatGetRow` and re-targeted into the native
+numbering exactly like the Picard operator's blocks - structurally the two are
+now the same shape (four `nTri x nTri` blocks translated the same way),
+they're just built differently.
+
+**Bonus**: since `MatMatMult`/`MatMult` handle the distributed communication
+themselves, this also eliminated the last full-local-copy gathers in this
+solver - `M_ddx_b_a_tot` / `M_ddy_b_a_tot` / `M_map_b_a_tot` and the
+`gather_CSR_to_all` helper that built them, plus the `gather_dist_shared_to_all`
+calls that built full-local `u_tot`/`v_tot` copies for the old 2-hop stencil
+loop. All removed - the new routine converts the mesh's own distributed
+`M_ddx_b_a`/`M_ddy_b_a`/`M_map_b_a` directly via `mat_CSR2petsc`, and the
+per-vertex `gxx`/`gsh`/`gyy`/`sbu`/`sbv` factors go straight from their local
+`vi1:vi2` arrays into PETSc `Vec`s via `vec_double2petsc` - no gather step at
+all.
+
+**Validated**: entry-by-entry diff (`MatGetRow` on both) against the
+entry-by-entry version, at a fixed post-warm-start state: max abs difference
+`3.5e-10` against a max entry magnitude of `1.5e6` - a *relative* difference of
+`2.4e-16`, i.e. exactly double-precision machine epsilon (expected: `MatMatMult`
+accumulates products in a different order and through more chained
+multiplications than the direct nested-loop sum, so a larger absolute
+roundoff than the Picard block comparisons' `~1e-13` is normal - both are
+"exact" in the sense that matters). Full `MISMIP_mod` sweep (1/2/4 MPI ranks,
+plus `SSA`/`SSA_FEM_PETSc` unaffected) all passing, `SNESConvergedReason=3`
+throughout.
+
+## Picard operator: MatZeroRows instead of per-row branching — DONE
+
+`assemble_SSA_FD_SNES_stiffness_matrix_petsc_native` used to branch per (ti,uv)
+row - `is_BC` ? read from the boundary-rows scratch CSR : read from the four
+blocks via `MatGetRow` - inside a single assembly pass. Restructured into two
+clean passes instead, using `MatZeroRows` (the standard PETSc idiom for
+overriding boundary rows) in between:
+
+1. Insert *every* row's content straight from the four blocks, unconditionally
+   (including boundary/Dirichlet rows - cheaper to insert-then-overwrite than
+   to branch), then `MatAssemblyBegin`/`End` (required before `MatZeroRows` can
+   be called).
+2. Build the list of this rank's own boundary/Dirichlet rows (native numbering)
+   and call `MatZeroRows` on them - `MatZeroRows`'s own `diag` parameter is set
+   to `0` and unused for anything else, since most boundary conditions here
+   aren't a simple Dirichlet diag=1 row (periodic wrap, "infinite"
+   extrapolation, icestream mirroring all touch off-diagonal entries too), so
+   the real content still has to be inserted separately, exactly as before via
+   `assemble_SSA_FD_SNES_BC_rows_CSR` + `MatSetValues`. A second
+   `MatAssemblyBegin`/`End` finishes it.
+
+Net effect: the per-row `is_BC` branch is gone from the hot loop; boundary
+rows are now inserted once, structurally separated from the free-row pass,
+rather than interleaved with it row by row.
+
+**Validated**: same entry-by-entry diff against the untouched
+`assemble_SSA_DIVA_linearised_matrix_eq` as before - `1.1e-13` (roundoff, same
+magnitude as the pre-`MatZeroRows` version). Full 1/2/4-rank sweep passing,
+`SNESConvergedReason=3` throughout.
+
+## Jacobian coefficient-derivative term: the same MatZeroRows treatment — DONE
+
+The `MatZeroRows` idea above was actually aimed at
+`assemble_SSA_coeff_jacobian_petsc_native` (the Jacobian's coefficient-
+derivative term), not the Picard operator - applied there too, once
+clarified. That routine's final translation loop used to `cycle` past
+boundary/Dirichlet rows (leaving them with no entries, since this term is
+genuinely zero there - `calc_SSA_DIVA_stiffness_matrix_row_BC` has no
+coefficient-derivative contribution at all). Restructured the same way as the
+Picard operator: insert every row unconditionally from the four blocks, then
+`MatZeroRows` the boundary/Dirichlet rows (`diag = 0`). Simpler than the
+Picard case - no second insertion pass is needed afterwards, since there is no
+correct non-zero content to put back; `MatZeroRows` alone reproduces the old
+"leave empty" behaviour.
+
+**Validated**: with the entry-by-entry CSR reference already retired for this
+routine, checked directly instead - after `MatZeroRows`, every boundary/
+Dirichlet row of the coefficient-derivative term has max abs value exactly
+`0.0`, confirmed across every Newton iteration of a full `SNESConvergedReason=3`
+`MISMIP_mod` solve. Full 1/2/4-rank sweep passing.
+
+## Jacobian: MatCreateNest instead of a manual per-row translation loop — DONE
+
+The "insert every row unconditionally from the four blocks" step above (both
+here and in the Picard operator) was itself still a hand-written
+`MatGetRow`/`MatSetValues` loop over every `(ti, uv)`. For
+`assemble_SSA_coeff_jacobian_petsc_native`, replaced with PETSc's own
+block-matrix construction: `MatCreateNest` assembles the four blocks
+(`Auu_j`, `Auv_j`, `Avu_j`, `Avv_j`) directly into one matrix, given two
+`IS`s (`ISCreateGeneral`) that tell it exactly which native row/column each
+block's own local row/column maps to - built directly from
+`final_row_u_tot`/`final_row_v_tot`, the same arrays the manual loop used to
+do the relabelling by hand, so this is exactly that relabelling, just
+expressed as PETSc's own index-set machinery instead of a loop.
+`MatConvert(nest, MATAIJ, MAT_INITIAL_MATRIX, ...)` immediately flattens the
+result to a plain `Mat` - a raw `MATNEST` can't be `MatAXPY`'d against the
+Picard operator or handed to `PCLU`, so it never leaves this routine. The
+subsequent `MatZeroRows` boundary-row handling is unchanged (it doesn't care
+how `J` was built).
+
+(This reuses the `MatCreateNest` idea considered - and shelved - much earlier
+when first discussing whether to go fully native: it was rejected *then* as
+the top-level representation for the whole solve, because its automatic index
+sets produce a "block-grouped" global layout incompatible with this solver's
+chosen per-rank-grouped native numbering, and `PCLU` doesn't run on a raw
+`MATNEST` at all. Neither objection applies here: the `IS`s are supplied
+explicitly - built to *equal* the native numbering, not PETSc's default one -
+and the nest is immediately converted to `MATAIJ` before it's used for
+anything else.)
+
+**Validated**: for every free row, diffed `MatGetRow` on the resulting `J`
+against `MatGetRow` on the original blocks (columns translated through
+`final_row_u_tot`/`final_row_v_tot`, same as the check above) - max abs
+difference exactly `0.0` (not just roundoff: `MatConvert` off a `MATNEST` copies
+values directly, no new floating-point arithmetic is introduced), confirmed
+across every Newton iteration. Full 1/2/4-rank sweep passing,
+`SNESConvergedReason=3` throughout.
+
+## Picard operator: boundary content moves into the blocks, then MatCreateNest — DONE
+
+Applied the same idea to `assemble_SSA_FD_SNES_stiffness_matrix_petsc_native`,
+but restructured further: rather than building one flat native matrix and
+overriding boundary rows there (the `MatZeroRows` version from a few steps
+back), the boundary content now goes directly into the four *blocks*
+themselves - Auu (still just `nTri x nTri`, plain triangle indices, no native
+numbering involved at all) for u-rows, Avv for v-rows - and `MatCreateNest`
+combines the four now-complete blocks in one step, rather than a manual
+`MatGetRow`/`MatSetValues` loop first and a separate boundary-override pass
+after.
+
+This works because every boundary condition `calc_SSA_DIVA_stiffness_matrix_row_BC`
+currently implements (Dirichlet, "infinite", "zero", the two periodic/icestream
+mirror cases) only ever makes a u-row depend on u-columns and a v-row on
+v-columns, never on each other - confirmed by inspection of that routine
+(every case's neighbour lookup uses `tiuv2n(tj, uv)` with the *same* `uv` as
+the row) and now also enforced at runtime (`crash` if a boundary row's
+scratch-CSR entry ever decodes to a different `uv`, so a future change to that
+routine that broke the assumption would fail loudly rather than silently drop
+entries). So per boundary triangle: `MatZeroRows` clears that triangle's row
+in *all four* blocks (all four, because the free-row formula's block-diagonal
+combination leaves nonzero content in every block, including the ones that
+should end up empty at a boundary row); the real content is then inserted
+only into Auu/Avv, from the same scratch CSR
+(`assemble_SSA_FD_SNES_BC_rows_CSR`, unchanged) as before, decoded back to
+plain triangle-index columns; Auv/Avu are left zeroed.
+
+Once all four blocks are complete (free rows from the block-diagonal
+combination, boundary rows from the step above), they're combined exactly
+like the Jacobian's blocks: two `IS`s from `final_row_u_tot`/`final_row_v_tot`,
+`MatCreateNest`, `MatConvert(...,MATAIJ,...)` to flatten. No manual per-row
+translation loop at all any more.
+
+As the user noted when proposing this, it also isolates the boundary-content
+computation more cleanly than before: inserting into Auu/Avv only needs plain
+triangle-indexed columns (no native-numbering translation, since these blocks
+were never in that numbering to begin with), which should make a *future*
+rewrite of `calc_SSA_DIVA_stiffness_matrix_row_BC` itself more self-contained
+- not attempted now.
+
+**Validated**: same entry-by-entry diff against the untouched
+`assemble_SSA_DIVA_linearised_matrix_eq` as every previous pass - `1.1e-13`
+(roundoff, same magnitude as before). Full 1/2/4-rank sweep passing,
+`SNESConvergedReason=3` throughout.
+
+## Jacobian coefficient-derivative term split into one subroutine per physical contribution — DONE
+
+`assemble_SSA_coeff_jacobian_petsc_native` computed the whole coefficient-
+derivative term (viscosity + sliding) in one ~300-line subroutine. Split into
+three, one per physically distinct contribution, each self-contained (only
+takes `self`/`ice`/`geom` and returns a complete native `2*nTri x 2*nTri`
+matrix - recomputing its own operator conversions and any shared derivative
+factors rather than threading them through as extra arguments, at the cost of
+a little redundant computation, e.g. the viscosity-derivative factors
+`gxx`/`gsh`/`gyy` are computed twice):
+
+- `calc_Jacobian_contribution_N` - `N`'s own dependence on the velocity (the
+  "coef_map" part of the viscosity term in
+  `calc_SSA_DIVA_stiffness_matrix_row_free`): `Row_{u,v} = diag(coef_map_{u,v})
+  * M_map_a_b`, chained against `G_{u,v} = d N_a/d{u,v}`.
+- `calc_Jacobian_contribution_N_gradients` - `dN/dx`, `dN/dy`'s dependence (the
+  "coef_ddx"/"coef_ddy" part): `Row_{u,v} = diag(coef_ddx_{u,v})*M_ddx_a_b +
+  diag(coef_ddy_{u,v})*M_ddy_a_b`, chained against the same `G_{u,v}`.
+- `calc_Jacobian_contribution_friction` - the sliding law's dependence
+  (currently Zoet-Iverson only): unchanged maths, same `Beta_deriv_{u,v}`
+  chain as before.
+
+Two small shared helpers factor out what's common to all three (and to any
+future contribution): `combine_blocks_into_native_jacobian_term` (the
+`MatCreateNest` + `MatConvert` step - the "MatNest calls" the user asked to
+include) and `zero_BC_rows_in_jacobian_term` (the `MatZeroRows` step, since
+this term is zero at every boundary/Dirichlet row regardless of which
+contribution). `calc_viscosity_derivative_factors` factors out the
+`gxx`/`gsh`/`gyy` per-vertex loop shared by the two viscosity contributions.
+`combine_diag_scaled`/`add_diag_scaled` (the small `MatDuplicate`+
+`MatDiagonalScale`(+`MatAXPY`) algebra helpers) moved from being nested inside
+the old monolithic routine to plain module-level subroutines, so all three
+new routines can use them.
+
+`build_SSA_FD_SNES_jacobian_petsc` (the "main routine") now does exactly what
+the user asked: builds the Picard operator, then just `MatAXPY`s each of the
+three contributions onto it in turn:
+```
+call self%assemble_SSA_FD_SNES_stiffness_matrix_petsc_native(..., J, bb, uv_buv)
+call calc_Jacobian_contribution_N( self, geom, J_N)
+call MatAXPY( J, 1.0_dp, J_N, ...)
+call calc_Jacobian_contribution_N_gradients( self, geom, J_N_gradients)
+call MatAXPY( J, 1.0_dp, J_N_gradients, ...)
+call calc_Jacobian_contribution_friction( self, ice, geom, J_friction)
+call MatAXPY( J, 1.0_dp, J_friction, ...)
+call MatScale( J, velocity_scale / stress_scale, ...)
+```
+
+**Validated**: temporarily kept the previous, non-split computation side by
+side (as `..._REF`), diffed `J_N + J_N_gradients + J_friction` against it at a
+fixed post-warm-start state across several Newton iterations - max abs
+difference `1.8e-12` at worst (roundoff: the split version recomputes some
+things - `gxx`/`gsh`/`gyy`, the shared operator conversions - independently in
+more than one subroutine, and combines the three parts via separate
+`MatAXPY`/`MatCreateNest`/`MatConvert` calls rather than one, so a different,
+but equally valid, floating-point summation order is expected; removed once
+confirmed). Full 1/2/4-rank sweep passing, `SNESConvergedReason=3` throughout.
+
 ## Design decisions
 
 - **Separate solver class.** New type
