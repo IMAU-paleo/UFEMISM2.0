@@ -83,6 +83,47 @@ $u_x(\ti) := (D_x u)(\ti)$, and $P_{a\to b}(\ti,\va)$ is entry $(\ti,\va)$ of
 that sparse operator (read via \code{\%read\_\allowbreak single\_\allowbreak row}). $\ti,\tk$ index
 triangles (b-grid), $\va$ indexes vertices (a-grid).
 
+\section{Newton's method and the Jacobian}
+\label{sec:newton}
+
+Let $n_u := 2\,n_{\mathrm{Tri}}$ be the number of unknowns (two velocity
+components per triangle). Collect the unknowns on the b-grid into one vector
+$u\in\mathbb{R}^{n_u}$, interleaved
+$u=\big(u(t_1),v(t_1),u(t_2),v(t_2),\dots\big)$ in the \code{tiuv2n} ordering
+the code uses throughout, and write the momentum-balance residual of
+Section~\ref{sec:residual} as a map $F:\mathbb{R}^{n_u}\to\mathbb{R}^{n_u}$.
+Solving the SSA means finding $u^\star$ with $F(u^\star)=0$.
+
+Newton's method replaces this root-finding problem by a sequence of linear
+ones. Given the current iterate $u_k$, a first-order Taylor expansion
+linearises $F$ about it,
+\begin{equation}
+F(u_k+\delta u) \approx F(u_k) + J(u_k)\,\delta u,
+\end{equation}
+where $J(u)$, the \textbf{Jacobian}, is \emph{defined} as the matrix of partial
+derivatives of every residual component with respect to every unknown,
+\begin{equation}
+J(u) := \frac{\partial F}{\partial u}, \qquad
+J_{rc}(u) = \frac{\partial F_r(u)}{\partial u_c}, \qquad r,c = 1,\dots,n_u.
+\label{eq:jacobian_def}
+\end{equation}
+Requiring the linearised residual to vanish, $F(u_k) + J(u_k)\,\delta u = 0$,
+gives the \textbf{Newton step}
+\begin{equation}
+J(u_k)\,\delta u = -F(u_k), \qquad u_{k+1} = u_k + \delta u,
+\label{eq:newton_step}
+\end{equation}
+which is exactly the linear system PETSc's SNES solves once per non-linear
+iteration, from the values \code{SSA\_\allowbreak FD\_\allowbreak SNES\_\allowbreak form\_\allowbreak function} and
+\code{SSA\_\allowbreak FD\_\allowbreak SNES\_\allowbreak form\_\allowbreak jacobian} return. \eqref{eq:jacobian_def} is a
+generic definition -- it says nothing yet about the SSA specifically. The rest
+of this document computes $J(u)$ for the residual of Section~\ref{sec:residual}
+(Sections~\ref{sec:picard}--\ref{sec:sliding}), then checks the result
+(Section~\ref{sec:validation}). In the code, $u$ and $F$ are further replaced
+by the non-dimensional $\hat u = u/u_0$, $\hat F = F/F_0$ of
+Section~\ref{sec:validation}; since $u_0,F_0$ are constants this only rescales
+$J$ by $u_0/F_0$ and changes nothing derived below.
+
 \section{The residual}
 \label{sec:residual}
 
@@ -105,23 +146,94 @@ where every term on the right is evaluated at $\ti$ (i.e.\ $N \equiv N(\ti)$,
 $u_{xx}\equiv(D_{xx}u)(\ti)$, and so on), and $F_y$ is obtained from $F_x$ by
 $x\leftrightarrow y$, $u\leftrightarrow v$.
 
-\section{Picard part (frozen coefficients)}
+\section{The Jacobian of \texorpdfstring{$F(u) = A(u)\,u - b(u)$}{F(u) = A(u) u - b(u)}}
 \label{sec:picard}
 
-$\partial F_x(\ti)/\partial u(\tk)$ and $/\partial v(\tk)$, treating
-$N,N_x,N_y,\beta_b$ as constants, is exactly what
+Equations \eqref{eq:Fx}--\eqref{eq:Fy} are \emph{linear} in $u$ once the
+coefficients $N,N_x,N_y,\beta_b$ (and the load $\tau_{d,x},\tau_{d,y}$) are
+held fixed. Written as one matrix equation over all triangles,
+\begin{equation}
+F(u) = A(u)\,u - b(u),
+\label{eq:F_matrix_form}
+\end{equation}
+where $A(u)$ is the velocity-\emph{dependent} coefficient matrix whose row
+$\ti$ is exactly what \eqref{eq:Fx}--\eqref{eq:Fy} assembles, with
+$N,N_x,N_y,\beta_b$ evaluated at the velocity $u$, and $b(u)$ collects the
+(sign-flipped) driving stress $-\tau_{d,x},-\tau_{d,y}$ together with whatever
+a boundary-condition row prescribes.
+
+\subsection{Differentiating $A(u)\,u$: the product rule}
+
+Apply the definition \eqref{eq:jacobian_def} to \eqref{eq:F_matrix_form}
+entry-by-entry, for residual row $r$ and unknown column $c$:
+\begin{align}
+J_{rc}(u) = \pd{F_r(u)}{u_c}
+  &= \pd{}{u_c}\bigg[\sum_{c'} A_{rc'}(u)\,u_{c'}\bigg] - \pd{b_r(u)}{u_c} \notag \\
+  &= \sum_{c'} \pd{A_{rc'}(u)}{u_c}\,u_{c'} \;+\; \sum_{c'} A_{rc'}(u)\,\pd{u_{c'}}{u_c}
+     \;-\; \pd{b_r(u)}{u_c}. \label{eq:product_rule}
+\end{align}
+The first term is the product rule applied to the \emph{coefficients}: how
+does row $r$ change because $A$ itself depends on $u$. The second term is the
+product rule applied to the \emph{unknown} $u_{c'}$ that $A$ multiplies; since
+the unknowns are independent variables, $\partial u_{c'}/\partial u_c =
+\delta_{c'c}$ (the Kronecker delta), so that sum collapses to the single term
+$A_{rc}(u)$. In matrix form,
+\begin{equation}
+J(u) = A(u) + \Delta(u) - \pd{b(u)}{u}, \qquad
+\Delta(u) := \sum_{c'} \pd{A_{\cdot,c'}(u)}{u}\,u_{c'},
+\label{eq:jacobian_split}
+\end{equation}
+where $A_{\cdot,c'}$ denotes column $c'$ of $A$ (the $\cdot$ ranges over all
+rows $r$), so $\partial A_{\cdot,c'}(u)/\partial u$ is that column
+differentiated with respect to the whole vector $u$ -- a matrix with $(r,c)$
+entry $\partial A_{rc'}(u)/\partial u_c$ -- and $\Delta(u)$'s own $(r,c)$ entry
+is exactly the first term of \eqref{eq:product_rule}, $\Delta_{rc}(u) =
+\sum_{c'} \big(\partial A_{rc'}(u)/\partial u_c\big)\,u_{c'}$.
+$b(u)$ carries the driving stress, which does not depend on the velocity at
+all, and on boundary rows either a prescribed constant or a value read from
+the previous outer iterate\footnote{The \code{periodic\_\allowbreak ISMIP\_\allowbreak HOM} and
+\code{infinite\_\allowbreak SSA\_\allowbreak icestream} boundary conditions reference
+\code{u\_\allowbreak vav\_\allowbreak b\_\allowbreak prev}: within one Jacobian evaluation that is a fixed
+snapshot, not a function of the $u$ this Jacobian is taken with respect to, so
+the argument below still applies to those rows -- but see the
+\emph{Idealised BCs} risk in \code{SSA\_\allowbreak FD\_\allowbreak SNES\_\allowbreak implementation\_\allowbreak plan.md}.}
+-- in no case a function of the current unknown $u$. So $\partial b(u)/\partial u = 0$ and
+\begin{equation}
+\boxed{\,J(u) = A(u) + \Delta(u).\,}
+\label{eq:jacobian_final}
+\end{equation}
+
+\subsection{Why $A(u)$ needs no new code}
+
+The first term of \eqref{eq:jacobian_final} is, by \eqref{eq:jacobian_split},
+literally the matrix obtained by evaluating $N,N_x,N_y,\beta_b$ at the current
+velocity $u$ and \emph{freezing} them there -- which is exactly what a call to
 \code{assemble\_\allowbreak SSA\_\allowbreak DIVA\_\allowbreak linearised\_\allowbreak matrix\_\allowbreak eq} /
-\code{calc\_\allowbreak SSA\_\allowbreak DIVA\_\allowbreak stiffness\_\allowbreak matrix\_\allowbreak row\_\allowbreak free} already assembles -- this
-is the Picard operator $A(u)$. This section is unchanged by the Jacobian work;
-it is included only to fix notation for Sections~\ref{sec:visc} and
-\ref{sec:sliding}, which add to it.
+\code{calc\_\allowbreak SSA\_\allowbreak DIVA\_\allowbreak stiffness\_\allowbreak matrix\_\allowbreak row\_\allowbreak free} already does, and
+exactly what the hand-rolled viscosity (Picard) iteration already builds every
+outer iteration to solve $A(u_k)\,u_{k+1}=b(u_k)$. This is not a coincidence
+or a deliberate simplification: \eqref{eq:product_rule} shows it is a direct
+consequence of differentiating a coefficient-matrix-times-unknown product --
+one of the two product-rule terms is always the coefficient matrix itself,
+because $\partial u_{c'}/\partial u_c=\delta_{c'c}$ collapses the sum over
+columns back down to the matrix entry that was already there. So $A(u)$, the
+\textbf{Picard operator}, is reused verbatim as one part of the true Newton
+Jacobian, and only $\Delta(u)$ -- the coefficients' own sensitivity to $u$,
+weighted by the current $u$ -- is new. Section~\ref{sec:visc} derives its
+contribution from $N,N_x,N_y$ (the effective viscosity), Section~\ref{sec:sliding}
+its contribution from $\beta_b$ (the sliding law); \code{assemble\_\allowbreak SSA\_\allowbreak coeff\_\allowbreak
+jacobian\_\allowbreak CSR} assembles $\Delta(u)$ and
+\code{build\_\allowbreak SSA\_\allowbreak FD\_\allowbreak SNES\_\allowbreak jacobian\_\allowbreak petsc} adds it to $A(u)$ per
+\eqref{eq:jacobian_final}.
 
 \section{Viscosity-derivative term}
 \label{sec:visc}
 
-$N$ depends on $u,v$ through the effective strain rate, so
-\eqref{eq:Fx}--\eqref{eq:Fy} contribute an additional term to the Jacobian
-beyond the Picard part. Writing $w\in\{u,v\}$ for either unknown field,
+$N$ depends on $u,v$ through the effective strain rate, so it contributes to
+$\Delta(u)$ from \eqref{eq:jacobian_split}: the terms of
+\eqref{eq:Fx}--\eqref{eq:Fy} that involve $N,N_x,N_y$ each pick up an extra
+piece from differentiating those coefficients, on top of the Picard part of
+Section~\ref{sec:picard}. Writing $w\in\{u,v\}$ for either unknown field,
 \begin{align}
 \pd{F_x(\ti)}{w(\tk)} \mathrel{+}= {}&
   \big[4u_{xx}+u_{yy}+3v_{xy}\big]\,\pd{N(\ti)}{w(\tk)}
@@ -208,8 +320,8 @@ Jacobian consistent with the clamped $N$ used in the residual.
 
 The residual carries $-\beta_b(\ti)\,w(\ti)$ on the diagonal ($w=u$ for
 \eqref{eq:Fx}, $w=v$ for \eqref{eq:Fy}), with $\beta_b$ frozen in the Picard
-part. Since $\beta_b$ also depends on $u,v$, there is a second coefficient
-derivative to add:
+part $A(u)$. Since $\beta_b$ also depends on $u,v$, it contributes the second
+piece of $\Delta(u)$ from \eqref{eq:jacobian_split}:
 \begin{equation}
 \pd{F_x(\ti)}{w(\tk)} \mathrel{+}= -u(\ti)\,\pd{\beta_b(\ti)}{w(\tk)}, \qquad
 \pd{F_y(\ti)}{w(\tk)} \mathrel{+}= -v(\ti)\,\pd{\beta_b(\ti)}{w(\tk)}.

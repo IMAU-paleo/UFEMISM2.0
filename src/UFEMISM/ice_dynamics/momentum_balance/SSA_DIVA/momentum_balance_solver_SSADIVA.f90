@@ -21,9 +21,13 @@ module momentum_balance_solver_SSADIVA
   use mpi_distributed_memory, only: gather_to_all
   use mpi_distributed_shared_memory, only: gather_dist_shared_to_all
   use petsc_basic, only: solve_matrix_equation_CSR_PETSc
-  use mpi_f08, only: MPI_WIN
+  use petsc, only: tMat, INSERT_VALUES, MAT_FINAL_ASSEMBLY, MAT_NEW_NONZERO_ALLOCATION_ERR, &
+    MATAIJ, PETSC_COMM_WORLD, PETSC_FALSE, MatSetSizes, MatCreate, MatSetType, &
+    MatSetUp, MatSetOption, MatSetValues, MatAssemblyBegin, MatAssemblyEnd
+  use mpi_f08, only: MPI_WIN, MPI_ALLGATHER, MPI_INTEGER, MPI_COMM_WORLD
   use Arakawa_grid_mod, only: Arakawa_grid
   use fields_dimensions, only: third_dimension
+  use mpi_basic, only: par
 
   implicit none
 
@@ -58,6 +62,15 @@ module momentum_balance_solver_SSADIVA
       ! Restart file
       character(len=256)                  :: restart_filename
 
+      ! Native (non-interleaved) row/column numbering: for triangle ti, its u- and
+      ! v-component rows/columns in every PETSc object this solver builds (residual,
+      ! Jacobian, solution vector). Per rank, contiguous own-u-block-then-own-v-block
+      ! (matches what vec_double2petsc/mat_CSR2petsc produce from a local array sized
+      ! 2*nTri_loc with u then v) - not the old tiuv2n per-triangle interleaving.
+      ! 0-based (PETSc convention); replicated in full on every rank; rebuilt once per
+      ! solve alongside the _tot gathers above. See compute_native_row_mapping.
+      integer, dimension(:), allocatable :: final_row_u_tot, final_row_v_tot
+
     contains
 
       procedure, public :: allocate_shared_SSA_DIVA_variables
@@ -75,6 +88,13 @@ module momentum_balance_solver_SSADIVA
       procedure, public :: calc_SSA_DIVA_stiffness_matrix_row_free
       procedure, public :: calc_SSA_DIVA_sans_stiffness_matrix_row_free
       procedure, public :: calc_SSA_DIVA_stiffness_matrix_row_BC
+
+      ! The block builder underneath assemble_SSA_DIVA_linearised_matrix_eq_petsc_block,
+      ! exposed directly so a fully-native (no CSR, no tiuv2n) assembly can use the
+      ! blocks without the CSR round-trip - see momentum_balance_solver_SSA_FD_SNES.f90.
+      procedure, public, nopass :: compute_native_row_mapping
+      procedure, public  :: assemble_SSA_FD_SNES_stiffness_matrix_petsc_native
+      procedure, private :: build_SSA_DIVA_stiffness_blocks_petsc
 
   end type atype_momentum_balance_solver_SSADIVA
 
@@ -127,6 +147,39 @@ module momentum_balance_solver_SSADIVA
       integer,                                            intent(in   ) :: row_tiuv
       character(len=*),                                   intent(in   ) :: choice_BC_u, choice_BC_v
     end subroutine calc_SSA_DIVA_stiffness_matrix_row_BC
+
+    module subroutine compute_native_row_mapping( nTri, nTri_loc, final_row_u_tot, final_row_v_tot)
+      integer,                            intent(in   ) :: nTri, nTri_loc
+      integer, dimension(:), allocatable, intent(  out) :: final_row_u_tot, final_row_v_tot
+    end subroutine compute_native_row_mapping
+
+    module subroutine assemble_SSA_FD_SNES_stiffness_matrix_petsc_native( self, u_ii_term, &
+      BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, A, bb, uv_buv)
+      class(atype_momentum_balance_solver_SSADIVA),     intent(in   ) :: self
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: u_ii_term
+      integer,  dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_mask_b
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_u_b
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_v_b
+      type(tMat),                                       intent(  out) :: A
+      real(dp), dimension(:), allocatable,              intent(inout) :: bb
+      real(dp), dimension(:), allocatable,              intent(inout) :: uv_buv
+    end subroutine assemble_SSA_FD_SNES_stiffness_matrix_petsc_native
+
+    module subroutine assemble_SSA_FD_SNES_BC_rows_CSR( self, BC_prescr_mask_b, BC_prescr_u_b, BC_prescr_v_b, &
+      A_BC_CSR, bb_BC)
+      class(atype_momentum_balance_solver_SSADIVA),     intent(in   ) :: self
+      integer,  dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_mask_b
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_u_b
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: BC_prescr_v_b
+      type(type_CSR_matrix_dp),                         intent(  out) :: A_BC_CSR
+      real(dp), dimension(:), allocatable,              intent(  out) :: bb_BC
+    end subroutine assemble_SSA_FD_SNES_BC_rows_CSR
+
+    module subroutine build_SSA_DIVA_stiffness_blocks_petsc( self, u_ii_term, Auu, Auv, Avu, Avv)
+      class(atype_momentum_balance_solver_SSADIVA),     intent(in   ) :: self
+      real(dp), dimension(self%mesh%ti1:self%mesh%ti2), intent(in   ) :: u_ii_term
+      type(tMat),                                       intent(  out) :: Auu, Auv, Avu, Avv
+    end subroutine build_SSA_DIVA_stiffness_blocks_petsc
 
   end interface
 
