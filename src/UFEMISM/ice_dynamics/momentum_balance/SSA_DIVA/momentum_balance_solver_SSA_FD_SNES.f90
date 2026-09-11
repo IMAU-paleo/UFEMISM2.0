@@ -27,20 +27,27 @@ module momentum_balance_solver_SSA_FD_SNES
   ! (atype_momentum_balance_solver_SSADIVA%build_SSA_DIVA_stiffness_blocks_petsc,
   ! solve_linearised_SSA_DIVA_petsc_block.f90) and re-targeting the result into the
   ! native numbering (assemble_SSA_FD_SNES_stiffness_matrix_petsc_native); the
-  ! Jacobian's coefficient-derivative term (assemble_SSA_coeff_jacobian_petsc_native)
-  ! is assembled the same way, but as four chained PETSc matrix products (one per
-  ! row-type x column-type block) via MatMatMult/MatDiagonalScale/MatAXPY, rather
-  ! than accumulating individual entries: both the Glen shear-thinning term dN/du
-  ! and the Zoet-Iverson sliding term dbeta_b/du are, mathematically, compositions
-  ! of the same shared a<->b operators used elsewhere, so building them as actual
+  ! The Jacobian's coefficient-derivative term is assembled the same way, but as
+  ! chained PETSc matrix products (MatMatMult/MatDiagonalScale/MatAXPY) rather than
+  ! accumulating individual entries: both the Glen shear-thinning term dN/du and
+  ! the Zoet-Iverson sliding term dbeta_b/du are, mathematically, compositions of
+  ! the same shared a<->b operators used elsewhere, so building them as actual
   ! matrix products lets PETSc do the distributed communication and the (row,col)
   ! deduplication itself, instead of a hand-written 2-hop-stencil loop with a dense
   ! accumulator. That also removed the last full-local-copy gathers in this solver
   ! (the old M_ddx_b_a_tot/M_ddy_b_a_tot/M_map_b_a_tot) - MatMatMult/MatMult handle
-  ! the distributed b<->a communication on their own. All of these were checked
-  ! against their earlier, entry-by-entry equivalents (agreement at double-precision
-  ! machine epsilon) before being retired; see the plan's "PETSc block-matrix
-  ! assembly" section.
+  ! the distributed b<->a communication on their own.
+  !
+  ! This term is itself split into three physically distinct contributions, each
+  ! its own subroutine returning a complete native (2*nTri x 2*nTri) matrix -
+  ! calc_Jacobian_contribution_N (N's own dependence on the velocity),
+  ! calc_Jacobian_contribution_N_gradients (dN/dx, dN/dy's dependence), and
+  ! calc_Jacobian_contribution_friction (the sliding law's dependence) - so
+  ! build_SSA_FD_SNES_jacobian_petsc only has to MatAXPY them onto the Picard
+  ! operator. All of these were checked against earlier, less decomposed
+  ! equivalents (agreement at, or within a few times, double-precision machine
+  ! epsilon) before being retired; see the plan's "PETSc block-matrix assembly"
+  ! section.
   !
   ! Tier 1 (A(u) alone as the Jacobian) and Tier 2 (matrix-free JFNK with A(u) as
   ! preconditioner) were both tried and neither converges on MISMIP_mod: Tier 1 is
@@ -149,7 +156,6 @@ module momentum_balance_solver_SSA_FD_SNES
       procedure, private :: solve_SSA_FD_SNES
       procedure, private :: update_SSA_coefficients_from_velocity
       procedure, private :: solve_SSA_DIVA_linearised_petsc_native
-      procedure, private :: assemble_SSA_coeff_jacobian_petsc_native
 
   end type type_momentum_balance_solver_SSA_FD_SNES
 
@@ -481,10 +487,18 @@ contains
   subroutine build_SSA_FD_SNES_jacobian_petsc( self, ice, geom, J, uv_buv)
     !< Build the analytic Jacobian dF_hat/du_hat of the (non-dimensionalised) SSA
     !< residual as a PETSc matrix: the frozen-coefficient ("Picard") operator A(u)
-    !< plus the coefficient-derivative term d/du[A(u)] u (Glen shear-thinning and
-    !< the sliding law), then scaled by velocity_scale / stress_scale. Also returns
-    !< the current velocity packed into the 2*nTri vector layout (uv_buv), for the
-    !< caller's initial guess.
+    !< plus the coefficient-derivative term d/du[A(u)] u, then scaled by
+    !< velocity_scale / stress_scale. Also returns the current velocity packed
+    !< into the 2*nTri vector layout (uv_buv), for the caller's initial guess.
+    !<
+    !< The coefficient-derivative term is itself the sum of three physically
+    !< distinct contributions - see SSA_FD_SNES_jacobian_derivation.tex - each
+    !< built by its own subroutine as a complete native (2*nTri x 2*nTri) matrix,
+    !< so this routine only has to add them to the Picard operator:
+    !<   - calc_Jacobian_contribution_N: N's own dependence on the velocity
+    !<   - calc_Jacobian_contribution_N_gradients: dN/dx, dN/dy's dependence
+    !<   - calc_Jacobian_contribution_friction: the sliding law's dependence
+    !<     (currently Zoet-Iverson only)
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
@@ -495,7 +509,7 @@ contains
 
     ! Local variables:
     character(len=*), parameter         :: routine_name = 'build_SSA_FD_SNES_jacobian_petsc'
-    type(tMat)                          :: Jv
+    type(tMat)                          :: J_N, J_N_gradients, J_friction
     real(dp), dimension(:), allocatable :: bb
     integer                            :: ierr
 
@@ -508,14 +522,23 @@ contains
       self%BC_prescr_mask_b_applied, self%BC_prescr_u_b_applied, self%BC_prescr_v_b_applied, &
       J, bb, uv_buv)
 
-    ! Coefficient-derivative term (interior rows only), also fully native and in
-    ! the same row/column numbering as J above (see compute_native_row_mapping)
-    call self%assemble_SSA_coeff_jacobian_petsc_native( ice, geom, Jv)
+    ! Coefficient-derivative term: three contributions, each already a complete
+    ! native (2*nTri x 2*nTri) matrix in the same row/column numbering as J above
+    ! (see compute_native_row_mapping) - just add them
+    call calc_Jacobian_contribution_N( self, geom, J_N)
+    call MatAXPY( J, 1.0_dp, J_N, DIFFERENT_NONZERO_PATTERN, ierr)
+    call MatDestroy( J_N, ierr)
 
-    ! J = A + Jv, then non-dimensionalise
-    call MatAXPY( J, 1.0_dp, Jv, DIFFERENT_NONZERO_PATTERN, ierr)
+    call calc_Jacobian_contribution_N_gradients( self, geom, J_N_gradients)
+    call MatAXPY( J, 1.0_dp, J_N_gradients, DIFFERENT_NONZERO_PATTERN, ierr)
+    call MatDestroy( J_N_gradients, ierr)
+
+    call calc_Jacobian_contribution_friction( self, ice, geom, J_friction)
+    call MatAXPY( J, 1.0_dp, J_friction, DIFFERENT_NONZERO_PATTERN, ierr)
+    call MatDestroy( J_friction, ierr)
+
+    ! Non-dimensionalise
     call MatScale( J, velocity_scale / stress_scale, ierr)
-    call MatDestroy( Jv, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
@@ -563,125 +586,29 @@ contains
 
   end subroutine solve_SSA_DIVA_linearised_petsc_native
 
-  subroutine assemble_SSA_coeff_jacobian_petsc_native( self, ice, geom, J)
-    !< Assemble the coefficient-derivative contribution to the SSA Jacobian,
-    !< d/du [ A(u) ] u, as four chained PETSc matrix products (one per row-type x
-    !< column-type combination), instead of accumulating individual entries via
-    !< MatSetValues. Both terms decompose into real matrix algebra:
-    !<
-    !< Viscosity term (Glen shear-thinning, dN/du):
-    !<   G_u   = diag(gxx)*M_ddx_b_a + diag(gsh)*M_ddy_b_a   = d N_a / du   (nV x nTri)
-    !<   G_v   = diag(gsh)*M_ddx_b_a + diag(gyy)*M_ddy_b_a   = d N_a / dv   (nV x nTri)
-    !<   Row_u = diag(coef_map_u)*M_map_a_b + diag(coef_ddx_u)*M_ddx_a_b
-    !<           + diag(coef_ddy_u)*M_ddy_a_b                              (nTri x nV)
-    !<   Row_v = same, with the _v current-derivative coefficients          (nTri x nV)
-    !<   => viscosity blocks = Row_u*G_u, Row_u*G_v, Row_v*G_u, Row_v*G_v
-    !< where coef_map/ddx/ddy_{u,v}(ti) are the current-velocity-derivative brackets
-    !< (uxx, uyy, vxy, ...), themselves obtained as plain MatMult's of the shared
-    !< b->b operators against the current velocity - no per-row loop needed for them
-    !< either.
-    !<
-    !< Sliding term (Zoet-Iverson, d beta_b/du):
-    !<   S_u = diag(sbu)*M_map_b_a, S_v = diag(sbv)*M_map_b_a               (nV x nTri)
-    !<   Beta_deriv_u = M_map_a_b*S_u = d beta_b/du                        (nTri x nTri)
-    !<   Beta_deriv_v = M_map_a_b*S_v = d beta_b/dv                        (nTri x nTri)
-    !<   => sliding blocks = diag(spre_u)*Beta_deriv_{u,v}, diag(spre_v)*Beta_deriv_{u,v}
-    !<
-    !< MatMatMult handles the distributed communication for these products itself,
-    !< so - unlike the entry-by-entry version above - this needs no gathered
-    !< full-local copies of the b->a operators (M_ddx_b_a_tot etc.) at all: it
-    !< converts the mesh's own distributed M_ddx_b_a / M_ddy_b_a / M_map_b_a
-    !< directly. The four resulting blocks are read back via MatGetRow and
-    !< re-targeted into the native numbering exactly like the Picard operator's
-    !< blocks (assemble_SSA_FD_SNES_stiffness_matrix_petsc_native): every row is
-    !< inserted unconditionally, then MatZeroRows clears the boundary/Dirichlet
-    !< rows again - this term is genuinely zero there (unlike the Picard operator,
-    !< no correct content needs inserting afterwards, since
-    !< calc_SSA_DIVA_stiffness_matrix_row_BC's boundary conditions have no
-    !< coefficient-derivative term at all).
+  subroutine calc_viscosity_derivative_factors( self, geom, gxx_vec, gsh_vec, gyy_vec)
+    !< Per-vertex viscosity-derivative factors g = Hbar * deta/dE * dE/d(strain),
+    !< i.e. the chain rule factors such that d N_a/d u_a = gxx*M_ddx_b_a + gsh*M_ddy_b_a
+    !< and d N_a/d v_a = gsh*M_ddx_b_a + gyy*M_ddy_b_a (see
+    !< SSA_FD_SNES_jacobian_derivation.tex) - shared by
+    !< calc_Jacobian_contribution_N and calc_Jacobian_contribution_N_gradients,
+    !< which both chain through this same d N_a/d{u,v} term.
 
     ! In/output variables:
     class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
-    class(atype_ice_model_data),                     intent(in   ) :: ice
     class(atype_ice_geometry_model_data),            intent(in   ) :: geom
-    type(tMat),                                      intent(  out) :: J
+    type(tVec),                                      intent(  out) :: gxx_vec, gsh_vec, gyy_vec
 
     ! Local variables:
-    character(len=*), parameter :: routine_name = 'assemble_SSA_coeff_jacobian_petsc_native'
-    type(tMat) :: D2x, D2y, D2xy, Dx, Dy
-    type(tMat) :: Pab_map, Pab_ddx, Pab_ddy
-    type(tMat) :: Pba_map, Pba_ddx, Pba_ddy
-    type(tVec) :: gxx_vec, gsh_vec, gyy_vec, sbu_vec, sbv_vec
-    type(tVec) :: coef_map_u_vec, coef_ddx_u_vec, coef_ddy_u_vec
-    type(tVec) :: coef_map_v_vec, coef_ddx_v_vec, coef_ddy_v_vec
-    type(tVec) :: spre_u_vec, spre_v_vec
-    type(tMat) :: G_u, G_v, Row_u, Row_v, S_u, S_v, Beta_deriv_u, Beta_deriv_v
-    type(tMat) :: Auu_j, Auv_j, Avu_j, Avv_j
-    integer    :: ierr, nTri_loc, ti, n_BC_rows
-    integer,  dimension(:), allocatable :: BC_rows_native
-    real(dp), dimension(:), allocatable :: u_loc, v_loc
-    real(dp), dimension(:), allocatable :: uxx, uyy, uxy, ux1, uy1, vxx, vyy, vxy, vx1, vy1
-    real(dp), dimension(:), allocatable :: coef_map_u, coef_ddx_u, coef_ddy_u
-    real(dp), dimension(:), allocatable :: coef_map_v, coef_ddx_v, coef_ddy_v
-    real(dp), dimension(:), allocatable :: spre_u, spre_v, fr
+    character(len=*), parameter         :: routine_name = 'calc_viscosity_derivative_factors'
     real(dp)                            :: n_glen, m_exp, eps0, A_min, eta_max
     real(dp)                            :: ux, uy, vx, vy, E, eta, cfac
-    real(dp)                            :: q_zi, ut_zi, dv_zi, subgr_exp, uabs, dbeta_duabs
-    real(dp), dimension(:), allocatable :: gxx_o, gsh_o, gyy_o, sbu_o, sbv_o, u_a_o, v_a_o
+    real(dp), dimension(:), allocatable :: gxx_o, gsh_o, gyy_o
     integer                             :: va
 
     ! Add routine to path
     call init_routine( routine_name)
 
-    nTri_loc = self%mesh%nTri_loc
-
-    ! == Shared operators, converted to PETSc (fresh every call, matching the rest
-    !    of this solver's conversions). No gathered full copies needed - MatMatMult
-    !    handles the distributed communication itself.
-    call mat_CSR2petsc( self%mesh%M2_d2dx2_b_b,  D2x)
-    call mat_CSR2petsc( self%mesh%M2_d2dy2_b_b,  D2y)
-    call mat_CSR2petsc( self%mesh%M2_d2dxdy_b_b, D2xy)
-    call mat_CSR2petsc( self%mesh%M2_ddx_b_b,    Dx)
-    call mat_CSR2petsc( self%mesh%M2_ddy_b_b,    Dy)
-    call mat_CSR2petsc( self%mesh%M_map_a_b, Pab_map)
-    call mat_CSR2petsc( self%mesh%M_ddx_a_b, Pab_ddx)
-    call mat_CSR2petsc( self%mesh%M_ddy_a_b, Pab_ddy)
-    call mat_CSR2petsc( self%mesh%M_map_b_a, Pba_map)
-    call mat_CSR2petsc( self%mesh%M_ddx_b_a, Pba_ddx)
-    call mat_CSR2petsc( self%mesh%M_ddy_b_a, Pba_ddy)
-
-    ! == Current-velocity derivatives at every triangle: uxx(ti) = sum_tj D2x(ti,tj)
-    !    u(tj), etc. - plain matrix-vector products, no per-row loop needed
-    allocate( u_loc( self%mesh%ti1:self%mesh%ti2), source = self%u_vav_b( self%mesh%ti1:self%mesh%ti2))
-    allocate( v_loc( self%mesh%ti1:self%mesh%ti2), source = self%v_vav_b( self%mesh%ti1:self%mesh%ti2))
-
-    allocate( uxx( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2x,  u_loc, uxx)
-    allocate( vxx( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2x,  v_loc, vxx)
-    allocate( uyy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2y,  u_loc, uyy)
-    allocate( vyy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2y,  v_loc, vyy)
-    allocate( uxy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2xy, u_loc, uxy)
-    allocate( vxy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2xy, v_loc, vxy)
-    allocate( ux1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dx,   u_loc, ux1)
-    allocate( vx1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dx,   v_loc, vx1)
-    allocate( uy1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dy,   u_loc, uy1)
-    allocate( vy1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dy,   v_loc, vy1)
-
-    allocate( coef_map_u( self%mesh%ti1:self%mesh%ti2)); coef_map_u = 4._dp*uxx + uyy + 3._dp*vxy
-    allocate( coef_ddx_u( self%mesh%ti1:self%mesh%ti2)); coef_ddx_u = 4._dp*ux1 + 2._dp*vy1
-    allocate( coef_ddy_u( self%mesh%ti1:self%mesh%ti2)); coef_ddy_u = uy1 + vx1
-    allocate( coef_map_v( self%mesh%ti1:self%mesh%ti2)); coef_map_v = 4._dp*vyy + vxx + 3._dp*uxy
-    allocate( coef_ddx_v( self%mesh%ti1:self%mesh%ti2)); coef_ddx_v = vx1 + uy1
-    allocate( coef_ddy_v( self%mesh%ti1:self%mesh%ti2)); coef_ddy_v = 4._dp*vy1 + 2._dp*ux1
-
-    call vec_double2petsc( coef_map_u, coef_map_u_vec)
-    call vec_double2petsc( coef_ddx_u, coef_ddx_u_vec)
-    call vec_double2petsc( coef_ddy_u, coef_ddy_u_vec)
-    call vec_double2petsc( coef_map_v, coef_map_v_vec)
-    call vec_double2petsc( coef_ddx_v, coef_ddx_v_vec)
-    call vec_double2petsc( coef_ddy_v, coef_ddy_v_vec)
-
-    ! == Viscosity-derivative per-vertex factors g = Hbar * deta/dE * dE/d(strain)
-    !    (unchanged maths from the entry-by-entry version above)
     n_glen  = C%Glens_flow_law_exponent
     m_exp   = (1._dp - n_glen) / (2._dp * n_glen)
     eps0    = C%Glens_flow_law_epsilon_sq_0
@@ -709,8 +636,284 @@ contains
     call vec_double2petsc( gsh_o, gsh_vec)
     call vec_double2petsc( gyy_o, gyy_vec)
 
-    ! == Sliding-law per-vertex factors sbu = d beta_a/d u_a, sbv = d beta_a/d v_a
-    !    (Zoet-Iverson only; unchanged maths)
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_viscosity_derivative_factors
+
+  subroutine combine_blocks_into_native_jacobian_term( self, Buu, Buv, Bvu, Bvv, J)
+    !< Combine four nTri x nTri blocks into one complete native (2*nTri x 2*nTri)
+    !< Jacobian contribution, via PETSc's own block-matrix machinery: MatCreateNest,
+    !< given index sets built from final_row_u_tot/final_row_v_tot that tell it
+    !< exactly which native row/column each block's own local row/column maps to
+    !< (see assemble_SSA_FD_SNES_stiffness_matrix_petsc_native, which does the same
+    !< for the Picard operator), then MatConvert to flatten it to a plain matrix (a
+    !< raw MATNEST can't be MatAXPY'd against the Picard operator).
+
+    ! In/output variables:
+    class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
+    type(tMat),                                      intent(in   ) :: Buu, Buv, Bvu, Bvv
+    type(tMat),                                      intent(  out) :: J
+
+    ! Local variables:
+    character(len=*), parameter :: routine_name = 'combine_blocks_into_native_jacobian_term'
+    type(tIS)  :: is_u, is_v
+    type(tMat) :: J_nest
+    integer    :: ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call ISCreateGeneral( PETSC_COMM_WORLD, self%mesh%nTri_loc, &
+      self%final_row_u_tot( self%mesh%ti1:self%mesh%ti2), PETSC_COPY_VALUES, is_u, ierr)
+    call ISCreateGeneral( PETSC_COMM_WORLD, self%mesh%nTri_loc, &
+      self%final_row_v_tot( self%mesh%ti1:self%mesh%ti2), PETSC_COPY_VALUES, is_v, ierr)
+
+    call MatCreateNest( PETSC_COMM_WORLD, 2, [is_u, is_v], 2, [is_u, is_v], &
+      [Buu, Buv, Bvu, Bvv], J_nest, ierr)
+    call MatConvert( J_nest, MATAIJ, MAT_INITIAL_MATRIX, J, ierr)
+
+    call MatDestroy( J_nest, ierr)
+    call ISDestroy( is_u, ierr)
+    call ISDestroy( is_v, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine combine_blocks_into_native_jacobian_term
+
+  subroutine zero_BC_rows_in_jacobian_term( self, J)
+    !< Zero this rank's boundary/Dirichlet rows of a native Jacobian
+    !< coefficient-derivative contribution: every one of them is genuinely zero
+    !< there (calc_SSA_DIVA_stiffness_matrix_row_BC's boundary conditions have no
+    !< coefficient-derivative term at all), but the block-diagonal combination that
+    !< built the contribution's blocks does not know that, so this needs clearing
+    !< explicitly - the same MatZeroRows idiom used throughout this solver.
+
+    ! In/output variables:
+    class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
+    type(tMat),                                      intent(inout) :: J
+
+    ! Local variables:
+    character(len=*), parameter         :: routine_name = 'zero_BC_rows_in_jacobian_term'
+    integer,  dimension(:), allocatable :: BC_rows_native
+    integer                             :: ti, n_BC_rows, ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    allocate( BC_rows_native( 2 * self%mesh%nTri_loc))
+    n_BC_rows = 0
+    do ti = self%mesh%ti1, self%mesh%ti2
+      if (self%BC_prescr_mask_b_applied( ti) == 1 .or. self%mesh%TriBI( ti) > 0) then
+        n_BC_rows = n_BC_rows + 1; BC_rows_native( n_BC_rows) = self%final_row_u_tot( ti)
+        n_BC_rows = n_BC_rows + 1; BC_rows_native( n_BC_rows) = self%final_row_v_tot( ti)
+      end if
+    end do
+    if (n_BC_rows > 0) then
+      call MatZeroRows( J, n_BC_rows, BC_rows_native( 1:n_BC_rows), 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, ierr)
+    end if
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine zero_BC_rows_in_jacobian_term
+
+  subroutine calc_Jacobian_contribution_N( self, geom, J_N)
+    !< The part of the Jacobian's coefficient-derivative term arising from N's own
+    !< dependence on the velocity (holding dN/dx, dN/dy fixed) - the "coef_map"
+    !< part of the viscosity term in calc_SSA_DIVA_stiffness_matrix_row_free. See
+    !< SSA_FD_SNES_jacobian_derivation.tex.
+    !<   Row_{u,v} = diag(coef_map_{u,v}) * M_map_a_b               (nTri x nV)
+    !<   G_{u,v}   = d N_a / d{u,v}                                 (nV x nTri)
+    !<   => blocks = Row_u*G_u, Row_u*G_v, Row_v*G_u, Row_v*G_v
+    !< coef_map_{u,v}(ti) is the current-velocity-derivative bracket (4 uxx + uyy +
+    !< 3 vxy, and its v-counterpart), obtained as a plain MatMult of the shared b->b
+    !< operators against the current velocity - no per-row loop needed.
+
+    ! In/output variables:
+    class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
+    class(atype_ice_geometry_model_data),            intent(in   ) :: geom
+    type(tMat),                                      intent(  out) :: J_N
+
+    ! Local variables:
+    character(len=*), parameter         :: routine_name = 'calc_Jacobian_contribution_N'
+    type(tMat) :: D2x, D2y, D2xy, Pab_map, Pba_ddx, Pba_ddy
+    type(tMat) :: G_u, G_v, Row_u, Row_v, Auu, Auv, Avu, Avv
+    type(tVec) :: gxx_vec, gsh_vec, gyy_vec, coef_map_u_vec, coef_map_v_vec
+    real(dp), dimension(:), allocatable :: u_loc, v_loc, uxx, uyy, uxy, vxx, vyy, vxy
+    real(dp), dimension(:), allocatable :: coef_map_u, coef_map_v
+    integer :: ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call mat_CSR2petsc( self%mesh%M2_d2dx2_b_b,  D2x)
+    call mat_CSR2petsc( self%mesh%M2_d2dy2_b_b,  D2y)
+    call mat_CSR2petsc( self%mesh%M2_d2dxdy_b_b, D2xy)
+    call mat_CSR2petsc( self%mesh%M_map_a_b, Pab_map)
+    call mat_CSR2petsc( self%mesh%M_ddx_b_a, Pba_ddx)
+    call mat_CSR2petsc( self%mesh%M_ddy_b_a, Pba_ddy)
+
+    allocate( u_loc( self%mesh%ti1:self%mesh%ti2), source = self%u_vav_b( self%mesh%ti1:self%mesh%ti2))
+    allocate( v_loc( self%mesh%ti1:self%mesh%ti2), source = self%v_vav_b( self%mesh%ti1:self%mesh%ti2))
+    allocate( uxx( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2x,  u_loc, uxx)
+    allocate( vxx( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2x,  v_loc, vxx)
+    allocate( uyy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2y,  u_loc, uyy)
+    allocate( vyy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2y,  v_loc, vyy)
+    allocate( uxy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2xy, u_loc, uxy)
+    allocate( vxy( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( D2xy, v_loc, vxy)
+
+    allocate( coef_map_u( self%mesh%ti1:self%mesh%ti2)); coef_map_u = 4._dp*uxx + uyy + 3._dp*vxy
+    allocate( coef_map_v( self%mesh%ti1:self%mesh%ti2)); coef_map_v = 4._dp*vyy + vxx + 3._dp*uxy
+    call vec_double2petsc( coef_map_u, coef_map_u_vec)
+    call vec_double2petsc( coef_map_v, coef_map_v_vec)
+
+    call calc_viscosity_derivative_factors( self, geom, gxx_vec, gsh_vec, gyy_vec)
+
+    call combine_diag_scaled( Pba_ddx, gxx_vec, G_u)
+    call add_diag_scaled(     G_u, Pba_ddy, gsh_vec)
+    call combine_diag_scaled( Pba_ddx, gsh_vec, G_v)
+    call add_diag_scaled(     G_v, Pba_ddy, gyy_vec)
+
+    call combine_diag_scaled( Pab_map, coef_map_u_vec, Row_u)
+    call combine_diag_scaled( Pab_map, coef_map_v_vec, Row_v)
+
+    call MatMatMult( Row_u, G_u, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Auu, ierr)
+    call MatMatMult( Row_u, G_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Auv, ierr)
+    call MatMatMult( Row_v, G_u, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Avu, ierr)
+    call MatMatMult( Row_v, G_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Avv, ierr)
+
+    call combine_blocks_into_native_jacobian_term( self, Auu, Auv, Avu, Avv, J_N)
+    call zero_BC_rows_in_jacobian_term( self, J_N)
+
+    call MatDestroy( D2x, ierr); call MatDestroy( D2y, ierr); call MatDestroy( D2xy, ierr)
+    call MatDestroy( Pab_map, ierr); call MatDestroy( Pba_ddx, ierr); call MatDestroy( Pba_ddy, ierr)
+    call MatDestroy( G_u, ierr); call MatDestroy( G_v, ierr)
+    call MatDestroy( Row_u, ierr); call MatDestroy( Row_v, ierr)
+    call MatDestroy( Auu, ierr); call MatDestroy( Auv, ierr); call MatDestroy( Avu, ierr); call MatDestroy( Avv, ierr)
+    call VecDestroy( gxx_vec, ierr); call VecDestroy( gsh_vec, ierr); call VecDestroy( gyy_vec, ierr)
+    call VecDestroy( coef_map_u_vec, ierr); call VecDestroy( coef_map_v_vec, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_Jacobian_contribution_N
+
+  subroutine calc_Jacobian_contribution_N_gradients( self, geom, J_N_gradients)
+    !< The part of the Jacobian's coefficient-derivative term arising from the
+    !< spatial gradients of N (dN/dx, dN/dy)'s own dependence on the velocity
+    !< (holding N itself fixed) - the "coef_ddx"/"coef_ddy" part of the viscosity
+    !< term in calc_SSA_DIVA_stiffness_matrix_row_free. See
+    !< SSA_FD_SNES_jacobian_derivation.tex.
+    !<   Row_{u,v} = diag(coef_ddx_{u,v})*M_ddx_a_b + diag(coef_ddy_{u,v})*M_ddy_a_b
+    !<                                                               (nTri x nV)
+    !<   G_{u,v}   = d N_a / d{u,v}   (same chain as calc_Jacobian_contribution_N,
+    !<               recomputed here so this routine is self-contained)
+    !<   => blocks = Row_u*G_u, Row_u*G_v, Row_v*G_u, Row_v*G_v
+
+    ! In/output variables:
+    class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
+    class(atype_ice_geometry_model_data),            intent(in   ) :: geom
+    type(tMat),                                      intent(  out) :: J_N_gradients
+
+    ! Local variables:
+    character(len=*), parameter :: routine_name = 'calc_Jacobian_contribution_N_gradients'
+    type(tMat) :: Dx, Dy, Pab_ddx, Pab_ddy, Pba_ddx, Pba_ddy
+    type(tMat) :: G_u, G_v, Row_u, Row_v, Auu, Auv, Avu, Avv
+    type(tVec) :: gxx_vec, gsh_vec, gyy_vec
+    type(tVec) :: coef_ddx_u_vec, coef_ddy_u_vec, coef_ddx_v_vec, coef_ddy_v_vec
+    real(dp), dimension(:), allocatable :: u_loc, v_loc, ux1, uy1, vx1, vy1
+    real(dp), dimension(:), allocatable :: coef_ddx_u, coef_ddy_u, coef_ddx_v, coef_ddy_v
+    integer :: ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
+    call mat_CSR2petsc( self%mesh%M2_ddx_b_b, Dx)
+    call mat_CSR2petsc( self%mesh%M2_ddy_b_b, Dy)
+    call mat_CSR2petsc( self%mesh%M_ddx_a_b, Pab_ddx)
+    call mat_CSR2petsc( self%mesh%M_ddy_a_b, Pab_ddy)
+    call mat_CSR2petsc( self%mesh%M_ddx_b_a, Pba_ddx)
+    call mat_CSR2petsc( self%mesh%M_ddy_b_a, Pba_ddy)
+
+    allocate( u_loc( self%mesh%ti1:self%mesh%ti2), source = self%u_vav_b( self%mesh%ti1:self%mesh%ti2))
+    allocate( v_loc( self%mesh%ti1:self%mesh%ti2), source = self%v_vav_b( self%mesh%ti1:self%mesh%ti2))
+    allocate( ux1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dx, u_loc, ux1)
+    allocate( vx1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dx, v_loc, vx1)
+    allocate( uy1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dy, u_loc, uy1)
+    allocate( vy1( self%mesh%ti1:self%mesh%ti2)); call multiply_PETSc_matrix_with_vector_1D( Dy, v_loc, vy1)
+
+    allocate( coef_ddx_u( self%mesh%ti1:self%mesh%ti2)); coef_ddx_u = 4._dp*ux1 + 2._dp*vy1
+    allocate( coef_ddy_u( self%mesh%ti1:self%mesh%ti2)); coef_ddy_u = uy1 + vx1
+    allocate( coef_ddx_v( self%mesh%ti1:self%mesh%ti2)); coef_ddx_v = vx1 + uy1
+    allocate( coef_ddy_v( self%mesh%ti1:self%mesh%ti2)); coef_ddy_v = 4._dp*vy1 + 2._dp*ux1
+    call vec_double2petsc( coef_ddx_u, coef_ddx_u_vec)
+    call vec_double2petsc( coef_ddy_u, coef_ddy_u_vec)
+    call vec_double2petsc( coef_ddx_v, coef_ddx_v_vec)
+    call vec_double2petsc( coef_ddy_v, coef_ddy_v_vec)
+
+    call calc_viscosity_derivative_factors( self, geom, gxx_vec, gsh_vec, gyy_vec)
+
+    call combine_diag_scaled( Pba_ddx, gxx_vec, G_u)
+    call add_diag_scaled(     G_u, Pba_ddy, gsh_vec)
+    call combine_diag_scaled( Pba_ddx, gsh_vec, G_v)
+    call add_diag_scaled(     G_v, Pba_ddy, gyy_vec)
+
+    call combine_diag_scaled( Pab_ddx, coef_ddx_u_vec, Row_u)
+    call add_diag_scaled(     Row_u, Pab_ddy, coef_ddy_u_vec)
+    call combine_diag_scaled( Pab_ddx, coef_ddx_v_vec, Row_v)
+    call add_diag_scaled(     Row_v, Pab_ddy, coef_ddy_v_vec)
+
+    call MatMatMult( Row_u, G_u, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Auu, ierr)
+    call MatMatMult( Row_u, G_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Auv, ierr)
+    call MatMatMult( Row_v, G_u, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Avu, ierr)
+    call MatMatMult( Row_v, G_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Avv, ierr)
+
+    call combine_blocks_into_native_jacobian_term( self, Auu, Auv, Avu, Avv, J_N_gradients)
+    call zero_BC_rows_in_jacobian_term( self, J_N_gradients)
+
+    call MatDestroy( Dx, ierr); call MatDestroy( Dy, ierr)
+    call MatDestroy( Pab_ddx, ierr); call MatDestroy( Pab_ddy, ierr)
+    call MatDestroy( Pba_ddx, ierr); call MatDestroy( Pba_ddy, ierr)
+    call MatDestroy( G_u, ierr); call MatDestroy( G_v, ierr)
+    call MatDestroy( Row_u, ierr); call MatDestroy( Row_v, ierr)
+    call MatDestroy( Auu, ierr); call MatDestroy( Auv, ierr); call MatDestroy( Avu, ierr); call MatDestroy( Avv, ierr)
+    call VecDestroy( gxx_vec, ierr); call VecDestroy( gsh_vec, ierr); call VecDestroy( gyy_vec, ierr)
+    call VecDestroy( coef_ddx_u_vec, ierr); call VecDestroy( coef_ddy_u_vec, ierr)
+    call VecDestroy( coef_ddx_v_vec, ierr); call VecDestroy( coef_ddy_v_vec, ierr)
+
+    ! Finalise routine path
+    call finalise_routine( routine_name)
+
+  end subroutine calc_Jacobian_contribution_N_gradients
+
+  subroutine calc_Jacobian_contribution_friction( self, ice, geom, J_friction)
+    !< The part of the Jacobian's coefficient-derivative term arising from the
+    !< basal friction coefficient beta_b's dependence on the velocity (currently
+    !< Zoet-Iverson only). See SSA_FD_SNES_jacobian_derivation.tex.
+    !<   S_{u,v} = diag(sb{u,v})*M_map_b_a                          (nV x nTri)
+    !<   Beta_deriv_{u,v} = M_map_a_b*S_{u,v} = d beta_b / d{u,v}    (nTri x nTri)
+    !<   => blocks = diag(spre_u)*Beta_deriv_{u,v}, diag(spre_v)*Beta_deriv_{u,v}
+
+    ! In/output variables:
+    class(type_momentum_balance_solver_SSA_FD_SNES), intent(in   ) :: self
+    class(atype_ice_model_data),                     intent(in   ) :: ice
+    class(atype_ice_geometry_model_data),            intent(in   ) :: geom
+    type(tMat),                                      intent(  out) :: J_friction
+
+    ! Local variables:
+    character(len=*), parameter :: routine_name = 'calc_Jacobian_contribution_friction'
+    type(tMat) :: Pab_map, Pba_map, S_u, S_v, Beta_deriv_u, Beta_deriv_v, Auu, Auv, Avu, Avv
+    type(tVec) :: sbu_vec, sbv_vec, spre_u_vec, spre_v_vec
+    real(dp), dimension(:), allocatable :: u_a_o, v_a_o, sbu_o, sbv_o
+    real(dp), dimension(:), allocatable :: fr, spre_u, spre_v
+    real(dp) :: q_zi, ut_zi, dv_zi, subgr_exp, uabs, dbeta_duabs
+    integer  :: va, ierr
+
+    ! Add routine to path
+    call init_routine( routine_name)
+
     select case (C%choice_sliding_law)
     case default
       call crash('SSA_FD_SNES analytic Jacobian: sliding-law term only implemented for ' // &
@@ -719,6 +922,10 @@ contains
       ! ok
     end select
 
+    call mat_CSR2petsc( self%mesh%M_map_a_b, Pab_map)
+    call mat_CSR2petsc( self%mesh%M_map_b_a, Pba_map)
+
+    ! Per-vertex factors sbu = d beta_a/d u_a, sbv = d beta_a/d v_a
     q_zi  = 1._dp / C%slid_ZI_p
     ut_zi = C%slid_ZI_ut
     dv_zi = C%slid_delta_v
@@ -741,134 +948,65 @@ contains
     call vec_double2petsc( sbu_o, sbu_vec)
     call vec_double2petsc( sbv_o, sbv_vec)
 
-    ! == Sliding row scalars: spre_u(ti) = -u(ti)*fr(ti), spre_v(ti) = -v(ti)*fr(ti)
+    ! Row scalars: spre_u(ti) = -u(ti)*fr(ti), spre_v(ti) = -v(ti)*fr(ti)
     allocate( fr( self%mesh%ti1:self%mesh%ti2))
     if (C%do_GL_subgrid_friction) then
       fr = geom%fraction_gr_b( self%mesh%ti1:self%mesh%ti2) ** subgr_exp
     else
       fr = 1._dp
     end if
-    allocate( spre_u( self%mesh%ti1:self%mesh%ti2)); spre_u = -u_loc * fr
-    allocate( spre_v( self%mesh%ti1:self%mesh%ti2)); spre_v = -v_loc * fr
+    allocate( spre_u( self%mesh%ti1:self%mesh%ti2)); spre_u = -self%u_vav_b( self%mesh%ti1:self%mesh%ti2) * fr
+    allocate( spre_v( self%mesh%ti1:self%mesh%ti2)); spre_v = -self%v_vav_b( self%mesh%ti1:self%mesh%ti2) * fr
     call vec_double2petsc( spre_u, spre_u_vec)
     call vec_double2petsc( spre_v, spre_v_vec)
-
-    ! == Build the four blocks as chained matrix products (see the header)
-    call combine_diag_scaled( Pba_ddx, gxx_vec, G_u)
-    call add_diag_scaled(     G_u, Pba_ddy, gsh_vec)
-    call combine_diag_scaled( Pba_ddx, gsh_vec, G_v)
-    call add_diag_scaled(     G_v, Pba_ddy, gyy_vec)
-
-    call combine_diag_scaled( Pab_map, coef_map_u_vec, Row_u)
-    call add_diag_scaled(     Row_u, Pab_ddx, coef_ddx_u_vec)
-    call add_diag_scaled(     Row_u, Pab_ddy, coef_ddy_u_vec)
-    call combine_diag_scaled( Pab_map, coef_map_v_vec, Row_v)
-    call add_diag_scaled(     Row_v, Pab_ddx, coef_ddx_v_vec)
-    call add_diag_scaled(     Row_v, Pab_ddy, coef_ddy_v_vec)
 
     call combine_diag_scaled( Pba_map, sbu_vec, S_u)
     call combine_diag_scaled( Pba_map, sbv_vec, S_v)
     call MatMatMult( Pab_map, S_u, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Beta_deriv_u, ierr)
     call MatMatMult( Pab_map, S_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Beta_deriv_v, ierr)
 
-    call MatMatMult( Row_u, G_u, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Auu_j, ierr)
-    call add_diag_scaled( Auu_j, Beta_deriv_u, spre_u_vec)
-    call MatMatMult( Row_u, G_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Auv_j, ierr)
-    call add_diag_scaled( Auv_j, Beta_deriv_v, spre_u_vec)
-    call MatMatMult( Row_v, G_u, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Avu_j, ierr)
-    call add_diag_scaled( Avu_j, Beta_deriv_u, spre_v_vec)
-    call MatMatMult( Row_v, G_v, MAT_INITIAL_MATRIX, PETSC_DEFAULT_REAL, Avv_j, ierr)
-    call add_diag_scaled( Avv_j, Beta_deriv_v, spre_v_vec)
+    call combine_diag_scaled( Beta_deriv_u, spre_u_vec, Auu)
+    call combine_diag_scaled( Beta_deriv_v, spre_u_vec, Auv)
+    call combine_diag_scaled( Beta_deriv_u, spre_v_vec, Avu)
+    call combine_diag_scaled( Beta_deriv_v, spre_v_vec, Avv)
 
-    ! == Re-target the four blocks into the native numbering: build them into a
-    !    single matrix directly with PETSc's own block-matrix machinery
-    !    (MatCreateNest), instead of a manual MatGetRow/MatSetValues loop. The
-    !    row/column index sets tell the nest exactly which native row/column
-    !    each block's own local row/column maps to - i.e. the same relabelling
-    !    the manual loop used to do by hand - so the result already has this
-    !    term's native numbering; MatConvert then flattens it to a plain AIJ
-    !    matrix (a MATNEST can't be MatAXPY'd against the Picard operator, or
-    !    handed to PCLU, so it never leaves this routine). Boundary/Dirichlet
-    !    rows are then zeroed exactly as before - this term is genuinely zero
-    !    there (calc_SSA_DIVA_stiffness_matrix_row_BC has no coefficient-
-    !    derivative term at all), so no second insertion pass is needed.
-    block
-      type(tIS)  :: is_u, is_v
-      type(tMat) :: J_nest
+    call combine_blocks_into_native_jacobian_term( self, Auu, Auv, Avu, Avv, J_friction)
+    call zero_BC_rows_in_jacobian_term( self, J_friction)
 
-      call ISCreateGeneral( PETSC_COMM_WORLD, nTri_loc, self%final_row_u_tot( self%mesh%ti1:self%mesh%ti2), &
-        PETSC_COPY_VALUES, is_u, ierr)
-      call ISCreateGeneral( PETSC_COMM_WORLD, nTri_loc, self%final_row_v_tot( self%mesh%ti1:self%mesh%ti2), &
-        PETSC_COPY_VALUES, is_v, ierr)
-
-      call MatCreateNest( PETSC_COMM_WORLD, 2, [is_u, is_v], 2, [is_u, is_v], &
-        [Auu_j, Auv_j, Avu_j, Avv_j], J_nest, ierr)
-      call MatConvert( J_nest, MATAIJ, MAT_INITIAL_MATRIX, J, ierr)
-
-      call MatDestroy( J_nest, ierr)
-      call ISDestroy( is_u, ierr)
-      call ISDestroy( is_v, ierr)
-    end block
-
-    ! Zero the boundary/Dirichlet rows (this rank's own)
-    allocate( BC_rows_native( 2 * nTri_loc))
-    n_BC_rows = 0
-    do ti = self%mesh%ti1, self%mesh%ti2
-      if (self%BC_prescr_mask_b_applied( ti) == 1 .or. self%mesh%TriBI( ti) > 0) then
-        n_BC_rows = n_BC_rows + 1; BC_rows_native( n_BC_rows) = self%final_row_u_tot( ti)
-        n_BC_rows = n_BC_rows + 1; BC_rows_native( n_BC_rows) = self%final_row_v_tot( ti)
-      end if
-    end do
-    if (n_BC_rows > 0) then
-      call MatZeroRows( J, n_BC_rows, BC_rows_native( 1:n_BC_rows), 0._dp, PETSC_NULL_VEC, PETSC_NULL_VEC, ierr)
-    end if
-
-    ! Clean up
-    call MatDestroy( D2x, ierr); call MatDestroy( D2y, ierr); call MatDestroy( D2xy, ierr)
-    call MatDestroy( Dx, ierr);  call MatDestroy( Dy, ierr)
-    call MatDestroy( Pab_map, ierr); call MatDestroy( Pab_ddx, ierr); call MatDestroy( Pab_ddy, ierr)
-    call MatDestroy( Pba_map, ierr); call MatDestroy( Pba_ddx, ierr); call MatDestroy( Pba_ddy, ierr)
-    call MatDestroy( G_u, ierr); call MatDestroy( G_v, ierr)
-    call MatDestroy( Row_u, ierr); call MatDestroy( Row_v, ierr)
+    call MatDestroy( Pab_map, ierr); call MatDestroy( Pba_map, ierr)
     call MatDestroy( S_u, ierr); call MatDestroy( S_v, ierr)
     call MatDestroy( Beta_deriv_u, ierr); call MatDestroy( Beta_deriv_v, ierr)
-    call MatDestroy( Auu_j, ierr); call MatDestroy( Auv_j, ierr)
-    call MatDestroy( Avu_j, ierr); call MatDestroy( Avv_j, ierr)
-    call VecDestroy( gxx_vec, ierr); call VecDestroy( gsh_vec, ierr); call VecDestroy( gyy_vec, ierr)
+    call MatDestroy( Auu, ierr); call MatDestroy( Auv, ierr); call MatDestroy( Avu, ierr); call MatDestroy( Avv, ierr)
     call VecDestroy( sbu_vec, ierr); call VecDestroy( sbv_vec, ierr)
-    call VecDestroy( coef_map_u_vec, ierr); call VecDestroy( coef_ddx_u_vec, ierr); call VecDestroy( coef_ddy_u_vec, ierr)
-    call VecDestroy( coef_map_v_vec, ierr); call VecDestroy( coef_ddx_v_vec, ierr); call VecDestroy( coef_ddy_v_vec, ierr)
     call VecDestroy( spre_u_vec, ierr); call VecDestroy( spre_v_vec, ierr)
 
     ! Finalise routine path
     call finalise_routine( routine_name)
 
-  contains
+  end subroutine calc_Jacobian_contribution_friction
 
-    subroutine combine_diag_scaled( op, dvec, dest)
-      !< dest := diag(dvec) * op   (dest freshly created)
-      type(tMat), intent(in   ) :: op
-      type(tVec), intent(in   ) :: dvec
-      type(tMat), intent(  out) :: dest
-      integer :: ierr_loc
-      call MatDuplicate( op, MAT_COPY_VALUES, dest, ierr_loc)
-      call MatDiagonalScale( dest, dvec, PETSC_NULL_VEC, ierr_loc)
-    end subroutine combine_diag_scaled
+  subroutine combine_diag_scaled( op, dvec, dest)
+    !< dest := diag(dvec) * op   (dest freshly created)
+    type(tMat), intent(in   ) :: op
+    type(tVec), intent(in   ) :: dvec
+    type(tMat), intent(  out) :: dest
+    integer :: ierr
+    call MatDuplicate( op, MAT_COPY_VALUES, dest, ierr)
+    call MatDiagonalScale( dest, dvec, PETSC_NULL_VEC, ierr)
+  end subroutine combine_diag_scaled
 
-    subroutine add_diag_scaled( dest, op, dvec)
-      !< dest := dest + diag(dvec) * op
-      type(tMat), intent(inout) :: dest
-      type(tMat), intent(in   ) :: op
-      type(tVec), intent(in   ) :: dvec
-      type(tMat) :: tmp
-      integer    :: ierr_loc
-      call MatDuplicate( op, MAT_COPY_VALUES, tmp, ierr_loc)
-      call MatDiagonalScale( tmp, dvec, PETSC_NULL_VEC, ierr_loc)
-      call MatAXPY( dest, 1._dp, tmp, DIFFERENT_NONZERO_PATTERN, ierr_loc)
-      call MatDestroy( tmp, ierr_loc)
-    end subroutine add_diag_scaled
-
-  end subroutine assemble_SSA_coeff_jacobian_petsc_native
+  subroutine add_diag_scaled( dest, op, dvec)
+    !< dest := dest + diag(dvec) * op
+    type(tMat), intent(inout) :: dest
+    type(tMat), intent(in   ) :: op
+    type(tVec), intent(in   ) :: dvec
+    type(tMat) :: tmp
+    integer    :: ierr
+    call MatDuplicate( op, MAT_COPY_VALUES, tmp, ierr)
+    call MatDiagonalScale( tmp, dvec, PETSC_NULL_VEC, ierr)
+    call MatAXPY( dest, 1._dp, tmp, DIFFERENT_NONZERO_PATTERN, ierr)
+    call MatDestroy( tmp, ierr)
+  end subroutine add_diag_scaled
 
   subroutine update_SSA_coefficients_from_velocity( self, ice, geom, bed_roughness)
     !< Recompute the velocity-dependent coefficients of the linearised SSA from the

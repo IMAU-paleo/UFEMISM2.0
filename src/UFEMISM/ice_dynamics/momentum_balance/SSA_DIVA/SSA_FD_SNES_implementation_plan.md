@@ -508,6 +508,64 @@ rewrite of `calc_SSA_DIVA_stiffness_matrix_row_BC` itself more self-contained
 (roundoff, same magnitude as before). Full 1/2/4-rank sweep passing,
 `SNESConvergedReason=3` throughout.
 
+## Jacobian coefficient-derivative term split into one subroutine per physical contribution — DONE
+
+`assemble_SSA_coeff_jacobian_petsc_native` computed the whole coefficient-
+derivative term (viscosity + sliding) in one ~300-line subroutine. Split into
+three, one per physically distinct contribution, each self-contained (only
+takes `self`/`ice`/`geom` and returns a complete native `2*nTri x 2*nTri`
+matrix - recomputing its own operator conversions and any shared derivative
+factors rather than threading them through as extra arguments, at the cost of
+a little redundant computation, e.g. the viscosity-derivative factors
+`gxx`/`gsh`/`gyy` are computed twice):
+
+- `calc_Jacobian_contribution_N` - `N`'s own dependence on the velocity (the
+  "coef_map" part of the viscosity term in
+  `calc_SSA_DIVA_stiffness_matrix_row_free`): `Row_{u,v} = diag(coef_map_{u,v})
+  * M_map_a_b`, chained against `G_{u,v} = d N_a/d{u,v}`.
+- `calc_Jacobian_contribution_N_gradients` - `dN/dx`, `dN/dy`'s dependence (the
+  "coef_ddx"/"coef_ddy" part): `Row_{u,v} = diag(coef_ddx_{u,v})*M_ddx_a_b +
+  diag(coef_ddy_{u,v})*M_ddy_a_b`, chained against the same `G_{u,v}`.
+- `calc_Jacobian_contribution_friction` - the sliding law's dependence
+  (currently Zoet-Iverson only): unchanged maths, same `Beta_deriv_{u,v}`
+  chain as before.
+
+Two small shared helpers factor out what's common to all three (and to any
+future contribution): `combine_blocks_into_native_jacobian_term` (the
+`MatCreateNest` + `MatConvert` step - the "MatNest calls" the user asked to
+include) and `zero_BC_rows_in_jacobian_term` (the `MatZeroRows` step, since
+this term is zero at every boundary/Dirichlet row regardless of which
+contribution). `calc_viscosity_derivative_factors` factors out the
+`gxx`/`gsh`/`gyy` per-vertex loop shared by the two viscosity contributions.
+`combine_diag_scaled`/`add_diag_scaled` (the small `MatDuplicate`+
+`MatDiagonalScale`(+`MatAXPY`) algebra helpers) moved from being nested inside
+the old monolithic routine to plain module-level subroutines, so all three
+new routines can use them.
+
+`build_SSA_FD_SNES_jacobian_petsc` (the "main routine") now does exactly what
+the user asked: builds the Picard operator, then just `MatAXPY`s each of the
+three contributions onto it in turn:
+```
+call self%assemble_SSA_FD_SNES_stiffness_matrix_petsc_native(..., J, bb, uv_buv)
+call calc_Jacobian_contribution_N( self, geom, J_N)
+call MatAXPY( J, 1.0_dp, J_N, ...)
+call calc_Jacobian_contribution_N_gradients( self, geom, J_N_gradients)
+call MatAXPY( J, 1.0_dp, J_N_gradients, ...)
+call calc_Jacobian_contribution_friction( self, ice, geom, J_friction)
+call MatAXPY( J, 1.0_dp, J_friction, ...)
+call MatScale( J, velocity_scale / stress_scale, ...)
+```
+
+**Validated**: temporarily kept the previous, non-split computation side by
+side (as `..._REF`), diffed `J_N + J_N_gradients + J_friction` against it at a
+fixed post-warm-start state across several Newton iterations - max abs
+difference `1.8e-12` at worst (roundoff: the split version recomputes some
+things - `gxx`/`gsh`/`gyy`, the shared operator conversions - independently in
+more than one subroutine, and combines the three parts via separate
+`MatAXPY`/`MatCreateNest`/`MatConvert` calls rather than one, so a different,
+but equally valid, floating-point summation order is expected; removed once
+confirmed). Full 1/2/4-rank sweep passing, `SNESConvergedReason=3` throughout.
+
 ## Design decisions
 
 - **Separate solver class.** New type
